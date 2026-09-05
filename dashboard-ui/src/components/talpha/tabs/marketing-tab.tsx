@@ -17,7 +17,6 @@ export default function TALPHAMarketingTab({ dateRange }: Props) {
     const [loading, setLoading] = useState(true);
     const [marketers, setMarketers] = useState<any[]>([]);
     const [unassigned, setUnassigned] = useState<{ orders: number; revenue_vnd: number } | null>(null);
-    const [externalTags, setExternalTags] = useState<any[]>([]);
     const [accounts, setAccounts] = useState<any[]>([]);
     const [summary, setSummary] = useState({ spend: 0, messages: 0, impressions: 0, cpm: 0 });
     // KPI tháng đang chạy: {display name → VND target} + doanh số GTC tháng này của từng người
@@ -99,7 +98,6 @@ export default function TALPHAMarketingTab({ dateRange }: Props) {
                     viaTag: r.via_tag, viaAdId: r.via_ad_id, inactive: r.inactive, spend: r.spend_vnd,
                 })));
                 setUnassigned(perf.unassigned || null);
-                setExternalTags(perf.external_rows || []);
 
                 setAccounts((results[0].data || []).map((r: any) => ({
                     account_id: r.account_name || "Unknown",
@@ -218,30 +216,6 @@ export default function TALPHAMarketingTab({ dateRange }: Props) {
                             </tbody>
                         </table>
                     </div>
-                    {externalTags.length > 0 && (
-                        <div className="mt-4 pt-3 border-t border-dashed border-border">
-                            <h4 className="text-xs font-semibold text-amber-600 dark:text-amber-400 mb-2">
-                                🔶 NGOÀI TEAM — chạy chung TKQC, bán chung shop POS
-                            </h4>
-                            <table className="w-full text-sm">
-                                <tbody>
-                                    {externalTags.map((e: any, i: number) => (
-                                        <tr key={i} className="border-b border-border/40 text-muted-foreground">
-                                            <td className="py-1.5 pl-2">{e.marketer}</td>
-                                            <td className="py-1.5 text-right font-mono">{e.orders} đơn</td>
-                                            <td className="py-1.5 text-right font-mono">{formatVNDCompact(e.revenue_vnd)}</td>
-                                            <td className="py-1.5 text-right pr-2 font-mono text-amber-600 dark:text-amber-400">
-                                                {formatVNDCompact(e.spend_vnd)} ads
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                            <p className="mt-2 text-xs text-muted-foreground">
-                                Số của nhóm này <span className="text-foreground">KHÔNG</span> cộng vào bảng team phía trên.
-                            </p>
-                        </div>
-                    )}
                 </div>
 
                 <div className="bg-card border border-border rounded-xl p-4 shadow-sm">

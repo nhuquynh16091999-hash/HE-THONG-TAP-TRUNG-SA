@@ -99,3 +99,4 @@ KH_*.xlsx
 
 # Bản sao lưu tự sinh khi deploy/sửa tay — không đưa vào git
 *.bak_*
+.venv-test/

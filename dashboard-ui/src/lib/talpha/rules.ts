@@ -13,7 +13,6 @@ type ShipFee = { partner?: string; packing: number; delivery: number; cod_pct: n
 type Rules = {
     version: string;
     marketers: Record<string, { display: string; full: string; inactive?: boolean }>;
-    unassign_marketers?: string[];
     camp_marketer_tokens: Record<string, string>;
     pos_marketer_rules: { contains: string; key: string }[];
     camp_scan_rules: ScanRule[];
@@ -106,35 +105,42 @@ export function normPosMarketer(name?: string | null): string | null {
     return null;
 }
 
-// ═══ NGƯỜI NGOÀI TEAM — chạy chung 14 TKQC + chung shop POS ═══
-// Tách bạch chứ không gộp vào "(không gán)": chi phí của họ là tiền THẬT đi ra từ
-// TKQC của TALPHA, giấu đi thì tổng chi sai. Luôn tra bảng TEAM trước.
-const EXT: Record<string, { display: string; full: string }> =
-    (RULES as unknown as { external_marketers?: Record<string, { display: string; full: string }> })
-        .external_marketers || {};
-export const EXTERNAL_DISPLAY: Record<string, string> = Object.fromEntries(
-    Object.entries(EXT).map(([k, v]) => [k, v.display]));
-export const EXTERNAL_FULL: Record<string, string> = Object.fromEntries(
-    Object.entries(EXT).map(([k, v]) => [k, v.full]));
+// ═══ SALE — hệ thống mới, POS KHÔNG có trường này ═══
+// Đơn được gán cho sale theo 3 bậc, khai trong talpha_rules.json → sale_assignment:
+//   (1) bảng gán tay `manual`, khoá là order_uid ('TW-<id>')
+//   (2) page_id của đơn → `by_page`
+//   (3) từ khoá trong ô tags của đơn → `by_tag`
+// Trượt hết ⇒ SALE_UNASSIGNED. KHÔNG bỏ đơn lặng lẽ, giống rule marketer.
+type SaleAssignment = {
+    by_tag?: Record<string, string>;
+    by_page?: Record<string, string>;
+    manual?: Record<string, string>;
+    unassigned_label?: string;
+};
+const SA: SaleAssignment =
+    (RULES as unknown as { sale_assignment?: SaleAssignment }).sale_assignment || {};
 
-const EXT_CAMP_TOKENS = Object.fromEntries(
-    Object.entries((RULES as unknown as { camp_external_tokens?: Record<string, string> })
-        .camp_external_tokens || {}).filter(([k]) => !k.startsWith("_")));
-const EXT_POS_RULES = ((RULES as unknown as { pos_external_rules?: { contains: string; key: string }[] })
-    .pos_external_rules) || [];
+export const SALES: Record<string, { display: string; full: string }> =
+    (RULES as unknown as { sales?: Record<string, { display: string; full: string }> }).sales || {};
+export const SALE_DISPLAY: Record<string, string> = Object.fromEntries(
+    Object.entries(SALES).map(([k, v]) => [k, v.display || k]));
+export const SALE_UNASSIGNED = SA.unassigned_label || "(chưa gán sale)";
 
-/** Segment campaign ngay sau thị trường → key NGOÀI TEAM (chỉ gọi khi team trượt). */
-export function normCampExternal(s?: string | null): string | null {
-    if (!s) return null;
-    const u = s.trim().toUpperCase().replace(/\./g, "").replace(/ /g, "");
-    return EXT_CAMP_TOKENS[u] || null;
-}
+/** Đơn → key sale. Trả null khi không gán được (caller dùng SALE_UNASSIGNED). */
+export function resolveSale(o: { order_uid?: string | null; page_id?: string | null; tags?: string | null }): string | null {
+    const manual = SA.manual || {};
+    if (o.order_uid && manual[o.order_uid]) return manual[o.order_uid];
 
-/** Tên tag POS → key NGOÀI TEAM (chỉ gọi khi normPosMarketer trả null). */
-export function normPosExternal(name?: string | null): string | null {
-    if (!name) return null;
-    const u = String(name).toUpperCase();
-    for (const r of EXT_POS_RULES) if (u.includes(r.contains)) return r.key;
+    const byPage = SA.by_page || {};
+    if (o.page_id && byPage[String(o.page_id)]) return byPage[String(o.page_id)];
+
+    const byTag = SA.by_tag || {};
+    if (o.tags) {
+        const u = String(o.tags).toUpperCase();
+        for (const [tok, key] of Object.entries(byTag)) {
+            if (u.includes(tok.toUpperCase())) return key;
+        }
+    }
     return null;
 }
 
@@ -203,12 +209,6 @@ export function costPriceVnd(sku?: string | null): number | null {
 export const UNASSIGNED = "(không gán)";
 export type AttrSource = "pos_tag" | "ad_id" | "unassigned";
 
-// ═══ NGƯỜI ĐÃ NGHỈ — dồn hết về "(không gán)" ═══
-// Khối `unassign_marketers` trong talpha_rules.json (Mai + Thế, CEO chốt 02/09).
-// CỐ Ý vẫn giữ họ trong pos_marketer_rules / camp_marketer_tokens để campaign của họ
-// còn parse được thị trường; chỉ đổi Ô ĐÍCH. ≡ talpha_rules.py bucket_nv().
-export const UNASSIGN = new Set(RULES.unassign_marketers || []);
-
 /** campaign_name → [thị trường, key marketer]; quy ước '… / <Thị trường> / <Marketer> / …'. */
 export function parseCampaign(cn?: string | null): [string | null, string | null] {
     const p = String(cn || "").split("/").map((x) => x.trim());
@@ -217,30 +217,13 @@ export function parseCampaign(cn?: string | null): [string | null, string | null
     return [CAMP_MARKETS[p[mi].toUpperCase()], mi + 1 < p.length ? normCampMarketer(p[mi + 1]) : null];
 }
 
-/** Như parseCampaign nhưng trả cả người NGOÀI TEAM: [thị trường, key, ngoàiTeam?]. */
-export function parseCampaignAny(cn?: string | null): [string | null, string | null, boolean] {
-    const p = String(cn || "").split("/").map((x) => x.trim());
-    const mi = p.findIndex((s) => s.toUpperCase() in CAMP_MARKETS);
-    if (mi < 0) return [null, null, false];
-    const mkt = CAMP_MARKETS[p[mi].toUpperCase()];
-    const seg = mi + 1 < p.length ? p[mi + 1] : null;
-    const team = normCampMarketer(seg);
-    // Người đã nghỉ: trả null như camp chưa gán được marketer. Consumer (marketer-perf)
-    // dồn spend vào `spend_chua_nhan_ra` → vẫn nêu ra ở tin WhatsApp, không mất im lặng.
-    if (team) return UNASSIGN.has(team) ? [mkt, null, false] : [mkt, team, false];
-    const ext = normCampExternal(seg);
-    return [mkt, ext, !!ext];
-}
-
 /** [{ad_id, campaign_name}] → {ad_id: key marketer} — bảng tra cho BẬC 2. */
 export function buildAdidOwner(rows: { ad_id?: string | number | null; campaign_name?: string | null }[]): Record<string, string> {
     const out: Record<string, string> = {};
     for (const r of rows) {
         if (r.ad_id === null || r.ad_id === undefined || r.ad_id === "") continue;
         const [, nv] = parseCampaign(r.campaign_name);
-        // Người đã nghỉ không vào bảng tra — nếu không, đơn không tag lại theo ad_id
-        // chui ngược vào ô của họ.
-        if (nv && !UNASSIGN.has(nv)) out[String(r.ad_id)] = nv;
+        if (nv) out[String(r.ad_id)] = nv;
     }
     return out;
 }
@@ -252,11 +235,8 @@ export function attributeOrder(
     adidOwner?: Record<string, string>,
 ): { key: string; source: AttrSource } {
     const tagged = normPosMarketer(posMarketer);
-    // Đã nghỉ → "(không gán)" NGAY, không rơi xuống bậc 2: tag POS là bằng chứng đơn
-    // này của họ, để fallback ad_id đẩy sang người khác là gán sai người.
-    if (tagged) return UNASSIGN.has(tagged)
-        ? { key: UNASSIGNED, source: "unassigned" }
-        : { key: tagged, source: "pos_tag" };
+    // Tag POS là bằng chứng mạnh nhất — có tag thì KHÔNG rơi xuống bậc 2.
+    if (tagged) return { key: tagged, source: "pos_tag" };
     if (adId !== null && adId !== undefined && adId !== "" && adidOwner) {
         const owner = adidOwner[String(adId)];
         if (owner) return { key: owner, source: "ad_id" };

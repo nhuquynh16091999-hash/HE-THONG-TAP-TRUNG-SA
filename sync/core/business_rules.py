@@ -15,13 +15,9 @@ from typing import Optional
 # ─── R2: Tỷ giá FX → VND ────────────────────────────────────────────────────
 # Cập nhật: 2026-02-01. Thay đổi tỷ giá → cập nhật đây + config/projects/talpha.yaml
 FX_RATES_TO_VND: dict[str, float] = {
-    "AE": 7010,      # AED → VND (UAE)
-    "SA": 6850,      # SAR → VND (Saudi Arabia)
-    "KW": 83000,     # KWD → VND (Kuwait)
-    "OM": 66700,     # OMR → VND (Oman)
-    "QA": 7050,      # QAR → VND (Qatar)
-    "BH": 68000,     # BHD → VND (Bahrain)
-    "TW": 800,       # TWD → VND (Taiwan — market test, xác nhận khi chốt shop POS Đài)
+    # Hệ mới 05/09/2026: MỘT thị trường Đài Loan. Tỷ giá này là tỷ giá DUY NHẤT
+    # quy đổi doanh thu — sai một con số là sai toàn hệ, soát lại mỗi tháng.
+    "TW": 800,       # TWD → VND (Đài Loan)
     "USD": 25700,    # USD → VND (Meta ads billing)
 }
 
@@ -37,24 +33,12 @@ _NON_SHOP_FX_KEYS: frozenset[str] = frozenset(["USD"])
 # 8.987đ/đơn trong khi 6 market kia 0,8–1,05tr) mà không có cảnh báo nào.
 # Nguồn duy nhất: config/talpha_rules.json → markets.*.pos_money_divisor.
 POS_MONEY_DIVISOR: dict[str, int] = {
-    "AE": 100,
-    "SA": 100,
-    "KW": 100,
-    "OM": 100,
-    "QA": 100,
-    "BH": 100,
-    "TW": 1,       # Đài lưu nguyên TWD
+    "TW": 1,       # Đài lưu NGUYÊN TWD — không chia 100
 }
 DEFAULT_MONEY_DIVISOR = 100  # shop mới chưa khai: giữ mặc định minor units
 
 # Market code → display name
 MARKET_NAMES: dict[str, str] = {
-    "AE": "UAE",
-    "SA": "Saudi",
-    "KW": "Kuwait",
-    "OM": "Oman",
-    "QA": "Qatar",
-    "BH": "Bahrain",
     "TW": "Taiwan",
 }
 
@@ -131,8 +115,12 @@ def get_market_display(shop_label: str) -> str:
 
 def extract_marketer_name(marketer_raw) -> Optional[str]:
     """R4: Trích tên marketer từ cột marketer.
-    Cột marketer trong BQ là chuỗi JSON: '{"name":"Hồ Sỹ Anh","id":123}'
-    Trả về None nếu không parse được hoặc là Unknown.
+
+    POS ghi cột này theo HAI dạng: chuỗi JSON '{"name":"Hồ Sỹ Anh","id":123}'
+    khi có tag, và chuỗi thường 'Chu Thuý' khi nhập tay. Trước đây hàm này chỉ
+    đọc JSON nên trả None cho dạng chuỗi thường, trong khi vw_orders_std lại
+    COALESCE sang chuỗi thường — cùng một đơn ra hai kết quả khác nhau tuỳ ai hỏi.
+    Trả None khi không có tên thật.
     """
     if not marketer_raw:
         return None
@@ -140,12 +128,14 @@ def extract_marketer_name(marketer_raw) -> Optional[str]:
     s = s.strip()
     if not s or s in ("null", "None", "Unknown", "{}"):
         return None
-    try:
-        data = json.loads(s)
-        name = data.get("name", "").strip()
-        return name if name and name.lower() not in ("", "unknown") else None
-    except (json.JSONDecodeError, AttributeError):
-        return None
+    if s.startswith("{"):
+        try:
+            name = (json.loads(s).get("name") or "").strip()
+        except (json.JSONDecodeError, AttributeError):
+            return None
+    else:
+        name = s
+    return name if name and name.lower() != "unknown" else None
 
 
 def is_valid_marketer(marketer_raw) -> bool:
@@ -196,19 +186,13 @@ def calc_aov(revenue_vnd: float, order_count: int) -> Optional[float]:
 # Fix đã áp: string-slice bug ký tự 65 → 57 trong vw_orders_std.sql
 
 MARKET_TIMEZONES: dict[str, str] = {
-    "AE": "Asia/Dubai",      # UTC+4
-    "SA": "Asia/Riyadh",     # UTC+3
-    "KW": "Asia/Kuwait",     # UTC+3
-    "OM": "Asia/Muscat",     # UTC+4
-    "QA": "Asia/Qatar",      # UTC+3
-    "BH": "Asia/Bahrain",    # UTC+3
     "TW": "Asia/Taipei",     # UTC+8
 }
 
 
 def get_market_timezone(shop_label: str) -> str:
     """R8: Trả về timezone của market theo shop_label."""
-    return MARKET_TIMEZONES.get(shop_label.upper(), "Asia/Dubai")
+    return MARKET_TIMEZONES.get(shop_label.upper(), "Asia/Taipei")
 
 
 # ─── Status helpers ──────────────────────────────────────────────────────────

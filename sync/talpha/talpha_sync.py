@@ -46,12 +46,10 @@ FB_TOKEN = (
 DISCORD_WEBHOOK = os.environ.get('DISCORD_WEBHOOK_ETL', '')
 
 POS_SHOPS = [
-    {"key": os.environ.get("TALPHA_POSCAKE_SA_KEY", ""), "label": "SA", "shop_id": "1328205216", "currency": "SAR"},
-    {"key": os.environ.get("TALPHA_POSCAKE_AE_KEY", ""), "label": "AE", "shop_id": "1635200759", "currency": "AED"},
-    {"key": os.environ.get("TALPHA_POSCAKE_KW_KEY", ""), "label": "KW", "shop_id": "1328205226", "currency": "KWD"},
-    {"key": os.environ.get("TALPHA_POSCAKE_OM_KEY", ""), "label": "OM", "shop_id": "1942200986", "currency": "OMR"},
-    {"key": os.environ.get("TALPHA_POSCAKE_QA_KEY", ""), "label": "QA", "shop_id": "1021271617", "currency": "QAR"},
-    {"key": os.environ.get("TALPHA_POSCAKE_BH_KEY", ""), "label": "BH", "shop_id": "100943483",  "currency": "BHD"},
+    # HỆ MỚI 05/09/2026: MỘT thị trường Đài Loan ⇒ MỘT shop POS.
+    # 6 shop GCC (SA/AE/KW/OM/QA/BH) đã ngừng — bỏ khỏi sync để không kéo về
+    # đơn của thị trường không còn kinh doanh. Cần bật lại thì thêm dòng ở đây
+    # VÀ khai market tương ứng trong config/talpha_rules.json → markets.
     {"key": os.environ.get("TALPHA_POSCAKE_TW_KEY", ""), "label": "TW", "shop_id": "1328343252", "currency": "TWD"},
 ]
 

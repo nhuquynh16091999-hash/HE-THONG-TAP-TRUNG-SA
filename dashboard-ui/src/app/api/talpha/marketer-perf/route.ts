@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { bigquery } from "@/lib/bigquery";
 import {
-    RULES, DISPLAY, UNASSIGNED, EXTERNAL_DISPLAY, EXTERNAL_FULL,
-    attributeOrder, buildAdidOwner, normPosMarketer, normPosExternal,
-    parseCampaignAny, isTestCampaign,
+    RULES, DISPLAY, UNASSIGNED,
+    attributeOrder, buildAdidOwner, parseCampaign, isTestCampaign,
 } from "@/lib/talpha/rules";
 
 export const dynamic = "force-dynamic";
@@ -114,20 +113,18 @@ export async function GET(req: NextRequest) {
             params: { from, to },
         });
 
-        const agg = new Map<string, Bucket>();       // key team
-        const ext = new Map<string, Bucket>();       // key ngoài team
+        const agg = new Map<string, Bucket>();
         let spendChuaNhanRa = 0;
 
         for (const r of campRows as any[]) {
             const name = String(r.campaign_name || "");
             if (isTestCampaign(name)) continue;
-            const [, key, laNgoai] = parseCampaignAny(name);
+            const [, key] = parseCampaign(name);
             if (!key) { spendChuaNhanRa += Number(r.spend || 0); continue; }
-            const m = laNgoai ? ext : agg;
-            const b = m.get(key) || emptyBucket();
+            const b = agg.get(key) || emptyBucket();
             b.spend += Number(r.spend || 0);
             b.mess += Number(r.messages || 0);
-            m.set(key, b);
+            agg.set(key, b);
         }
 
         let donTest = 0, doanhThuTest = 0;
@@ -142,17 +139,6 @@ export async function GET(req: NextRequest) {
             // Đơn sinh ra từ campaign test — đếm riêng để giải trình, không vào bảng.
             if (r.resolved_ad_id && testIds.has(String(r.resolved_ad_id))) {
                 donTest += shipOrders; doanhThuTest += ship;
-                continue;
-            }
-
-            // Người NGOÀI TEAM được nhận diện TRƯỚC bậc 2: đơn họ tự tag là của họ,
-            // đừng để fallback ad_id đẩy sang người trong team.
-            const extKey = tagged && !normPosMarketer(tagged) ? normPosExternal(tagged) : null;
-            if (extKey) {
-                const b = ext.get(extKey) || emptyBucket();
-                b.orders += orders; b.revenue += revenue; b.viaTag += orders;
-                b.shipOrders += shipOrders; b.ship += ship;
-                ext.set(extKey, b);
                 continue;
             }
 
@@ -190,21 +176,6 @@ export async function GET(req: NextRequest) {
             })
             .sort((a, b) => b.revenue_vnd - a.revenue_vnd);
 
-        const externalRows = Array.from(ext.entries())
-            .map(([key, b]) => ({
-                key,
-                marketer: EXTERNAL_DISPLAY[key] || key,
-                full_name: EXTERNAL_FULL[key] || key,
-                orders: b.orders,
-                revenue_vnd: b.revenue,
-                ship_orders: b.shipOrders,
-                ship_revenue_vnd: b.ship,
-                spend_vnd: b.spend,
-                messages: b.mess,
-            }))
-            .filter(r => r.orders > 0 || r.spend_vnd > 0)
-            .sort((a, b) => b.spend_vnd - a.spend_vnd);
-
         const un = agg.get(UNASSIGNED) || emptyBucket();
         const sum = (xs: { orders: number; revenue_vnd: number; spend_vnd: number; ship_revenue_vnd?: number; ship_orders?: number; messages?: number }[]) => ({
             orders: xs.reduce((s, x) => s + x.orders, 0),
@@ -219,10 +190,8 @@ export async function GET(req: NextRequest) {
             from, to,
             rows,
             unassigned: { marketer: UNASSIGNED, orders: un.orders, revenue_vnd: un.revenue, ship_orders: un.shipOrders, ship_revenue_vnd: un.ship },
-            external_rows: externalRows,
             totals: {
                 team: sum(rows),
-                external: sum(externalRows),
                 spend_chua_nhan_ra: spendChuaNhanRa,
                 // Campaign test — tách khỏi báo cáo doanh số (rule CEO #7), báo ra để
                 // không ai tưởng bị mất đơn.
