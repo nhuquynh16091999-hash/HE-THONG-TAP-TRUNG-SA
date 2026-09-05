@@ -7,7 +7,7 @@ from google.oauth2.service_account import Credentials
 from gspread.exceptions import APIError
 import calendar as _cal
 _T=datetime.date.today()
-PROJECT='talpha-faos-2026'; DS='TALPHA_Dataset'
+PROJECT='cty-507710'; DS='TALPHA_Dataset'
 FROM=_T.replace(day=1).isoformat(); TO=_T.isoformat()  # ngày ĐỘNG: đầu tháng -> hôm nay
 # ── RULE CHUNG: đọc từ talpha_rules.json qua loader (golden-test 29/07 = 100% khớp bản cũ).
 # Sửa rule (marketer/tỷ giá/thị trường/test) → sửa talpha_rules.json, KHÔNG sửa tại đây.

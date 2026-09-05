@@ -13,7 +13,7 @@ status: active
 
 # ─── 2. BIGQUERY ───
 bigquery:
-  project_gcp: "talpha-faos-2026"
+  project_gcp: "cty-507710"
   dataset: "TALPHA_Dataset"
 
 # ─── 3. FACEBOOK ADS — app riêng "Talpha Post" ───

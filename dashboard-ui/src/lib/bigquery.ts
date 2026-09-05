@@ -6,7 +6,7 @@ import path from "path";
 //   1. GCP_SA_KEY_JSON env  — inline service-account JSON (Vercel/Render).
 //   2. ../bigquery_key.json — service-account key file at repo root (local dev).
 //   3. Application Default Credentials — `gcloud auth application-default login`.
-const projectId = process.env.NEXT_PUBLIC_BQ_PROJECT || "talpha-faos-2026";
+const projectId = process.env.NEXT_PUBLIC_BQ_PROJECT || "cty-507710";
 
 function buildClient(): BigQuery {
     const inlineKey = process.env.GCP_SA_KEY_JSON;

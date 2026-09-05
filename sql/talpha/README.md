@@ -1,7 +1,7 @@
 # TALPHA Analytics — Bộ view phân tích tùy chỉnh
 
 Phiên bản tùy chỉnh của "lớp thông minh" v6 (STRAMARK) cho **TALPHA**
-(`talpha-faos-2026.TALPHA_Dataset`, 7 shop: SA/AE/KW/OM/QA/BH + TW).
+(`cty-507710.TALPHA_Dataset`, 7 shop: SA/AE/KW/OM/QA/BH + TW).
 
 Mục tiêu: nâng TALPHA từ "kho dữ liệu + dashboard" lên có **dual-ROAS COD,
 momentum, BCG lifecycle, creative fatigue, bảng phong thần marketer** —

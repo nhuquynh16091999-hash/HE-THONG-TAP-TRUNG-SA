@@ -67,7 +67,7 @@ broadcast của dự án khác → test bot trên Mac sẽ 404 im lặng.
                        │
 ┌──────────────────────▼──────────────────────────────────────────┐
 │  3. BIGQUERY  ← NGUỒN SỰ THẬT LỊCH SỬ                            │
-│     talpha-faos-2026 / TALPHA_Dataset                            │
+│     cty-507710 / TALPHA_Dataset                            │
 │     fb_ads_data · sale_order · order_items · inventory_snapshot  │
 │     8 view chuẩn hoá vw_* (sql/talpha/views/)                    │
 └──────────────────────┬──────────────────────────────────────────┘
@@ -121,7 +121,7 @@ API**), 7 shop POS, 27 SKU + giá vốn, KPI.
 
 ## 4. BigQuery — Bảng, view & quy tắc
 
-### 4.1 Bảng chính (`talpha-faos-2026.TALPHA_Dataset`)
+### 4.1 Bảng chính (`cty-507710.TALPHA_Dataset`)
 
 | Bảng | Nội dung | Ghi bởi |
 |:--|:--|:--|
@@ -199,7 +199,7 @@ File: `dashboard-ui/src/app/api/talpha/ceo-ask/route.ts`
   override bằng env `TALPHA_AI_MODEL`. **Không phải Claude** (bản doc cũ ghi sai).
 - Tool `run_sql`, vòng lặp `MAX_SQL_CALLS=4`, auto `LIMIT 200`, `maximumBytesBilled` 2GB.
 - **Guardrail `checkSql()`**: chỉ `SELECT`/`WITH`, cấm `;`, chặn 16 từ khoá DDL/DML,
-  khoá cứng vào `talpha-faos-2026.TALPHA_Dataset`. Từ 04/08 nằm ở
+  khoá cứng vào `cty-507710.TALPHA_Dataset`. Từ 04/08 nằm ở
   `dashboard-ui/src/lib/talpha/ceo-ask-sql.ts` để prompt builder dùng CHUNG danh sách
   từ khoá cấm — tên sản phẩm nhúng vào SQL sinh tự động phải qua `sanitizeSqlComment()`,
   không thì một cái tên lọt từ khoá cấm sẽ làm câu truy vấn hợp lệ bị chặn oan.

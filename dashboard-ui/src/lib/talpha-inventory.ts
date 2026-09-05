@@ -11,7 +11,7 @@ import { fetchPosInventory } from "@/lib/talpha-pos-images";
 import { bigquery } from "@/lib/bigquery";
 import type { MarketOverview, StatusSummary, SkuRow } from "@/components/talpha/data/inventory";
 
-const BQ_PROJECT = process.env.NEXT_PUBLIC_BQ_PROJECT || "talpha-faos-2026";
+const BQ_PROJECT = process.env.NEXT_PUBLIC_BQ_PROJECT || "cty-507710";
 const BQ_DATASET = process.env.DATASET || "TALPHA_Dataset";
 
 // 7 thị trường = 7 shop POS. Thứ tự khớp cột trong bảng Sản phẩm & Kho.

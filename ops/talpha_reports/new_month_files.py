@@ -6,7 +6,7 @@ CHỈ ĐỌC. Không ghi gì lên Drive, không sửa file nào.
     python3 new_month_files.py <FOLDER_ID>
 
 Điều kiện: thư mục (và mọi thư mục con) đã share cho service account
-faos-dashboard@talpha-faos-2026.iam.gserviceaccount.com quyền Editor.
+faos-dashboard@cty-507710.iam.gserviceaccount.com quyền Editor.
 """
 import sys, json, re, collections
 from google.oauth2.service_account import Credentials
@@ -82,7 +82,7 @@ def main():
     if not items:
         print(f'KHÔNG THẤY FILE NÀO trong thư mục {fid}.')
         print('→ Thường là do chưa share. Mở thư mục trên Drive, bấm Share, thêm:')
-        print('     faos-dashboard@talpha-faos-2026.iam.gserviceaccount.com   (Editor)')
+        print('     faos-dashboard@cty-507710.iam.gserviceaccount.com   (Editor)')
         print('  rồi chạy lại lệnh này.')
         sys.exit(2)
 

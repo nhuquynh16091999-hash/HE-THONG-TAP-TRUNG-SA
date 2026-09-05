@@ -1,7 +1,7 @@
 """
 sync/core/bq_writer.py — BigQuery write utilities (free-tier safe).
 
-TALPHA BigQuery project (talpha-faos-2026) không bật billing nên DML
+TALPHA BigQuery project (cty-507710) không bật billing nên DML
 (DELETE/MERGE/INSERT) bị reject. Dùng LOAD JOB (WRITE_TRUNCATE) thay thế.
 
 Exports:
@@ -100,7 +100,7 @@ def load_append(
 #                 Consumer không phải sửa gì; kéo hụt chỉ làm đơn đó giữ bản cũ.
 #
 # Free-tier safe: chỉ LOAD JOB + query-with-destination. Đã probe 04/08 trên
-# talpha-faos-2026: query→destination WRITE_TRUNCATE ✅, DML DELETE/MERGE ❌ 403.
+# cty-507710: query→destination WRITE_TRUNCATE ✅, DML DELETE/MERGE ❌ 403.
 # ═══════════════════════════════════════════════════════════════════
 
 def _table_exists(client, fqn: str) -> bool:

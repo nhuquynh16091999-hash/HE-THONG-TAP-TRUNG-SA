@@ -5,7 +5,7 @@ import { bigquery } from "@/lib/bigquery";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-const BQ_PROJECT = process.env.NEXT_PUBLIC_BQ_PROJECT || "talpha-faos-2026";
+const BQ_PROJECT = process.env.NEXT_PUBLIC_BQ_PROJECT || "cty-507710";
 const BQ_DATASET = process.env.DATASET || "TALPHA_Dataset";
 
 // Snapshot chỉ số live của Ads Command Center (theo campaign) vào BQ.

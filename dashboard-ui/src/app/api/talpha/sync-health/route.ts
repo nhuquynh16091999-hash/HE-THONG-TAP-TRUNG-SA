@@ -3,7 +3,7 @@ import { bigquery } from "@/lib/bigquery";
 
 export const dynamic = "force-dynamic";
 
-const BQ_PROJECT = process.env.NEXT_PUBLIC_BQ_PROJECT || "talpha-faos-2026";
+const BQ_PROJECT = process.env.NEXT_PUBLIC_BQ_PROJECT || "cty-507710";
 const BQ_DATASET = process.env.DATASET || "TALPHA_Dataset";
 
 // B5 — trạng thái theo TỪNG TKQC/shop của vòng chạy mới nhất. Bảng do

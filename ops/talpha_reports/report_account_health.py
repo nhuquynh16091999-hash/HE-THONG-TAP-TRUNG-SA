@@ -27,7 +27,7 @@ import os, sys, json, io, socket, argparse, datetime
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from talpha_rules import MONEY_DIV_SHOP  # X13 — số chia tiền POS theo shop, KHÔNG gõ 100
 
-PROJECT = "talpha-faos-2026"
+PROJECT = "cty-507710"
 DATASET = "TALPHA_Dataset"
 TABLE = "sync_health_accounts"
 

@@ -11,8 +11,8 @@ os.environ.setdefault("GOOGLE_APPLICATION_CREDENTIALS",
                       os.path.expanduser("~/talpha_reports/runtime/bigquery_key.json"))
 from google.cloud import bigquery
 
-P = "talpha-faos-2026.TALPHA_Dataset"
-bq = bigquery.Client(project="talpha-faos-2026")
+P = "cty-507710.TALPHA_Dataset"
+bq = bigquery.Client(project="cty-507710")
 fails = []
 TODAY = (datetime.datetime.utcnow() + datetime.timedelta(hours=7)).strftime("%Y-%m-%d")  # ngày VN
 # Ads: ngày `date` theo TZ TỪNG ACCOUNT (rule #6) — account xa nhất là "múi h Mỹ" (LA).

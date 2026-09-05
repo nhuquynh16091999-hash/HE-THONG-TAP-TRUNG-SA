@@ -3,7 +3,7 @@ import { bigquery } from "@/lib/bigquery";
 
 export const dynamic = "force-dynamic";
 
-const BQ_PROJECT = process.env.NEXT_PUBLIC_BQ_PROJECT || "talpha-faos-2026";
+const BQ_PROJECT = process.env.NEXT_PUBLIC_BQ_PROJECT || "cty-507710";
 const BQ_DATASET = process.env.DATASET || "TALPHA_Dataset";
 
 // Marketer từ tên campaign — RULE CHUNG (config/talpha_rules.json qua rules.ts).

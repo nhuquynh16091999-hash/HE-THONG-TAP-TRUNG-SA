@@ -14,7 +14,7 @@ def main():
     os.environ.setdefault("GOOGLE_APPLICATION_CREDENTIALS",
                           os.path.expanduser("~/talpha_reports/runtime/bigquery_key.json"))
     from google.cloud import bigquery
-    client = bigquery.Client(project="talpha-faos-2026")
+    client = bigquery.Client(project="cty-507710")
     row = {
         "ts": datetime.datetime.utcnow().isoformat() + "Z",
         "host": socket.gethostname(),
@@ -35,7 +35,7 @@ def main():
         source_format=bigquery.SourceFormat.NEWLINE_DELIMITED_JSON,
         write_disposition=bigquery.WriteDisposition.WRITE_APPEND, schema=schema)
     client.load_table_from_file(
-        io.BytesIO(json.dumps(row).encode()), "talpha-faos-2026.TALPHA_Dataset.sync_health",
+        io.BytesIO(json.dumps(row).encode()), "cty-507710.TALPHA_Dataset.sync_health",
         job_config=jc).result()
     print("sync_health:", row["ok"], row["detail"][:80])
 

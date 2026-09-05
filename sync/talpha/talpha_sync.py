@@ -37,7 +37,7 @@ from sync.core.meta_client import MetaAdsClient, TALPHA_AD_ACCOUNTS, MetaFetchEr
 from sync.config_loader import get_active_accounts
 
 # ── Config ───────────────────────────────────────────────────────
-P  = os.getenv('BQ_PROJECT_ID', 'talpha-faos-2026')
+P  = os.getenv('BQ_PROJECT_ID', 'cty-507710')
 DS = os.getenv('BQ_DATASET',    'TALPHA_Dataset')
 FB_TOKEN = (
     os.environ.get('TALPHA_META_ACCESS_TOKEN', '') or

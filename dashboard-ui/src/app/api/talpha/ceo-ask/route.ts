@@ -7,7 +7,7 @@ import { checkSql, cleanSql } from "@/lib/talpha/ceo-ask-sql";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-const BQ_PROJECT = process.env.NEXT_PUBLIC_BQ_PROJECT || "talpha-faos-2026";
+const BQ_PROJECT = process.env.NEXT_PUBLIC_BQ_PROJECT || "cty-507710";
 const BQ_DATASET = process.env.DATASET || process.env.NEXT_PUBLIC_DATASET || "TALPHA_Dataset";
 // Google Gemini (free tier). Chuỗi model fallback: thử model mạnh trước, hết quota
 // (429) thì tự rớt xuống model nhẹ hơn. Override bằng TALPHA_AI_MODEL (phẩy ngăn cách).

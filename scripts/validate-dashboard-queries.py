@@ -25,7 +25,7 @@ SYNC_DIR = ROOT / "sync" / "core"
 SQL_DIR = ROOT / "sql" / "talpha" / "views"
 BQ_KEY = ROOT / "bigquery_key.json"
 
-BQ_PROJECT = "talpha-faos-2026"
+BQ_PROJECT = "cty-507710"
 BQ_DATASET = "TALPHA_Dataset"
 
 # ─── TALPHA Schema (source of truth — mirror của docs/TALPHA_DETAIL.md) ──────

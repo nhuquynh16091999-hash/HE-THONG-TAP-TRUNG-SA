@@ -26,11 +26,11 @@
 
 | Tham số | Giá trị |
 |:--|:--|
-| GCP Project | `talpha-faos-2026` |
+| GCP Project | `cty-507710` |
 | Dataset | `TALPHA_Dataset` |
 | Location | `US` |
 | Service Account | `bigquery_key.json` ở root repo |
-| Biến môi trường | `BQ_PROJECT_ID=talpha-faos-2026` · `BQ_DATASET=TALPHA_Dataset` |
+| Biến môi trường | `BQ_PROJECT_ID=cty-507710` · `BQ_DATASET=TALPHA_Dataset` |
 
 ### 2.2 Bảng dữ liệu
 
@@ -120,7 +120,7 @@ Snapshot hằng ngày của Ads Command Center, lưu vào BigQuery qua `/api/tal
 
 ### 2.4 Sơ đồ mối liên kết dữ liệu (shared database)
 
-Toàn bộ tính năng dashboard dùng CHUNG một database BigQuery `talpha-faos-2026.TALPHA_Dataset`.
+Toàn bộ tính năng dashboard dùng CHUNG một database BigQuery `cty-507710.TALPHA_Dataset`.
 Sơ đồ dưới mô tả: nguồn dữ liệu → ETL sync → bảng BQ → view → API/tab.
 
 ```mermaid
@@ -428,7 +428,7 @@ GET /{account_id}/ads             → danh sách ad
 
 | Var | Mô tả |
 |:--|:--|
-| `BQ_PROJECT_ID` | `talpha-faos-2026` |
+| `BQ_PROJECT_ID` | `cty-507710` |
 | `BQ_DATASET` | `TALPHA_Dataset` |
 | `BQ_LOCATION` | `US` |
 | `GCP_SA_KEY_JSON` | JSON inline của Service Account (Vercel/Render) |
@@ -451,7 +451,7 @@ GET /{account_id}/ads             → danh sách ad
 |:--|:--|
 | `NEXT_PUBLIC_DEPLOYMENT_MODE` | `talpha` |
 | `NEXT_PUBLIC_DATASET` | `TALPHA_Dataset` |
-| `NEXT_PUBLIC_BQ_PROJECT` | `talpha-faos-2026` |
+| `NEXT_PUBLIC_BQ_PROJECT` | `cty-507710` |
 | `DATASET` | `TALPHA_Dataset` |
 | `NEXT_PUBLIC_APP_NAME` | `TALPHA` |
 | `NEXTAUTH_URL` | `http://localhost:3000` |

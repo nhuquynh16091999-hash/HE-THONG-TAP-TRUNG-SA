@@ -2,7 +2,7 @@
 -- TALPHA Analytics — 01 · vw_fb_ads_std  (LỚP 0: ADAPTER)
 -- ═══════════════════════════════════════════════════════════════════
 -- Chuẩn hoá fb_ads_data của TALPHA về schema thống nhất cho các view bên
--- trên. (Bảng live talpha-faos-2026 ĐÃ ở schema chuẩn: date DATE, có
+-- trên. (Bảng live cty-507710 ĐÃ ở schema chuẩn: date DATE, có
 -- frequency/leads/purchases — KHÁC legacy DDL date_start/actions_*.)
 --
 --   • ids (ad/adset/campaign/account) là INT64 → CAST sang STRING để

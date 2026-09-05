@@ -24,7 +24,7 @@ from talpha_rules import RATE, SHOP2MKT, MONEY_DIV_SHOP, parse_campaign
 # ── Cấu hình ──
 SHEET_ID = os.environ.get("TEAM_REPORT_SHEET_ID", "1csd7AO_0ZH4qOoqO_Fj82sJvAf5pR3Iciu7TFqIPpj8")
 KEY = "bigquery_key.json"
-P = "talpha-faos-2026.TALPHA_Dataset"
+P = "cty-507710.TALPHA_Dataset"
 YEAR, MONTH = 2026, 6
 SHIP = 0.50  # tỉ lệ giao thành công ước tính cho "DS ship dự kiến"
 
@@ -72,7 +72,7 @@ def main():
     creds = Credentials.from_service_account_file(
         KEY, scopes=["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/bigquery"])
     sv = build("sheets", "v4", credentials=creds)
-    bq = bigquery.Client(credentials=creds, project="talpha-faos-2026")
+    bq = bigquery.Client(credentials=creds, project="cty-507710")
     frm, to = f"{YEAR}-{MONTH:02d}-01", f"{YEAR}-{MONTH:02d}-{calendar.monthrange(YEAR, MONTH)[1]:02d}"
 
     # ads per (nv|TEAM, ngày) + ad_id -> nv

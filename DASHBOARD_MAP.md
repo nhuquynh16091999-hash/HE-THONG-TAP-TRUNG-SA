@@ -14,7 +14,7 @@ Next.js 16 (App Router) + React 19 + TailwindCSS, chạy **1 dự án duy nhất
 - Vào `/` → middleware check login → redirect `/talpha`
 - `/talpha` render **1 shell duy nhất**: `components/talpha/dashboard-shell.tsx`
 - Auth: NextAuth v5 (`lib/auth.ts`), user lưu ở `config/users.json` (bcrypt)
-- Data: BigQuery `talpha-faos-2026.TALPHA_Dataset` + gọi live Meta API / Poscake POS
+- Data: BigQuery `cty-507710.TALPHA_Dataset` + gọi live Meta API / Poscake POS
 
 ---
 

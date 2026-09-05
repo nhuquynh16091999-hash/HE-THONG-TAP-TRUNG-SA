@@ -216,7 +216,7 @@ async function fetchMetaAds(token: string, accountIds: string[], accountNames: R
 
 // ═══ POS: HYBRID — BigQuery for history + Direct API for today ═══
 
-const BQ_PROJECT = process.env.NEXT_PUBLIC_BQ_PROJECT || "talpha-faos-2026";
+const BQ_PROJECT = process.env.NEXT_PUBLIC_BQ_PROJECT || "cty-507710";
 const BQ_DATASET = process.env.DATASET || "TALPHA_Dataset";
 
 // Fetch historical orders from BigQuery (synced data — accurate)

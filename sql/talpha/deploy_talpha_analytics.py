@@ -1,5 +1,5 @@
 """
-Deploy TALPHA Analytics view pack → talpha-faos-2026.TALPHA_Dataset
+Deploy TALPHA Analytics view pack → cty-507710.TALPHA_Dataset
 
 Tạo bộ view phân tích v6-style (đã tùy chỉnh cho TALPHA):
   Lớp 0 (adapter)  : vw_fb_ads_std, vw_orders_std
@@ -34,7 +34,7 @@ try:
 except ImportError:
     pass
 
-PROJECT = os.getenv('BQ_PROJECT_ID', 'talpha-faos-2026')
+PROJECT = os.getenv('BQ_PROJECT_ID', 'cty-507710')
 DATASET = os.getenv('BQ_DATASET', 'TALPHA_Dataset')
 
 RULES_FILE = os.path.join(PROJECT_DIR, 'config', 'talpha_rules.json')

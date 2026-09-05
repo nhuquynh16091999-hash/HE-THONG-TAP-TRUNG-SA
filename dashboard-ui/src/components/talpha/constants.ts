@@ -6,8 +6,8 @@
 import { MONEY_DIVISORS } from "./utils";
 
 export const DATASET = process.env.NEXT_PUBLIC_DATASET || "TALPHA_Dataset";
-// ⚠️ TALPHA data lives in GCP project talpha-faos-2026 (NOT levelup-465304).
-export const BQ_PROJECT = process.env.NEXT_PUBLIC_BQ_PROJECT || "talpha-faos-2026";
+// ⚠️ TALPHA data lives in GCP project cty-507710 (NOT levelup-465304).
+export const BQ_PROJECT = process.env.NEXT_PUBLIC_BQ_PROJECT || "cty-507710";
 export const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 export const APP_NAME = "TALPHA";
 export const APP_VERSION = "v2.0";

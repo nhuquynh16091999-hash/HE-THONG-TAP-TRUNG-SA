@@ -26,7 +26,7 @@ load_dotenv()
 load_dotenv(os.path.join(os.getcwd(), ".env"))
 
 POS_API = "https://pos.pages.fm/api/v1"
-BQ_PROJECT = os.environ.get("BQ_PROJECT_ID", "talpha-faos-2026")
+BQ_PROJECT = os.environ.get("BQ_PROJECT_ID", "cty-507710")
 BQ_DATASET = os.environ.get("BQ_DATASET", "TALPHA_Dataset")
 TABLE = f"{BQ_PROJECT}.{BQ_DATASET}.product_catalog"
 
