@@ -17,6 +17,9 @@ import TALPHAProductPnLTab from "./tabs/product-pnl-tab";
 import TALPHACustomerTab from "./tabs/customer-tab";
 import TALPHAMarketIntelTab from "./tabs/market-intel-tab";
 import TALPHAAdHealthTab from "./tabs/ad-health-tab";
+import TALPHAOrdersTab from "./tabs/orders-tab";
+import TALPHAAdSpendTab from "./tabs/ad-spend-tab";
+import TALPHACodReconTab from "./tabs/cod-recon-tab";
 
 /**
  * Điều hướng gom về 5 mục theo đúng cấu trúc AUUS1 (Báo cáo · Sản phẩm ·
@@ -35,11 +38,19 @@ const NAV_GROUPS: NavGroup[] = [
             { id: "product-pnl", label: "P&L theo SP" },
         ],
     },
+    {
+        id: "don-hang", emoji: "🧾", label: "Đơn hàng",
+        tabs: [
+            { id: "orders", label: "Danh sách đơn" },
+            { id: "cod-recon", label: "Đối soát COD" },
+        ],
+    },
     { id: "san-pham", emoji: "📦", label: "Sản phẩm", tabs: [{ id: "products", label: "Sản phẩm & Kho" }] },
     { id: "marketer", emoji: "👤", label: "Marketer", tabs: [{ id: "marketing", label: "Marketing & Ads" }] },
     {
         id: "quang-cao", emoji: "🎯", label: "Quảng cáo",
         tabs: [
+            { id: "ad-spend", label: "Chi phí quảng cáo" },
             { id: "ads-command", label: "Ads Command Center" },
             { id: "ad-health", label: "Sức khoẻ quảng cáo" },
         ],
@@ -95,8 +106,8 @@ export default function TALPHADashboardShell() {
                             <span className="ml-2 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-400">Active</span>
                         </div>
                     </div>
-                    <span className="ml-[52px] mt-1 text-xs text-muted-foreground">Tiểu Alpha — Middle East</span>
-                    <span className="ml-[52px] mt-0.5 text-[10px] text-muted-foreground">🇸🇦 🇦🇪 🇰🇼 🇴🇲 🇶🇦 🇧🇭</span>
+                    <span className="ml-[52px] mt-1 text-xs text-muted-foreground">Tiểu Alpha — Đài Loan</span>
+                    <span className="ml-[52px] mt-0.5 text-[10px] text-muted-foreground">🇹🇼 Thị trường Đài Loan</span>
                 </div>
 
                 <nav className="flex-1 space-y-0.5 overflow-y-auto p-3">
@@ -164,8 +175,11 @@ export default function TALPHADashboardShell() {
                     {activeTab === "overview" && <TALPHACeoOverviewTab dateRange={dateRange} projectId="TALPHA" />}
                     {activeTab === "pnl" && <TALPHAPnLTab dateRange={dateRange} projectId="TALPHA" />}
                     {activeTab === "product-pnl" && <TALPHAProductPnLTab dateRange={dateRange} projectId="TALPHA" />}
+                    {activeTab === "orders" && <TALPHAOrdersTab dateRange={dateRange} projectId="TALPHA" />}
+                    {activeTab === "cod-recon" && <TALPHACodReconTab dateRange={dateRange} projectId="TALPHA" />}
                     {activeTab === "products" && <TALPHAProductsTab dateRange={dateRange} projectId="TALPHA" />}
                     {activeTab === "marketing" && <TALPHAMarketingTab dateRange={dateRange} projectId="TALPHA" />}
+                    {activeTab === "ad-spend" && <TALPHAAdSpendTab dateRange={dateRange} projectId="TALPHA" />}
                     {activeTab === "ads-command" && <TALPHAAdsCommandTab />}
                     {activeTab === "ad-health" && <TALPHAAdHealthTab />}
                     {activeTab === "customers" && <TALPHACustomerTab dateRange={dateRange} projectId="TALPHA" />}

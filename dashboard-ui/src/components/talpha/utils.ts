@@ -11,42 +11,27 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 // ═══ Exchange rates: local currency → VND ═══
-// Synced from config/projects/talpha.yaml (valid_from: 2026-02-01)
-// Keyed by BOTH market code (sale_order.shop_label: AE/SA/…) and full name.
+// ═══ MỘT thị trường: Đài Loan (từ 05/09/2026) ═══
+// Nguồn chuẩn là config/talpha_rules.json. Bảng dưới là bản sao dùng ở phía
+// client (component không đọc được file), khai theo CẢ mã shop_label lẫn tên
+// đầy đủ vì dữ liệu cũ dùng lẫn hai cách. Sửa tỷ giá = sửa rules file TRƯỚC.
 export const EXCHANGE_RATES: Record<string, number> = {
-    SA: 6850, Saudi: 6850,    // SAR → VND
-    AE: 7010, UAE: 7010,      // AED → VND
-    KW: 83000, Kuwait: 83000, // KWD → VND
-    OM: 66700, Oman: 66700,   // OMR → VND
-    QA: 7050, Qatar: 7050,    // QAR → VND
-    BH: 68000, Bahrain: 68000, // BHD → VND
     TW: 800, Taiwan: 800,     // TWD → VND
 };
 
-// Map market code (shop_label) → display name.
 export const MARKET_NAMES: Record<string, string> = {
-    SA: "Saudi", AE: "UAE", KW: "Kuwait", OM: "Oman", QA: "Qatar", BH: "Bahrain", TW: "Taiwan",
+    TW: "Taiwan",
 };
 
 // ═══ X13: số chia đưa tiền thô của POS về ĐƠN VỊ TIỀN THẬT của shop ═══
-// Synced from config/talpha_rules.json (markets.*.pos_money_divisor).
-// 6 shop GCC nhập giá kiểu minor units (cod=9900 ⇒ 99,00 SAR) → 100; shop Đài nhập
-// NGUYÊN TWD (cod=950 ⇒ 950 TWD, verify bằng POS API 20/08) → 1. Chia 100 cho mọi shop
-// là lỗi X13: doanh thu Đài tụt đúng 100 lần (AOV ra 8.987đ/đơn).
+// Shop Đài lưu NGUYÊN TWD (cod=950 ⇒ 950 TWD, verify bằng POS API 20/08) → chia 1.
+// Gõ /100 ở bất kỳ đâu là doanh thu tụt đúng 100 lần (AOV ra 8.987đ/đơn).
 export const MONEY_DIVISORS: Record<string, number> = {
-    SA: 100, Saudi: 100,
-    AE: 100, UAE: 100,
-    KW: 100, Kuwait: 100,
-    OM: 100, Oman: 100,
-    QA: 100, Qatar: 100,
-    BH: 100, Bahrain: 100,
-    TW: 1, Taiwan: 1,        // Đài lưu nguyên TWD
+    TW: 1, Taiwan: 1,
 };
 
-// Default rate for unknown shops
-const DEFAULT_RATE = 6850; // SAR
-// Shop mới chưa khai → giữ mặc định minor units (đa số shop là vậy)
-const DEFAULT_MONEY_DIVISOR = 100;
+const DEFAULT_RATE = 800;             // chỉ còn một thị trường
+const DEFAULT_MONEY_DIVISOR = 1;      // Đài lưu nguyên TWD
 
 /** Số chia tiền POS theo market code (shop_label) hoặc tên market. */
 export function moneyDivisor(marketCodeOrName?: string): number {
@@ -54,39 +39,30 @@ export function moneyDivisor(marketCodeOrName?: string): number {
 }
 
 /**
- * Convert a local-currency amount to VND based on market code/name
- * (sale_order.shop_label = AE/SA/KW/OM/QA/BH, or a full name).
- * Ads spend is already VND — do NOT use this for ads.
+ * Quy tiền địa phương (TWD) về VND. Chi phí quảng cáo ĐÃ là VND — KHÔNG dùng
+ * hàm này cho spend, dùng là thổi chi phí lên 800 lần.
  */
 export function toVND(amount: number, marketCodeOrName?: string): number {
     const rate = EXCHANGE_RATES[marketCodeOrName || ""] || DEFAULT_RATE;
     return amount * rate;
 }
 
-/** Friendly market label from a shop_label code (falls back to the input). */
+/** Tên thị trường hiển thị từ shop_label. */
 export function marketName(code?: string): string {
     if (!code) return "Unknown";
     return MARKET_NAMES[code] || code;
 }
 
-// ═══ Shipping fee model (3PL) — from config/projects/talpha.yaml fulfillment table ═══
-// ⚠️ sale_order.shipping_fee in BigQuery mirrors `cod` (garbage) — do NOT use it.
-// Successful delivery cost = packing + delivery + (cod_local × codPct) [+ flat COD fee].
-// Fees are per delivered order, in the market's LOCAL currency.
-export const SHIPPING_FEES: Record<string, { packing: number; delivery: number; codPct: number; codFlat: number }> = {
-    SA: { packing: 2.5, delivery: 15, codPct: 0.03, codFlat: 0 },     // iMile (SAR)
-    AE: { packing: 3, delivery: 12, codPct: 0.03, codFlat: 0 },       // iMile (AED)
-    KW: { packing: 0.2, delivery: 0.9, codPct: 0, codFlat: 0.25 },    // PostaPlus (KWD, flat COD)
-    QA: { packing: 3, delivery: 17, codPct: 0.04, codFlat: 0 },       // iMile (QAR)
-    OM: { packing: 0.4, delivery: 2, codPct: 0.04, codFlat: 0 },      // iMile (OMR)
-    BH: { packing: 0.4, delivery: 2, codPct: 0.05, codFlat: 0 },      // Aramex (BHD)
-};
+// ═══ Phí 3PL ═══
+// ⚠️ sale_order.shipping_fee trong BigQuery mirror cột `cod` (rác) — KHÔNG dùng.
+// Chi phí một đơn giao thành công = packing + delivery + cod_local×codPct + codFlat.
+// ⚠️ ĐÀI LOAN CHƯA KHAI: hệ cũ để trống vì Đài là market test. Giờ Đài là thị
+// trường DUY NHẤT nên bảng rỗng nghĩa là mọi con số "chi phí vận chuyển" trên
+// dashboard đang bằng 0 — thiếu, chứ không phải bằng không. Khai vào
+// config/talpha_rules.json → shipping_fees.TW rồi đồng bộ xuống đây.
+export const SHIPPING_FEES: Record<string, { packing: number; delivery: number; codPct: number; codFlat: number }> = {};
 
-/**
- * Estimated shipping cost in VND for a market, from delivered-order count and
- * local revenue (cod in real units, i.e. already ÷100). Modelled from the 3PL
- * fee table because the DB shipping_fee column is unreliable.
- */
+/** Phí vận chuyển ước tính (VND) từ số đơn giao và doanh thu tiền địa phương. */
 export function shippingVND(code: string, orders: number, revenueLocal: number): number {
     const f = SHIPPING_FEES[code || ""];
     if (!f || orders <= 0) return 0;
@@ -94,10 +70,12 @@ export function shippingVND(code: string, orders: number, revenueLocal: number):
     return local * (EXCHANGE_RATES[code] || DEFAULT_RATE);
 }
 
-/**
- * Same shipping model but taking revenue already in VND (vw_orders_std.revenue_vnd)
- * — converts back to local for the codPct component.
- */
+/** Đã khai phí 3PL cho thị trường này chưa — UI dùng để nói rõ "thiếu" thay vì hiện 0. */
+export function hasShippingFees(code = "TW"): boolean {
+    return !!SHIPPING_FEES[code];
+}
+
+/** Như shippingVND nhưng nhận doanh thu đã ở VND (vw_orders_std.revenue_vnd). */
 export function shippingVNDFromRevVnd(code: string, orders: number, revenueVnd: number): number {
     return shippingVND(code, orders, revenueVnd / (EXCHANGE_RATES[code] || DEFAULT_RATE));
 }
