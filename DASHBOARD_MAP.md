@@ -158,33 +158,33 @@ GIAO THÀNH CÔNG, Ads Command dùng doanh thu ĐẶT. ROAS 2 nơi không so tr�
 
 ## 9. Chạy dashboard trên máy này
 
-Máy hiện tại (`/Users/macbook`) là máy **sạch**: chưa có `~/talpha_reports/`, chưa có
-`.env.local`, chưa có `bigquery_key.json`. Node 24 / npm 11 / pm2 6 đã có sẵn.
+Máy `/Users/macbook` là máy sạch (chưa có `~/talpha_reports/`, chưa có launchd job nào).
+Node 24.14 · npm 11.9 · pm2 6.0 có sẵn.
 
-```bash
-cd "/Users/macbook/Desktop/Dashboard Sỹ Anh/Talpha-New-16-6/dashboard-ui" && npm install
-```
+**Đã làm rồi:**
+- `npm install` trong `dashboard-ui/` — 639 gói
+- Tạo `dashboard-ui/.env.local` (`AUTH_SECRET` sinh ngẫu nhiên, `chmod 600`, đã gitignore)
+- Chạy thử: server ready 1,7s · `/` → `/login` · `/talpha` chặn đúng khi chưa đăng nhập
 
-Rồi tạo `dashboard-ui/.env.local`:
+**Còn thiếu — phải Sỹ Anh đưa, điền vào chỗ `<<< CẦN ĐIỀN >>>` trong `.env.local`:**
 
-```
-NEXT_PUBLIC_BQ_PROJECT=talpha-faos-2026
-DATASET=TALPHA_Dataset
-NEXT_PUBLIC_DATASET=TALPHA_Dataset
-NEXT_PUBLIC_DEPLOYMENT_MODE=talpha
-NEXTAUTH_SECRET=<tự sinh>
-NEXTAUTH_URL=http://localhost:3000
-GCP_SA_KEY_JSON=<nội dung service account JSON>   # hoặc để file bigquery_key.json ở gốc repo
-```
+| Khoá | Dùng cho |
+|---|---|
+| `GCP_SA_KEY_JSON` (hoặc file `bigquery_key.json` ở gốc repo) | 6 tab đọc BigQuery |
+| `TALPHA_META_ACCESS_TOKEN` · `TALPHA_META_APP_SECRET` | Ads Command Center |
+| `TALPHA_POSCAKE_{SA,AE,KW,OM,QA,BH,TW}_KEY` · `TALPHA_PANCAKE_API_TOKEN` | Tab Sản phẩm & Kho |
+| `GEMINI_API_KEY` (tuỳ chọn) | Tính năng "CEO hỏi" |
 
-Còn thiếu để chạy đủ: service-account BigQuery, `TALPHA_META_ACCESS_TOKEN`,
-các key `TALPHA_POSCAKE_*_KEY`. Không có chúng thì 6 tab BQ và tab live sẽ trống.
+Chưa có khoá thì `/api/query` trả `Could not load the default credentials` và mọi tab số đều trống.
 
 ```bash
 cd "/Users/macbook/Desktop/Dashboard Sỹ Anh/Talpha-New-16-6/dashboard-ui" && npm run dev
 ```
 
----
+**Phần Python (sync + Sheets) cố tình CHƯA cài.** Máy này có Python 3.9.6, repo cần 3.12.
+Quan trọng hơn: nhánh `ops/talpha_reports/` **GHI** vào đúng BigQuery và Google Sheets mà hệ
+thống cũ đang chạy thật. Repo đã tách nhưng **dữ liệu vẫn chung** — chạy sync từ máy này là
+đụng vào số liệu production. Cần quyết có tách luôn dataset/Sheets hay không rồi mới cài.
 
 ## 10. Ba rule dễ hiểu nhầm nhất
 
