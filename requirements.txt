@@ -1,0 +1,28 @@
+# ═══════════════════════════════════════════════════════════════════
+# TALPHA — thư viện Python cho nhánh sync + báo cáo Sheets
+# Cài: python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
+#
+# Danh sách này sinh từ import THẬT trong sync/ ops/ scripts/ sql/ tests/
+# (dotenv · google · googleapiclient · gspread · requests), không phải chép
+# lại từ hệ cũ. Bản cũ có ~40 gói cho FAOS v6 — agent AI, FalkorDB, FastAPI —
+# đều đã xoá khỏi repo nên không cài nữa.
+# ═══════════════════════════════════════════════════════════════════
+
+# ─── BigQuery ───
+google-cloud-bigquery>=3.25.0
+google-auth>=2.34.0
+
+# ─── Google Sheets (ops/talpha_reports) ───
+gspread>=6.0.0
+google-api-python-client>=2.140.0
+google-auth-oauthlib>=1.2.0
+
+# ─── Gọi API Meta và Poscake ───
+requests>=2.32.0
+
+# ─── Cấu hình ───
+python-dotenv>=1.0.0
+PyYAML>=6.0.0
+
+# ─── Test ───
+pytest>=8.0.0

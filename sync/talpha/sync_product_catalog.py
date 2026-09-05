@@ -48,6 +48,23 @@ _FALLBACK_SHOPS = [
 ]
 
 
+# Schema bảng product_catalog — khai ở CẤP MODULE để scripts/setup_bq.py import lại
+# được. Trước đây nó nằm trong thân hàm nên nơi khác muốn dựng bảng phải gõ tay lần
+# hai, và hai bản sẽ lệch nhau lúc nào không biết.
+CATALOG_SCHEMA = [
+    bigquery.SchemaField("variation_id", "STRING", mode="REQUIRED"),
+    bigquery.SchemaField("product_id", "STRING"),
+    bigquery.SchemaField("sku", "STRING"),
+    bigquery.SchemaField("product_name", "STRING"),
+    bigquery.SchemaField("variation_name", "STRING"),
+    bigquery.SchemaField("retail_price", "FLOAT64"),
+    bigquery.SchemaField("cost", "FLOAT64"),
+    bigquery.SchemaField("remain_quantity", "INT64"),
+    bigquery.SchemaField("shop_label", "STRING"),
+    bigquery.SchemaField("image", "STRING"),
+]
+
+
 def load_shops() -> list[tuple[str, str]]:
     """[(shop_label, shop_id)] đọc từ talpha.yaml; yaml lỗi → fallback hardcode."""
     try:
@@ -194,18 +211,7 @@ def main():
         )
     print(f"Bảng hiện có {cur} dòng → sẽ ghi {len(deduped)} dòng")
 
-    schema = [
-        bigquery.SchemaField("variation_id", "STRING", mode="REQUIRED"),
-        bigquery.SchemaField("product_id", "STRING"),
-        bigquery.SchemaField("sku", "STRING"),
-        bigquery.SchemaField("product_name", "STRING"),
-        bigquery.SchemaField("variation_name", "STRING"),
-        bigquery.SchemaField("retail_price", "FLOAT64"),
-        bigquery.SchemaField("cost", "FLOAT64"),
-        bigquery.SchemaField("remain_quantity", "INT64"),
-        bigquery.SchemaField("shop_label", "STRING"),
-        bigquery.SchemaField("image", "STRING"),
-    ]
+    schema = CATALOG_SCHEMA
 
     with tempfile.NamedTemporaryFile(mode="w", suffix=".jsonl", delete=False) as tmp:
         for r in deduped:
