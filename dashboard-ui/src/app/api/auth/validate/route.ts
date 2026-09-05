@@ -9,7 +9,7 @@ interface UserRecord {
     email: string;
     name: string;
     password: string;
-    role: "admin" | "project_lead" | "viewer";
+    role: "admin" | "director" | "marketer" | "sale";
     projects: string[];
     status?: "active" | "pending";
 }

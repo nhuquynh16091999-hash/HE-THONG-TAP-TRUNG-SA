@@ -10,11 +10,17 @@ interface UserRecord {
     email: string;
     name: string;
     password: string;
-    role: "admin" | "project_lead" | "viewer";
+    role: "admin" | "director" | "marketer" | "sale";
     projects: string[];
 }
 
 const USERS_FILE = path.join(process.cwd(), "..", "config", "users.json");
+
+// Quản lý người dùng: admin kỹ thuật HOẶC giám đốc. Marketer và sale không đụng vào.
+function canManageUsers(session: unknown): boolean {
+    const role = (session as { user?: { role?: string } } | null)?.user?.role;
+    return role === "admin" || role === "director";
+}
 
 function isEnvMode(): boolean {
     return !!process.env.USERS_JSON;
@@ -46,7 +52,7 @@ function saveUsers(users: UserRecord[]): void {
 // ─── GET: List all users (hide passwords) ───
 export async function GET() {
     const session = await auth();
-    if (!session || (session.user as any)?.role !== "admin") {
+    if (!session || !canManageUsers(session)) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 
@@ -57,7 +63,7 @@ export async function GET() {
 // ─── POST: Create a new user ───
 export async function POST(req: Request) {
     const session = await auth();
-    if (!session || (session.user as any)?.role !== "admin") {
+    if (!session || !canManageUsers(session)) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
     if (isEnvMode()) {
@@ -102,7 +108,7 @@ export async function POST(req: Request) {
 // ─── PUT: Update a user ───
 export async function PUT(req: Request) {
     const session = await auth();
-    if (!session || (session.user as any)?.role !== "admin") {
+    if (!session || !canManageUsers(session)) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
     if (isEnvMode()) {
@@ -144,7 +150,7 @@ export async function PUT(req: Request) {
 // ─── DELETE: Remove a user ───
 export async function DELETE(req: Request) {
     const session = await auth();
-    if (!session || (session.user as any)?.role !== "admin") {
+    if (!session || !canManageUsers(session)) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
     if (isEnvMode()) {

@@ -20,7 +20,7 @@ interface UserData {
     id: string;
     email: string;
     name: string;
-    role: "admin" | "project_lead" | "viewer";
+    role: "admin" | "director" | "marketer" | "sale";
     projects: string[];
 }
 
@@ -28,20 +28,13 @@ const ALL_PROJECTS = [
     "TALPHA",
 ];
 
+// Cơ cấu từ 05/09/2026: 1 giám đốc · 5 marketer · 2 sale.
+// `admin` là quyền kỹ thuật (dựng hệ thống), KHÔNG phải một vai trò trong công ty.
 const ROLE_OPTIONS = [
-    { value: "admin", label: "Admin", desc: "Toàn quyền", color: "text-red-400" },
-    {
-        value: "project_lead",
-        label: "Project Lead",
-        desc: "Xem project được gán",
-        color: "text-amber-400",
-    },
-    {
-        value: "viewer",
-        label: "Viewer",
-        desc: "Chỉ xem project được gán",
-        color: "text-slate-400",
-    },
+    { value: "director", label: "Giám đốc", desc: "Xem toàn bộ số liệu và quản lý người dùng", color: "text-orange-400" },
+    { value: "marketer", label: "Marketer", desc: "Chạy quảng cáo — xem báo cáo và chi phí", color: "text-sky-400" },
+    { value: "sale", label: "Sale", desc: "Chốt đơn — xem đơn hàng và đối soát COD", color: "text-emerald-400" },
+    { value: "admin", label: "Admin kỹ thuật", desc: "Toàn quyền, kể cả cấu hình hệ thống", color: "text-red-400" },
 ];
 
 export default function UserManagementTab() {
@@ -55,7 +48,7 @@ export default function UserManagementTab() {
     const [formName, setFormName] = useState("");
     const [formEmail, setFormEmail] = useState("");
     const [formPassword, setFormPassword] = useState("");
-    const [formRole, setFormRole] = useState<string>("viewer");
+    const [formRole, setFormRole] = useState<string>("marketer");
     const [formProjects, setFormProjects] = useState<string[]>([]);
     const [showPassword, setShowPassword] = useState(false);
     const [saving, setSaving] = useState(false);
@@ -81,7 +74,7 @@ export default function UserManagementTab() {
         setFormName("");
         setFormEmail("");
         setFormPassword("");
-        setFormRole("viewer");
+        setFormRole("marketer");
         setFormProjects([]);
         setShowPassword(false);
         setFormError("");
