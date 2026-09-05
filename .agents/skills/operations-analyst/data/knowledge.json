@@ -1,0 +1,167 @@
+{
+    "domain": "E-Commerce Operations (Cross-border COD)",
+    "order_lifecycle": {
+        "new": {
+            "statuses": [
+                0,
+                17
+            ],
+            "names": [
+                "New Lead",
+                "Wait Confirm"
+            ],
+            "alert_rule": "stuck > 2h → alert sales"
+        },
+        "processing": {
+            "statuses": [
+                1,
+                11,
+                12,
+                13,
+                8,
+                9
+            ],
+            "names": [
+                "Confirmed",
+                "Restock",
+                "Wait Print",
+                "Printed",
+                "Packaging",
+                "Wait Pickup"
+            ],
+            "alert_rule": "stuck > 24h → alert warehouse"
+        },
+        "shipping": {
+            "statuses": [
+                2,
+                3
+            ],
+            "names": [
+                "Shipping",
+                "Success"
+            ],
+            "alert_rule": "shipping > 14 days → sla breach"
+        },
+        "returning": {
+            "statuses": [
+                4,
+                5,
+                15
+            ],
+            "names": [
+                "Returning",
+                "Returned",
+                "Partial"
+            ],
+            "alert_rule": "returning > 7 days → alert carrier"
+        },
+        "cancelled": {
+            "statuses": [
+                6,
+                7
+            ],
+            "names": [
+                "Cancelled",
+                "Deleted"
+            ]
+        }
+    },
+    "return_analysis": {
+        "signals": [
+            "Returning (4) without Failed Delivery attempt",
+            "Returned (5) duration < 24h (fake return)",
+            "High return rate from specific carrier/region"
+        ],
+        "common_reasons": [
+            "Khách không nghe máy",
+            "Sai số điện thoại",
+            "Khách đổi ý",
+            "Hàng hỏng/Lỗi",
+            "Giao chậm quá",
+            "Shipper không giao"
+        ]
+    },
+    "sla_monitoring": {
+        "sla_rules": {
+            "processing_time": "< 24 hours",
+            "delivery_domestic": "< 3 days",
+            "delivery_cross_border": "< 10 days"
+        },
+        "fields_needed": [
+            "created_at",
+            "confirmed_at",
+            "shipped_at",
+            "estimate_delivery_at",
+            "last_status_at"
+        ]
+    },
+    "stale_order_detection": {
+        "rule": "Order in status X longer than threshold Y is stale.",
+        "severity": {
+            "warning": "> 24h in processing",
+            "critical": "> 48h in processing or > 7d in shipping",
+            "lost": "> 14d in shipping without update"
+        }
+    },
+    "fulfillment_pipeline": {
+        "stages": [
+            {
+                "status": 0,
+                "name": "New Lead",
+                "expected_time": "< 2h"
+            },
+            {
+                "status": 17,
+                "name": "Wait Confirm",
+                "expected_time": "< 4h"
+            },
+            {
+                "status": 1,
+                "name": "Confirmed",
+                "expected_time": "< 2h"
+            },
+            {
+                "status": 11,
+                "name": "Restock",
+                "expected_time": "< 24h"
+            },
+            {
+                "status": 12,
+                "name": "Wait Print",
+                "expected_time": "< 1h"
+            },
+            {
+                "status": 13,
+                "name": "Printed",
+                "expected_time": "< 2h"
+            },
+            {
+                "status": 8,
+                "name": "Packaging",
+                "expected_time": "< 4h"
+            },
+            {
+                "status": 9,
+                "name": "Wait Pickup",
+                "expected_time": "< 12h"
+            }
+        ],
+        "bottleneck_detection": "Compare actual dwell time vs expected_time. Stage with longest overrun = bottleneck."
+    },
+    "demand_forecasting": {
+        "formula": "Reorder Point = (Avg Daily Sales * Lead Time) + Safety Stock",
+        "safety_stock_rule": "Safety Stock = (Max Daily Sales * Max Lead Time) - (Avg Daily Sales * Avg Lead Time)",
+        "stockout_prediction": "Days until stockout = Current Inventory / Avg Daily Sales",
+        "alert_threshold": "Alert when Days until stockout < Lead Time + 3 days"
+    },
+    "schema_review_checklist": [
+        "status_group field for funnel analysis",
+        "returned_reason extraction",
+        "sub_status for detailed delay reason",
+        "estimate_delivery_at for SLA",
+        "last_status_at for stale detection",
+        "days_since_last_update computed field",
+        "processing_sub_status derived field",
+        "is_sla_breach boolean flag"
+    ]
+}

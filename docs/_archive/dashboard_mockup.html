@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FAOS Executive Report</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; }
+        .card { background: white; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .metric-value { font-size: 1.5rem; font-weight: 700; color: #111827; }
+        .metric-label { font-size: 0.875rem; color: #6b7280; }
+        .trend-up { color: #10b981; font-size: 0.875rem; font-weight: 500; }
+        .trend-down { color: #ef4444; font-size: 0.875rem; font-weight: 500; }
+        .trend-neutral { color: #6b7280; font-size: 0.875rem; font-weight: 500; }
+        .badge { padding: 2px 8px; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; }
+        .badge-green { background-color: #d1fae5; color: #065f46; }
+        .badge-red { background-color: #fee2e2; color: #991b1b; }
+        .badge-yellow { background-color: #fef3c7; color: #92400e; }
+        .badge-gray { background-color: #f3f4f6; color: #374151; }
+    </style>
+</head>
+<body class="p-6">
+
+    <!-- Header -->
+    <div class="flex justify-between items-center mb-6">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-900">FAOS Executive Report</h1>
+            <p class="text-gray-500 text-sm">Real-time Intelligence • Updated 5 mins ago</p>
+        </div>
+        <div class="flex space-x-3">
+            <button class="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-50">Filter: This Month</button>
+            <button class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700">Export PDF</button>
+        </div>
+    </div>
+
+    <!-- Section 1: Vitals -->
+    <div class="grid grid-cols-1 md:grid-cols-5 gap-4 mb-8">
+        <!-- Revenue -->
+        <div class="card p-4">
+            <div class="metric-label">Net Revenue</div>
+            <div class="metric-value">1,250,000 ₫</div>
+            <div class="trend-up flex items-center mt-1">
+                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path></svg>
+                12% vs last month
+            </div>
+        </div>
+        <!-- Profit -->
+        <div class="card p-4">
+            <div class="metric-label">Net Profit (28%)</div>
+            <div class="metric-value text-green-600">350,000 ₫</div>
+            <div class="trend-up flex items-center mt-1">
+                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path></svg>
+                5% vs last month
+            </div>
+        </div>
+        <!-- Ads Spend -->
+        <div class="card p-4">
+            <div class="metric-label">Ads Spend</div>
+            <div class="metric-value">$45,000</div>
+            <div class="trend-down flex items-center mt-1">
+                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6"></path></svg>
+                10% increase
+            </div>
+        </div>
+        <!-- ROAS -->
+        <div class="card p-4">
+            <div class="metric-label">Real ROAS</div>
+            <div class="metric-value">3.2</div>
+            <div class="trend-neutral flex items-center mt-1">
+                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14"></path></svg>
+                Flat vs last month
+            </div>
+        </div>
+        <!-- Delivery Rate -->
+        <div class="card p-4">
+            <div class="metric-label">Delivery Rate</div>
+            <div class="metric-value">88.5%</div>
+            <div class="trend-down flex items-center mt-1">
+                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6"></path></svg>
+                Target: 90%
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Grid -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        
+        <!-- Section 2: Marketer Leaderboard -->
+        <div class="card p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-lg font-bold text-gray-900">🦁 Marketer Leaderboard</h2>
+                <span class="text-sm text-gray-500">Sorted by Profit</span>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm text-left">
+                    <thead class="text-xs text-gray-700 uppercase bg-gray-50">
+                        <tr>
+                            <th class="px-3 py-2">Marketer</th>
+                            <th class="px-3 py-2">Spend</th>
+                            <th class="px-3 py-2">ROAS</th>
+                            <th class="px-3 py-2">Profit</th>
+                            <th class="px-3 py-2">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr class="border-b">
+                            <td class="px-3 py-3 font-medium">🥇 Anna</td>
+                            <td class="px-3 py-3">$12,000</td>
+                            <td class="px-3 py-3 text-green-600 font-bold">3.8</td>
+                            <td class="px-3 py-3">120,000 ₫</td>
+                            <td class="px-3 py-3"><span class="badge badge-green">Scaling</span></td>
+                        </tr>
+                        <tr class="border-b">
+                            <td class="px-3 py-3">🥈 Bob</td>
+                            <td class="px-3 py-3">$8,500</td>
+                            <td class="px-3 py-3">3.2</td>
+                            <td class="px-3 py-3">60,000 ₫</td>
+                            <td class="px-3 py-3"><span class="badge badge-gray">Stable</span></td>
+                        </tr>
+                        <tr>
+                            <td class="px-3 py-3">Charlie</td>
+                            <td class="px-3 py-3">$15,000</td>
+                            <td class="px-3 py-3 text-red-600 font-bold">2.0</td>
+                            <td class="px-3 py-3 text-red-600">-15,000 ₫</td>
+                            <td class="px-3 py-3"><span class="badge badge-red">Loss</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="bg-blue-50 p-3 rounded mt-4 text-sm text-blue-800 flex items-start">
+                <span class="text-lg mr-2">🤖</span>
+                <div>
+                    <strong>AI Insight (CMO):</strong> Charlie is burning cash with ROAS 2.0 (below break-even 2.5). Warning issued to cut budget by 50% immediately.
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 6: Inventory Health (New) -->
+        <div class="card p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-lg font-bold text-gray-900">🏭 Inventory Health</h2>
+                <span class="text-sm text-gray-500">Alerts: 2 Critical</span>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm text-left">
+                    <thead class="text-xs text-gray-700 uppercase bg-gray-50">
+                        <tr>
+                            <th class="px-3 py-2">Product</th>
+                            <th class="px-3 py-2">Stock</th>
+                            <th class="px-3 py-2">ADS (30d)</th>
+                            <th class="px-3 py-2">Cover</th>
+                            <th class="px-3 py-2">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr class="border-b bg-red-50">
+                            <td class="px-3 py-3 font-medium">SKU-A1 Slim Wallet</td>
+                            <td class="px-3 py-3">50</td>
+                            <td class="px-3 py-3">25.0</td>
+                            <td class="px-3 py-3 text-red-700 font-bold">2.0 days</td>
+                            <td class="px-3 py-3"><button class="bg-red-600 text-white text-xs px-2 py-1 rounded">Refill NOW</button></td>
+                        </tr>
+                        <tr class="border-b">
+                            <td class="px-3 py-3 font-medium">SKU-B2 Leather Belt</td>
+                            <td class="px-3 py-3">1,500</td>
+                            <td class="px-3 py-3">2.0</td>
+                            <td class="px-3 py-3 text-gray-500">750 days</td>
+                            <td class="px-3 py-3"><span class="badge badge-yellow">Dead Stock</span></td>
+                        </tr>
+                        <tr>
+                            <td class="px-3 py-3 font-medium">SKU-C3 Smart Key</td>
+                            <td class="px-3 py-3">300</td>
+                            <td class="px-3 py-3">10.0</td>
+                            <td class="px-3 py-3 text-green-600">30.0 days</td>
+                            <td class="px-3 py-3"><span class="badge badge-green">Healthy</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="bg-yellow-50 p-3 rounded mt-4 text-sm text-yellow-800 flex items-start">
+                <span class="text-lg mr-2">⚙️</span>
+                <div>
+                    <strong>AI Insight (COO):</strong> SKU-A1 is your Best Seller but will stockout in 48h. Supplier lead time is 5 days. You will lose approx $3,000 revenue.
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Section 3 & 4 Grid -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        
+        <!-- Section 3: Product Portfolio -->
+        <div class="card p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-lg font-bold text-gray-900">📦 Product Intelligence</h2>
+            </div>
+             <div class="overflow-x-auto">
+                <table class="w-full text-sm text-left">
+                    <thead class="text-xs text-gray-700 uppercase bg-gray-50">
+                        <tr>
+                            <th class="px-3 py-2">SKU</th>
+                            <th class="px-3 py-2">Revenue</th>
+                            <th class="px-3 py-2">Margin</th>
+                            <th class="px-3 py-2">Return %</th>
+                            <th class="px-3 py-2">Strategy</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr class="border-b">
+                            <td class="px-3 py-3 font-medium">SKU-A1</td>
+                            <td class="px-3 py-3">150k</td>
+                            <td class="px-3 py-3 text-green-600">35%</td>
+                            <td class="px-3 py-3">5%</td>
+                            <td class="px-3 py-3"><span class="badge badge-green">Scale</span></td>
+                        </tr>
+                        <tr class="border-b">
+                            <td class="px-3 py-3 font-medium">SKU-B2</td>
+                            <td class="px-3 py-3">80k</td>
+                            <td class="px-3 py-3">12%</td>
+                            <td class="px-3 py-3">15%</td>
+                            <td class="px-3 py-3"><span class="badge badge-yellow">Optimize</span></td>
+                        </tr>
+                         <tr>
+                            <td class="px-3 py-3 font-medium">SKU-C3</td>
+                            <td class="px-3 py-3">25k</td>
+                            <td class="px-3 py-3 text-red-600">-5%</td>
+                            <td class="px-3 py-3 text-red-600">22%</td>
+                            <td class="px-3 py-3"><span class="badge badge-red">Kill</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Section 4: Market Performance -->
+        <div class="card p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-lg font-bold text-gray-900">🌍 Market Performance</h2>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm text-left">
+                    <thead class="text-xs text-gray-700 uppercase bg-gray-50">
+                        <tr>
+                            <th class="px-3 py-2">Region</th>
+                            <th class="px-3 py-2">Orders</th>
+                            <th class="px-3 py-2">Deliv %</th>
+                            <th class="px-3 py-2">Profit</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr class="border-b">
+                            <td class="px-3 py-3 font-medium">Bucharest</td>
+                            <td class="px-3 py-3">2,500</td>
+                            <td class="px-3 py-3 text-green-600">92%</td>
+                            <td class="px-3 py-3">180k</td>
+                        </tr>
+                        <tr class="border-b">
+                            <td class="px-3 py-3 font-medium">Cluj</td>
+                            <td class="px-3 py-3">1,200</td>
+                            <td class="px-3 py-3 text-green-600">89%</td>
+                            <td class="px-3 py-3">90k</td>
+                        </tr>
+                        <tr>
+                            <td class="px-3 py-3 font-medium">Rural Area A</td>
+                            <td class="px-3 py-3">500</td>
+                            <td class="px-3 py-3 text-red-600">65%</td>
+                            <td class="px-3 py-3 text-red-600">-2k</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="bg-red-50 p-3 rounded mt-4 text-sm text-red-800 flex items-start">
+                <span class="text-lg mr-2">💰</span>
+                <div>
+                    <strong>AI Insight (CFO):</strong> "Rural Area A" has negative profit due to low Delivery Rate (65%). Recommendation: Add to Ads Blacklist.
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+</body>
+</html>

@@ -1,0 +1,129 @@
+# ╔══════════════════════════════════════════════════════╗
+# ║  AUUS1 — Naming Registry & Aliases (CLEANED)       ║
+# ║  Mapping tự động tên Campaign thực tế → Chuẩn báo cáo║
+# ╚══════════════════════════════════════════════════════╝
+
+# ─── 1. THỊ TRƯỜNG (MARKET ALIASES) ───
+markets:
+  AU:
+    - "AUS"
+    - "Australia"
+    - "AU"
+  US:
+    - "US"
+    - "USA"
+    - "United States"
+  JP:
+    - "JAPAN" # Lịch sử
+
+# ─── 2. MARKETER MAPPING ───
+marketers:
+  KINH:
+    name: "Kính"
+    campaign_aliases: ["Kính", "kinh"]
+  MANH:
+    name: "Mạnh"
+    campaign_aliases: ["Mạnh", "manh"]
+  SANH:
+    name: "Sỹ Anh"
+    campaign_aliases: ["S.ANH", "s.anh"]
+  THANH:
+    name: "Thành"
+    campaign_aliases: ["Thành", "thanh"]
+  THANG:
+    name: "Thắng"
+    campaign_aliases: ["Thắng", "thang"]
+
+# ─── 3. SẢN PHẨM (PRODUCT ALIASES) ───
+# Danh sách chỉ giữ lại các Mã sản phẩm Active bán trong 60 ngày gần nhất tại POS
+products:
+  071___GINSENG_SERUM:
+    name: "071 - Ginseng Serum"
+    pos_aliases: ["Ginseng Serum - 071", "071 - Ginseng Serum"]
+    campaign_aliases: ["Ginseng Serum"]
+  082___WEST_MONTH_CREAM:
+    name: "082 - West Month Cream"
+    pos_aliases: ["West Month Cream - 082"]
+    campaign_aliases: []
+  088___BODY_LOTION_HALLY:
+    name: "088 - Body Lotion Hally"
+    pos_aliases: ["088 - Body Lotion Hally"]
+    campaign_aliases: ["Body Lotion", "Hally Body Lotion"]
+  089___NATURAL_BLACK_FLORAL_HAIR_DYE:
+    name: "089 - Natural Black Floral Hair Dye"
+    pos_aliases: ["089 - Natural Black Floral Hair Dye", "Natural Black Floral Hair Dye - 089"]
+    campaign_aliases: ["dầu gội  Fa Le Mei"]
+  090___CHESTNUT_BROWN_FLORAL_HAIR_DYE:
+    name: "090 - Chestnut Brown Floral Hair Dye"
+    pos_aliases: ["090 - Chestnut Brown Floral Hair Dye", "Chestnut Brown Floral Hair Dye - 090"]
+    campaign_aliases: []
+  097___HOEGOA_ROSEMARY_KERATIN:
+    name: "097 - Hoegoa Rosemary Keratin"
+    pos_aliases: ["097 - Hoegoa Rosemary Keratin"]
+    campaign_aliases: ["MỌCTOC"]
+  103___RED_STONE_WATCH:
+    name: "103 - RED STONE WATCH - BRACELET"
+    pos_aliases: ["103 - RED STONE WATCH – BRACELET"]
+    campaign_aliases: ["Đồng hồ 18k"]
+  104___BLUE_STONE_WATCH:
+    name: "104 - BLUE STONE WATCH - BRACELET"
+    pos_aliases: ["104 - BLUE STONE WATCH – BRACELET"]
+    campaign_aliases: []
+  112___FIRMING_BODY_CREAM:
+    name: "112 - Firming Body Cream"
+    pos_aliases: ["112 - Firming Body Cream"]
+    campaign_aliases: ["Kem xoá nhăn hồng"]
+  114___BREAST_HIP_ENHANCEMENT_CREAM:
+    name: "114 - Breast Hip Enhancement Cream"
+    pos_aliases: ["114 - Breast Hip Enhancement Cream"]
+    campaign_aliases: ["Kem nở mông ngực"]
+  116___TGIDEAS_SHAMPOO:
+    name: "116 - Tgideas Shampoo"
+    pos_aliases: ["116 - Tgideas Shampoo"]
+    campaign_aliases: ["MỌC TÓC"]
+  119___RETINOL_CREAM:
+    name: "119 - Retinol Cream"
+    pos_aliases: ["119 - Retinol Cream"]
+    campaign_aliases: ["Retinol Cream"]
+
+  # ──────── CAMPAIGNS CHƯA CÓ TRÊN POS NHƯNG TÍNH LÀ BÁN HÀNG (SPEND CAO)
+  UNMAPPED_MAIN_SELLING:
+    name: "Unmapped Main Selling"
+    campaign_aliases:
+      - "SERUMNHANSAM"
+      - "Lotion tắm trắng"
+      - "PAGEMOISERUMNHANSAM"
+      - "kemchongnangI"
+      - "AONGUC"
+      - "ĐỒNG HỒ"
+      - "Son tự bù màu"
+      - "Serum Aobenz"
+      - "Bee Venom"
+      - "Kem trị sằo"
+      - "bảnđịa"
+
+  # ──────── CAMPAIGNS RÁC / SP TỀ / TEST (SPEND THẤP DƯỚI $1,000,000 VND)
+  UNMAPPED_TESTING:
+    name: "Unmapped Testing"
+    campaign_aliases:
+      - "HATGIONGCAY"
+      - "Ống xoá nhăn"
+      - "LÔNG MI GIẢ"
+      - "LÂYRAYTAI"
+      - "Mặt nạ collagen"
+      - "Kem mắt"
+      - "Trắng răng"
+      - "QUẦN ĐỘN MÔNG"
+      - "Patch dưỡng nhan"
+      - "XAPHONGNAM"
+      - "Mọc tóc"
+      - "Tẩy rửa"
+      - "QUẦN ĐỊNH HÌNH"
+      - "KEOBOMAT"
+      - "kem boi da"
+      - "Face Serum"
+      - "Kem dưỡng nhan"
+      - "Kem đánh răng"
+      - "Arlux Hair Remove"
+      - "Collagen"
+      - "PHẤN NƯỚNG"

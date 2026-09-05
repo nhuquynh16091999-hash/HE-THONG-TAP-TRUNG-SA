@@ -1,0 +1,8 @@
+project_id,category,description,amount,currency,month,year
+zen8,salary,Lương nhân viên dự án Zen8,50000000,VND,2,2026
+zen8,rent,Thuê kho Riyadh,3000,SAR,2,2026
+zen8,tools,Phí tool (n8n/Poscake/Pancake...),5000000,VND,2,2026
+trendify,salary,Lương nhân viên Trendify,30000000,VND,2,2026
+stramark,storage,euShipments min storage WH Oradea (<300 orders/month),165,EUR,2,2026
+stramark,salary,Lương nhân viên Stramark,0,EUR,2,2026
+stramark,tools,Phí tool (Poscake/hosting),0,EUR,2,2026

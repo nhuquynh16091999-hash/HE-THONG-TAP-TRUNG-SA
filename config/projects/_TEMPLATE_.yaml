@@ -1,0 +1,71 @@
+# ═══════════════════════════════════════════════════════
+# FAOS New Project Template
+# ═══════════════════════════════════════════════════════
+# Clone this file to create a new project branch:
+#   cp config/projects/_TEMPLATE_.yaml config/projects/YOUR_PROJECT.yaml
+#
+# Then fill in the credentials for your project.
+# The sync system will automatically detect and start syncing.
+# ═══════════════════════════════════════════════════════
+
+project:
+  name: "YOUR_PROJECT_NAME"           # e.g., "STRAMARK", "AUUS1", "Zen8"
+  description: "Short description"
+  currency: "USD"                      # USD, RON, AED, AUD
+  currency_divisor: 1                  # 100 for RON (bani→RON), 1 for USD
+  country: "US"                        # US, RO, AE, AU
+  timezone: "UTC"                      # UTC, Europe/Bucharest, Asia/Dubai
+
+# BigQuery dataset for this project
+bigquery:
+  dataset: "YOUR_PROJECT_Dataset"      # Will be created automatically
+  project_id: "levelup-465304"         # Same GCP project
+
+# Poscake (POS) integration
+poscake:
+  enabled: true
+  api_url: "https://pos.pages.fm/api/v1"
+  api_key_env: "YOUR_PROJECT_POSCAKE_KEY"  # Reference to .env variable
+  shop_ids:
+    - id: "SHOP_ID_1"
+      name: "Main Shop"
+      country: "US"
+
+# Meta Ads integration
+meta_ads:
+  enabled: true
+  app_id_env: "YOUR_PROJECT_META_APP_ID"
+  app_secret_env: "YOUR_PROJECT_META_APP_SECRET"
+  access_token_env: "YOUR_PROJECT_META_ACCESS_TOKEN"
+  ad_account_ids:
+    - "act_XXXXXXXXXX"
+  token_expires: "2026-MM-DD"
+  token_renew_by: "2026-MM-DD"
+
+# 3PL (Shipping) integration
+shipping:
+  enabled: false
+  provider: "ajex"               # ajex, tce, ami, custom
+
+# Dashboard settings
+dashboard:
+  enabled: true
+  tabs:
+    - overview
+    - marketing
+    - products
+    - pnl
+
+# Sync schedule
+sync:
+  orders_interval_minutes: 15
+  ads_interval_minutes: 120
+  shipping_interval_minutes: 60
+
+# AI Agent settings for this project
+agents:
+  guardian: true
+  watchdog: true
+  briefer: true
+  collector: false
+  researcher: false

@@ -1,0 +1,222 @@
+projects:
+  ZN8: Zen8
+  TDF: Trendify
+  HNL: HNLE
+  STR: Stramark
+  T01: T1
+  PIA: PiAlpha
+marketers:
+  HUYTN:
+    name: Trương Nhật Huy
+    project: ZN8
+  LYVLN:
+    name: Võ Lê Nhật Ly
+    project: ZN8
+  NHAMHT:
+    name: Mai Huỳnh Thanh Nhã
+    project: ZN8
+  TUNPT:
+    name: Nguyễn Phan Thiên Tú
+    project: ZN8
+  DUNGNH:
+    name: Nguyễn Hoàng Dũng
+    project: ZN8
+  TAIHH:
+    name: Huỳnh Hữu Tài
+    project: ZN8
+  ANHNT:
+    name: Nguyễn Tuấn Anh
+    project: STR
+  TUKT:
+    name: Kim Thanh Tú
+    project: STR
+  CHIPTL:
+    name: Phạm Thị Linh Chi
+    project: STR
+  LETC:
+    name: Trần Cẩm Lệ
+    project: STR
+markets:
+  SA:
+    name: Saudi Arabia
+    currency: SAR
+  AE:
+    name: UAE
+    currency: AED
+  KW:
+    name: Kuwait
+    currency: KWD
+  BH:
+    name: Bahrain
+    currency: BHD
+  OM:
+    name: Oman
+    currency: OMR
+  QA:
+    name: Qatar
+    currency: QAR
+  VN:
+    name: Việt Nam
+    currency: VND
+  MY:
+    name: Malaysia
+    currency: MYR
+  PH:
+    name: Philippines
+    currency: PHP
+  ID:
+    name: Indonesia
+    currency: IDR
+products:
+  PIA:
+    '004': Diamond Set
+    '005': Diamond Halo set
+    '010': Birth Stone Set
+    '014': Set 5 Bracelets
+    '015': Seiko Watch
+    '016': Green Diamond Set
+    018: Shaping Pants M
+    019: Shaping Pants L
+    '020': Shaping Pants XL
+    '021': Shaping Pants 2XL
+    '022': Tripple Diamond Set
+    '027': Crystal Diamond Set
+    '053': Gold Heart Necklace
+    '055': Antarctic Krill Oil
+    '056': Spring Ring Necklace
+    '057': Snail Whitening Cream
+    058: VC Cream
+    '060': Whitening Cleanser
+    '063': Whitening and Cleansing Milk
+    '064': Slimming Patch
+    '065': EUPHAUSIA SUPERBA OIL
+    '066': Snail Collagen Cream
+    069: Pure Heart of Gold
+    '073': Herbal eye cream
+    '075': HEART KEY NECKLACE
+    081: Glutathione Collagen Glow
+    BTF: BIG TIFFAN
+    BSS: BIRTH STONE SET
+    BSNK: BISMARK NECKLACE
+    BOX: Necklace box
+    BUTXL: Black UniSlimfit 2XL
+    BUL: Black UniSlimfit L
+    BUM: Black UniSlimfit M
+    BUXL: Black UniSlimfit XL
+    086: Bra Flight Attendants 2XL
+    084: Bra Flight Attendants L
+    083: Bra Flight Attendants M
+    085: Bra Flight Attendants XL
+    059: Breast Patch
+    CNK: CRUCIFIX NECKLACE
+    DEAR: DIAMOND EARRINGS
+    DHER: DIAMOND HALO EARRINGS
+    DHN: DIAMOND HALO NECKLACE
+    DHR: DIAMOND HALO RING
+    DNK: DIAMOND NECKLACE
+    DRNG: DIAMOND RING
+    FITGU: Fitgum
+    GHNK: GOLD HEART NECKLACE
+    HDBR: HARDWARE BRACELET
+    '118': Herbal Hair Dye
+    INGUI: INGUINAL WHITENING CREAM
+    LFB: Lucky Flower Bracelet
+    NESLE: NESLEMY dentures
+    NUTXL: Nude UniSlimfit 2XL
+    NUL: Nude UniSlimfit L
+    NUM: Nude UniSlimfit M
+    NUXL: Nude UniSlimfit XL
+    QEN: QUEEN ELIZABETH NECKLACE
+    SEIKO: SEIKO WATCH
+    FBR: SET 5 BRACELETS
+    EME: SET EMERALD
+    SP TE: SP TEST
+    SFV: Set 4 Bracelets
+    '123': Soothing massage gel
+    TP1: Test đổ pos
+    WS: WhiteBloom Soap
+    EYE O: eye oil
+    008: Necklace box
+    009: eye oil
+    '011': Heart of Ocean Necklace
+    '013': Set Emerald
+    '054': Ball Bangles
+    '072': Couple Ring
+    BRAM: Bra Flight Attendants M
+    BRAL: Bra Flight Attendants L
+    BRAXL: Bra Flight Attendants XL
+    BRA2X: Bra Flight Attendants 2XL
+  TDF:
+    USTDF: Ultrafresh Sunscreen
+    USTBC: SADOER Skin Active
+  SRN:
+    SRN05: Elegant Midi Dress
+    NA4: 'Nasturi Aurii - Color: Camel Clasic'
+    NA5: 'Nasturi Aurii - Color: Crem'
+    NA6: 'Nasturi Aurii - Color: Negru Intens'
+    NA7: 'Nasturi Aurii - Color: Vișiniu Elegant'
+    NN3: 'Nasturi Negri  Color: Roșu Intens'
+    NN4: 'Nasturi Negri - Color: Camel'
+    NN5: 'Nasturi Negri - Color: Maro Ciocolatiu'
+    SRN04: Premium V-Neck Viscose Blouse
+    SRN01: Pulover de Damă 'Angora Soft'
+  ZN8:
+    BC1: Baiyaolang Cream
+    BO1: Bitoon oil
+    BHS: Bubble Herbal Shampoo
+    ES1: Eelhoe Soap
+    GO1: Ginger Oil
+    GO2: Ginger Oil Muliya
+    AE000: Zudaifu Cream
+    GN1: Ginger nail
+    GF1: Ginseng Five Treasure Tea
+    GS1: Ginseng Serum
+    GE1: Gold Earrings
+    GS2: Golden Snake
+    HC1: HOUMAI CREAM
+    HD1: Hair Dye Stick
+    JE1: JOMTAM Eye Cream
+    KB1: KSA BITONGSHU
+    KE1: KSA Ear Drops
+    KG2: KSA Ginger Oil Muliya
+    KG3: KSA Ginger Patch
+    KG4: KSA Ginseng Five Treasure Tea
+    KG5: KSA Ginseng Serum
+    KG6: KSA Golden Snake
+    KJ1: KSA JOMTAM Eye Cream
+    KK1: KSA Kasoy Cream
+    KK2: KSA Kinoki
+    KS1: KSA South moon hair spray
+    KS2: KSA Sunscreen hat
+    KS3: KSA Superba oil
+    KT1: KSA Tawas cream
+    KV1: KSA Varicose veins patch
+    KV2: KSA Vitiligo Cream
+    KZ1: KSA Zudaifu Cream
+    KC1: Kasoy cream
+    KF1: Kasugai Fuyan Cream
+    KK3: Kili kili deospray
+    KI1: Kinoki
+    LC1: Lipoma Cream
+    AETDF: Stick Foundation
+    PE1: Pearl Earrings
+    TEST: SP Minh tạo test
+    SE1: Skin Essentials Sunscreen
+    SP1: Sleep patch
+    SS1: Soofating Serum
+    SM1: South Moon Hair Spray
+    TC1: Tawas cream
+    UR1: Underarm roller
+    VV1: Varicose Veins Patch
+    YS1: Yagang Spray
+    NB1: necklace box
+    ROSOR: ÁO LEN-TEST
+campaign_types:
+  CBO: Campaign Budget Optimization
+  ABO: Ad Set Budget Optimization
+  DPA: Dynamic Product Ads
+  RTG: Retargeting
+  TST: Testing
+  SCL: Scaling
+  LAL: Lookalike
+  BR: Broad

@@ -1,0 +1,13 @@
+node_modules/
+.wwebjs_auth/
+.wwebjs_cache/
+state.json
+ads_state.json
+group_ids.txt
+groups.txt
+last_qr.txt
+# Sinh ra trên server, không vào git — nhưng deploy.sh đọc file này để biết
+# file nào ĐƯỢC PHÉP tồn tại ngoài git; thiếu ở đây là bị dọn nhầm.
+package-lock.json
+.deps_md5
+.deployed_sha

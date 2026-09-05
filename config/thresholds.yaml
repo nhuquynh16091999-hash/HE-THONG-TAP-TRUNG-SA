@@ -1,0 +1,16 @@
+# FAOS Agent Thresholds — Edit this file to change agent behavior
+# No code changes needed.
+
+roas:
+  danger: 1.3       # ROAS < this = CRITICAL (campaign losing money)
+  warning: 2.0      # ROAS < this = WARNING
+  excellent: 3.0    # ROAS >= this = performing well
+
+return_rate:
+  max: 0.25         # Return rate > 25% triggers alert
+
+stock:
+  safety_days: 3    # Alert when stock < 3 days of sales
+
+spend:
+  min_alert: 10.0   # Minimum daily spend to trigger ROAS alerts (USD)

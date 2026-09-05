@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FAOS — Federated Agent Operating System</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/theme/black.min.css">
+<style>
+  :root {
+    --r-background-color: #0a0a1a;
+    --r-main-color: #e0e0e0;
+    --r-heading-color: #00d4ff;
+    --r-link-color: #00d4ff;
+  }
+  .reveal { font-family: 'Segoe UI', system-ui, sans-serif; }
+  .reveal h1 { font-size: 2.2em; text-shadow: 0 0 20px rgba(0,212,255,0.3); }
+  .reveal h2 { font-size: 1.6em; color: #00d4ff; }
+  .reveal h3 { font-size: 1.2em; color: #7dd3fc; }
+  .reveal table { font-size: 0.55em; margin: 0 auto; border-collapse: collapse; }
+  .reveal table th { background: rgba(0,212,255,0.15); color: #00d4ff; padding: 6px 12px; }
+  .reveal table td { padding: 5px 10px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+  .reveal table tr:hover td { background: rgba(0,212,255,0.05); }
+  .reveal .small { font-size: 0.6em; }
+  .reveal .medium { font-size: 0.7em; }
+  .reveal .accent { color: #00d4ff; }
+  .reveal .green { color: #34d399; }
+  .reveal .red { color: #f87171; }
+  .reveal .yellow { color: #fbbf24; }
+  .reveal .orange { color: #fb923c; }
+  .reveal .purple { color: #c084fc; }
+  .reveal .dim { color: #6b7280; }
+  .reveal .highlight-box {
+    background: rgba(0,212,255,0.08);
+    border: 1px solid rgba(0,212,255,0.3);
+    border-radius: 12px;
+    padding: 20px;
+    margin: 10px 0;
+  }
+  .reveal .stat-grid { display: flex; gap: 20px; justify-content: center; flex-wrap: wrap; }
+  .reveal .stat-card {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 10px;
+    padding: 15px 25px;
+    text-align: center;
+    min-width: 140px;
+  }
+  .reveal .stat-card .number { font-size: 2em; font-weight: bold; color: #00d4ff; }
+  .reveal .stat-card .label { font-size: 0.65em; color: #9ca3af; margin-top: 5px; }
+  .reveal .progress-bar { background: rgba(255,255,255,0.1); border-radius: 10px; height: 24px; overflow: hidden; margin: 5px 0; }
+  .reveal .progress-fill { height: 100%; border-radius: 10px; display: flex; align-items: center; padding-left: 10px; font-size: 0.6em; font-weight: bold; }
+  .reveal pre { font-size: 0.55em; }
+  .reveal code { font-size: 0.9em; }
+  .reveal .layer-diagram { text-align: left; font-family: monospace; font-size: 0.52em; line-height: 1.6; }
+  .reveal .two-col { display: flex; gap: 30px; align-items: flex-start; }
+  .reveal .two-col > div { flex: 1; }
+  .reveal .icon { font-size: 1.5em; }
+  .reveal .tag {
+    display: inline-block; padding: 2px 10px; border-radius: 12px;
+    font-size: 0.6em; font-weight: bold; margin: 2px;
+  }
+  .tag-done { background: rgba(52,211,153,0.2); color: #34d399; border: 1px solid rgba(52,211,153,0.3); }
+  .tag-running { background: rgba(0,212,255,0.2); color: #00d4ff; border: 1px solid rgba(0,212,255,0.3); }
+  .tag-planned { background: rgba(251,191,36,0.2); color: #fbbf24; border: 1px solid rgba(251,191,36,0.3); }
+  .slide-number { font-size: 0.5em !important; }
+</style>
+</head>
+<body>
+<div class="reveal">
+<div class="slides">
+
+<!-- ============== SLIDE 1: TITLE ============== -->
+<section>
+  <h1>🧠 FAOS</h1>
+  <h3>Federated Agent Operating System</h3>
+  <p class="dim" style="margin-top:30px">Hệ thống AI tự động vận hành E-commerce</p>
+  <p class="small dim">Phiên bản 3.0 — Tháng 2/2026</p>
+  <br>
+  <div class="stat-grid">
+    <div class="stat-card"><div class="number">375+</div><div class="label">Files</div></div>
+    <div class="stat-card"><div class="number">12+</div><div class="label">AI Agents</div></div>
+    <div class="stat-card"><div class="number">3</div><div class="label">Projects Live</div></div>
+    <div class="stat-card"><div class="number">54</div><div class="label">N8N Workflows</div></div>
+  </div>
+</section>
+
+<!-- ============== SLIDE 2: FAOS LÀ GÌ ============== -->
+<section>
+  <h2>FAOS Là Gì?</h2>
+  <div class="highlight-box">
+    <p><strong>FAOS</strong> = Nền tảng AI giám sát và tự động hóa vận hành E-commerce đa dự án</p>
+  </div>
+  <br>
+  <div class="two-col medium">
+    <div>
+      <h3>📊 Giám sát</h3>
+      <ul>
+        <li>Quảng cáo (Meta Ads)</li>
+        <li>Đơn hàng (Poscake POS)</li>
+        <li>Tồn kho (Stock)</li>
+        <li>Lợi nhuận (P&L)</li>
+        <li>Fulfillment (3PL)</li>
+      </ul>
+    </div>
+    <div>
+      <h3>🤖 Tự động</h3>
+      <ul>
+        <li>Alert khi ROAS thấp</li>
+        <li>Báo cáo CEO hàng ngày</li>
+        <li>Đề xuất pause/scale ads</li>
+        <li>Monitor stock critical</li>
+        <li>Cross-agent intelligence</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============== SLIDE 3: PROJECTS ============== -->
+<section>
+  <h2>3 Dự Án Đang Chạy</h2>
+  <table>
+    <thead><tr><th>Project</th><th>Thị trường</th><th>Sản phẩm</th><th>POS Shops</th><th>Ad Accounts</th><th>3PL</th><th>Currency</th></tr></thead>
+    <tbody>
+      <tr><td><strong class="accent">STRAMARK</strong></td><td>🇷🇴 Romania</td><td>Clothing</td><td>1</td><td>2</td><td>euShipments, TCE</td><td>RON</td></tr>
+      <tr><td><strong class="accent">TALPHA</strong></td><td>🇸🇦🇦🇪🇰🇼🇴🇲🇶🇦🇧🇭 GCC (6 nước)</td><td>Jewelry + Cosmetics</td><td>6</td><td>8</td><td>iMile, PostaPlus, Aramex</td><td>AED</td></tr>
+      <tr><td><strong class="accent">AUUS1</strong></td><td>🇺🇸🇦🇺 US + Australia</td><td>Multi-category</td><td>2</td><td>2</td><td>AMI, NAZA</td><td>USD</td></tr>
+    </tbody>
+  </table>
+  <br>
+  <p class="small dim">+ 5 projects khác đang setup: zen8, pialpha, trendify, hnle, t1</p>
+  <p class="small dim">Mỗi project hoàn toàn <span class="accent">isolated</span>: riêng config, dataset, workflows, Discord channel</p>
+</section>
+
+<!-- ============== SLIDE 4: ARCHITECTURE ============== -->
+<section>
+  <h2>Kiến Trúc Tổng Quan</h2>
+  <div class="layer-diagram">
+<pre style="text-align:center; font-size:0.9em; line-height:1.8">
+<span class="accent">┌─────────────────────────────────────────────────────────────┐</span>
+<span class="accent">│</span>  <span class="green">📱 DASHBOARD</span> (Next.js 16 · React 19 · 14 tabs × 3 projects)  <span class="accent">│</span>
+<span class="accent">├─────────────────────────────────────────────────────────────┤</span>
+<span class="accent">│</span>  <span class="purple">🧠 WAR ROOM</span> — LangGraph Orchestrator                        <span class="accent">│</span>
+<span class="accent">│</span>  <span class="purple">🤝 COORDINATOR</span> — Cross-Agent Intelligence                   <span class="accent">│</span>
+<span class="accent">├─────────────────────────────────────────────────────────────┤</span>
+<span class="accent">│</span>  <span class="yellow">👥 12+ AI AGENTS</span> (CrewAI + BaseAgent)                       <span class="accent">│</span>
+<span class="accent">│</span>  CFO · CMO · COO · CSO · CTO · CHRO                          <span class="accent">│</span>
+<span class="accent">│</span>  ProfitGuardian · OpsWatchdog · DailyBriefer · CSCoach ...    <span class="accent">│</span>
+<span class="accent">├─────────────────────────────────────────────────────────────┤</span>
+<span class="accent">│</span>  <span class="orange">🧬 MEMORY</span> — ChromaDB + RAG + Journals                       <span class="accent">│</span>
+<span class="accent">├─────────────────────────────────────────────────────────────┤</span>
+<span class="accent">│</span>  <span class="red">💬 LLM</span> — Gemini + OpenAI (auto-fallback)                     <span class="accent">│</span>
+<span class="accent">├─────────────────────────────────────────────────────────────┤</span>
+<span class="accent">│</span>  <span class="green">📦 DATA</span> BigQuery (4 datasets) ← N8N (54 workflows) ← APIs   <span class="accent">│</span>
+<span class="accent">└─────────────────────────────────────────────────────────────┘</span>
+</pre>
+  </div>
+</section>
+
+<!-- ============== SLIDE 5: DATA FLOW ============== -->
+<section>
+  <h2>Luồng Dữ Liệu</h2>
+  <div class="medium">
+<pre style="text-align:center; line-height:2">
+<span class="green">Poscake POS</span> ──(15 min)──→ <span class="accent">n8n</span> ──→ <span class="yellow">BigQuery</span>
+                                    ├─→ staging_sale_order
+                                    └─→ staging_order_items
+
+<span class="green">Meta Ads API</span> ──(2 hrs)──→ <span class="accent">n8n</span> ──→ <span class="yellow">BigQuery</span>
+                                    └─→ fb_ads_data
+
+<span class="yellow">BigQuery</span> Views & Marts ──→ <span class="purple">AI Agents</span> ──→ <span class="red">Discord Alerts</span>
+                          ──→ <span class="green">Dashboard</span> (API routes)
+</pre>
+  </div>
+  <br>
+  <div class="stat-grid">
+    <div class="stat-card"><div class="number">15m</div><div class="label">POS Sync</div></div>
+    <div class="stat-card"><div class="number">2h</div><div class="label">Ads Sync</div></div>
+    <div class="stat-card"><div class="number">6h</div><div class="label">Stock Sync</div></div>
+    <div class="stat-card"><div class="number">10</div><div class="label">Scheduled Tasks</div></div>
+  </div>
+</section>
+
+<!-- ============== SLIDE 6: TECH STACK ============== -->
+<section>
+  <h2>Technology Stack</h2>
+  <div class="two-col">
+    <div>
+      <table>
+        <thead><tr><th colspan="2">Backend (Python 3.11)</th></tr></thead>
+        <tbody>
+          <tr><td>Agent Framework</td><td>BaseAgent + CrewAI</td></tr>
+          <tr><td>Orchestration</td><td>LangGraph (StateGraph)</td></tr>
+          <tr><td>LLM</td><td>Gemini + OpenAI</td></tr>
+          <tr><td>Memory/RAG</td><td>ChromaDB</td></tr>
+          <tr><td>API</td><td>FastAPI</td></tr>
+          <tr><td>Database</td><td>Google BigQuery</td></tr>
+          <tr><td>Workflows</td><td>n8n (self-hosted)</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div>
+      <table>
+        <thead><tr><th colspan="2">Frontend (TypeScript)</th></tr></thead>
+        <tbody>
+          <tr><td>Framework</td><td>Next.js 16</td></tr>
+          <tr><td>UI</td><td>React 19</td></tr>
+          <tr><td>Styling</td><td>TailwindCSS 3</td></tr>
+          <tr><td>Charts</td><td>Recharts</td></tr>
+          <tr><td>Tables</td><td>TanStack React Table</td></tr>
+          <tr><td>Icons</td><td>Lucide React</td></tr>
+          <tr><td>BQ Client</td><td>@google-cloud/bigquery</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ============== SLIDE 7: AI AGENTS ============== -->
+<section>
+  <h2>🤖 Hệ Thống AI Agents</h2>
+  <div class="two-col">
+    <div>
+      <h3>C-Suite Agents</h3>
+      <table>
+        <tbody>
+          <tr><td>💰 CFO</td><td>Financial oversight, ROAS</td></tr>
+          <tr><td>📢 CMO</td><td>Marketing strategy</td></tr>
+          <tr><td>⚙️ COO</td><td>Operations monitoring</td></tr>
+          <tr><td>📈 CSO</td><td>Sales strategy</td></tr>
+          <tr><td>💻 CTO</td><td>Technology health</td></tr>
+          <tr><td>👥 CHRO</td><td>Team performance</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div>
+      <h3>Specialist Agents</h3>
+      <table>
+        <tbody>
+          <tr><td>🛡️ Profit Guardian</td><td>ROAS + P&L alerts</td></tr>
+          <tr><td>👁️ Ops Watchdog</td><td>Stock, stuck orders</td></tr>
+          <tr><td>📊 Daily Briefer</td><td>LLM daily summary</td></tr>
+          <tr><td>🎓 CS Coach</td><td>CS conversion scoring</td></tr>
+          <tr><td>🚚 Logistics</td><td>Carrier, delivery, COD</td></tr>
+          <tr><td>📣 Marketing Advisor</td><td>Campaign analysis</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <br>
+  <p class="small"><span class="tag tag-running">CrewAI</span> <span class="tag tag-running">ChromaDB Memory</span> <span class="tag tag-running">LLM Abstraction</span> <span class="tag tag-running">Token Tracking</span></p>
+</section>
+
+<!-- ============== SLIDE 8: CREWAI + CHROMADB ============== -->
+<section>
+  <h2>CrewAI + ChromaDB — Trí Nhớ</h2>
+  <div class="two-col medium">
+    <div>
+      <h3>🤝 CrewAI</h3>
+      <div class="highlight-box" style="font-size:0.85em">
+        <p><strong>Crew</strong> = Nhóm agents phối hợp</p>
+        <ul>
+          <li><code>crew.py</code> — Crew composition</li>
+          <li><code>agents.py</code> — Agent roles</li>
+          <li><code>tasks.py</code> — Task definitions</li>
+          <li><code>tools.py</code> — 6 BQ tools</li>
+          <li><code>run.py</code> — Multi-project runner</li>
+        </ul>
+        <p><em>→ Tự phân công, giao việc, tổng hợp</em></p>
+      </div>
+    </div>
+    <div>
+      <h3>🧬 ChromaDB</h3>
+      <div class="highlight-box" style="font-size:0.85em">
+        <p><strong>Vector Memory</strong> = Agents nhớ + học</p>
+        <ul>
+          <li><code>agent_memory.py</code> — Store/recall</li>
+          <li><code>bridge_knowledge.py</code> — Cross-agent</li>
+          <li><code>rag.py</code> — RAG pipeline (14KB)</li>
+          <li><code>index_knowledge.py</code> — Indexing</li>
+          <li>Journals: CMO 25KB, CFO 14KB</li>
+        </ul>
+        <p><em>→ Semantic search, learning memory</em></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============== SLIDE 9: DASHBOARD ============== -->
+<section>
+  <h2>📊 Dashboard — 14 Tabs × 3 Projects</h2>
+  <table>
+    <thead><tr><th>#</th><th>Tab</th><th>Nội dung</th><th>#</th><th>Tab</th><th>Nội dung</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>CEO Overview</td><td>KPIs tổng quan</td><td>8</td><td>Customer</td><td>Phân tích KH</td></tr>
+      <tr><td>2</td><td>Marketing</td><td>Campaign analysis</td><td>9</td><td>Inventory</td><td>Tồn kho</td></tr>
+      <tr><td>3</td><td>Marketer Perf</td><td>So sánh marketers</td><td>10</td><td>Market Intel</td><td>Thị trường</td></tr>
+      <tr><td>4</td><td>Products</td><td>Product analytics</td><td>11</td><td>Ads Command</td><td>Quản lý ads</td></tr>
+      <tr><td>5</td><td>Product P&L</td><td>Lãi/lỗ per SKU</td><td>12</td><td>Executive Report</td><td>Báo cáo CEO</td></tr>
+      <tr><td>6</td><td>P&L</td><td>Profit & Loss</td><td>13</td><td>Assistant</td><td>Chat AI</td></tr>
+      <tr><td>7</td><td>Overview</td><td>Tổng quan nhanh</td><td>14</td><td>Token Cost</td><td>Chi phí AI</td></tr>
+    </tbody>
+  </table>
+  <br>
+  <p class="small">Mỗi project có dashboard riêng: <code>/stramark</code> · <code>/talpha</code> · <code>/auus1</code></p>
+</section>
+
+<!-- ============== SLIDE 10: BIGQUERY ============== -->
+<section>
+  <h2>💾 BigQuery — Data Architecture</h2>
+  <div class="two-col">
+    <div>
+      <h3>4 Datasets</h3>
+      <table>
+        <tbody>
+          <tr><td class="accent">STRAMARK_Dataset</td><td>10 views/marts</td></tr>
+          <tr><td class="accent">TALPHA_Dataset</td><td>3+ views</td></tr>
+          <tr><td class="accent">AUUS1_Dataset</td><td>7 views</td></tr>
+          <tr><td class="accent">Zen8_Dataset</td><td>12 shared views</td></tr>
+        </tbody>
+      </table>
+      <br>
+      <h3>51 SQL Files</h3>
+      <p class="small">Tables → Views → Marts → P&L</p>
+    </div>
+    <div>
+      <h3>View Layer Pipeline</h3>
+<pre class="small" style="text-align:left">
+Raw Tables
+  └→ sale_order
+  └→ order_items
+  └→ fb_ads_data
+      ↓
+fact_order_items_dedup
+vw_fact_orders
+vw_fact_ads_performance
+      ↓
+mart_performance_master
+mart_market_intelligence
+mart_product_insights
+      ↓
+vw_fact_daily_pnl_v2
+</pre>
+    </div>
+  </div>
+</section>
+
+<!-- ============== SLIDE 11: N8N WORKFLOWS ============== -->
+<section>
+  <h2>⚡ N8N Workflows — 54 Files</h2>
+  <table>
+    <thead><tr><th>Project</th><th>Workflows</th><th>Key Flows</th></tr></thead>
+    <tbody>
+      <tr><td><strong>STRAMARK</strong></td><td class="accent">12</td><td>order_sync, ads_sync, merge, catalog, stock, audit</td></tr>
+      <tr><td><strong>TALPHA</strong></td><td class="accent">7</td><td>order_sync (6 shops), ads_sync (8 accounts), catalog, alert</td></tr>
+      <tr><td><strong>AUUS1</strong></td><td class="accent">6</td><td>pos_full_sync, ads_sync, cs_perf, auto_dedup</td></tr>
+      <tr><td>zen8, pialpha, etc.</td><td>5 each</td><td>Template-based</td></tr>
+      <tr><td>_shared</td><td>3</td><td>Templates + helpers</td></tr>
+    </tbody>
+  </table>
+  <br>
+  <div class="highlight-box small">
+    <strong>Sync Schedule:</strong> Orders mỗi 15 phút · Ads mỗi 2 giờ · Stock mỗi 6 giờ · Agents chạy 2–3 lần/ngày
+  </div>
+</section>
+
+<!-- ============== SLIDE 12: FILE STRUCTURE ============== -->
+<section>
+  <h2>📁 Cấu Trúc Dự Án</h2>
+<pre class="small" style="text-align:left">
+AGENT/
+├── <span class="green">agents/</span>          ← 25 files: 12+ AI agents + CrewAI + LLM + Memory
+│   ├── base_agent.py, coordinator.py, profit_guardian.py ...
+│   ├── <span class="yellow">crew/</span>        ← CrewAI: crew.py, agents.py, tasks.py, tools.py, rag.py
+│   ├── <span class="orange">llm/</span>         ← LLM abstraction: Gemini + OpenAI
+│   └── <span class="purple">memory/</span>      ← ChromaDB + Journals
+├── <span class="green">tools/</span>           ← 49 files: BQ client, sync, deploy, monitor, health
+├── <span class="green">sql/</span>             ← 51 files: DDL, views, marts per project
+├── <span class="green">n8n/</span>             ← 54 workflows: per-project JSON files
+├── <span class="green">config/</span>          ← 33 files: YAML configs, thresholds, naming
+├── <span class="green">dashboard-ui/</span>    ← Next.js 16: 90 files, 14 tabs × 3 projects
+├── <span class="green">modules/</span>         ← ads-command-center (full-stack)
+├── <span class="green">war_room/</span>        ← LangGraph orchestrator (15 files)
+├── <span class="green">docs/</span>            ← 37 documentation files
+└── <span class="green">scheduled/</span>       ← 10 FAOS_*.bat batch files
+</pre>
+</section>
+
+<!-- ============== SLIDE 13: SETUP GUIDE 1 ============== -->
+<section>
+  <h2>🔧 Setup Guide (1/3) — Prerequisites</h2>
+  <div class="medium" style="text-align:left">
+    <h3>Yêu cầu hệ thống</h3>
+    <table>
+      <tbody>
+        <tr><td>Python</td><td>3.11+</td><td><code>python --version</code></td></tr>
+        <tr><td>Node.js</td><td>18+</td><td><code>node --version</code></td></tr>
+        <tr><td>n8n</td><td>Self-hosted</td><td><code>npx n8n</code></td></tr>
+        <tr><td>GCP Account</td><td>BigQuery enabled</td><td>Service account key</td></tr>
+      </tbody>
+    </table>
+    <br>
+    <h3>Bước 1: Clone & Install</h3>
+<pre><code>git clone [repo] AGENT
+cd AGENT
+
+# Python dependencies
+pip install -r requirements.txt
+
+# Frontend dependencies
+cd dashboard-ui && npm install && cd ..
+</code></pre>
+  </div>
+</section>
+
+<!-- ============== SLIDE 14: SETUP GUIDE 2 ============== -->
+<section>
+  <h2>🔧 Setup Guide (2/3) — Configuration</h2>
+  <div class="medium" style="text-align:left">
+    <h3>Bước 2: Environment Variables</h3>
+<pre><code># Copy template
+cp .env.template .env
+
+# Điền các giá trị:
+GCP_PROJECT_ID=levelup-465304
+GOOGLE_APPLICATION_CREDENTIALS=./bigquery_key.json
+NEXT_PUBLIC_API_URL=http://localhost:3000
+GEMINI_API_KEY=your_key
+OPENAI_API_KEY=your_key
+</code></pre>
+    <h3>Bước 3: BigQuery Key</h3>
+<pre><code># Đặt file service account JSON tại root
+# File: bigquery_key.json (KHÔNG commit lên git!)
+</code></pre>
+    <h3>Bước 4: Project Config</h3>
+<pre><code># Mỗi project: config/projects/{project_id}.yaml
+# Chứa: API keys, shop IDs, ad accounts, team, 3PL config
+# Template: config/projects/_template.yaml
+</code></pre>
+  </div>
+</section>
+
+<!-- ============== SLIDE 15: SETUP GUIDE 3 ============== -->
+<section>
+  <h2>🔧 Setup Guide (3/3) — Run</h2>
+  <div class="medium" style="text-align:left">
+    <h3>Bước 5: Chạy Dashboard</h3>
+<pre><code># Terminal 1: Frontend
+cd dashboard-ui && npm run dev
+# → http://localhost:3000
+
+# Terminal 2: Backend (Ads Command Center)
+python -m uvicorn modules.ads-command-center.backend.main:app --port 3003
+
+# Terminal 3: War Room (optional)
+python war_room/orchestrator.py --project zen8
+</code></pre>
+
+    <h3>Bước 6: Chạy Agents</h3>
+<pre><code># Chạy 1 agent cho 1 project
+python -m agents.profit_guardian --project STRAMARK --days 1
+
+# Chạy Coordinator (all agents)
+python -m agents.coordinator --project STRAMARK
+
+# Chạy CrewAI crew
+python agents/crew/run.py --all-projects
+</code></pre>
+
+    <h3>Bước 7: Deploy SQL Views</h3>
+<pre><code>python tools/deploy_all_views.py --project STRAMARK --apply</code></pre>
+  </div>
+</section>
+
+<!-- ============== SLIDE 16: OPERATIONS ============== -->
+<section>
+  <h2>⚙️ Vận Hành Hàng Ngày</h2>
+  <table>
+    <thead><tr><th>Thời gian</th><th>Task</th><th>Phương thức</th><th>Agent/Tool</th></tr></thead>
+    <tbody>
+      <tr><td>Mỗi 15 phút</td><td>Sync đơn hàng</td><td>n8n tự động</td><td>order_sync workflow</td></tr>
+      <tr><td>Mỗi 2 giờ</td><td>Sync ads data</td><td>n8n tự động</td><td>ads_sync workflow</td></tr>
+      <tr><td>Mỗi 4 giờ</td><td>Kiểm tra vận hành</td><td>Task Scheduler</td><td>FAOS_Watchdog.bat</td></tr>
+      <tr><td>Mỗi 6 giờ</td><td>Sync tồn kho</td><td>n8n tự động</td><td>stock_sync workflow</td></tr>
+      <tr><td>7:00 / 14:00 / 20:00</td><td>Monitor ETL</td><td>Task Scheduler</td><td>FAOS_ETLMonitor_*.bat</td></tr>
+      <tr><td>10:00 / 17:00</td><td>Check P&L + ROAS</td><td>Task Scheduler</td><td>FAOS_Guardian.bat</td></tr>
+      <tr><td>23:00</td><td>Tổng kết ngày</td><td>Task Scheduler</td><td>FAOS_DailySummary.bat</td></tr>
+      <tr><td>23:30</td><td>Đánh giá CS</td><td>Task Scheduler</td><td>FAOS_CSCoach.bat</td></tr>
+    </tbody>
+  </table>
+  <br>
+  <p class="small dim">Tất cả kết quả gửi qua <strong>Discord</strong> theo channel của từng project</p>
+</section>
+
+<!-- ============== SLIDE 17: ADD NEW PROJECT ============== -->
+<section>
+  <h2>➕ Thêm Dự Án Mới</h2>
+  <div class="medium" style="text-align:left">
+    <ol>
+      <li><strong>Copy config:</strong> <code>_template.yaml → {project_id}.yaml</code></li>
+      <li><strong>Điền thông tin:</strong> API keys, POS shops, Ad accounts, team, 3PL</li>
+      <li><strong>Tạo BQ dataset:</strong> <code>{PROJECT}_Dataset</code> trong BigQuery</li>
+      <li><strong>Clone n8n workflows:</strong> Copy từ <code>n8n/_shared/</code>, thay credentials</li>
+      <li><strong>Deploy views:</strong> <code>python tools/deploy_all_views.py --project {id}</code></li>
+      <li><strong>Sync products:</strong> <code>python tools/sync_products.py --project {id}</code></li>
+      <li><strong>Clone dashboard:</strong> Copy từ existing project template</li>
+      <li><strong>Setup Discord:</strong> Tạo channel + webhook</li>
+      <li><strong>Test:</strong> <code>python -m agents.profit_guardian --project {id} --dry-run</code></li>
+    </ol>
+  </div>
+  <br>
+  <p class="small">📖 Chi tiết: <code>docs/06_PROJECT_CLONE_GUIDE.md</code></p>
+</section>
+
+<!-- ============== SLIDE 18: DOCUMENTATION MAP ============== -->
+<section>
+  <h2>📚 Documentation — 37 Files</h2>
+  <div class="two-col">
+    <div>
+      <h3 class="green">Core (phải đọc)</h3>
+      <table>
+        <tbody>
+          <tr><td>00</td><td>System Overview</td></tr>
+          <tr><td>02</td><td>Database Master Spec ⭐</td></tr>
+          <tr><td>05</td><td>N8N Workflows</td></tr>
+          <tr><td>06</td><td>Project Clone Guide ⭐</td></tr>
+          <tr><td>08</td><td>Agent Specs</td></tr>
+          <tr><td>10</td><td>Bug Postmortem ⭐</td></tr>
+          <tr><td>13</td><td>System Audit (v2.0)</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div>
+      <h3 class="yellow">Extended</h3>
+      <table>
+        <tbody>
+          <tr><td>11</td><td>Revenue Definitions</td></tr>
+          <tr><td>17</td><td>3PL Automation Reference</td></tr>
+          <tr><td>—</td><td>FAOS Agentic Vision</td></tr>
+          <tr><td>—</td><td>FAOS Agentic Roadmap</td></tr>
+          <tr><td>—</td><td>Phase 1–4 Expansion Plans</td></tr>
+          <tr><td>—</td><td>Tech Stack Spec</td></tr>
+          <tr><td>—</td><td>ETL Best Practices</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <br>
+  <p class="small">⭐ = Phải đọc trước khi bắt đầu</p>
+</section>
+
+<!-- ============== SLIDE 19: KNOWN ISSUES ============== -->
+<section>
+  <h2>⚠️ Known Issues (từ Audit 2026-02-24)</h2>
+  <table>
+    <thead><tr><th>ID</th><th>Issue</th><th>Severity</th><th>Status</th></tr></thead>
+    <tbody>
+      <tr><td>C1</td><td>STRAMARK_Dataset hardcode trong 50+ SQL files</td><td class="red">🔴 Critical</td><td>Open</td></tr>
+      <tr><td>C2</td><td>GCP Project ID hardcode trong executive-report</td><td class="red">🔴 Critical</td><td>Open</td></tr>
+      <tr><td>C3</td><td>2 backend servers (Pydantic v2 conflict)</td><td class="red">🔴 Critical</td><td>Open</td></tr>
+      <tr><td>N1</td><td>realtime/route.ts quá lớn (35KB single file)</td><td class="red">🔴 Critical</td><td>Open</td></tr>
+      <tr><td>N3</td><td>TALPHA thiếu API keys (QA, BH)</td><td class="yellow">🟡 Warning</td><td>Open</td></tr>
+      <tr><td>N4</td><td>AUUS1 ad account timeout</td><td class="yellow">🟡 Warning</td><td>Open</td></tr>
+      <tr><td>N5</td><td>Chưa có CI/CD pipeline</td><td class="yellow">🟡 Warning</td><td>Open</td></tr>
+    </tbody>
+  </table>
+  <br>
+  <p class="small">📖 Chi tiết: <code>docs/13_SYSTEM_AUDIT.md</code></p>
+</section>
+
+<!-- ============== SLIDE 20: VISION ============== -->
+<section>
+  <h2>🔮 Tầm Nhìn — FAOS v4 Agentic</h2>
+  <div class="highlight-box">
+    <p style="font-size:1.1em"><strong>FAOS = Bộ Não + Trí Nhớ + Hệ Thần Kinh + Tay Chân</strong></p>
+  </div>
+  <br>
+  <table>
+    <thead><tr><th></th><th>Hiện tại (v3)</th><th>Tương lai (v4)</th></tr></thead>
+    <tbody>
+      <tr><td>🧠 Não</td><td>LangGraph War Room</td><td>LangGraph 2.0 + Planner + Reflector</td></tr>
+      <tr><td>🧬 Nhớ</td><td>CrewAI + ChromaDB local</td><td>+ Redis distributed + auto-learning</td></tr>
+      <tr><td>🔌 Thần kinh</td><td>Direct import APIs</td><td>MCP + A2A (chuẩn quốc tế)</td></tr>
+      <tr><td>🤖 Tay</td><td>Không có</td><td>OpenClaw browser automation</td></tr>
+      <tr><td>💬 Giao tiếp</td><td>Dashboard + Discord</td><td>+ Chat NL + Real-time agent status</td></tr>
+    </tbody>
+  </table>
+  <br>
+  <p class="small accent">Mục tiêu: CEO chỉ cần nói "Doanh thu giảm, xử lý đi" → FAOS tự làm tất cả</p>
+</section>
+
+<!-- ============== SLIDE 21: ROADMAP ============== -->
+<section>
+  <h2>🗺️ Roadmap — 4 Phases</h2>
+  <div class="medium">
+    <p><strong class="accent">Phase A: Foundation</strong> <span class="dim">(4 tuần)</span></p>
+    <div class="progress-bar"><div class="progress-fill" style="width:35%;background:linear-gradient(90deg,#00d4ff,#0ea5e9)">35%</div></div>
+    <p class="small">Xây 7 MCP Servers · Upgrade BaseAgent · A2A Agent Cards</p>
+
+    <p><strong class="accent">Phase B: Brain Upgrade</strong> <span class="dim">(4 tuần)</span></p>
+    <div class="progress-bar"><div class="progress-fill" style="width:25%;background:linear-gradient(90deg,#a855f7,#7c3aed)">25%</div></div>
+    <p class="small">War Room v2 · Planner/Reflector · NL Chat · Unified server</p>
+
+    <p><strong class="accent">Phase C: Hands</strong> <span class="dim">(4 tuần)</span></p>
+    <div class="progress-bar"><div class="progress-fill" style="width:10%;background:linear-gradient(90deg,#f59e0b,#d97706)">10%</div></div>
+    <p class="small">OpenClaw · Rules Engine · 3PL Automation · Auto Ads Care</p>
+
+    <p><strong class="accent">Phase D: Autonomous</strong> <span class="dim">(ongoing)</span></p>
+    <div class="progress-bar"><div class="progress-fill" style="width:2%;background:linear-gradient(90deg,#ef4444,#dc2626)">0%</div></div>
+    <p class="small">Self-tuning · Cross-project learning · Predictive · Multi-channel</p>
+  </div>
+  <br>
+  <p class="small">📖 Chi tiết: <code>docs/FAOS_AGENTIC_ROADMAP.md</code></p>
+</section>
+
+<!-- ============== SLIDE 22: KEY CONTACTS ============== -->
+<section>
+  <h2>📋 Bàn Giao — Checklist</h2>
+  <div class="medium" style="text-align:left">
+    <h3>Người tiếp nhận cần:</h3>
+    <ol>
+      <li>✅ Đọc 3 docs: <code>06_PROJECT_CLONE_GUIDE</code>, <code>02_DATABASE_MASTER_SPEC</code>, <code>10_BUG_POSTMORTEM</code></li>
+      <li>✅ Access credentials: <code>.env</code> file + <code>bigquery_key.json</code></li>
+      <li>✅ Access n8n dashboard (self-hosted URL)</li>
+      <li>✅ Access Discord channels (per-project webhooks)</li>
+      <li>✅ Hiểu luồng: POS → n8n → BQ → Agents → Discord</li>
+      <li>✅ Biết cách chạy: <code>npm run dev</code>, <code>python -m agents.coordinator</code></li>
+      <li>✅ Biết cách thêm project mới (slide 17)</li>
+    </ol>
+    <br>
+    <h3>Files quan trọng nhất:</h3>
+    <table>
+      <tbody>
+        <tr><td><code>.env</code></td><td>Tất cả secrets và API keys</td></tr>
+        <tr><td><code>bigquery_key.json</code></td><td>GCP service account</td></tr>
+        <tr><td><code>config/projects/*.yaml</code></td><td>Per-project configuration</td></tr>
+        <tr><td><code>config/thresholds.yaml</code></td><td>Alert thresholds</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ============== SLIDE 23: SUMMARY ============== -->
+<section>
+  <h2>Tóm Tắt</h2>
+  <br>
+  <div class="stat-grid">
+    <div class="stat-card"><div class="number">375+</div><div class="label">Tracked Files</div></div>
+    <div class="stat-card"><div class="number">12+</div><div class="label">AI Agents</div></div>
+    <div class="stat-card"><div class="number">54</div><div class="label">N8N Workflows</div></div>
+    <div class="stat-card"><div class="number">14</div><div class="label">Dashboard Tabs</div></div>
+    <div class="stat-card"><div class="number">4</div><div class="label">BQ Datasets</div></div>
+    <div class="stat-card"><div class="number">37</div><div class="label">Docs</div></div>
+  </div>
+  <br>
+  <div class="highlight-box">
+    <p>FAOS v3 đã sẵn sàng <strong class="green">vận hành 3 projects</strong></p>
+    <p>FAOS v4 hướng tới <strong class="accent">80% tự động hóa hoàn toàn</strong></p>
+  </div>
+  <br>
+  <p class="dim small">
+    📖 docs/00_SYSTEM_OVERVIEW.md · 13_SYSTEM_AUDIT.md · FAOS_AGENTIC_VISION.md<br>
+    FAOS_AGENTIC_ROADMAP.md · 06_PROJECT_CLONE_GUIDE.md
+  </p>
+</section>
+
+</div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.min.js"></script>
+<script>
+  Reveal.initialize({
+    hash: true,
+    slideNumber: 'c/t',
+    width: 1280,
+    height: 720,
+    margin: 0.08,
+    transition: 'fade',
+    transitionSpeed: 'fast',
+    controls: true,
+    progress: true,
+    center: true,
+  });
+</script>
+</body>
+</html>

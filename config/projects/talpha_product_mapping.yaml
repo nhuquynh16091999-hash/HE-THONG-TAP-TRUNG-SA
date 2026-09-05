@@ -1,0 +1,321 @@
+# TALPHA Product Mapping — Cross-referenced via ad_id → POS order items
+# Generated: 2026-02-22
+# Method: ad_id from Meta Ads → matched to POS order ad_id → individual order detail → items
+# Data: 1827 orders, 324 unique ad_ids, 56 product codes, 4 shops
+
+analysis_period: Cross-reference from recent 500 orders per shop (2026-02-21)
+summary:
+  total_campaign_codes: 56
+  mapped_codes: 52
+  test_products: 4
+  mapping_method: ad_id_crossref (primary) + campaign_name (fallback)
+
+# ══════════════════════════════════════════
+# SELLING ADS — Products with confirmed POS orders
+# ══════════════════════════════════════════
+selling_ads:
+  '105':
+    pos_name: 105 - NESLEMY Dentures
+    campaign_names:
+    - RANGGIA1
+    - RANGGIA2
+    - RANGGIA
+    - RANGGIA4
+    confidence: HIGH
+    total_orders: 381
+    mapping_source: ad_id_crossref
+
+  '083':
+    pos_name: 083 - Bra Flight Attendants M
+    campaign_names:
+    - Bra flight attendants
+    confidence: HIGH
+    total_orders: 205
+    secondary_skus: ['084']
+    mapping_source: ad_id_crossref
+
+  '002':
+    pos_name: 002 - Gold Ring (combo: 001 + 003 + 008)
+    campaign_names:
+    - 002 GOLD SET
+    confidence: HIGH
+    total_orders: 113
+    secondary_skus: ['001', '003', '008']
+    mapping_source: ad_id_crossref
+
+  '120':
+    pos_name: 120 - Golden Bloom Necklace
+    campaign_names:
+    - Golden Bloom Necklace
+    confidence: HIGH
+    total_orders: 78
+    secondary_skus: ['008']
+    mapping_source: ad_id_crossref
+
+  '058':
+    pos_name: 058 - VC Cream
+    campaign_names:
+    - OIL
+    - GIAMCAN
+    - Kính
+    - TRANG DA VC
+    - Kem dưỡng VC
+    - kem chống nhăn da
+    - THUC PHAM CHUC NANG
+    confidence: HIGH
+    total_orders: 75
+    note: "Multi-campaign product. Campaign names do NOT match product — marketing hooks."
+    mapping_source: ad_id_crossref
+
+  '010':
+    pos_name: 010 - Birth Stone Set
+    campaign_names:
+    - 010- birthstone
+    - 010 - Birth Stone
+    - 010 - Birth Stone Set
+    - BSS - BIRTHSTONE
+    confidence: HIGH
+    total_orders: 109
+    secondary_skus: ['008']
+    mapping_source: ad_id_crossref
+
+  '054':
+    pos_name: 054 - Ball Bangles
+    campaign_names:
+    - Ball bangle
+    confidence: HIGH
+    total_orders: 49
+    secondary_skus: ['008']
+    mapping_source: ad_id_crossref
+
+  '075':
+    pos_name: 075 - Heart Key Necklace
+    campaign_names:
+    - HKNK-HEARTKEY
+    confidence: HIGH
+    total_orders: 49
+    secondary_skus: ['008']
+    mapping_source: ad_id_crossref
+
+  '004':
+    pos_name: 004 - Diamond Set
+    campaign_names:
+    - 005 - Diamond Set
+    confidence: HIGH
+    total_orders: 42
+    secondary_skus: ['008']
+    mapping_source: ad_id_crossref
+
+  '065':
+    pos_name: 065 - EUPHAUSIA SUPERBA OIL
+    campaign_names:
+    - UNGTHU
+    - DAUGOI1
+    - GEL TIEU HOA
+    - GEL TRAM RANG
+    - Gloww
+    - kem dưỡng chống lão hóa
+    - TRI NAM MONG
+    confidence: HIGH
+    total_orders: 83
+    note: "Multi-campaign product. Used for various health marketing hooks."
+    mapping_source: ad_id_crossref
+
+  '073':
+    pos_name: 073 - Herbal Eye Cream
+    campaign_names:
+    - acai giảm cân
+    - chong lao hoa
+    - KICHMOCTOC1
+    - Trị thâm mắt
+    - Gloww
+    - kem trị sẹo & mụn
+    confidence: HIGH
+    total_orders: 65
+    note: "Frequently bundled with 065 in combo orders"
+    mapping_source: ad_id_crossref
+
+  '016':
+    pos_name: 016 - Green Diamond Set
+    campaign_names:
+    - Luna Set
+    confidence: HIGH
+    total_orders: 35
+    secondary_skus: ['008']
+    mapping_source: ad_id_crossref
+
+  '123':
+    pos_name: 123 - Soothing Massage Gel
+    campaign_names:
+    - sức khoẻ
+    confidence: HIGH
+    total_orders: 32
+    mapping_source: ad_id_crossref
+
+  '064':
+    pos_name: 064 - Slimming Patch
+    campaign_names:
+    - KEM NGỨA
+    - KINOKI
+    confidence: HIGH
+    total_orders: 43
+    mapping_source: ad_id_crossref
+
+  '057':
+    pos_name: 057 - Snail Whitening Cream
+    campaign_names:
+    - Kính 2
+    confidence: HIGH
+    total_orders: 23
+    secondary_skus: ['063']
+    mapping_source: ad_id_crossref
+
+  '072':
+    pos_name: 072 - Couple Ring
+    campaign_names:
+    - couple ring
+    confidence: HIGH
+    total_orders: 20
+    secondary_skus: ['008']
+    mapping_source: ad_id_crossref
+
+  '111':
+    pos_name: 111 - Hair Growth Shampoo
+    campaign_names:
+    - KICHMOCTOC
+    confidence: HIGH
+    total_orders: 19
+    mapping_source: ad_id_crossref
+
+  '122':
+    pos_name: 122 - Mascara Sanzitang
+    campaign_names:
+    - chuốt mi
+    - CHUOT MI
+    confidence: HIGH
+    total_orders: 26
+    mapping_source: ad_id_crossref
+
+  '066':
+    pos_name: 066 - Snail Collagen Cream
+    campaign_names:
+    - BO THAN
+    confidence: HIGH
+    total_orders: 15
+    mapping_source: ad_id_crossref
+
+  '118':
+    pos_name: 118 - Herbal Hair Dye
+    campaign_names:
+    - NHUOMTOCA
+    confidence: HIGH
+    total_orders: 15
+    mapping_source: ad_id_crossref
+
+  '063':
+    pos_name: 063 - Whitening and Cleansing Milk
+    campaign_names:
+    - Lotion tắm trắng
+    confidence: HIGH
+    total_orders: 14
+    mapping_source: ad_id_crossref
+
+  '113':
+    pos_name: 113 - Turkish Set
+    campaign_names:
+    - 113 - turkish set
+    confidence: HIGH
+    total_orders: 17
+    secondary_skus: ['008']
+    mapping_source: ad_id_crossref
+
+  '015':
+    pos_name: 015 - Seiko Watch
+    campaign_names:
+    - SEIKO - WATCH
+    confidence: HIGH
+    total_orders: 13
+    secondary_skus: ['008']
+    mapping_source: ad_id_crossref
+
+  '091':
+    pos_name: 091 - Strawberry Bracelet
+    campaign_names:
+    - strawberry bracelets
+    confidence: HIGH
+    total_orders: 13
+    secondary_skus: ['008']
+    mapping_source: ad_id_crossref
+
+  '124':
+    pos_name: 124 - Peacock Set
+    campaign_names:
+    - Peacock Jewelry Set
+    confidence: HIGH
+    total_orders: 12
+    secondary_skus: ['008']
+    mapping_source: ad_id_crossref
+
+  '121':
+    pos_name: 121 - Dragon Blood Cream
+    campaign_names:
+    - kem hồng trắng da
+    confidence: HIGH
+    total_orders: 3
+    mapping_source: ad_id_crossref
+
+  '100':
+    pos_name: 100 - Hour Glass XL
+    campaign_names:
+    - Hour Glass
+    confidence: MEDIUM
+    total_orders: 1
+    mapping_source: ad_id_crossref
+
+# ══════════════════════════════════════════
+# TEST ADS — Running ads but NO POS product / NO shipped orders / Budget < 800K VND
+# ══════════════════════════════════════════
+test_ads:
+  tắm trắng:
+    campaign_names:
+    - tắm trắng
+    total_orders: 3
+    items_found: SP TEST
+    evaluation: MICRO_TEST
+    note: "Product mapped to 'SP TEST' — test product on POS"
+
+  bôi xương khớp:
+    campaign_names:
+    - bôi xương khớp
+    total_orders: 2
+    items_found: SP TEST
+    evaluation: MICRO_TEST
+    note: "Product mapped to 'SP TEST' — test product on POS"
+
+  TRANG DA:
+    campaign_names:
+    - TRANG DA
+    total_orders: 1
+    items_found: none
+    evaluation: MICRO_TEST
+
+  KEM DANH RANG:
+    campaign_names:
+    - KEM DANH RANG
+    total_orders: 1
+    items_found: Herbal eye cream (likely wrong assignment)
+    evaluation: MICRO_TEST
+
+# ══════════════════════════════════════════
+# UNMAPPED — Not found in recent 500 orders/shop
+# ══════════════════════════════════════════
+unmapped_codes:
+  - HAITU
+  - COLLAGENDO
+  - CAFFE
+  - CAPHEGIAMCAN
+  - ĐỒNG HỒ
+  - CONBO 6 PANT
+  - RUNGTOC
+  - TRANGUBAO
+  note: "Need to pull more orders (>500/shop) or ask team directly"

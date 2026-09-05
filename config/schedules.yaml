@@ -1,0 +1,106 @@
+# FAOS Agent Schedules
+# Defines when each agent runs, retry behavior, and timeout limits.
+#
+# Usage with run_all.py:
+#   python run_all.py --setup-schedule    # Register with Windows Task Scheduler
+#
+# Cron format: minute hour day month weekday
+#   "0 8 * * *"   = Daily at 8:00 AM
+#   "0 9 * * 1-5" = Weekdays at 9:00 AM
+#   "0 */4 * * *" = Every 4 hours
+
+schedules:
+  guardian:
+    display_name: "Profit Guardian"
+    cron: "0 8 * * *"        # Daily 8:00 AM
+    retry: 2                  # Retry up to 2 times on failure
+    retry_delay: 60           # Wait 60s between retries
+    timeout: 120              # Kill if running > 120s
+    priority: high
+    description: "Check ad spend, ROAS, and profitability"
+
+  watchdog:
+    display_name: "Ops Watchdog"
+    cron: "0 9 * * *"        # Daily 9:00 AM
+    retry: 1
+    retry_delay: 30
+    timeout: 90
+    priority: high
+    description: "Monitor stock levels, return rates, fulfillment"
+
+  briefer:
+    display_name: "Daily Briefer"
+    cron: "30 9 * * *"       # Daily 9:30 AM
+    retry: 1
+    retry_delay: 60
+    timeout: 180
+    priority: medium
+    description: "Executive daily summary of all metrics"
+
+  cs_coach:
+    display_name: "CS Coach"
+    cron: "0 10 * * *"       # Daily 10:00 AM
+    retry: 1
+    retry_delay: 30
+    timeout: 60
+    priority: low
+    description: "CS team performance leaderboard"
+
+  logistics:
+    display_name: "Logistics Optimizer"
+    cron: "0 10 * * 1"       # Weekly Monday 10:00 AM
+    retry: 2
+    retry_delay: 60
+    timeout: 120
+    priority: medium
+    description: "Late deliveries, COD reconciliation, carrier performance"
+
+  product_sync:
+    display_name: "Stramark Product Sync"
+    cron: "0 6 * * *"           # Daily 6:00 AM (trước khi agents chạy)
+    command: "python scripts/sync_stramark_products.py"
+    retry: 2
+    retry_delay: 60
+    timeout: 60
+    priority: high
+    description: "Sync product_template từ Poscake → BigQuery (UPSERT)"
+
+  status_sync:
+    display_name: "Stramark Status Sync"
+    cron: "0 8,16 * * *"        # 2x daily: 8:00 AM & 4:00 PM
+    command: "python sync/stramark/status_audit.py"
+    retry: 2
+    retry_delay: 120
+    timeout: 300
+    priority: high
+    description: "So khớp POS vs euShipments, tạo proposals cho đơn lệch status"
+
+# System tasks
+system:
+  health_check:
+    cron: "0 7 * * *"        # Daily 7:00 AM (before agents)
+    command: "python tools/health_check.py"
+    description: "System self-diagnostic"
+
+  daily_summary:
+    cron: "0 18 * * *"       # Daily 6:00 PM (after agents)
+    command: "python tools/daily_summary.py --send"
+    description: "Daily agent run summary to Discord"
+
+  etl_monitor:
+    cron: "0 7,14,20 * * *"  # 3x daily: 7AM, 2PM, 8PM
+    command: "python tools/etl_monitor.py"
+    description: "ETL health check: dedup audit, data freshness, N8N status"
+
+  token_check:
+    cron: "0 8 * * 1"        # Weekly Monday 8:00 AM
+    command: "python tools/etl_monitor.py --token-only"
+    description: "Meta API token expiry check"
+
+# Global settings
+defaults:
+  retry: 1
+  retry_delay: 60
+  timeout: 120
+  python_path: "python"      # Or full path to python.exe
+  working_dir: "."           # Relative to AGENT root

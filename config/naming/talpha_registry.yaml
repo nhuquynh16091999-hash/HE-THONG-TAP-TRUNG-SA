@@ -1,0 +1,95 @@
+# TALPHA — Naming Registry
+# Auto-generated from API data verification on 2026-02-19
+# Used by ETL pipeline to normalize raw data from Meta Ads + POS
+
+project_id: talpha
+
+# ─── MARKETER ALIASES ───
+# campaign_name_slug → config marketer_id
+# ⚠️ KHỐI NÀY ĐÃ CHẾT — không còn code nào đọc file này (chỉ còn docs/_archive nhắc tới).
+# Alias marketer đang dùng thật nằm ở config/talpha_rules.json:
+#   camp_marketer_tokens (segment campaign) · pos_marketer_rules (tag POS) · camp_scan_rules.
+# Giữ lại làm sử liệu; đồng bộ 04/08/2026 cho khỏi thành roster thứ ba mâu thuẫn.
+marketer_aliases:
+  LOC: SSL          # Hồ Sỹ Lộc
+  "C.Thuy": CTT     # Chu Thị Thuý
+  NHUNG: HTTN       # Hoàng Thị Thuỳ Nhung
+  MAI: PHTM         # Phạm Hà Thục Mai
+  "CHÍNH": CHINH    # Chính
+  "CHINH": CHINH
+  "N.THE": TNT      # Trần Ngọc Thế
+  "S.ANH": SSA      # Hồ Sỹ Anh
+
+# Nghỉ việc — bỏ qua khi gặp
+marketer_ignored:
+  - Vinh
+  - PHUC
+  - "Lê Thục Bình"   # không còn trong roster talpha_rules.json (CEO xác nhận 04/08/2026)
+
+# ─── MARKET ALIASES ───
+# campaign_name_slug → config market_code
+market_aliases:
+  SAUDI: SA
+  Saudi: SA
+  saudi: SA
+  UAE: AE
+  Uae: AE
+  uae: AE
+  KUWAIT: KW
+  Kuwait: KW
+  kuwait: KW
+  QATAR: QA
+  Qatar: QA
+  qatar: QA
+  OMAN: OM
+  Oman: OM
+  BAHRAIN: BH
+  Bahrain: BH
+
+# ─── PRODUCT ALIASES ───
+# campaign_product_code → POS product SKU number
+# ✅ Auto-mapped (tên campaign = tên POS product)
+product_auto_map:
+  "VC cream": "058"
+  "snail cream": "066"
+  "Golden Bloom Necklace": "120"
+  "Turkish set": "113"
+  "eye oil": "009"
+  "Couple Ring": "072"
+  "Ball bangle": "054"
+  "KINOKI": "KNK"
+  "Fitgum": "128"
+
+# ❌ Cần user mapping — chờ xác nhận
+product_pending_map:
+  RANGGIA: ""           # 9x — Răng giả → 105?
+  RANGGIA1: ""          # 9x
+  RANGGIA2: ""          # 1x
+  RANGGIA3: ""          # 1x
+  RANGGIA4: ""          # 1x
+  DAUGOI1: ""           # 9x — Dầu gội → 111?
+  "HKNK-HEARTKEY": ""   # 5x — Heart Key Necklace → ?
+  HAITU: ""             # 6x
+  "VONG TAY": ""        # 11x
+  "VONG CỔ": ""        # 4x
+  CAFFE: ""             # 4x
+  "ĐỒNG HỒ": ""        # 4x
+  "bôi xương khớp": ""  # 3x
+  TRANGUBAO: ""         # 2x
+  XUONGKHOP: ""         # 2x
+  "BO THAN": ""         # 2x
+  RUNGTOC: ""           # 2x
+  "CONBO 6 PANT": ""    # 2x
+  # ... và 60+ mã xuất hiện 1 lần (bỏ qua hoặc map sau)
+
+# ─── CAMPAIGN NAME PATTERN ───
+# Pattern hiện tại (từ data thực tế)
+campaign_name_pattern_current: "{MARKET}/{MARKETER}/{PRODUCT_VN}/{PAGE_ID}/{PAGE_NAME}/{DATE}"
+# Pattern chuẩn (recomment cho tương lai)
+campaign_name_pattern_new: "{MARKET}/{MKT_CODE}/{SKU}-{PRODUCT}/{PAGE_ID}/{PAGE_NAME}/{DATE}"
+
+# ─── POS SKU PATTERN ───
+# Products trong POS đặt tên: "{NUMBER} - {ENGLISH_NAME}"
+# VD: "005 - Diamond Halo set", "010 - Birth Stone Set"
+# Field `sku` trống — extract mã số từ đầu tên
+pos_sku_extraction: "regex: ^(\\d{3})\\s*-\\s*(.+)$"

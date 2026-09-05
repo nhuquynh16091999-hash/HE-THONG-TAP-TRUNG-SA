@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<!-- Shadow-sync validation B1 (SYNC_CONSOLIDATION_PLAN.md).
+     Deploy: cp file này vào ~/Library/LaunchAgents/ rồi launchctl unload+load.
+     RunAtLoad: máy tắt qua đêm bỏ lỡ mốc 21:30 → boot/login sẽ chạy bù
+     (ghi bảng *_shadow idempotent, compare tự loại hôm nay — chạy 2 lần/ngày vô hại).
+     Xoá job này sau khi cutover + hết tuần rollback. -->
+<dict>
+    <key>Label</key><string>com.talpha.shadowsync</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>/Users/syanh/talpha_shadow/ops/talpha_reports/shadow_run.sh</string>
+    </array>
+    <key>RunAtLoad</key><true/>
+    <key>StartCalendarInterval</key>
+    <dict><key>Hour</key><integer>21</integer><key>Minute</key><integer>30</integer></dict>
+    <key>StandardOutPath</key><string>/Users/syanh/talpha_reports/shadow_launchd.log</string>
+    <key>StandardErrorPath</key><string>/Users/syanh/talpha_reports/shadow_launchd.log</string>
+</dict>
+</plist>

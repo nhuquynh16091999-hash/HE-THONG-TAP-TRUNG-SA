@@ -1,0 +1,147 @@
+# ╔══════════════════════════════════════════════════════════════╗
+# ║  PROJECT TEMPLATE — v2 (TALPHA pattern)                     ║
+# ║                                                              ║
+# ║  Cách dùng:                                                  ║
+# ║    cp config/projects/_template.yaml config/projects/XYZ.yaml
+# ║    # Điền tất cả field bên dưới                             ║
+# ║    # Thêm ENV VARS vào .env (xem mục 12)                    ║
+# ║    # Tạo sync/XYZ/XYZ_sync.py (dùng sync/core/ modules)    ║
+# ╚══════════════════════════════════════════════════════════════╝
+#
+# PATTERN: sync/core/ là backbone — XYZ_sync.py chỉ là thin orchestrator
+#   from sync.core.pos_client import PoscakeClient
+#   from sync.core.meta_client import MetaAdsClient
+#   from sync.core.bq_writer  import load_truncate, upsert_orders_atomic
+#   from sync.core.business_rules import FX_RATES_TO_VND, STATUS_CATEGORY_MAP
+
+# ─── 1. THÔNG TIN DỰ ÁN ─────────────────────────────────────────
+project_id: ""                    # REQUIRED: lowercase, vd: talpha, zen8, pibd
+project_name: ""                  # REQUIRED: tên hiển thị, vd: "Tiểu Alpha"
+description: ""                   # Mô tả ngắn
+currency: AED                     # Đơn vị tiền chính (AED / SAR / USD / EUR ...)
+timezone: Asia/Dubai              # Timezone chính của market
+status: active                    # active / paused / archived
+
+# ─── 2. BIGQUERY ────────────────────────────────────────────────
+bigquery:
+  project_gcp: "talpha-faos-2026"   # GCP project ID (tạo mới hoặc dùng chung)
+  dataset: "XYZ_Dataset"            # Tên dataset BQ — đặt tên: "{PROJECT_ID}_Dataset"
+  location: "US"                    # Dataset location
+
+# ─── 3. META ADS ─────────────────────────────────────────────────
+meta_ads:
+  app_id: ""                        # App ID của Business App (tạo tại developers.facebook.com)
+  app_secret: "${XYZ_META_APP_SECRET}"
+  access_token: "${XYZ_META_ACCESS_TOKEN}"   # Long-lived System User token (không hết hạn)
+  business_id: ""                   # Business Manager ID
+  pixel_id: ""                      # Pixel ID (nếu có)
+  ad_account_ids:
+    - "act_XXXXXXXXXX"              # Ad account #1 — từ Ads Manager URL
+    # Thêm ad accounts tại đây
+
+# ─── 4. POS (Poscake) ────────────────────────────────────────────
+pos_system: poscake
+
+poscake:
+  shops:
+    - name: "UAE"                   # Tên market (hiển thị)
+      api_url: "https://pos.pages.fm/api/v1"
+      api_key: "${XYZ_POSCAKE_AE_KEY}"    # POS → Cài đặt → API → Copy token
+      shop_id: ""                   # POS shop ID (auto-discover nếu để trống)
+      currency: "AED"               # Tiền tệ của shop
+      shop_label: "AE"              # Mã 2 ký tự dùng trong BQ/FX
+
+    # Thêm shop khác theo pattern trên
+    # GCC: SA (SAR) / AE (AED) / KW (KWD) / OM (OMR) / QA (QAR) / BH (BHD)
+    # EU:  RO (RON) / HU (HUF) / PL (PLN) / ...
+
+# ─── 5. FX RATES ─────────────────────────────────────────────────
+# Cập nhật khi tỷ giá thay đổi (sync với sync/core/business_rules.py → FX_RATES_TO_VND)
+exchange_rates:
+  - from: AED
+    to: VND
+    rate: 7010
+  - from: USD
+    to: VND
+    rate: 25700
+  # Thêm các cặp tiền tệ cần thiết
+
+# ─── 6. FULFILLMENT (3PL) ────────────────────────────────────────
+# Công thức phí giao thành công:  packing_fee + delivery_fee + cod × cod_fee_pct
+# Công thức phí giao thất bại:    packing_fee + return_fee
+fulfillment:
+  carriers:
+    - partner: "iMile"              # Tên 3PL partner
+      market_code: 971              # Mã điện thoại quốc gia
+      market_name: "UAE"
+      packing_fee: 3.0
+      delivery_fee: 12.0
+      cod_fee_pct: 0.03             # 3% của COD amount
+      return_fee: 0.0               # ❌ Điền sau khi biết
+      currency: AED
+
+# ─── 7. THỊ TRƯỜNG ───────────────────────────────────────────────
+markets:
+  - code: AE                        # 2 ký tự — khớp với shop_label trong BQ
+    name: "UAE"
+    currency: AED
+    timezone: Asia/Dubai            # UTC+4
+    warehouse: ""
+
+  # - code: SA
+  #   name: "Saudi Arabia"
+  #   currency: SAR
+  #   timezone: Asia/Riyadh
+
+# ─── 8. TEAM ─────────────────────────────────────────────────────
+# Marketers — tên phải khớp CHÍNH XÁC với JSON trong sale_order.marketer
+# Ví dụ marketer JSON: {"name":"Hồ Sỹ Anh","id":"SSA"}
+marketers:
+  - id: "MKT1"                      # Mã 3-6 ký tự — dùng ở đuôi campaign name
+    name: "Tên Đầy Đủ"              # KHỚP với JSON trong BQ
+    role: "Marketer"
+
+# ─── 9. SẢN PHẨM ─────────────────────────────────────────────────
+products:
+  - sku: "001"
+    name: "Tên sản phẩm"
+    cost_price: 100000              # Giá vốn (VND)
+    cost_currency: VND
+
+# ─── 10. KPI TARGETS ─────────────────────────────────────────────
+kpi:
+  roas_target: 4.0                  # ROAS mục tiêu
+  backfill_days: 60                 # Số ngày backfill khi setup lần đầu
+
+# ─── 11. DISCORD ─────────────────────────────────────────────────
+discord:
+  webhook_report: ""
+  webhook_alert: ""
+
+# ─── 12. ENV VARS CẦN THIẾT ──────────────────────────────────────
+# Thêm vào .env — KHÔNG commit giá trị thật
+# XYZ_META_ACCESS_TOKEN=...
+# XYZ_META_APP_SECRET=...
+# XYZ_POSCAKE_AE_KEY=...
+# XYZ_POSCAKE_SA_KEY=...
+# (Thêm 1 dòng per shop)
+#
+# Sau khi thêm ENV VARS, tạo sync/XYZ/XYZ_sync.py:
+#
+#   from sync.core.pos_client    import PoscakeClient
+#   from sync.core.meta_client   import MetaAdsClient, TALPHA_AD_ACCOUNTS
+#   from sync.core.bq_writer     import load_truncate, ensure_dataset, get_last_sync_ts
+#   from sync.core.business_rules import FX_RATES_TO_VND
+#
+#   # POS shops từ config này:
+#   SHOPS = [PoscakeClient(api_key=os.environ[k], shop_label=label, ...)
+#            for k, label in [("XYZ_POSCAKE_AE_KEY","AE"), ...]]
+#
+#   # Meta client:
+#   meta = MetaAdsClient(access_token=os.environ["XYZ_META_ACCESS_TOKEN"])
+#
+# ─── 13. GHI CHÚ ─────────────────────────────────────────────────
+notes: |
+  - Điền tất cả field ❌ trước khi deploy
+  - Sau khi điền, chạy: python3 scripts/validate-dashboard-queries.py
+  - Test sync trước với: python3 sync/XYZ/XYZ_sync.py --test

@@ -1,0 +1,190 @@
+name: FAOS CI — Lint, Architecture, Security & Test
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+# Hủy run cũ nếu có run mới cho cùng PR/branch
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ═══════════════════════════════════════════════════════
+  # JOB 1: Python lint (syntax errors + undefined names)
+  # ═══════════════════════════════════════════════════════
+  python-lint:
+    name: "🐍 Python Lint"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install linting tools
+        run: pip install flake8
+
+      - name: Flake8 — critical errors + undefined names
+        run: |
+          flake8 faos_brain/ sync/ api/ scripts/ \
+            --max-line-length=120 \
+            --select=E9,F63,F7,F82,F401 \
+            --exclude=venv,.venv,__pycache__ \
+            --count --show-source --statistics
+
+  # ═══════════════════════════════════════════════════════
+  # JOB 2: File length limits
+  # ═══════════════════════════════════════════════════════
+  file-length:
+    name: "📏 File Length Limits"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Check Python file lengths (max 300 lines)
+        run: python scripts/hooks/check_file_length.py $(find faos_brain sync api scripts -name "*.py" 2>/dev/null)
+
+      - name: Check TypeScript file lengths (max 500 lines)
+        run: python scripts/hooks/check_file_length.py $(find dashboard-ui/src -name "*.ts" -o -name "*.tsx" 2>/dev/null)
+
+  # ═══════════════════════════════════════════════════════
+  # JOB 3: Architecture boundary violations
+  # ═══════════════════════════════════════════════════════
+  arch-boundaries:
+    name: "🏛️ Architecture Boundaries"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Check architecture boundaries
+        run: |
+          python scripts/hooks/check_arch_boundaries.py \
+            $(find sync/ api/ -name "*.py" 2>/dev/null)
+
+  # ═══════════════════════════════════════════════════════
+  # JOB 4: Secrets & security scan
+  # ═══════════════════════════════════════════════════════
+  security:
+    name: "🔐 Security Scan"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install security tools
+        run: pip install bandit
+
+      - name: Bandit — Python security scan
+        run: bandit -r faos_brain/ sync/ -ll -ii --skip B101
+
+      - name: Detect hardcoded secrets
+        run: |
+          ! git grep -lE \
+            '(app_secret|access_token|api_key|api_token|password)\s*[:=]\s*"[a-zA-Z0-9]{20,}"' \
+            -- '*.py' '*.ts' '*.yaml' \
+            ':!*.example' ':!.env.example' ':!*_TEMPLATE_*'
+
+  # ═══════════════════════════════════════════════════════
+  # JOB 5: Python tests
+  # ═══════════════════════════════════════════════════════
+  python-tests:
+    name: "🧪 Python Tests"
+    runs-on: ubuntu-latest
+    needs: [python-lint, arch-boundaries]   # Lint phải pass trước khi test
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install pytest-cov
+
+      - name: Run tests with coverage
+        run: |
+          python -m pytest tests/ -v --tb=short \
+            --cov=faos_brain --cov=sync \
+            --cov-report=term-missing \
+            --cov-report=xml \
+            --cov-fail-under=30
+        env:
+          ENV: test
+          BQ_PROJECT_ID: test-project
+          BQ_DATASET: test_dataset
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-report
+          path: coverage.xml
+
+  # ═══════════════════════════════════════════════════════
+  # JOB 6: Dashboard TypeScript + ESLint
+  # ═══════════════════════════════════════════════════════
+  dashboard-checks:
+    name: "⚛️ Dashboard TypeScript + ESLint"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: dashboard-ui/package-lock.json
+
+      - name: Install dashboard dependencies
+        working-directory: dashboard-ui
+        run: npm ci
+
+      - name: TypeScript type check
+        working-directory: dashboard-ui
+        run: npx tsc --noEmit
+
+      - name: ESLint
+        working-directory: dashboard-ui
+        run: npx next lint --max-warnings=0
+
+  # ═══════════════════════════════════════════════════════
+  # JOB 7: Summary gate — tất cả jobs phải pass
+  # ═══════════════════════════════════════════════════════
+  ci-gate:
+    name: "✅ CI Gate (All checks passed)"
+    runs-on: ubuntu-latest
+    needs:
+      - python-lint
+      - file-length
+      - arch-boundaries
+      - security
+      - python-tests
+      - dashboard-checks
+    if: always()
+    steps:
+      - name: Check all jobs passed
+        run: |
+          if [[ "${{ contains(needs.*.result, 'failure') }}" == "true" ]]; then
+            echo "❌ Một hoặc nhiều CI checks thất bại. Không được merge!"
+            exit 1
+          fi
+          echo "✅ Tất cả CI checks passed. Safe to merge."

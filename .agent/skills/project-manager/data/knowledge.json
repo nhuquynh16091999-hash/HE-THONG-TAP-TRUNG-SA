@@ -1,0 +1,102 @@
+{
+    "domain": "Agile Project Management — COD E-commerce Platform (Pancake POS + BigQuery)",
+    "project_context": {
+        "business_model": "Cross-border COD e-commerce (Vietnam, Romania, Philippines)",
+        "tech_stack": {
+            "pos": "Pancake POS (API source of truth for orders, customers, inventory)",
+            "data_warehouse": "Google BigQuery (Star Schema: fact_orders, dim_customers, dim_products)",
+            "etl": "n8n (Workflow automation: POS → BigQuery, Ads → BigQuery)",
+            "orchestration": "LangGraph (Multi-agent coordination)",
+            "dashboard": "Looker Studio / Streamlit",
+            "ads_platforms": [
+                "Facebook Ads",
+                "TikTok Ads",
+                "Google Ads"
+            ]
+        },
+        "key_entities": {
+            "sale_order": "Core order entity (18 status codes, COD amounts in bani ÷100)",
+            "order_items": "Line items with product, quantity, imported_price (COGS)",
+            "customers": "RFM scored, fraud risk, lifecycle stage",
+            "fb_ads": "Campaign-level spend, impressions, clicks",
+            "tiktok_ads": "Hook rate, retention, CPA"
+        },
+        "business_rules": [
+            "Revenue = cod ÷ 100 WHERE status IN (3,16) ONLY",
+            "Status 7 = deleted, must exclude from ALL calculations",
+            "Monetary fields are in bani (divide by 100)",
+            "COD reconciliation: order.cod vs partner.cod (carrier collected)"
+        ]
+    },
+    "prd_template": {
+        "structure": [
+            "1. Problem Statement: What pain point for which agent?",
+            "2. Goals & Success Metrics: Quantified KPIs (e.g., reduce return rate by 5%)",
+            "3. User Personas: Which agent role benefits (A10/G3/A9/A8)?",
+            "4. Data Requirements: Which BigQuery tables/views needed?",
+            "5. User Stories: Gherkin format (Given/When/Then)",
+            "6. Integration Points: n8n workflows, Slack alerts, Ads API",
+            "7. Acceptance Criteria: Testable with real BigQuery data"
+        ],
+        "example_prd": {
+            "title": "Auto-Hide Low Stock Products on TikTok",
+            "problem": "G3 scales ads for products that A9 reports as low stock, causing oversell",
+            "goal": "Zero oversell incidents when stock < 10 units",
+            "data": "vw_dim_inventory_risk (covering_days, stock_level)",
+            "agent_owner": "A9 (Operations) + Tech Team"
+        }
+    },
+    "user_story_mapping": {
+        "format": "As a <Agent Role>, I want to <Action on BigQuery Data>, so that <Business Outcome>.",
+        "acceptance_criteria_format": "Gherkin (Given/When/Then)",
+        "examples": [
+            {
+                "story": "As A10 (Finance), I want to see daily P&L with COGS deducted, so that I know real profit.",
+                "ac": "Given orders with status IN (3,16), When I run vw_daily_pnl, Then revenue minus COGS minus fees = operating profit."
+            },
+            {
+                "story": "As G3 (Marketing), I want to auto-kill campaigns with CPA > 2x target, so that I stop bleeding money.",
+                "ac": "Given a campaign spending > $50, When CPA exceeds 2x target AND 0 sales, Then campaign is paused via Ads API."
+            },
+            {
+                "story": "As A8 (CRM), I want to export VIP Lookalike audiences daily, so that G3 can target high-LTV profiles.",
+                "ac": "Given customers with RFM segment = 'Champions', When daily export runs, Then a CSV is uploaded to Facebook Custom Audience."
+            }
+        ]
+    },
+    "sprint_planning": {
+        "sprint_duration": "2 weeks",
+        "story_point_scale": "Fibonacci (1, 2, 3, 5, 8, 13)",
+        "capacity_rules": {
+            "agent_task": "3-5 points (automated, data-driven)",
+            "human_task": "5-8 points (requires manual review/approval)",
+            "integration_task": "8-13 points (cross-agent, needs testing)",
+            "buffer": "20% for unexpected data quality issues"
+        },
+        "prioritization_framework": "MoSCoW (Must/Should/Could/Won't)",
+        "definition_of_done": [
+            "BigQuery view returns correct data (verified with sample query)",
+            "n8n workflow runs without error for 3 consecutive days",
+            "Agent script produces expected output for all test cases",
+            "SKILL.md documentation updated to match implementation"
+        ]
+    },
+    "war_room_integration": {
+        "role_in_meeting": "Product Owner chairs the Daily War Room at 08:00 AM",
+        "responsibilities": [
+            "Collect status reports from all 4 Business agents",
+            "Detect cross-agent conflicts (e.g., Scale vs Low Stock)",
+            "Synthesize decisions into an Action Plan",
+            "Assign tasks to Tech Team if automation is needed"
+        ]
+    },
+    "schema_review_checklist": [
+        "Does the PRD reference specific BigQuery tables/views?",
+        "Are Acceptance Criteria testable with real data?",
+        "Is the scope small enough for one sprint?",
+        "Dependencies on other agents identified?",
+        "n8n workflow changes documented?",
+        "Slack/Telegram alert format specified?",
+        "Rollback plan if data is incorrect?"
+    ]
+}

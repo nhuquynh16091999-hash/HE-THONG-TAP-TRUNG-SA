@@ -1,0 +1,61 @@
+repos:
+  # ─── Standard hygiene hooks ───────────────────────────────────────────
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-json
+      - id: check-merge-conflict
+      - id: check-added-large-files
+        args: ['--maxkb=500']
+      - id: detect-private-key
+      - id: no-commit-to-branch
+        args: ['--branch', 'main']     # Không ai được push thẳng lên main
+
+  # ─── Python: flake8 (critical errors + undefined names) ──────────────
+  - repo: https://github.com/PyCQA/flake8
+    rev: 7.1.1
+    hooks:
+      - id: flake8
+        args:
+          - --max-line-length=120
+          - --select=E9,F63,F7,F82,F401   # syntax errors + undefined + unused import
+          - --exclude=venv,.venv,__pycache__,migrations
+        files: ^(faos_brain|sync|api|scripts)/.*\.py$
+
+  # ─── Secrets scanner ─────────────────────────────────────────────────
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: v1.5.0
+    hooks:
+      - id: detect-secrets
+        args: ['--baseline', '.secrets.baseline']
+        exclude: (\.env\.example|CODEOWNERS|.*_TEMPLATE_.*)
+
+  # ─── Custom FAOS checks ───────────────────────────────────────────────
+  - repo: local
+    hooks:
+      # 1. File length: max 300 dòng Python, max 500 dòng TypeScript
+      - id: check-file-length
+        name: "FAOS: File length limits (300 Python / 500 TS)"
+        language: python
+        entry: python scripts/hooks/check_file_length.py
+        types_or: [python, ts, tsx]
+        pass_filenames: true
+
+      # 2. Architecture boundaries: sync/ không được import faos_brain/
+      - id: check-arch-boundaries
+        name: "FAOS: Architecture boundary violations"
+        language: python
+        entry: python scripts/hooks/check_arch_boundaries.py
+        files: ^(sync|api)/.*\.py$
+        pass_filenames: true
+
+      # 3. Không commit file .env thật
+      - id: block-env-files
+        name: "FAOS: Block .env files"
+        language: fail
+        entry: "Không được commit .env files! Dùng .env.example thay thế."
+        files: ^\.env(\.\w+)?$
+        exclude: ^\.env\.example$

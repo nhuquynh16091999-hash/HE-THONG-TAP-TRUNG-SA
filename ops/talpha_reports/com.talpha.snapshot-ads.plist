@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<!-- C2 — snapshot ads command center mỗi 30' (lịch sử spend/ROAS live theo campaign;
+     trước C2 bảng đứng im từ 18/06).
+     30' chứ không 15' như tồn kho: mỗi lượt gọi /api/talpha/realtime = 14 TKQC Meta
+     + 7 shop POS, ~21s và KHÔNG có cache — 48 lượt/ngày đã đủ dựng đường xu hướng
+     mà không đốt quota Meta (dashboard + bot WA cũng đang gọi cùng route).
+     Deploy: cp vào ~/Library/LaunchAgents/ rồi launchctl unload+load. -->
+<dict>
+    <key>Label</key><string>com.talpha.snapshot-ads</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>/Users/syanh/talpha_reports/snapshot_cron.sh</string>
+        <string>ads</string>
+    </array>
+    <key>RunAtLoad</key><true/>
+    <key>StartInterval</key><integer>1800</integer>
+    <key>StandardOutPath</key><string>/Users/syanh/talpha_reports/snapshot_launchd.log</string>
+    <key>StandardErrorPath</key><string>/Users/syanh/talpha_reports/snapshot_launchd.log</string>
+</dict>
+</plist>

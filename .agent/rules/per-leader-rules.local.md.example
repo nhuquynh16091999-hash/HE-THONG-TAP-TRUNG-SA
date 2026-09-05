@@ -1,0 +1,23 @@
+---
+paths:
+  - "**/*"
+---
+# Per-Leader Rules (Personal)
+<!-- KHONG COMMIT file nay. Copy thanh per-leader-rules.local.md va custom -->
+
+## Coding Style
+<!-- Preferences ca nhan ve coding style -->
+- Indent: [2 spaces / 4 spaces / tabs]
+- Quote: [single / double]
+- Semicolons: [yes / no]
+
+## AI Interaction
+<!-- Cach ban muon AI tuong tac -->
+- Language: [VN / EN / Mix]
+- Verbosity: [concise / detailed]
+- Auto-run: [yes cho safe commands / no, luon hoi]
+
+## Project Focus
+<!-- Leader nay phu trach nhung module nao -->
+- Primary project: [T1 / Stramark / AUUS1 / TAlpha]
+- Modules: [faos_brain/ / dashboard-ui/ / sync/ / config/]

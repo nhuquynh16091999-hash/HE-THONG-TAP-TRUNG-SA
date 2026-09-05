@@ -1,0 +1,17 @@
+-- ═══════════════════════════════════════════
+-- FAOS v6 — SQL Views & Tables
+-- ═══════════════════════════════════════════
+-- Placeholder folder for v6-specific SQL.
+-- SQL files will be added in implementation phase.
+--
+-- Planned files:
+--   - create_ai_prediction_log.sql
+--   - create_approval_logs.sql
+--   - create_agent_run_log.sql
+--   - create_capi_push_log.sql
+--   - vw_daily_momentum.sql
+--   - vw_marketer_momentum.sql
+--   - vw_product_lifecycle.sql
+--
+-- Ref: docs/02_Database_and_API_Specs.md
+-- ═══════════════════════════════════════════

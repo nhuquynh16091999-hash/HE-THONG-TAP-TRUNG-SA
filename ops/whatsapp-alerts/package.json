@@ -1,0 +1,15 @@
+{
+  "name": "talpha-whatsapp-alerts",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Bot cảnh báo tồn kho sắp hết (POS live) vào nhóm WhatsApp team TALPHA",
+  "main": "bot.js",
+  "scripts": {
+    "start": "node bot.js",
+    "groups": "node bot.js --list-groups"
+  },
+  "dependencies": {
+    "qrcode-terminal": "^0.12.0",
+    "whatsapp-web.js": "^1.26.0"
+  }
+}

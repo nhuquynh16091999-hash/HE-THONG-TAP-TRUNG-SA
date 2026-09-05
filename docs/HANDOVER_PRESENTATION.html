@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FAOS v6 — Handover Briefing</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0a0a1a;
+  --surface: #12122a;
+  --card: #1a1a3e;
+  --accent: #6c5ce7;
+  --accent2: #a29bfe;
+  --green: #00e676;
+  --red: #ff5252;
+  --yellow: #ffd740;
+  --orange: #ff9100;
+  --text: #f0f0ff;
+  --muted: #8888aa;
+  --glow: rgba(108, 92, 231, 0.3);
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+html { scroll-behavior: smooth; }
+body { font-family:'Inter',sans-serif; background:var(--bg); color:var(--text); overflow-x:hidden; }
+
+/* Navigation */
+.nav { position:fixed; top:0; left:0; right:0; z-index:100;
+  background:rgba(10,10,26,.85); backdrop-filter:blur(20px);
+  border-bottom:1px solid rgba(108,92,231,.2);
+  display:flex; align-items:center; justify-content:space-between;
+  padding:12px 40px; }
+.nav-logo { font-weight:800; font-size:18px; color:var(--accent2); }
+.nav-links { display:flex; gap:8px; }
+.nav-links a { text-decoration:none; color:var(--muted); font-size:13px;
+  font-weight:500; padding:6px 14px; border-radius:20px; transition:.3s; }
+.nav-links a:hover,.nav-links a.active { color:var(--text); background:rgba(108,92,231,.15); }
+.slide-counter { color:var(--muted); font-size:13px; font-weight:500; }
+
+/* Slides */
+.slide { min-height:100vh; display:flex; align-items:center; justify-content:center;
+  padding:100px 60px 60px; position:relative; }
+.slide::before { content:''; position:absolute; top:0; left:0; right:0; bottom:0;
+  background:radial-gradient(ellipse at 50% 0%, rgba(108,92,231,.08) 0%, transparent 70%);
+  pointer-events:none; }
+.slide-inner { max-width:1200px; width:100%; position:relative; z-index:1; }
+
+/* Slide 1 — Hero */
+.hero-badge { display:inline-flex; align-items:center; gap:8px;
+  background:rgba(108,92,231,.15); border:1px solid rgba(108,92,231,.3);
+  padding:8px 18px; border-radius:30px; font-size:13px; font-weight:600;
+  color:var(--accent2); margin-bottom:30px; }
+.hero-badge .dot { width:8px; height:8px; border-radius:50%; background:var(--green);
+  animation:pulse 2s ease infinite; }
+@keyframes pulse { 0%,100%{opacity:.4} 50%{opacity:1} }
+.hero h1 { font-size:clamp(42px,5vw,72px); font-weight:900; line-height:1.1;
+  margin-bottom:20px;
+  background:linear-gradient(135deg,#fff 0%,var(--accent2) 50%,var(--accent) 100%);
+  -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+.hero p { font-size:20px; color:var(--muted); max-width:600px; line-height:1.6; margin-bottom:40px; }
+.hero-stats { display:grid; grid-template-columns:repeat(3,1fr); gap:20px; max-width:500px; }
+.stat-box { background:var(--card); border:1px solid rgba(255,255,255,.06);
+  border-radius:16px; padding:20px; text-align:center; }
+.stat-box .num { font-size:36px; font-weight:800; color:var(--accent2); }
+.stat-box .label { font-size:12px; color:var(--muted); margin-top:4px; text-transform:uppercase; letter-spacing:1px; }
+
+/* Slide 2 — Zone Map */
+.zone-grid { display:grid; grid-template-columns:1fr 1fr; gap:30px; margin-top:30px; }
+.zone-card { border-radius:20px; padding:32px; position:relative; overflow:hidden; }
+.zone-card::after { content:''; position:absolute; top:0; left:0; right:0; bottom:0;
+  background:linear-gradient(135deg, transparent 60%, rgba(255,255,255,.03)); pointer-events:none; }
+.zone-red { background:linear-gradient(135deg,#1a0a0a,#2a0f0f); border:1px solid rgba(255,82,82,.25); }
+.zone-green { background:linear-gradient(135deg,#0a1a0a,#0f2a0f); border:1px solid rgba(0,230,118,.25); }
+.zone-icon { font-size:40px; margin-bottom:16px; }
+.zone-title { font-size:22px; font-weight:700; margin-bottom:12px; }
+.zone-title.red { color:var(--red); }
+.zone-title.green { color:var(--green); }
+.zone-list { list-style:none; }
+.zone-list li { padding:8px 0; font-size:14px; color:var(--muted); border-bottom:1px solid rgba(255,255,255,.04);
+  display:flex; align-items:center; gap:8px; }
+.zone-list li code { background:rgba(255,255,255,.06); padding:2px 8px; border-radius:4px;
+  font-size:13px; font-family:'SF Mono',monospace; color:var(--text); }
+
+/* Slide 3 — Rules */
+.rules-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:24px; margin-top:30px; }
+.rule-card { background:var(--card); border:1px solid rgba(255,255,255,.06);
+  border-radius:20px; padding:28px; transition:.3s; }
+.rule-card:hover { border-color:rgba(108,92,231,.3); transform:translateY(-4px);
+  box-shadow:0 20px 40px rgba(0,0,0,.3); }
+.rule-num { font-size:48px; font-weight:900; color:rgba(108,92,231,.2); line-height:1; margin-bottom:8px; }
+.rule-title { font-size:18px; font-weight:700; color:var(--accent2); margin-bottom:8px; }
+.rule-desc { font-size:14px; color:var(--muted); line-height:1.6; }
+
+/* Slide 4 — Pipeline */
+.pipeline { display:flex; align-items:center; gap:0; margin-top:40px; flex-wrap:wrap; justify-content:center; }
+.pipe-step { display:flex; flex-direction:column; align-items:center; text-align:center;
+  position:relative; flex:1; min-width:180px; }
+.pipe-circle { width:80px; height:80px; border-radius:50%;
+  display:flex; align-items:center; justify-content:center;
+  font-size:32px; position:relative; z-index:2; }
+.pipe-circle.s1 { background:linear-gradient(135deg,#1a237e,#3949ab); }
+.pipe-circle.s2 { background:linear-gradient(135deg,#004d40,#00897b); }
+.pipe-circle.s3 { background:linear-gradient(135deg,#e65100,#ff9800); }
+.pipe-circle.s4 { background:linear-gradient(135deg,#6a1b9a,#ab47bc); }
+.pipe-label { margin-top:14px; font-size:15px; font-weight:600; }
+.pipe-sub { font-size:12px; color:var(--muted); margin-top:4px; }
+.pipe-arrow { font-size:28px; color:var(--accent); margin:0 -10px; z-index:1;
+  flex-shrink:0; margin-top:-30px; }
+.checkpoint { display:inline-flex; align-items:center; gap:4px;
+  background:rgba(0,230,118,.1); border:1px solid rgba(0,230,118,.2);
+  padding:4px 10px; border-radius:20px; font-size:11px; color:var(--green); margin-top:8px; }
+
+/* Slide 5 — Git */
+.git-flow { display:flex; align-items:stretch; gap:16px; margin-top:30px; flex-wrap:wrap; }
+.git-card { flex:1; min-width:200px; background:var(--card); border-radius:16px;
+  padding:24px; border-left:4px solid var(--accent); }
+.git-card.warn { border-left-color:var(--red); }
+.git-card h4 { font-size:15px; font-weight:700; margin-bottom:8px; color:var(--accent2); }
+.git-card p { font-size:13px; color:var(--muted); line-height:1.6; }
+.git-card code { background:rgba(255,255,255,.06); padding:2px 6px; border-radius:4px; font-size:12px; }
+
+/* Slide 6 — Deliverables */
+.file-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(320px,1fr)); gap:20px; margin-top:30px; }
+.file-card { background:var(--card); border:1px solid rgba(255,255,255,.06);
+  border-radius:16px; padding:24px; transition:.3s; }
+.file-card:hover { border-color:var(--accent); }
+.file-icon { font-size:28px; margin-bottom:12px; }
+.file-name { font-family:'SF Mono',monospace; font-size:14px; color:var(--accent2);
+  font-weight:600; margin-bottom:8px; }
+.file-desc { font-size:13px; color:var(--muted); line-height:1.5; }
+
+/* Section headers */
+.section-tag { display:inline-flex; padding:6px 14px; border-radius:20px; font-size:12px;
+  font-weight:700; text-transform:uppercase; letter-spacing:1.5px; margin-bottom:16px; }
+.tag-red { background:rgba(255,82,82,.15); color:var(--red); }
+.tag-green { background:rgba(0,230,118,.15); color:var(--green); }
+.tag-purple { background:rgba(108,92,231,.15); color:var(--accent2); }
+.tag-orange { background:rgba(255,145,0,.15); color:var(--orange); }
+.tag-yellow { background:rgba(255,215,64,.15); color:var(--yellow); }
+.section-title { font-size:clamp(32px,3.5vw,48px); font-weight:800; margin-bottom:12px; line-height:1.2; }
+.section-sub { font-size:16px; color:var(--muted); max-width:600px; line-height:1.6; }
+
+/* Slide 7 — CTA */
+.cta-box { background:linear-gradient(135deg,var(--card),rgba(108,92,231,.15));
+  border:1px solid rgba(108,92,231,.3); border-radius:24px; padding:50px;
+  text-align:center; margin-top:30px; }
+.cta-steps { display:flex; gap:24px; justify-content:center; margin-top:30px; flex-wrap:wrap; }
+.cta-step { background:rgba(0,0,0,.3); border-radius:16px; padding:24px 20px;
+  text-align:center; flex:1; min-width:200px; max-width:260px; }
+.cta-step .step-num { font-size:36px; font-weight:900; color:var(--accent2);
+  margin-bottom:8px; }
+.cta-step .step-text { font-size:13px; color:var(--muted); line-height:1.5; }
+
+/* Footer */
+.footer { text-align:center; padding:40px; color:var(--muted); font-size:12px; border-top:1px solid rgba(255,255,255,.04); }
+
+@media(max-width:768px) {
+  .slide { padding:80px 24px 40px; }
+  .zone-grid,.rules-grid { grid-template-columns:1fr; }
+  .hero-stats { grid-template-columns:repeat(3,1fr); }
+  .nav { padding:12px 20px; }
+  .nav-links { display:none; }
+}
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="nav-logo">⚡ FAOS v6</div>
+  <div class="nav-links">
+    <a href="#hero" class="active">Intro</a>
+    <a href="#zones">Phân Vùng</a>
+    <a href="#rules">4 Quy Tắc</a>
+    <a href="#pipeline">Pipeline</a>
+    <a href="#git">Git</a>
+    <a href="#files">Tài Liệu</a>
+    <a href="#action">Hành Động</a>
+  </div>
+  <div class="slide-counter">7 Slides</div>
+</nav>
+
+<!-- SLIDE 1: HERO -->
+<section class="slide" id="hero">
+  <div class="slide-inner hero">
+    <div class="hero-badge"><span class="dot"></span> Core STRAMARK — Hoàn thiện</div>
+    <h1>Handover<br>Briefing</h1>
+    <p>Bàn giao phát triển các dự án nhánh AUUS1 & ZEN8 cho Project Leaders. Hướng dẫn điều khiển AI đúng cách, không phá vỡ kiến trúc Core.</p>
+    <div class="hero-stats">
+      <div class="stat-box"><div class="num">5</div><div class="label">Files</div></div>
+      <div class="stat-box"><div class="num">4</div><div class="label">Quy tắc</div></div>
+      <div class="stat-box"><div class="num">3</div><div class="label">Templates</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- SLIDE 2: ZONE MAP -->
+<section class="slide" id="zones">
+  <div class="slide-inner">
+    <div class="section-tag tag-red">Slide 2</div>
+    <h2 class="section-title">Phân Vùng Lãnh Thổ</h2>
+    <p class="section-sub">Mỗi Leader chỉ được code trong vùng xanh. Vùng đỏ là bất khả xâm phạm — được bảo vệ bởi GitHub CODEOWNERS.</p>
+    <div class="zone-grid">
+      <div class="zone-card zone-red">
+        <div class="zone-icon">🔴</div>
+        <h3 class="zone-title red">Vùng Đỏ — DO NOT TOUCH</h3>
+        <ul class="zone-list">
+          <li>🔒 <code>faos_brain/</code> — AI Core Engine</li>
+          <li>🔒 <code>analyst.py</code> — Executive Analyst</li>
+          <li>🔒 <code>marketing_director.py</code> — Director Agent</li>
+          <li>🔒 <code>prompts/</code> — System Prompts</li>
+          <li>🔒 <code>state_machine.py</code> — State Machine</li>
+          <li>🔒 <code>config/</code> — System Config</li>
+          <li>🔒 <code>sql/stramark/</code> — Core Schema</li>
+        </ul>
+        <p style="margin-top:12px;font-size:13px;color:var(--red);">Owner: @nhatngo-coder</p>
+      </div>
+      <div class="zone-card zone-green">
+        <div class="zone-icon">🟢</div>
+        <h3 class="zone-title green">Vùng Xanh — Leader Territory</h3>
+        <ul class="zone-list">
+          <li>✅ <code>app/projects/[DỰ_ÁN]/</code> — App Code</li>
+          <li>✅ <code>sql/[DỰ_ÁN]/</code> — BigQuery Tables & Views</li>
+          <li>✅ <code>api/routers/[DỰ_ÁN]/</code> — API Endpoints</li>
+          <li>✅ <code>sync/[DỰ_ÁN]/</code> — Data Pipelines</li>
+          <li>✅ <code>dashboard-ui/.../[DỰ_ÁN]/</code> — UI Pages</li>
+          <li>✅ <code>docs/designs/[DỰ_ÁN]/</code> — Design Docs</li>
+        </ul>
+        <p style="margin-top:12px;font-size:13px;color:var(--green);">Owner: @leader-username + @nhatngo-coder (review)</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SLIDE 3: 4 RULES -->
+<section class="slide" id="rules">
+  <div class="slide-inner">
+    <div class="section-tag tag-purple">Slide 3</div>
+    <h2 class="section-title">4 Quy Tắc Sống Còn</h2>
+    <p class="section-sub">Tuân thủ 4 quy tắc này để AI không "ngáo" và hệ thống không bị phá.</p>
+    <div class="rules-grid">
+      <div class="rule-card">
+        <div class="rule-num">01</div>
+        <div class="rule-title">🎨 Design First, Code Later</div>
+        <div class="rule-desc">Bắt buộc vẽ State Machine, ERD, API Flow bằng Mermaid <strong>TRƯỚC</strong> khi gõ code. Boss duyệt thiết kế mới được code.</div>
+      </div>
+      <div class="rule-card">
+        <div class="rule-num">02</div>
+        <div class="rule-title">🧠 Trị Bệnh Não Cá Vàng</div>
+        <div class="rule-desc">Mỗi session AI mới → <strong>LUÔN</strong> nạp <code>SYSTEM_ARCHITECTURE.md</code> + <code>SCHEMA_FROZEN.md</code>. AI quên = AI bịa = PHÁ HỆ THỐNG.</div>
+      </div>
+      <div class="rule-card">
+        <div class="rule-num">03</div>
+        <div class="rule-title">✂️ Chia Nhỏ Prompt</div>
+        <div class="rule-desc">KHÔNG yêu cầu AI làm A-Z. Chia 4 bước: <strong>DB → Sync → API → UI</strong>. Checkpoint verify sau mỗi bước.</div>
+      </div>
+      <div class="rule-card">
+        <div class="rule-num">04</div>
+        <div class="rule-title">🔄 Git Revert, Không Sửa Đè</div>
+        <div class="rule-desc">AI sửa lỗi bằng cách đè code → nát file. Dùng <code>git revert</code> → mở session mới → code lại. Bắt AI self-review trước commit.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SLIDE 4: PIPELINE -->
+<section class="slide" id="pipeline">
+  <div class="slide-inner">
+    <div class="section-tag tag-orange">Slide 4</div>
+    <h2 class="section-title">Quy Trình Chia Nhỏ Prompt</h2>
+    <p class="section-sub">Mỗi feature phải đi qua đúng 4 bước. Chỉ chuyển bước sau khi bước trước PASS.</p>
+    <div class="pipeline">
+      <div class="pipe-step">
+        <div class="pipe-circle s1">🗄️</div>
+        <div class="pipe-label">Prompt 1: Database</div>
+        <div class="pipe-sub">SQL DDL trên BigQuery</div>
+        <div class="checkpoint">✅ Bảng tạo OK</div>
+      </div>
+      <div class="pipe-arrow">→</div>
+      <div class="pipe-step">
+        <div class="pipe-circle s2">🔄</div>
+        <div class="pipe-label">Prompt 2: Sync</div>
+        <div class="pipe-sub">ETL Pipeline (Python)</div>
+        <div class="checkpoint">✅ Data đúng BQ</div>
+      </div>
+      <div class="pipe-arrow">→</div>
+      <div class="pipe-step">
+        <div class="pipe-circle s3">⚡</div>
+        <div class="pipe-label">Prompt 3: API</div>
+        <div class="pipe-sub">FastAPI Router</div>
+        <div class="checkpoint">✅ Curl test OK</div>
+      </div>
+      <div class="pipe-arrow">→</div>
+      <div class="pipe-step">
+        <div class="pipe-circle s4">📊</div>
+        <div class="pipe-label">Prompt 4: UI</div>
+        <div class="pipe-sub">React + Recharts</div>
+        <div class="checkpoint">✅ Chart hiển thị</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SLIDE 5: GIT -->
+<section class="slide" id="git">
+  <div class="slide-inner">
+    <div class="section-tag tag-yellow">Slide 5</div>
+    <h2 class="section-title">Kỷ Luật Git</h2>
+    <p class="section-sub">Quy trình commit, branch naming, và cách xử lý khi AI "phá".</p>
+    <div class="git-flow">
+      <div class="git-card">
+        <h4>📝 Commit Format</h4>
+        <p><code>[AUUS1] feat: add order sync</code><br><code>[ZEN8] fix: handle duplicate ID</code><br><br>Format: <code>[PROJECT] type: message</code></p>
+      </div>
+      <div class="git-card">
+        <h4>🌿 Branch Naming</h4>
+        <p><code>feature/auus1-order-sync</code><br><code>feature/zen8-dashboard</code><br><br>Format: <code>feature/[project]-[feature]</code></p>
+      </div>
+      <div class="git-card">
+        <h4>🔍 AI Self-Review</h4>
+        <p>Trước khi commit → Bắt AI review code theo checklist 6 mục.<br><br>Kiểm tra: vùng lãnh thổ, imports, naming, SQL injection, error handling, credentials.</p>
+      </div>
+      <div class="git-card warn">
+        <h4>🚨 Khi Code Bị Nát</h4>
+        <p>❌ KHÔNG bắt AI sửa đè<br>✅ <code>git revert HEAD</code><br>✅ Mở session AI mới<br>✅ Nạp context lại từ đầu<br>✅ Code lại feature</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SLIDE 6: FILES -->
+<section class="slide" id="files">
+  <div class="slide-inner">
+    <div class="section-tag tag-purple">Slide 6</div>
+    <h2 class="section-title">Gói Bàn Giao — 5 Files</h2>
+    <p class="section-sub">Toàn bộ tài liệu & tự động hóa đã sẵn sàng trong repo.</p>
+    <div class="file-grid">
+      <div class="file-card">
+        <div class="file-icon">📖</div>
+        <div class="file-name">docs/TRAINING_MANUAL.md</div>
+        <div class="file-desc">Cẩm nang đào tạo đầy đủ — 4 quy tắc sống còn, ví dụ thực tế, template prompt, checklist hàng ngày.</div>
+      </div>
+      <div class="file-card">
+        <div class="file-icon">📋</div>
+        <div class="file-name">docs/STANDARD_TEMPLATES.md</div>
+        <div class="file-desc">3 biểu mẫu thiết kế: Data Pipeline Flow, Database Schema, UI Dashboard Component. Leader điền trước khi code.</div>
+      </div>
+      <div class="file-card">
+        <div class="file-icon">🔒</div>
+        <div class="file-name">.github/CODEOWNERS</div>
+        <div class="file-desc">Phân quyền Git cấp máy chủ — Vùng Đỏ (Boss), Vùng Xanh (Leader). Tự động yêu cầu review khi PR.</div>
+      </div>
+      <div class="file-card">
+        <div class="file-icon">⚙️</div>
+        <div class="file-name">scripts/auto_setup_env.sh</div>
+        <div class="file-desc">Script 1-click setup: check Python/Node → venv → pip install → npm install → tạo .env → scaffold thư mục dự án.</div>
+      </div>
+      <div class="file-card">
+        <div class="file-icon">🧠</div>
+        <div class="file-name">docs/LEADER_AI_ONBOARDING_PROMPT.md</div>
+        <div class="file-desc">"Thần chú" cho AI — Leader copy paste vào Claude/Cursor. Định nghĩa vai trò, lãnh thổ, quy tắc kỹ thuật, lệnh setup.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SLIDE 7: ACTION -->
+<section class="slide" id="action">
+  <div class="slide-inner">
+    <div class="section-tag tag-green">Slide 7</div>
+    <h2 class="section-title">Bước Tiếp Theo</h2>
+    <p class="section-sub">3 bước để Leader bắt đầu.</p>
+    <div class="cta-box">
+      <div class="cta-steps">
+        <div class="cta-step">
+          <div class="step-num">①</div>
+          <div class="step-text"><strong>Clone & Setup</strong><br>Clone repo, chạy<br><code>scripts/auto_setup_env.sh</code><br>Điền credentials vào .env</div>
+        </div>
+        <div class="cta-step">
+          <div class="step-num">②</div>
+          <div class="step-text"><strong>Copy Prompt</strong><br>Mở <code>LEADER_AI_ONBOARDING_PROMPT.md</code><br>Paste vào Claude/Cursor<br>AI sẽ tự setup</div>
+        </div>
+        <div class="cta-step">
+          <div class="step-num">③</div>
+          <div class="step-text"><strong>Điền Form & Code</strong><br>Điền <code>STANDARD_TEMPLATES.md</code><br>Gửi Boss duyệt<br>Rồi mới bắt đầu code</div>
+        </div>
+      </div>
+    </div>
+    <div style="text-align:center;margin-top:40px;">
+      <p style="font-size:24px;font-weight:700;color:var(--accent2);">Questions? 🎤</p>
+      <p style="color:var(--muted);margin-top:8px;">FAOS v6 — Chief Architect Handover Briefing</p>
+    </div>
+  </div>
+</section>
+
+<footer class="footer">
+  FAOS v6 Handover Briefing — 2026-03-02 — github.com/nhatngo-coder/Agentic-AI-Levelup
+</footer>
+
+<script>
+// Highlight active nav link on scroll
+const sections = document.querySelectorAll('.slide');
+const navLinks = document.querySelectorAll('.nav-links a');
+window.addEventListener('scroll', () => {
+  let current = '';
+  sections.forEach(s => {
+    if(window.scrollY >= s.offsetTop - 200) current = s.id;
+  });
+  navLinks.forEach(a => {
+    a.classList.remove('active');
+    if(a.getAttribute('href') === '#'+current) a.classList.add('active');
+  });
+});
+
+// Keyboard navigation
+document.addEventListener('keydown', e => {
+  const ids = [...sections].map(s=>s.id);
+  const ci = ids.findIndex(id => {
+    const el = document.getElementById(id);
+    return window.scrollY >= el.offsetTop - 300 && window.scrollY < el.offsetTop + el.offsetHeight - 300;
+  });
+  if(e.key==='ArrowDown'||e.key===' ') { e.preventDefault(); if(ci<ids.length-1) document.getElementById(ids[ci+1]).scrollIntoView({behavior:'smooth'}); }
+  if(e.key==='ArrowUp') { e.preventDefault(); if(ci>0) document.getElementById(ids[ci-1]).scrollIntoView({behavior:'smooth'}); }
+});
+</script>
+</body>
+</html>

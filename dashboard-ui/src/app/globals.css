@@ -1,0 +1,347 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* ═══ LEVEL UP Light Theme ═══ */
+    /* Brand: Orange (#F5A623) → Red (#E74C3C) gradient */
+    --background: 0 0% 97%;
+    /* #f7f7f7 warm white */
+    --foreground: 220 15% 20%;
+    /* #2d3748 dark slate */
+    --card: 0 0% 100%;
+    /* #ffffff */
+    --card-foreground: 220 15% 20%;
+    /* #2d3748 */
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 15% 30%;
+    --primary: 28 90% 55%;
+    /* #F5A623 — brand orange */
+    --primary-foreground: 0 0% 100%;
+    /* white on orange */
+    --secondary: 35 100% 96%;
+    /* #FFF8E8 light amber bg */
+    --secondary-foreground: 28 80% 35%;
+    --muted: 220 14% 94%;
+    /* #EDF2F7 light gray */
+    --muted-foreground: 220 10% 46%;
+    /* #6B7280 */
+    --accent: 28 90% 95%;
+    /* #FFF3E0 light orange */
+    --accent-foreground: 28 80% 30%;
+    --destructive: 0 72% 51%;
+    /* #EF4444 */
+    --destructive-foreground: 0 0% 100%;
+    --border: 220 13% 90%;
+    /* #E2E8F0 */
+    --input: 220 13% 90%;
+    --ring: 28 90% 55%;
+    /* brand orange ring */
+    --radius: 0.75rem;
+
+    /* ─── Brand palette tokens ─── */
+    --brand-orange: 28 90% 55%;
+    /* #F5A623 */
+    --brand-red: 6 78% 57%;
+    /* #E74C3C */
+    --brand-gradient: linear-gradient(135deg, hsl(28, 90%, 55%), hsl(6, 78%, 57%));
+  }
+
+  /* ═══ LEVEL UP Dark Theme ═══ */
+  .dark {
+    --background: 222 47% 7%;
+    /* #0B0F1A deep navy */
+    --foreground: 210 40% 93%;
+    /* #E8EDF5 soft white */
+    --card: 222 40% 10%;
+    /* #111827 */
+    --card-foreground: 210 40% 93%;
+    --popover: 222 40% 10%;
+    --popover-foreground: 210 40% 93%;
+    --primary: 28 90% 55%;
+    /* brand orange — same */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 222 30% 14%;
+    /* dark muted bg */
+    --secondary-foreground: 28 80% 70%;
+    --muted: 222 30% 16%;
+    /* dark gray */
+    --muted-foreground: 215 20% 55%;
+    /* #7B8BA5 */
+    --accent: 28 50% 12%;
+    /* dark orange tint */
+    --accent-foreground: 28 80% 70%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 222 20% 18%;
+    /* subtle dark border */
+    --input: 222 20% 18%;
+    --ring: 28 90% 55%;
+    --radius: 0.75rem;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}
+
+/* ═══ Component classes ═══ */
+
+.kpi-card {
+  @apply rounded-xl border border-border bg-card p-4 shadow-sm transition-all hover:shadow-md;
+}
+
+.dark .kpi-card {
+  @apply bg-white/[0.04] border-white/[0.08] shadow-none hover:bg-white/[0.06] hover:border-white/[0.12];
+  backdrop-filter: blur(12px);
+}
+
+.section-header {
+  @apply mb-4 flex items-center gap-2 text-lg font-semibold text-foreground;
+}
+
+/* Brand gradient text */
+.brand-gradient-text {
+  background: linear-gradient(135deg, hsl(28, 90%, 55%), hsl(6, 78%, 57%));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ═══ Glass card (dark mode) ═══ */
+.glass-card {
+  @apply rounded-xl border border-border bg-card p-6;
+}
+
+.dark .glass-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(16px);
+}
+
+/* ═══ Animations ═══ */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes glow-pulse {
+
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(245, 166, 35, 0);
+  }
+
+  50% {
+    box-shadow: 0 0 20px 4px rgba(245, 166, 35, 0.15);
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.4s ease-out both;
+}
+
+.animate-slide-up {
+  animation: slide-up 0.5s ease-out both;
+}
+
+.animate-shimmer {
+  background: linear-gradient(90deg,
+      hsl(var(--muted)) 25%,
+      hsl(var(--border)) 50%,
+      hsl(var(--muted)) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+/* ═══ Dark mode table styles ═══ */
+.dark table thead tr {
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.dark table tbody tr {
+  border-color: rgba(255, 255, 255, 0.04);
+}
+
+.dark table tbody tr:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+/* ═══ Dark mode overrides for tab components ═══ */
+
+/* bg-gray-50 cards/sections → dark glass */
+.dark .bg-gray-50 {
+  background-color: rgba(255, 255, 255, 0.03) !important;
+}
+
+/* hover:bg-gray-50 → dark hover */
+.dark .hover\:bg-gray-50:hover,
+.dark .hover\:bg-gray-50\/50:hover {
+  background-color: rgba(255, 255, 255, 0.04) !important;
+}
+
+/* divide-white/5 → use border token */
+.dark .divide-white\/5> :not([hidden])~ :not([hidden]) {
+  border-color: rgba(255, 255, 255, 0.06);
+}
+
+/* border-white/5 → cleaner dark border */
+.dark .border-white\/5 {
+  border-color: rgba(255, 255, 255, 0.06);
+}
+
+/* bg-white/[0.02] → slightly brighter in dark */
+.dark .bg-white\/\[0\.02\] {
+  background-color: rgba(255, 255, 255, 0.04);
+}
+
+/* text-gray-500 → brighter in dark */
+.dark .text-gray-500 {
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.dark .text-gray-400 {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+/* Recharts dark theme overrides */
+.dark .recharts-cartesian-grid line {
+  stroke: rgba(255, 255, 255, 0.06) !important;
+}
+
+.dark .recharts-cartesian-axis-tick text {
+  fill: rgba(255, 255, 255, 0.4) !important;
+}
+
+.dark .recharts-cartesian-axis line,
+.dark .recharts-cartesian-axis path {
+  stroke: rgba(255, 255, 255, 0.1) !important;
+}
+
+.dark .recharts-legend-item-text {
+  color: rgba(255, 255, 255, 0.6) !important;
+}
+
+.dark .recharts-tooltip-wrapper .recharts-default-tooltip {
+  background-color: #1a1f2e !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+.dark .recharts-default-tooltip .recharts-tooltip-label {
+  color: rgba(255, 255, 255, 0.8) !important;
+}
+
+.dark .recharts-default-tooltip .recharts-tooltip-item {
+  color: rgba(255, 255, 255, 0.7) !important;
+}
+
+/* Hardcoded Tooltip styles in components */
+.dark [style*="backgroundColor: #1e1e2e"] {
+  background-color: #1a1f2e !important;
+}
+
+/* Indigo elements → brand orange in active states */
+.dark .bg-indigo-500\/20 {
+  background-color: rgba(245, 166, 35, 0.12) !important;
+}
+
+.dark .text-indigo-400 {
+  color: hsl(28, 90%, 65%) !important;
+}
+
+.dark .text-indigo-300 {
+  color: hsl(28, 90%, 70%) !important;
+}
+
+/* Slate dark mode specific (ads-command) */
+.dark .bg-slate-900 {
+  background-color: rgba(255, 255, 255, 0.04) !important;
+}
+
+.dark .bg-slate-800 {
+  background-color: rgba(255, 255, 255, 0.06) !important;
+}
+
+.dark .bg-slate-700:hover,
+.dark .hover\:bg-slate-700:hover {
+  background-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+.dark .border-slate-600 {
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+.dark .border-slate-700 {
+  border-color: rgba(255, 255, 255, 0.06) !important;
+}
+
+.dark .text-slate-300 {
+  color: rgba(255, 255, 255, 0.6) !important;
+}
+
+/* Funnel colors — brighter in dark mode */
+.dark .bg-indigo-500\/30 {
+  background-color: rgba(99, 102, 241, 0.15) !important;
+}
+
+.dark .bg-indigo-500\/40 {
+  background-color: rgba(99, 102, 241, 0.2) !important;
+}
+
+.dark .bg-emerald-500\/50 {
+  background-color: rgba(52, 211, 153, 0.25) !important;
+}
+
+.dark .bg-amber-500\/30 {
+  background-color: rgba(251, 191, 36, 0.15) !important;
+}
+/* ═══ Autofill — Chrome tự sơn nền trắng đè lên ô input ═══
+   Ở dark mode ô mật khẩu đang trắng bệch giữa nền tối vì Chrome vẽ nền autofill
+   riêng, không đi qua class Tailwind. Ép nền và màu chữ về token của theme. */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+  -webkit-text-fill-color: hsl(var(--foreground));
+  -webkit-box-shadow: 0 0 0 1000px hsl(var(--card)) inset;
+  box-shadow: 0 0 0 1000px hsl(var(--card)) inset;
+  caret-color: hsl(var(--foreground));
+  transition: background-color 9999s ease-in-out 0s;
+}

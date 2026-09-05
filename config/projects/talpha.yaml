@@ -1,0 +1,463 @@
+# ╔══════════════════════════════════════════════════════╗
+# ║  TALPHA — Project Configuration                      ║
+# ║  Team Tiểu Alpha — Thị trường GCC (Vùng Vịnh)       ║
+# ╚══════════════════════════════════════════════════════╝
+
+# ─── 1. THÔNG TIN DỰ ÁN ───
+project_id: talpha
+project_name: "Tiểu Alpha"
+description: "Trang sức cho phụ nữ Philippines tại thị trường GCC"
+currency: AED
+timezone: Asia/Dubai
+status: active
+
+# ─── 2. BIGQUERY ───
+bigquery:
+  project_gcp: "talpha-faos-2026"
+  dataset: "TALPHA_Dataset"
+
+# ─── 3. FACEBOOK ADS — app riêng "Talpha Post" ───
+meta_ads:
+  app_id: "1492490978955925"                            # App "Talpha Post"
+  app_secret: "${TALPHA_META_APP_SECRET}"               # ⚠️ Value in .env
+  access_token: "${TALPHA_META_ACCESS_TOKEN}"           # ⚠️ Long-lived token, value in .env
+  ad_account_ids:
+    - "act_832444553250352"       # Mỹ phẩm 3 5/6/2026
+    - "act_1990279368211651"      # Mỹ phẩm 2 6/5/2026
+    - "act_1146444450958264"      # Mỹ phẩm 5/6/2026
+    - "act_416558701342048"       # Tiểu Alpha 1
+    - "act_4382396978703883"      # Trang sức 27/04/2026
+    - "act_869269479518459"       # Mai 01
+    - "act_1670165974333671"      # Nhật Bản - 03
+    - "act_1284981146939856"      # Sỹ Lộc 03
+    - "act_1543721207473858"      # Trung Đông múi h Mỹ (Lộc) — có spend nhưng trước bị thiếu
+    - "act_1380444643991154"      # Trang sức 15/6/2026 — có spend nhưng trước bị thiếu
+    - "act_1343764530945320"      # Đài 18-05-2026 (thị trường Taiwan, VND)
+    - "act_2490459691392269"      # Sỹ Anh Dubai 01 (UAE, VND)
+    - "act_2071538856772150"      # Sỹ Anh Mỹ 03 (VND)
+    - "act_1341405590946084"      # Sỹ Anh Kuwait 02 (Kuwait, VND)
+    - "act_1669476730831714"      # Sỹ Anh Saudi 04 (tz Kuwait, VND) — thêm 10/08
+  # Tên hiển thị TKQC — NGUỒN DUY NHẤT cho dashboard (realtime route + Ads Command
+  # Center đọc từ đây, KHÔNG hard-code lại trong code). Thêm TKQC = thêm cả 2 mục.
+  ad_account_names:
+    act_832444553250352: "Mỹ phẩm 3 5/6/2026"
+    act_1990279368211651: "Mỹ phẩm 2 6/5/2026"
+    act_1146444450958264: "Mỹ phẩm 5/6/2026"
+    act_416558701342048: "Tiểu Alpha 1"
+    act_4382396978703883: "Trang sức 27/04/2026"
+    act_869269479518459: "Mai 01"
+    act_1670165974333671: "Nhật Bản - 03"
+    act_1284981146939856: "Sỹ Lộc 03"
+    act_1543721207473858: "Trung Đông múi h Mỹ"
+    act_1380444643991154: "Trang sức 15/6/2026"
+    act_1343764530945320: "Đài 18-05-2026"
+    act_2490459691392269: "Sỹ Anh Dubai 01"
+    act_2071538856772150: "Sỹ Anh Mỹ 03"
+    act_1341405590946084: "Sỹ Anh Kuwait 02"
+    act_1669476730831714: "Sỹ Anh Saudi 04"
+  # Múi giờ từng TKQC — lấy từ Meta API (timezone_name) 03/08/2026, KHÔNG đoán theo tên.
+  # Spend cột `date` đã theo múi giờ NÀY của từng account (rule #6 TALPHA_METRIC_RULES):
+  # 3 account chạy America/Los_Angeles → ngày spend lệch VN, cả tháng mới khớp.
+  ad_account_timezones:
+    act_832444553250352: "Asia/Kuwait"          # Mỹ phẩm 3 5/6/2026
+    act_1990279368211651: "Asia/Kuwait"         # Mỹ phẩm 2 6/5/2026
+    act_1146444450958264: "Asia/Kuwait"         # Mỹ phẩm 5/6/2026
+    act_416558701342048: "Asia/Bangkok"         # Tiểu Alpha 1
+    act_4382396978703883: "Asia/Dubai"          # Trang sức 27/04/2026
+    act_869269479518459: "Asia/Qatar"           # Mai 01
+    act_1670165974333671: "Asia/Tokyo"          # Nhật Bản - 03
+    act_1284981146939856: "America/Los_Angeles" # Sỹ Lộc 03
+    act_1543721207473858: "America/Los_Angeles" # Trung Đông múi h Mỹ
+    act_1380444643991154: "Asia/Dubai"          # Trang sức 15/6/2026
+    act_1343764530945320: "Asia/Taipei"         # Đài 18-05-2026
+    act_2490459691392269: "Asia/Dubai"          # Sỹ Anh Dubai 01
+    act_2071538856772150: "America/Los_Angeles" # Sỹ Anh Mỹ 03
+    act_1341405590946084: "Asia/Kuwait"         # Sỹ Anh Kuwait 02
+    act_1669476730831714: "Asia/Kuwait"         # Sỹ Anh Saudi 04 (Meta khai tz Kuwait, KHÔNG phải Riyadh)
+  business_id: "1356322402694811"
+  pixel_id: ""                    # ❌ CẦN BỔ SUNG (nếu có)
+
+# ─── 4. POS / ORDER MANAGEMENT ───
+pos_system: poscake
+
+poscake:
+  shops:
+    - name: "Saudi"
+      api_url: "https://pos.pages.fm/api/v1"
+      api_key: "${TALPHA_POSCAKE_SA_KEY}"               # ⚠️ Actual value in .env
+      shop_id: "1328205216"
+    - name: "UAE"
+      api_url: "https://pos.pages.fm/api/v1"
+      api_key: "${TALPHA_POSCAKE_AE_KEY}"               # ⚠️ Actual value in .env
+      shop_id: "1635200759"
+    - name: "Kuwait"
+      api_url: "https://pos.pages.fm/api/v1"
+      api_key: "${TALPHA_POSCAKE_KW_KEY}"               # ⚠️ Actual value in .env
+      shop_id: "1328205226"
+    - name: "Oman"
+      api_url: "https://pos.pages.fm/api/v1"
+      api_key: "${TALPHA_POSCAKE_OM_KEY}"               # ⚠️ Actual value in .env
+      shop_id: "1942200986"
+    - name: "Qatar"
+      api_url: "https://pos.pages.fm/api/v1"
+      api_key: "${TALPHA_POSCAKE_QA_KEY}"               # ⚠️ Actual value in .env
+      shop_id: "1021271617"
+    - name: "Bahrain"
+      api_url: "https://pos.pages.fm/api/v1"
+      api_key: "${TALPHA_POSCAKE_BH_KEY}"               # ⚠️ Actual value in .env
+      shop_id: "100943483"
+    - name: "Taiwan"
+      api_url: "https://pos.pages.fm/api/v1"
+      api_key: "${TALPHA_POSCAKE_TW_KEY}"               # ⚠️ Actual value in .env
+      shop_id: "1328343252"
+  shop_ids:
+    - "132820521"                 # Saudi
+    - "1635200759"                # UAE
+    - "1328205226"                # Kuwait
+    - "1942200986"                # Oman
+    - "1021271617"                # Qatar
+    - "100943483"                 # Bahrain
+    - "1328343252"                # Taiwan
+
+# ─── 5. PANCAKE CRM ───
+pancake:
+  api_url: "https://pages.fm/api/v1"
+  api_token: "${TALPHA_PANCAKE_API_TOKEN}"              # ⚠️ Actual value in .env
+  page_ids:
+    - ""                          # CẦN BỔ SUNG nếu có
+
+# ─── 6. FULFILLMENT (3PL) ───
+# Bảng phí chính xác theo từng thị trường (valid_from: 2026-01-01)
+#
+# 💡 CÔNG THỨC TÍNH PHÍ:
+#   ✅ Giao THÀNH CÔNG = packing_fee + delivery_fee + (order_value × cod_fee_pct)
+#   ❌ Giao THẤT BẠI   = packing_fee + return_fee
+#
+fulfillment:
+  primary_3pl: "iMile, Aramex"
+  carriers:
+    - partner: "iMile"
+      market_code: 966
+      market_name: "Saudi Arabia"
+      packing_fee: 2.5              # Phí đóng gói mỗi đơn (luôn tính)
+      delivery_fee: 15.0            # Phí giao thành công
+      cod_fee_pct: 0.03             # Phí thu hộ COD (3%)
+      return_fee: 5.0                # ❌ CẦN BỔ SUNG — phí hoàn hàng
+      currency: SAR
+      warehouse: ""                 # Cập nhật sau
+    - partner: "iMile"
+      market_code: 971
+      market_name: "UAE"
+      packing_fee: 3.0
+      delivery_fee: 12.0
+      cod_fee_pct: 0.03
+      return_fee: 0.0                # ❌ CẦN BỔ SUNG
+      currency: AED
+      warehouse: ""
+    - partner: "PostaPlus"
+      market_code: 965
+      market_name: "Kuwait"
+      packing_fee: 0.2              # Phí thao tác, đóng gói
+      delivery_fee: 0.9             # Phí ship
+      cod_fee_pct: 0                # PostaPlus dùng phí cố định, không theo %
+      cod_fee_flat: 0.25            # Phí thu hộ COD (0.25 KWD/đơn GTC)
+      return_fee: 0.25              # Phí hoàn
+      currency: KWD
+      warehouse: ""
+    - partner: "iMile"
+      market_code: 974
+      market_name: "Qatar"
+      packing_fee: 3.0
+      delivery_fee: 17.0
+      cod_fee_pct: 0.04
+      return_fee: 5.0
+      currency: QAR
+      warehouse: ""
+    - partner: "iMile"
+      market_code: 968
+      market_name: "Oman"
+      packing_fee: 0.4
+      delivery_fee: 2.0
+      cod_fee_pct: 0.04
+      return_fee: ""                # ❌ CẦN BỔ SUNG
+      currency: OMR
+      warehouse: ""
+    - partner: "Aramex"
+      market_code: 973
+      market_name: "Bahrain"
+      packing_fee: 0.4
+      delivery_fee: 2.0
+      cod_fee_pct: 0.05
+      return_fee: ""                # ❌ CẦN BỔ SUNG
+      currency: BHD
+      warehouse: ""
+  tracking_enabled: false
+
+# ─── 7. THỊ TRƯỜNG ───
+markets:
+  - code: SA
+    name: "Saudi Arabia"
+    currency: SAR
+    warehouse: "InBound"                 # Cập nhật sau
+  - code: AE
+    name: "UAE"
+    currency: AED
+    warehouse: "AREXO"
+  - code: KW
+    name: "Kuwait"
+    currency: KWD
+    warehouse: ""
+  - code: BH
+    name: "Bahrain"
+    currency: BHD
+    warehouse: ""
+  - code: OM
+    name: "Oman"
+    currency: OMR
+    warehouse: ""
+  - code: QA
+    name: "Qatar"
+    currency: QAR
+    warehouse: ""
+
+# ─── 8. DISCORD NOTIFICATIONS ───
+discord:
+  webhook_report: ""              # CẦN BỔ SUNG (nếu có)
+  webhook_alert: ""
+
+# ─── 9. TEAM (7 người) ───
+# ⚠️ KHỐI NÀY CHỈ ĐỂ THAM KHẢO — không có code nào đọc `marketers:` ở đây.
+# NGUỒN DUY NHẤT cho gán marketer là config/talpha_rules.json (dashboard, bot, sheet
+# đều đọc qua loader rules.ts / talpha_rules.py). Sửa team = sửa file ĐÓ trước.
+# Đồng bộ 04/08/2026 theo xác nhận của CEO: khối này từng lệch (thừa Lê Thục Bình,
+# thiếu Chính) — lệch roster là nguồn gốc lỗi X7 "bảng marketer sai người".
+marketers:
+  - id: "SSA"
+    name: "Hồ Sỹ Anh"
+    role: "Marketer"
+  - id: "SSL"
+    name: "Hồ Sỹ Lộc"
+    role: "Marketer"
+  - id: "CTT"
+    name: "Chu Thị Thuý"
+    role: "Marketer"
+  - id: "HTTN"
+    name: "Hoàng Thị Thuỳ Nhung"
+    role: "Marketer"
+  - id: "TNT"
+    name: "Trần Ngọc Thế"
+    role: "Marketer"
+  - id: "PHTM"
+    name: "Phạm Hà Thục Mai"
+    role: "Marketer"
+  - id: "CHINH"
+    name: "Chính"          # talpha_rules.json chưa khai họ tên đầy đủ
+    role: "Marketer"
+
+# ─── 10. SẢN PHẨM + GIÁ VỐN (valid_from: 2026-02-01) ───
+products:
+  - sku: "005"
+    name: "Diamond Halo Set"
+    cost_price: 180000
+    cost_currency: VND
+  - sku: "008"
+    name: "Necklace Box"
+    cost_price: 45000
+    cost_currency: VND
+  - sku: "009"
+    name: "Eye Oil"
+    cost_price: 85000
+    cost_currency: VND
+  - sku: "010"
+    name: "Birth Stone Set"
+    cost_price: 155000
+    cost_currency: VND
+  - sku: "011"
+    name: "Heart of Ocean Necklace"
+    cost_price: 145000
+    cost_currency: VND
+  - sku: "013"
+    name: "Set Emerald"
+    cost_price: 195000
+    cost_currency: VND
+  - sku: "014"
+    name: "Set 5 Bracelets"
+    cost_price: 115000
+    cost_currency: VND
+  - sku: "016"
+    name: "Green Diamond Set"
+    cost_price: 185000
+    cost_currency: VND
+  - sku: "053"
+    name: "Gold Heart Necklace"
+    cost_price: 135000
+    cost_currency: VND
+  - sku: "054"
+    name: "Ball Bangles"
+    cost_price: 125000
+    cost_currency: VND
+  - sku: "055"
+    name: "Antarctic Krill Oil"
+    cost_price: 285000
+    cost_currency: VND
+  - sku: "057"
+    name: "Snail Whitening Cream"
+    cost_price: 95000
+    cost_currency: VND
+  - sku: "058"
+    name: "VC Cream"
+    cost_price: 75000
+    cost_currency: VND
+  - sku: "060"
+    name: "Whitening Cleanser"
+    cost_price: 65000
+    cost_currency: VND
+  - sku: "063"
+    name: "Whitening & Cleansing Milk"
+    cost_price: 70000
+    cost_currency: VND
+  - sku: "065"
+    name: "Euphausia Superba Oil"
+    cost_price: 310000
+    cost_currency: VND
+  - sku: "066"
+    name: "Snail Collagen Cream"
+    cost_price: 98000
+    cost_currency: VND
+  - sku: "072"
+    name: "Couple Ring"
+    cost_price: 110000
+    cost_currency: VND
+  - sku: "073"
+    name: "Herbal Eye Cream"
+    cost_price: 88000
+    cost_currency: VND
+  - sku: "081"
+    name: "Glutathione Collagen Glow"
+    cost_price: 225000
+    cost_currency: VND
+  - sku: "105"
+    name: "Neslemy Dentures"
+    cost_price: 140000
+    cost_currency: VND
+  - sku: "113"
+    name: "Turkish Set"
+    cost_price: 210000
+    cost_currency: VND
+  - sku: "120"
+    name: "Golden Bloom Necklace"
+    cost_price: 138000
+    cost_currency: VND
+  - sku: "KNK"
+    name: "Kinoki"
+    cost_price: 70000
+    cost_currency: VND
+  - sku: "KSC"
+    name: "KSA Kasoy Cream"
+    cost_price: 70000
+    cost_currency: VND
+  - sku: "BHS"
+    name: "Bubble Herbal Shampoo"
+    cost_price: 70000
+    cost_currency: VND
+  - sku: "BYL"
+    name: "Baiyaolang Cream"
+    cost_price: 70000
+    cost_currency: VND
+
+# ─── 11. CAMPAIGN TYPES ───
+campaign_types:
+  CBO: "Campaign Budget Optimization"
+  ABO: "Ad Set Budget Optimization"
+  DPA: "Dynamic Product Ads"
+  RTG: "Retargeting"
+  TST: "Testing"
+  SCL: "Scaling"
+  LAL: "Lookalike"
+  BR: "Broad"
+
+# ─── 12. TỶ GIÁ (valid_from: 2026-02-01) ───
+exchange_rates:
+  - from: SAR
+    to: VND
+    rate: 6850
+  - from: AED
+    to: VND
+    rate: 7010
+  - from: KWD
+    to: VND
+    rate: 83000
+  - from: QAR
+    to: VND
+    rate: 7050
+  - from: BHD
+    to: VND
+    rate: 68000
+  - from: OMR
+    to: VND
+    rate: 66700
+  - from: USD
+    to: VND
+    rate: 25700
+
+# ─── 13. GIÁ BÁN (PRICING TIERS) ───
+# POS lưu giá ÷100 (10000 = 100.00 AED)
+# Doanh thu đơn = COD = money_to_collect (bao gồm cả product + ship)
+# Giá = giá gộp toàn đơn, KHÔNG tách per-item
+pos_price_divisor: 100          # Chia POS value cho 100 để ra đơn vị thật
+
+pricing_tiers:
+  AE:                           # UAE (AED)
+    1: 99                       # 1 SP = 99 AED
+    2: 149                      # Combo 2 SP = 149 AED
+    3: 199                      # Combo 3 SP ≈ 199 AED (cần xác nhận thêm)
+    4: 199                      # Combo 4 SP ≈ 99-149 AED → cần data thêm
+    note: "Thực tế: 1SP=89-100, 2SP=99-149, 4SP=99-149"
+  KW:                           # Kuwait (KWD)
+    1: 9                        # 1 SP ≈ 8-11 KWD
+    2: 13                       # Combo 2 SP ≈ 8-14 KWD
+    3: 13                       # Combo 3 SP ≈ 13 KWD (chỉ 1 đơn mẫu)
+    4: 14                       # Combo 4 SP ≈ 11-19 KWD
+    note: "Giá biến động nhiều: 8-19 KWD"
+  OM:                           # Oman (OMR)
+    1: 12                       # 1 SP ≈ 10-12 OMR
+    2: 12                       # Combo 2 SP ≈ 11-24 OMR
+    note: "Chưa đủ data combo 3/4"
+  SA:                           # Saudi (SAR) — chờ POS fix để kéo data
+    1: ""
+    2: ""
+    note: "❌ Chưa có data — Saudi POS lỗi 500"
+  QA:                           # Qatar (QAR) — chưa có API key
+    1: ""
+    2: ""
+    note: "❌ Chưa có POS API key"
+  BH:                           # Bahrain (BHD) — chưa có API key
+    1: ""
+    2: ""
+    note: "❌ Chưa có POS API key"
+
+# ─── 14. KPI TARGETS ───
+kpi:
+  roas_target: 4.0              # ROAS > 4
+  backfill_days: 60             # Backfill 60 ngày gần nhất
+  backfill_from: "2025-12-21"   # Tính từ 2026-02-19 trừ 60 ngày
+
+# ─── 15. QUY TẮC VẬN HÀNH ───
+operations:
+  return_policy: "re-stock"     # Hàng hoàn → tái nhập kho → bán tiếp
+  cost_source:
+    - "pos"                     # Giá vốn nhập trên POS khi nhập kho/SP mới
+    - "google_sheet"            # Bổ sung qua Google Sheet upload vào config
+  fixed_costs: "pending"        # Sẽ mapping sau
+  pos_revenue_field: "cod"      # Doanh thu = field COD / money_to_collect
+
+# ─── 16. GHI CHÚ ───
+notes: |
+  - Team Tiểu Alpha (7 marketer), thị trường GCC (6 nước)
+  - Currency chính: AED, 8 tài khoản QC Facebook
+  - 3PL: iMile (SA, AE, QA, OM) + PostaPlus (KW) + Aramex (BH)
+  - Ngành: Trang sức + Mỹ phẩm, target phụ nữ Philippines ở GCC
+  - 27 SKU (trang sức + skincare)
+  - POS giá ÷100, doanh thu lấy từ COD/money_to_collect
+  # ⚠️ CÒN THIẾU: Saudi POS fix, QA+BH API keys, return_fees OM+BH
+

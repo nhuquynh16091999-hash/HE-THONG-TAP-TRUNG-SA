@@ -1,0 +1,92 @@
+{
+  "projects": {
+    "talpha": {
+      "access_token_env": "TALPHA_META_ACCESS_TOKEN",
+      "accounts": [
+        {
+          "id": "act_832444553250352",
+          "name": "Mỹ phẩm 3 5/6/2026",
+          "status": "active",
+          "bill_threshold_vnd": 20472625
+        },
+        {
+          "id": "act_1990279368211651",
+          "name": "Mỹ phẩm 2 6/5/2026",
+          "status": "active"
+        },
+        {
+          "id": "act_1146444450958264",
+          "name": "Mỹ phẩm 5/6/2026",
+          "status": "active",
+          "billing_hidden": true
+        },
+        {
+          "id": "act_416558701342048",
+          "name": "Tiểu Alpha 1",
+          "status": "active",
+          "bill_threshold_vnd": 17967233
+        },
+        {
+          "id": "act_4382396978703883",
+          "name": "Trang sức 27/04/2026",
+          "status": "active",
+          "billing_hidden": true
+        },
+        {
+          "id": "act_869269479518459",
+          "name": "Mai 01",
+          "status": "active",
+          "billing_hidden": true
+        },
+        {
+          "id": "act_1670165974333671",
+          "name": "Nhật Bản - 03",
+          "status": "active",
+          "billing_hidden": true
+        },
+        {
+          "id": "act_1284981146939856",
+          "name": "Sỹ Lộc 03",
+          "status": "active",
+          "billing_hidden": true
+        },
+        {
+          "id": "act_1543721207473858",
+          "name": "Trung Đông múi h Mỹ",
+          "status": "active",
+          "bill_threshold_vnd": 15208514
+        },
+        {
+          "id": "act_1380444643991154",
+          "name": "Trang sức 15/6/2026",
+          "status": "active"
+        },
+        {
+          "id": "act_1343764530945320",
+          "name": "Đài 18-05-2026",
+          "status": "active"
+        },
+        {
+          "id": "act_2490459691392269",
+          "name": "Sỹ Anh Dubai 01",
+          "status": "active"
+        },
+        {
+          "id": "act_2071538856772150",
+          "name": "Sỹ Anh Mỹ 03",
+          "status": "active"
+        },
+        {
+          "id": "act_1341405590946084",
+          "name": "Sỹ Anh Kuwait 02",
+          "status": "active"
+        },
+        {
+          "id": "act_1669476730831714",
+          "name": "Sỹ Anh Saudi 04",
+          "status": "active"
+        }
+      ]
+    }
+  }
+}

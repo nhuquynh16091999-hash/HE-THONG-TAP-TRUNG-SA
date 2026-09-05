@@ -1,0 +1,46 @@
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+# ═══════════════════════════════════════════════════════════════
+# STRAMARK — runs from /opt/stramark/
+# ═══════════════════════════════════════════════════════════════
+# Order sync (pass-1 incremental + pass-2 refresh) — every 2 hours
+0 */2 * * * cd /opt/stramark && source venv/bin/activate && GOOGLE_APPLICATION_CREDENTIALS=/opt/stramark/bigquery_key.json python3 -m sync.stramark.stramark_sync --orders >> /opt/stramark/logs/stramark_sync.log 2>&1
+
+# Full sync (orders + ads + stock + cogs) — daily 2:00 AM UTC
+0 2 * * * cd /opt/stramark && source venv/bin/activate && GOOGLE_APPLICATION_CREDENTIALS=/opt/stramark/bigquery_key.json python3 -m sync.stramark.stramark_sync >> /opt/stramark/logs/stramark_sync.log 2>&1
+
+# FFM Sync (euShipments) — daily 6:00 AM UTC (13:00 VN)
+0 6 * * * cd /opt/stramark && source venv/bin/activate && GOOGLE_APPLICATION_CREDENTIALS=/opt/stramark/bigquery_key.json python3 sync/stramark/eu_shipment_sync.py --resync-all >> /opt/stramark/logs/ffm_sync.log 2>&1
+
+# Protokol email sync + re-verify + Discord alerts — daily 7:00 AM UTC (14:00 VN)
+0 7 * * * cd /opt/stramark && source venv/bin/activate && GOOGLE_APPLICATION_CREDENTIALS=/opt/stramark/bigquery_key.json python3 sync/stramark/protokol_email_sync.py --days 14 >> /opt/stramark/logs/protokol_sync.log 2>&1
+
+# Protokol email sync — every 4 hours (for same-day Protokol arrivals)
+0 */4 * * * cd /opt/stramark && source venv/bin/activate && GOOGLE_APPLICATION_CREDENTIALS=/opt/stramark/bigquery_key.json python3 sync/stramark/protokol_email_sync.py --days 3 >> /opt/stramark/logs/protokol_sync.log 2>&1
+
+# Ads optimization sync (hot tier) — every 30 min
+*/30 * * * * cd /opt/stramark && source venv/bin/activate && GOOGLE_APPLICATION_CREDENTIALS=/opt/stramark/bigquery_key.json python3 faos_brain/optimization/run_ads_sync.py --tier hot --project stramark >> /opt/stramark/logs/ads_opt_sync.log 2>&1
+
+# Log cleanup — weekly Sunday midnight
+0 0 * * 0 find /opt/stramark/logs -name '*.log' -mtime +7 -delete 2>/dev/null
+
+# ═══════════════════════════════════════════════════════════════
+# AUUS1 — runs from /opt/faos/ (Ngo Nhat)
+# ═══════════════════════════════════════════════════════════════
+0 */2 * * * /opt/faos/scripts/auus1_cron_sync.sh --pos >> /opt/faos/logs/auus1_sync.log 2>&1
+
+
+# AUUS1 Ads-only sync — every hour at :45
+*/30 * * * * /opt/faos/scripts/auus1_cron_sync.sh --ads >> /opt/faos/logs/auus1_ads_sync.log 2>&1
+
+# === HNLE+ZEN8 syncs === DO NOT EDIT THIS BLOCK ===
+# HNLE order sync — every 2 hours
+0 */2 * * * cd /opt/hnle && source venv/bin/activate && GOOGLE_APPLICATION_CREDENTIALS=/opt/hnle/bigquery_key.json python3 -m sync.hnle.hnle_sync --orders >> /opt/hnle/logs/hnle_sync.log 2>&1
+# HNLE daily full sync — 3:00 AM UTC
+0 3 * * * cd /opt/hnle && source venv/bin/activate && GOOGLE_APPLICATION_CREDENTIALS=/opt/hnle/bigquery_key.json python3 -m sync.hnle.hnle_sync >> /opt/hnle/logs/hnle_sync.log 2>&1
+# ZEN8 order sync — every 2 hours
+30 */2 * * * cd /opt/zen8 && source venv/bin/activate && GOOGLE_APPLICATION_CREDENTIALS=/opt/zen8/bigquery_key.json python3 -m sync.zen8.zen8_sync --orders >> /opt/zen8/logs/zen8_sync.log 2>&1
+# ZEN8 daily full sync — 3:30 AM UTC
+30 3 * * * cd /opt/zen8 && source venv/bin/activate && GOOGLE_APPLICATION_CREDENTIALS=/opt/zen8/bigquery_key.json python3 -m sync.zen8.zen8_sync >> /opt/zen8/logs/zen8_sync.log 2>&1
+# === END HNLE+ZEN8 syncs ===

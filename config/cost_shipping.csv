@@ -1,0 +1,12 @@
+partner_3pl,from_warehouse,to_market,cost_per_order,cost_per_kg,currency,valid_from,valid_to
+J&T Express,WH-RIYADH,966,12,1.8,SAR,2026-01-01,
+J&T Express,WH-DUBAI,971,15,2.0,AED,2026-01-01,
+Aramex,WH-RIYADH,966,10,1.5,SAR,2026-01-01,
+SPX Express,WH-HCMC,1,8000,3000,VND,2026-01-01,
+euShipments-Cargus,WH-Oradea,RO,2.33,0,EUR,2026-01-01,
+euShipments-CargusPuDo,WH-Oradea,RO,2.26,0,EUR,2026-01-01,
+euShipments-FAN,WH-Oradea,RO,2.74,0,EUR,2026-01-01,
+euShipments-SamedayRO,WH-Oradea,RO,2.46,0,EUR,2026-01-01,
+euShipments-EasyBox,WH-Oradea,RO,2.14,0,EUR,2026-01-01,
+euShipments-GLS_RO,WH-Oradea,RO,2.72,0,EUR,2026-01-01,
+euShipments-GLS_PuDo,WH-Oradea,RO,2.12,0,EUR,2026-01-01,

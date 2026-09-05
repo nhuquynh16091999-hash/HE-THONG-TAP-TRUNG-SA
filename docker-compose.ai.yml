@@ -1,0 +1,120 @@
+# FAOS v6 — AI Brain Infrastructure
+# ===================================
+# Chạy: docker-compose -f docker-compose.ai.yml up -d
+#
+# Services:
+#   - falkordb:     Graph + Vector database (port 6379 Redis, 3001 UI)
+#   - graphiti-mcp: Temporal Knowledge Graph MCP server
+#   - simplemem:    Agent Memory MCP server (port 8100)
+#
+# Note: OpenFang chạy native binary, không cần Docker.
+#       Dashboard-ui chạy npm run dev riêng.
+# ===================================
+
+services:
+  # ─────────────────────────────────────────
+  # FalkorDB — Graph + Vector Database
+  # ─────────────────────────────────────────
+  falkordb:
+    image: falkordb/falkordb:v4.4.1
+    container_name: faos-falkordb
+    ports:
+      - "6379:6379"    # Redis protocol (Graphiti kết nối qua đây)
+      - "3001:3000"    # FalkorDB Browser UI (tránh xung đột port 3000 dashboard)
+    volumes:
+      - falkordb_data:/data
+    environment:
+      - FALKORDB_ARGS=--save 60 1    # Persist data mỗi 60 giây
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─────────────────────────────────────────
+  # Graphiti MCP Server — Temporal Knowledge Graph
+  # ─────────────────────────────────────────
+  graphiti-mcp:
+    build:
+      context: ./services/graphiti
+      dockerfile: Dockerfile
+    container_name: faos-graphiti-mcp
+    depends_on:
+      falkordb:
+        condition: service_healthy
+    environment:
+      # FalkorDB connection
+      - GRAPH_DB_PROVIDER=falkordb
+      - FALKORDB_HOST=falkordb
+      - FALKORDB_PORT=6379
+      # LLM for entity extraction (dùng model rẻ cho ingestion)
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - MODEL_NAME=gpt-4o-mini
+      - EMBEDDING_MODEL=text-embedding-3-small
+      # MCP Server config
+      - MCP_SERVER_PORT=8200
+    ports:
+      - "8200:8200"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8200/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+
+  # ─────────────────────────────────────────
+  # SimpleMem MCP Server — Agent Memory
+  # ─────────────────────────────────────────
+  simplemem:
+    build:
+      context: ./services/simplemem
+      dockerfile: Dockerfile
+    container_name: faos-simplemem
+    environment:
+      - LLM_PROVIDER=openai
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - MODEL_NAME=gpt-4o-mini
+      - MEM_STORAGE_PATH=/data/memory
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:?JWT_SECRET_KEY is required}
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY:?ENCRYPTION_KEY is required}
+    volumes:
+      - simplemem_data:/data/memory
+    ports:
+      - "8100:8000"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # ─────────────────────────────────────────
+  # Kreuzberg Worker — Document Ingestion
+  # ─────────────────────────────────────────
+  kreuzberg-worker:
+    build:
+      context: ./services/ingestion
+      dockerfile: Dockerfile
+    container_name: faos-kreuzberg
+    environment:
+      - GRAPHITI_MCP_URL=http://graphiti-mcp:8200
+      - SIMPLEMEM_URL=http://simplemem:8000
+      - WATCH_DIR=/data/inbox
+    volumes:
+      - ./data/inbox:/data/inbox        # Drop files here for auto-processing
+      - ./data/processed:/data/processed
+    depends_on:
+      graphiti-mcp:
+        condition: service_healthy
+      simplemem:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  falkordb_data:
+    driver: local
+  simplemem_data:
+    driver: local

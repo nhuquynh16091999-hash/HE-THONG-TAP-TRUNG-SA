@@ -1,0 +1,1142 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Antigravity Training — AI Assistant cho Mọi Phòng Ban</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/theme/black.min.css">
+    <style>
+        :root {
+            --r-background-color: #0a0a1a;
+            --r-main-color: #e0e0e0;
+            --r-heading-color: #a78bfa;
+            --r-link-color: #a78bfa;
+        }
+
+        .reveal {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+        }
+
+        .reveal h1 {
+            font-size: 2.2em;
+            text-shadow: 0 0 20px rgba(167, 139, 250, 0.3);
+        }
+
+        .reveal h2 {
+            font-size: 1.5em;
+            color: #a78bfa;
+        }
+
+        .reveal h3 {
+            font-size: 1.1em;
+            color: #c4b5fd;
+        }
+
+        .reveal table {
+            font-size: 0.55em;
+            margin: 0 auto;
+            border-collapse: collapse;
+        }
+
+        .reveal table th {
+            background: rgba(167, 139, 250, 0.15);
+            color: #a78bfa;
+            padding: 6px 12px;
+        }
+
+        .reveal table td {
+            padding: 5px 10px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .reveal .small {
+            font-size: 0.6em;
+        }
+
+        .reveal .medium {
+            font-size: 0.7em;
+        }
+
+        .reveal .accent {
+            color: #a78bfa;
+        }
+
+        .reveal .green {
+            color: #34d399;
+        }
+
+        .reveal .red {
+            color: #f87171;
+        }
+
+        .reveal .yellow {
+            color: #fbbf24;
+        }
+
+        .reveal .orange {
+            color: #fb923c;
+        }
+
+        .reveal .blue {
+            color: #60a5fa;
+        }
+
+        .reveal .cyan {
+            color: #22d3ee;
+        }
+
+        .reveal .dim {
+            color: #6b7280;
+        }
+
+        .reveal .highlight-box {
+            background: rgba(167, 139, 250, 0.08);
+            border: 1px solid rgba(167, 139, 250, 0.3);
+            border-radius: 12px;
+            padding: 20px;
+            margin: 10px 0;
+        }
+
+        .reveal .warning-box {
+            background: rgba(251, 191, 36, 0.08);
+            border: 1px solid rgba(251, 191, 36, 0.3);
+            border-radius: 12px;
+            padding: 15px;
+            margin: 10px 0;
+        }
+
+        .reveal .success-box {
+            background: rgba(52, 211, 153, 0.08);
+            border: 1px solid rgba(52, 211, 153, 0.3);
+            border-radius: 12px;
+            padding: 15px;
+            margin: 10px 0;
+        }
+
+        .reveal .stat-grid {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .reveal .stat-card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 15px 20px;
+            text-align: center;
+            min-width: 120px;
+        }
+
+        .reveal .stat-card .number {
+            font-size: 1.8em;
+            font-weight: bold;
+            color: #a78bfa;
+        }
+
+        .reveal .stat-card .label {
+            font-size: 0.6em;
+            color: #9ca3af;
+            margin-top: 5px;
+        }
+
+        .reveal .two-col {
+            display: flex;
+            gap: 25px;
+            align-items: flex-start;
+        }
+
+        .reveal .two-col>div {
+            flex: 1;
+        }
+
+        .reveal .three-col {
+            display: flex;
+            gap: 15px;
+            align-items: flex-start;
+        }
+
+        .reveal .three-col>div {
+            flex: 1;
+        }
+
+        .reveal .chat-bubble {
+            background: rgba(167, 139, 250, 0.1);
+            border: 1px solid rgba(167, 139, 250, 0.2);
+            border-radius: 16px 16px 16px 4px;
+            padding: 12px 18px;
+            margin: 8px 0;
+            text-align: left;
+            font-size: 0.7em;
+        }
+
+        .reveal .chat-bubble.user {
+            background: rgba(59, 130, 246, 0.1);
+            border: 1px solid rgba(59, 130, 246, 0.2);
+            border-radius: 16px 16px 4px 16px;
+            text-align: right;
+        }
+
+        .reveal .chat-bubble .sender {
+            font-size: 0.8em;
+            font-weight: bold;
+            margin-bottom: 4px;
+        }
+
+        .reveal .chat-bubble.user .sender {
+            color: #60a5fa;
+        }
+
+        .reveal .chat-bubble .sender {
+            color: #a78bfa;
+        }
+
+        .reveal .icon-feature {
+            text-align: center;
+            padding: 15px 10px;
+        }
+
+        .reveal .icon-feature .icon {
+            font-size: 2em;
+        }
+
+        .reveal .icon-feature .title {
+            font-size: 0.7em;
+            font-weight: bold;
+            margin-top: 8px;
+            color: #c4b5fd;
+        }
+
+        .reveal .icon-feature .desc {
+            font-size: 0.55em;
+            color: #9ca3af;
+            margin-top: 4px;
+        }
+
+        .reveal .step-number {
+            display: inline-block;
+            width: 32px;
+            height: 32px;
+            line-height: 32px;
+            background: rgba(167, 139, 250, 0.2);
+            border: 1px solid rgba(167, 139, 250, 0.4);
+            border-radius: 50%;
+            text-align: center;
+            font-weight: bold;
+            color: #a78bfa;
+            margin-right: 10px;
+            font-size: 0.8em;
+        }
+
+        .reveal .tag {
+            display: inline-block;
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-size: 0.55em;
+            font-weight: bold;
+            margin: 2px;
+        }
+
+        .tag-easy {
+            background: rgba(52, 211, 153, 0.2);
+            color: #34d399;
+        }
+
+        .tag-medium {
+            background: rgba(251, 191, 36, 0.2);
+            color: #fbbf24;
+        }
+
+        .tag-advanced {
+            background: rgba(248, 113, 113, 0.2);
+            color: #f87171;
+        }
+
+        .reveal pre {
+            font-size: 0.55em;
+        }
+
+        .reveal .emoji-big {
+            font-size: 3em;
+            display: block;
+            margin-bottom: 15px;
+        }
+
+        .reveal ul {
+            font-size: 0.75em;
+        }
+
+        .reveal li {
+            margin-bottom: 6px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="reveal">
+        <div class="slides">
+
+            <!-- ========== PHẦN 1: GIỚI THIỆU ========== -->
+
+            <!-- SLIDE 1: TITLE -->
+            <section>
+                <p class="emoji-big">🚀</p>
+                <h1>Antigravity Training</h1>
+                <h3>AI Assistant cho Mọi Phòng Ban</h3>
+                <p class="dim" style="margin-top:20px">Từ coder assistant → Trợ lý toàn năng cho mọi người</p>
+                <br>
+                <div class="stat-grid">
+                    <div class="stat-card">
+                        <div class="number">💬</div>
+                        <div class="label">Chat bằng tiếng Việt</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="number">📁</div>
+                        <div class="label">Đọc mọi file</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="number">🌐</div>
+                        <div class="label">Duyệt web</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="number">🤖</div>
+                        <div class="label">Tự động hóa</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SLIDE 2: ANTIGRAVITY LÀ GÌ -->
+            <section>
+                <h2>Antigravity Là Gì?</h2>
+                <div class="highlight-box">
+                    <p><strong>Antigravity</strong> là AI assistant tích hợp trong code editor (VS Code / Cursor),<br>
+                        có thể <span class="accent">đọc file, viết code, duyệt web, chạy lệnh, và giao tiếp bằng ngôn
+                            ngữ tự nhiên</span>.</p>
+                </div>
+                <br>
+                <div class="three-col">
+                    <div class="icon-feature">
+                        <div class="icon">💬</div>
+                        <div class="title">Nói chuyện</div>
+                        <div class="desc">Chat bằng tiếng Việt,<br>hỏi gì cũng được</div>
+                    </div>
+                    <div class="icon-feature">
+                        <div class="icon">📂</div>
+                        <div class="title">Đọc/Viết File</div>
+                        <div class="desc">Đọc tài liệu, code,<br>config — tự tìm file</div>
+                    </div>
+                    <div class="icon-feature">
+                        <div class="icon">🌐</div>
+                        <div class="title">Duyệt Web</div>
+                        <div class="desc">Search Google,<br>đọc trang web, API docs</div>
+                    </div>
+                    <div class="icon-feature">
+                        <div class="icon">⚡</div>
+                        <div class="title">Chạy Lệnh</div>
+                        <div class="desc">Terminal commands,<br>test, deploy</div>
+                    </div>
+                    <div class="icon-feature">
+                        <div class="icon">🧠</div>
+                        <div class="title">Nhớ Context</div>
+                        <div class="desc">Nhớ file đã đọc,<br>conversation history</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SLIDE 3: KHÔNG CHỈ CHO DEVELOPER -->
+            <section>
+                <h2>Không Chỉ Cho Developer!</h2>
+                <p class="medium">Antigravity giúp <strong class="accent">MỌI phòng ban</strong>, không cần biết code:
+                </p>
+                <br>
+                <div class="three-col medium">
+                    <div class="highlight-box" style="text-align:center">
+                        <p>📣 <strong>Marketing</strong></p>
+                        <ul style="font-size:0.85em; text-align:left">
+                            <li>Phân tích campaign</li>
+                            <li>Viết caption, ads copy</li>
+                            <li>Tạo report từ data</li>
+                            <li>Research đối thủ</li>
+                        </ul>
+                    </div>
+                    <div class="highlight-box" style="text-align:center">
+                        <p>📦 <strong>Vận hành</strong></p>
+                        <ul style="font-size:0.85em; text-align:left">
+                            <li>Kiểm tra đơn hàng</li>
+                            <li>Đối soát COD</li>
+                            <li>Tạo SOP quy trình</li>
+                            <li>Xử lý dữ liệu Excel</li>
+                        </ul>
+                    </div>
+                    <div class="highlight-box" style="text-align:center">
+                        <p>💰 <strong>Tài chính</strong></p>
+                        <ul style="font-size:0.85em; text-align:left">
+                            <li>Tính P&L tự động</li>
+                            <li>Kiểm tra chi phí ads</li>
+                            <li>Tạo báo cáo tài chính</li>
+                            <li>Phân tích ROAS</li>
+                        </ul>
+                    </div>
+                </div>
+                <br>
+                <div class="three-col medium">
+                    <div class="highlight-box" style="text-align:center">
+                        <p>🎨 <strong>Design / Content</strong></p>
+                        <ul style="font-size:0.85em; text-align:left">
+                            <li>Brainstorm ý tưởng</li>
+                            <li>Viết content sản phẩm</li>
+                            <li>Tạo landing page</li>
+                            <li>Dịch nội dung</li>
+                        </ul>
+                    </div>
+                    <div class="highlight-box" style="text-align:center">
+                        <p>👥 <strong>HR / Admin</strong></p>
+                        <ul style="font-size:0.85em; text-align:left">
+                            <li>Soạn thảo quy trình</li>
+                            <li>Tạo form đánh giá</li>
+                            <li>Tra cứu thông tin</li>
+                            <li>Tổng hợp meeting notes</li>
+                        </ul>
+                    </div>
+                    <div class="highlight-box" style="text-align:center">
+                        <p>📞 <strong>CSKH</strong></p>
+                        <ul style="font-size:0.85em; text-align:left">
+                            <li>Trả lời mẫu FAQ</li>
+                            <li>Phân tích feedback</li>
+                            <li>Tạo kịch bản tư vấn</li>
+                            <li>Báo cáo tỷ lệ chốt đơn</li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ========== PHẦN 2: CÁCH DÙNG CƠ BẢN ========== -->
+
+            <!-- SLIDE 4: GIAO DIỆN -->
+            <section>
+                <h2>Giao Diện Antigravity</h2>
+                <div class="two-col medium">
+                    <div style="text-align:left">
+                        <h3>Mở Antigravity</h3>
+                        <ol>
+                            <li>Mở <strong>VS Code</strong> hoặc <strong>Cursor</strong></li>
+                            <li>Nhấn <code class="accent">Ctrl + Shift + P</code></li>
+                            <li>Gõ <strong>"Antigravity"</strong></li>
+                            <li>Hoặc click icon <span class="accent">🧠</span> ở sidebar</li>
+                        </ol>
+                        <br>
+                        <h3>Cửa sổ Chat</h3>
+                        <ul>
+                            <li>Panel bên phải = chat window</li>
+                            <li>Gõ tin nhắn → Enter</li>
+                            <li>Antigravity trả lời + gợi ý</li>
+                            <li>Có thể attach file, image</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <div
+                            style="background:#1e1e2e;border-radius:12px;padding:20px;border:1px solid rgba(255,255,255,0.1)">
+                            <div style="font-size:0.5em;color:#6b7280;margin-bottom:10px">ANTIGRAVITY CHAT</div>
+                            <div class="chat-bubble user">
+                                <div class="sender">Bạn</div>
+                                Tóm tắt file báo cáo doanh thu tháng 2 cho tao
+                            </div>
+                            <div class="chat-bubble">
+                                <div class="sender">Antigravity</div>
+                                📊 Tôi đã đọc file <code>bao_cao_t2.xlsx</code>. Đây là tóm tắt:<br><br>
+                                • Doanh thu: <strong>1.2 tỷ VND</strong> (+15% vs T1)<br>
+                                • Top sản phẩm: Diamond Set (35%)<br>
+                                • ROAS trung bình: 4.2x<br>
+                                • Lợi nhuận ròng: 280 triệu
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SLIDE 5: CÁCH ĐẨY TÀI LIỆU -->
+            <section>
+                <h2>📁 Cách Đẩy Tài Liệu</h2>
+                <div class="medium" style="text-align:left">
+                    <h3>4 Cách để Antigravity đọc tài liệu của bạn:</h3>
+                    <br>
+                    <p><span class="step-number">1</span> <strong>Mở file trong editor</strong> — Antigravity tự thấy
+                        file đang mở</p>
+                    <div class="small dim" style="margin-left:50px">Mở file .docx, .xlsx, .pdf, .csv, .md → Antigravity
+                        tự đọc</div>
+                    <br>
+                    <p><span class="step-number">2</span> <strong>Kéo file vào chat</strong> — Drag & drop trực tiếp</p>
+                    <div class="small dim" style="margin-left:50px">Kéo file từ Explorer vào cửa sổ chat</div>
+                    <br>
+                    <p><span class="step-number">3</span> <strong>Chỉ đường dẫn</strong> — Gõ path trong chat</p>
+                    <div class="chat-bubble user small" style="max-width:500px">
+                        <div class="sender">Bạn</div>
+                        Đọc file C:\Users\team\Desktop\bao_cao_t2.xlsx và tóm tắt cho tao
+                    </div>
+                    <br>
+                    <p><span class="step-number">4</span> <strong>Mở folder workspace</strong> — Antigravity scan toàn
+                        bộ project</p>
+                    <div class="small dim" style="margin-left:50px">File → Open Folder → Chọn thư mục dự án →
+                        Antigravity hiểu toàn bộ context</div>
+                </div>
+            </section>
+
+            <!-- SLIDE 6: PROMPT 101 -->
+            <section>
+                <h2>💬 Cách Giao Tiếp Hiệu Quả</h2>
+                <div class="two-col">
+                    <div>
+                        <h3 class="red">❌ Hỏi mơ hồ</h3>
+                        <div class="chat-bubble user small">
+                            Làm báo cáo cho tao
+                        </div>
+                        <p class="small dim">→ Báo cáo gì? Cho ai? Dữ liệu nào?</p>
+                        <br>
+                        <div class="chat-bubble user small">
+                            Sửa lỗi
+                        </div>
+                        <p class="small dim">→ Lỗi gì? File nào? Lỗi ở đâu?</p>
+                        <br>
+                        <div class="chat-bubble user small">
+                            Viết content
+                        </div>
+                        <p class="small dim">→ Content gì? Cho kênh nào? Tone gì?</p>
+                    </div>
+                    <div>
+                        <h3 class="green">✅ Hỏi cụ thể</h3>
+                        <div class="chat-bubble user small">
+                            Từ file bao_cao_ads_t2.csv, tạo báo cáo tóm tắt top 5 campaign theo ROAS, gửi cho CEO
+                        </div>
+                        <p class="small green">→ Rõ ràng: nguồn dữ liệu, output, người nhận</p>
+                        <br>
+                        <div class="chat-bubble user small">
+                            File order_sync.py báo lỗi "KeyError: shop_id" ở dòng 45, fix giúp tao
+                        </div>
+                        <p class="small green">→ Rõ: file, lỗi cụ thể, vị trí</p>
+                        <br>
+                        <div class="chat-bubble user small">
+                            Viết 3 caption Facebook cho bộ trang sức Diamond Set, target nữ 25-35, tone sang trọng, kèm
+                            CTA
+                        </div>
+                        <p class="small green">→ Rõ: sản phẩm, target, tone, format</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SLIDE 7: PROMPT FORMULA -->
+            <section>
+                <h2>🧪 Công Thức Prompt Vàng</h2>
+                <div class="highlight-box" style="text-align:center; font-size:1.1em">
+                    <strong class="accent">CONTEXT</strong> + <strong class="green">TASK</strong> + <strong
+                        class="yellow">FORMAT</strong> + <strong class="orange">CONSTRAINTS</strong>
+                </div>
+                <br>
+                <div class="medium" style="text-align:left">
+                    <p><strong class="accent">Context (Bối cảnh):</strong> Bạn là ai, đang làm gì</p>
+                    <p class="small dim" style="margin-left:20px">"Tao là marketer project STRAMARK, đang chạy ads
+                        Facebook cho thị trường Romania"</p>
+                    <br>
+                    <p><strong class="green">Task (Nhiệm vụ):</strong> Bạn cần gì cụ thể</p>
+                    <p class="small dim" style="margin-left:20px">"Phân tích 5 campaign tốn nhiều tiền nhất tuần này và
+                        đề xuất pause/scale"</p>
+                    <br>
+                    <p><strong class="yellow">Format (Định dạng):</strong> Output dạng gì</p>
+                    <p class="small dim" style="margin-left:20px">"Trình bày dạng bảng, có cột: Campaign, Spend, ROAS,
+                        Action (Pause/Scale/Keep)"</p>
+                    <br>
+                    <p><strong class="orange">Constraints (Ràng buộc):</strong> Giới hạn, quy tắc</p>
+                    <p class="small dim" style="margin-left:20px">"Chỉ suggest pause nếu ROAS < 2.0 và spend> $50. Trả
+                            lời bằng tiếng Việt"</p>
+                </div>
+            </section>
+
+            <!-- ========== PHẦN 3: USE CASES THEO PHÒNG BAN ========== -->
+
+            <!-- SLIDE 8: MARKETING USE CASES -->
+            <section>
+                <h2>📣 Marketing — Ví Dụ Thực Tế</h2>
+                <div class="medium" style="text-align:left">
+                    <div class="success-box">
+                        <strong>UC1: Phân tích Campaign</strong> <span class="tag tag-easy">Dễ</span>
+                        <div class="chat-bubble user small" style="margin-top:10px">
+                            Đọc file fb_campaign_feb.csv, cho tao top 10 campaign theo ROAS giảm dần,<br>
+                            highlight những cái ROAS < 2.0 cần pause. Export ra file Excel. </div>
+                        </div>
+                        <div class="success-box">
+                            <strong>UC2: Viết Ads Copy</strong> <span class="tag tag-easy">Dễ</span>
+                            <div class="chat-bubble user small" style="margin-top:10px">
+                                Viết 5 mẫu caption quảng cáo Facebook cho sản phẩm Diamond Halo Set,<br>
+                                giá 450 AED, target phụ nữ GCC 25-40, tone luxury + FOMO, kèm emoji.
+                            </div>
+                        </div>
+                        <div class="success-box">
+                            <strong>UC3: Research Đối Thủ</strong> <span class="tag tag-medium">Trung bình</span>
+                            <div class="chat-bubble user small" style="margin-top:10px">
+                                Tìm trên web 5 đối thủ bán trang sức online ở thị trường UAE,<br>
+                                so sánh: giá, kênh bán, chiến lược ads, USP. Trình bày dạng bảng.
+                            </div>
+                        </div>
+                    </div>
+            </section>
+
+            <!-- SLIDE 9: OPS USE CASES -->
+            <section>
+                <h2>📦 Vận Hành — Ví Dụ Thực Tế</h2>
+                <div class="medium" style="text-align:left">
+                    <div class="success-box">
+                        <strong>UC1: Xử Lý Data Excel</strong> <span class="tag tag-easy">Dễ</span>
+                        <div class="chat-bubble user small" style="margin-top:10px">
+                            File don_hang_thang2.xlsx có 5000 dòng. Tao cần: lọc đơn shipping > 7 ngày,<br>
+                            đánh dấu đơn COD chưa thu tiền, tính tổng tiền theo từng courier. Save ra file mới.
+                        </div>
+                    </div>
+                    <div class="success-box">
+                        <strong>UC2: Tạo SOP</strong> <span class="tag tag-easy">Dễ</span>
+                        <div class="chat-bubble user small" style="margin-top:10px">
+                            Tạo SOP quy trình xử lý đơn hàng hoàn trả, bao gồm: tiếp nhận → kiểm tra →<br>
+                            liên hệ KH → tạo đơn hoàn → đối soát. Viết chi tiết từng bước, kèm checklist.
+                        </div>
+                    </div>
+                    <div class="success-box">
+                        <strong>UC3: Đối Soát COD</strong> <span class="tag tag-medium">Trung bình</span>
+                        <div class="chat-bubble user small" style="margin-top:10px">
+                            So sánh 2 file: don_hang_pos.csv (từ POS) và chuyen_khoan_3pl.csv (từ 3PL).<br>
+                            Tìm đơn nào POS ghi đã giao nhưng 3PL chưa chuyển tiền. List ra danh sách.
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SLIDE 10: FINANCE USE CASES -->
+            <section>
+                <h2>💰 Tài Chính — Ví Dụ Thực Tế</h2>
+                <div class="medium" style="text-align:left">
+                    <div class="success-box">
+                        <strong>UC1: Tính P&L</strong> <span class="tag tag-medium">Trung bình</span>
+                        <div class="chat-bubble user small" style="margin-top:10px">
+                            Từ 3 file: doanh_thu.csv, chi_phi_ads.csv, chi_phi_van_chuyen.csv,<br>
+                            tính P&L theo ngày cho tuần 17-23/02. Bao gồm: Revenue, COGS, Ads, Shipping, Net Profit,
+                            Margin %.
+                        </div>
+                    </div>
+                    <div class="success-box">
+                        <strong>UC2: Phân tích xu hướng chi phí</strong> <span class="tag tag-medium">Trung bình</span>
+                        <div class="chat-bubble user small" style="margin-top:10px">
+                            Đọc file chi_phi_6_thang.xlsx, vẽ trend chi phí quảng cáo vs doanh thu.<br>
+                            Đánh giá: chi phí tăng nhanh hơn doanh thu không? Đề xuất cắt giảm ở đâu.
+                        </div>
+                    </div>
+                    <div class="success-box">
+                        <strong>UC3: Budget Planning</strong> <span class="tag tag-easy">Dễ</span>
+                        <div class="chat-bubble user small" style="margin-top:10px">
+                            Dựa trên data ads tháng 2, tạo budget plan tháng 3 cho TALPHA project.<br>
+                            Target ROAS 3.5x, daily budget cap $500. Chia theo market: SA, AE, KW, OM, QA, BH.
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ========== PHẦN 4: XÂY DỰNG QUY TRÌNH ========== -->
+
+            <!-- SLIDE 11: TỰ ĐỘNG HÓA -->
+            <section>
+                <h2>⚡ Xây Dựng Quy Trình Tự Động</h2>
+                <div class="highlight-box" style="text-align:center">
+                    <p style="font-size:1.1em"><strong>3 Cấp Độ Tự Động Hóa</strong></p>
+                </div>
+                <br>
+                <div class="three-col">
+                    <div class="highlight-box" style="text-align:center">
+                        <p class="green" style="font-size:2em">1️⃣</p>
+                        <h3>Ad-hoc</h3>
+                        <p class="small">Hỏi Antigravity<br>khi cần</p>
+                        <p class="small dim">— Ai cũng làm được —</p>
+                        <ul class="small">
+                            <li>"Tóm tắt file này"</li>
+                            <li>"Viết email cho tao"</li>
+                            <li>"Tính tổng doanh thu"</li>
+                        </ul>
+                    </div>
+                    <div class="highlight-box" style="text-align:center">
+                        <p class="yellow" style="font-size:2em">2️⃣</p>
+                        <h3>Workflows</h3>
+                        <p class="small">Tạo file hướng dẫn<br>cho Antigravity</p>
+                        <p class="small dim">— Cần học thêm —</p>
+                        <ul class="small">
+                            <li>Workflow files (.md)</li>
+                            <li>Slash commands</li>
+                            <li>Templates reusable</li>
+                        </ul>
+                    </div>
+                    <div class="highlight-box" style="text-align:center">
+                        <p class="orange" style="font-size:2em">3️⃣</p>
+                        <h3>Automation</h3>
+                        <p class="small">Antigravity tự chạy<br>theo schedule</p>
+                        <p class="small dim">— Cần tech hỗ trợ —</p>
+                        <ul class="small">
+                            <li>Scheduled tasks</li>
+                            <li>Trigger-based</li>
+                            <li>Kết nối hệ thống</li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SLIDE 12: TẠO WORKFLOW -->
+            <section>
+                <h2>📝 Cách Tạo Workflow</h2>
+                <div class="medium" style="text-align:left">
+                    <p><strong>Workflow</strong> = file .md hướng dẫn Antigravity thực hiện 1 quy trình cố định</p>
+                    <br>
+                    <div class="highlight-box" style="font-size:0.85em">
+                        <p><strong>Ví dụ:</strong> <code>.agent/workflows/bao-cao-ads-hang-ngay.md</code></p>
+                        <pre style="text-align:left; font-size:0.9em">
+---
+description: Tạo báo cáo ads hàng ngày cho CEO
+---
+## Quy trình:
+1. Đọc file data ads mới nhất trong folder `data/ads/`
+2. Tính các KPI: Total Spend, Revenue, ROAS, CPO, Top 5 campaigns
+3. So sánh với ngày hôm qua → tính % thay đổi
+4. Format thành báo cáo markdown với bảng và emoji
+5. Lưu vào `reports/daily_ads_{ngay}.md`
+</pre>
+                    </div>
+                    <br>
+                    <p><strong>Cách dùng:</strong> Gõ <code class="accent">/bao-cao-ads-hang-ngay</code> trong chat →
+                        Antigravity tự chạy toàn bộ quy trình!</p>
+                </div>
+            </section>
+
+            <!-- SLIDE 13: VÍ DỤ WORKFLOW THEO PHÒNG BAN -->
+            <section>
+                <h2>📋 Workflow Cho Từng Phòng Ban</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Phòng ban</th>
+                            <th>Workflow</th>
+                            <th>Mô tả</th>
+                            <th>Trigger</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>📣 MKT</td>
+                            <td><code>/bao-cao-ads</code></td>
+                            <td>Tổng hợp KPI ads hàng ngày</td>
+                            <td>Mỗi sáng</td>
+                        </tr>
+                        <tr>
+                            <td>📣 MKT</td>
+                            <td><code>/viet-caption</code></td>
+                            <td>Generate ads copy cho sản phẩm</td>
+                            <td>Khi cần</td>
+                        </tr>
+                        <tr>
+                            <td>📣 MKT</td>
+                            <td><code>/phan-tich-doi-thu</code></td>
+                            <td>Research + so sánh competitor</td>
+                            <td>Hàng tuần</td>
+                        </tr>
+                        <tr>
+                            <td>📦 OPS</td>
+                            <td><code>/doi-soat-cod</code></td>
+                            <td>So sánh POS vs 3PL</td>
+                            <td>Mỗi ngày</td>
+                        </tr>
+                        <tr>
+                            <td>📦 OPS</td>
+                            <td><code>/kiem-tra-don-treo</code></td>
+                            <td>List đơn shipping > 5 ngày</td>
+                            <td>Mỗi sáng</td>
+                        </tr>
+                        <tr>
+                            <td>📦 OPS</td>
+                            <td><code>/tao-sop</code></td>
+                            <td>Tạo SOP từ mô tả quy trình</td>
+                            <td>Khi cần</td>
+                        </tr>
+                        <tr>
+                            <td>💰 FIN</td>
+                            <td><code>/bao-cao-pnl</code></td>
+                            <td>P&L hàng tuần</td>
+                            <td>Chủ nhật</td>
+                        </tr>
+                        <tr>
+                            <td>💰 FIN</td>
+                            <td><code>/budget-plan</code></td>
+                            <td>Lập budget tháng mới</td>
+                            <td>Cuối tháng</td>
+                        </tr>
+                        <tr>
+                            <td>👥 HR</td>
+                            <td><code>/danh-gia-nhan-su</code></td>
+                            <td>Form đánh giá performance</td>
+                            <td>Hàng tháng</td>
+                        </tr>
+                        <tr>
+                            <td>📞 CS</td>
+                            <td><code>/phan-tich-feedback</code></td>
+                            <td>Tổng hợp feedback KH</td>
+                            <td>Hàng tuần</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </section>
+
+            <!-- ========== PHẦN 5: KNOWLEDGE & MỐI LIÊN KẾT ========== -->
+
+            <!-- SLIDE 14: KNOWLEDGE ITEMS -->
+            <section>
+                <h2>🧠 Knowledge — Antigravity Nhớ!</h2>
+                <div class="medium" style="text-align:left">
+                    <div class="highlight-box">
+                        <p>Antigravity có <strong>Knowledge System</strong> — tự lưu kiến thức qua các conversations.
+                        </p>
+                        <p>Nó sẽ <strong class="accent">tự nhớ</strong> những gì bạn đã dạy cho nó!</p>
+                    </div>
+                    <br>
+                    <h3>Cách "dạy" Antigravity:</h3>
+                    <div class="chat-bubble user small">
+                        <div class="sender">Bạn</div>
+                        Ghi nhớ: Khi tạo report cho TALPHA, currency luôn là AED, divisor giá = 100,<br>
+                        6 market codes: SA, AE, KW, OM, QA, BH. CEO nhận report trên Discord #talpha-alerts.
+                    </div>
+                    <div class="chat-bubble small">
+                        <div class="sender">Antigravity</div>
+                        Đã ghi nhớ! Từ giờ khi bạn yêu cầu report TALPHA, tôi sẽ tự động:<br>
+                        ✅ Dùng AED currency, ÷100 cho giá<br>
+                        ✅ Group theo 6 markets<br>
+                        ✅ Format cho Discord #talpha-alerts
+                    </div>
+                    <br>
+                    <p class="small dim">
+                        → Lần sau chỉ cần nói <strong>"Tạo report TALPHA tuần này"</strong> — Antigravity nhớ tất cả
+                        context!
+                    </p>
+                </div>
+            </section>
+
+            <!-- SLIDE 15: TỪ CÁ NHÂN → HỆ THỐNG -->
+            <section>
+                <h2>🔗 Lộ Trình: Cá Nhân → Hệ Thống</h2>
+                <div class="medium">
+                    <pre style="text-align:center; line-height:2.5; font-size:0.85em">
+<span class="green">GIAI ĐOẠN 1 (Ngay bây giờ)</span>
+Mỗi người dùng Antigravity như <strong>trợ lý cá nhân</strong>
+Hỏi → trả lời, xử lý file, viết content
+              ↓
+<span class="yellow">GIAI ĐOẠN 2 (1-2 tháng)</span>
+Mỗi phòng ban tạo <strong>workflows riêng</strong>
+/bao-cao-ads, /doi-soat-cod, /bao-cao-pnl
+              ↓
+<span class="orange">GIAI ĐOẠN 3 (3-4 tháng)</span>
+Workflows chạy <strong>tự động theo schedule</strong>
+Mỗi sáng tự tạo report, tự check đơn treo
+              ↓
+<span class="accent">GIAI ĐOẠN 4 (5-6 tháng)</span>
+<strong>Kết nối tất cả</strong> vào FAOS — hệ thống chung
+MKT workflow → FAOS → OPS workflow → FIN workflow
+Tất cả liên thông, real-time, tự động
+</pre>
+                </div>
+            </section>
+
+            <!-- SLIDE 16: KẾT NỐI VÀO FAOS -->
+            <section>
+                <h2>🧠 Kết Nối Vào FAOS — Bức Tranh Lớn</h2>
+                <div class="layer-diagram">
+                    <pre style="text-align:center; font-size:0.85em; line-height:1.8">
+<span class="accent">┌──────────────────────────────────────────────────────────────┐</span>
+<span class="accent">│</span>  <span class="green">Mỗi nhân viên</span> dùng Antigravity → tạo <span class="yellow">workflows</span>            <span class="accent">│</span>
+<span class="accent">│</span>                                                              <span class="accent">│</span>
+<span class="accent">│</span>  MKT: /bao-cao-ads  /phan-tich-campaign  /viet-caption       <span class="accent">│</span>
+<span class="accent">│</span>  OPS: /doi-soat-cod  /kiem-tra-don-treo  /tao-don-3pl        <span class="accent">│</span>
+<span class="accent">│</span>  FIN: /bao-cao-pnl   /budget-plan        /phan-tich-roas     <span class="accent">│</span>
+<span class="accent">│</span>  CS:  /phan-tich-feedback  /kich-ban-tu-van                  <span class="accent">│</span>
+<span class="accent">├──────────────────────────────────────────────────────────────┤</span>
+<span class="accent">│</span>                        ↓  Kết nối vào                        <span class="accent">│</span>
+<span class="accent">├──────────────────────────────────────────────────────────────┤</span>
+<span class="accent">│</span>  <span class="accent">🧠 FAOS</span> — Hệ thống AI trung tâm                             <span class="accent">│</span>
+<span class="accent">│</span>                                                              <span class="accent">│</span>
+<span class="accent">│</span>  AI Agents tự động phân tích data                            <span class="accent">│</span>
+<span class="accent">│</span>  → Gọi workflows của MKT, OPS, FIN khi phát hiện vấn đề     <span class="accent">│</span>
+<span class="accent">│</span>  → Tự động xử lý cross-department                           <span class="accent">│</span>
+<span class="accent">│</span>  → Báo cáo CEO qua Discord                                  <span class="accent">│</span>
+<span class="accent">└──────────────────────────────────────────────────────────────┘</span>
+</pre>
+                </div>
+            </section>
+
+            <!-- ========== PHẦN 6: THỰC HÀNH & Q&A ========== -->
+
+            <!-- SLIDE 17: DOS AND DONTS -->
+            <section>
+                <h2>✅ Nên & ❌ Không Nên</h2>
+                <div class="two-col medium">
+                    <div>
+                        <h3 class="green">✅ NÊN</h3>
+                        <ul>
+                            <li><strong>Cung cấp context</strong> — bạn là ai, đang làm gì</li>
+                            <li><strong>Ra yêu cầu cụ thể</strong> — file nào, output gì</li>
+                            <li><strong>Chia nhỏ task</strong> — 1 yêu cầu = 1 việc</li>
+                            <li><strong>Review kết quả</strong> — luôn kiểm tra output</li>
+                            <li><strong>Dạy context riêng</strong> — "ghi nhớ: X luôn = Y"</li>
+                            <li><strong>Tạo workflow</strong> — lưu quy trình hay dùng</li>
+                            <li><strong>Feedback</strong> — "sai, sửa lại → cách khác"</li>
+                            <li><strong>Mở file trước khi hỏi</strong> — để Antigravity thấy</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h3 class="red">❌ KHÔNG NÊN</h3>
+                        <ul>
+                            <li><strong>Share credentials</strong> — KHÔNG gõ mật khẩu</li>
+                            <li><strong>Tin 100%</strong> — luôn verify số liệu quan trọng</li>
+                            <li><strong>Hỏi quá vague</strong> — "làm gì đó" = kết quả kém</li>
+                            <li><strong>Copy paste cả file</strong> — mở file, đừng paste</li>
+                            <li><strong>Bỏ qua warning</strong> — nếu nó cảnh báo, hãy chú ý</li>
+                            <li><strong>Chạy lệnh không hiểu</strong> — hỏi giải thích trước</li>
+                            <li><strong>Dùng data nhạy cảm</strong> — thông tin KH riêng tư</li>
+                            <li><strong>Bỏ cuộc quá sớm</strong> — retry 2-3 lần khác cách</li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SLIDE 18: TIPS & TRICKS -->
+            <section>
+                <h2>💡 Tips & Tricks Nâng Cao</h2>
+                <div class="medium" style="text-align:left">
+                    <div class="success-box">
+                        <strong>🔄 Chain Requests (Yêu cầu nối tiếp)</strong>
+                        <div class="chat-bubble user small" style="margin-top:8px">
+                            1) Đọc file orders.csv<br>
+                            2) Lọc đơn ROAS > 3.0<br>
+                            3) Export sang Excel<br>
+                            4) Viết email gửi CEO kèm file đó
+                        </div>
+                    </div>
+                    <div class="success-box">
+                        <strong>📎 Multi-file (Nhiều file cùng lúc)</strong>
+                        <div class="chat-bubble user small" style="margin-top:8px">
+                            So sánh file sales_stramark.csv vs sales_talpha.csv,<br>
+                            tìm patterns chung và khác biệt giữa 2 markets
+                        </div>
+                    </div>
+                    <div class="success-box">
+                        <strong>🧠 "Dạy" cho phiên làm việc</strong>
+                        <div class="chat-bubble user small" style="margin-top:8px">
+                            Từ giờ trong conversation này: khi tao nói "report" thì hiểu là<br>
+                            báo cáo markdown format, có bảng, có so sánh %, có emoji, tiếng Việt
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SLIDE 19: BÀI TẬP THỰC HÀNH -->
+            <section>
+                <h2>🏋️ Bài Tập Thực Hành</h2>
+                <p class="medium">Mỗi người thử 3 bài sau ngay bây giờ:</p>
+                <br>
+                <div class="three-col">
+                    <div class="highlight-box" style="text-align:center">
+                        <p class="green" style="font-size:2em">📝</p>
+                        <h3>Bài 1 — Cơ bản</h3>
+                        <p class="small" style="text-align:left">
+                            Mở 1 file tài liệu công việc bất kỳ → Yêu cầu Antigravity:<br><br>
+                            "Tóm tắt file này thành 5 bullet points chính, kèm đánh giá mức độ quan trọng"
+                        </p>
+                        <p class="small dim">⏱️ 2 phút</p>
+                    </div>
+                    <div class="highlight-box" style="text-align:center">
+                        <p class="yellow" style="font-size:2em">📊</p>
+                        <h3>Bài 2 — Trung bình</h3>
+                        <p class="small" style="text-align:left">
+                            Mô tả 1 quy trình công việc hàng ngày của bạn → Yêu cầu Antigravity:<br><br>
+                            "Tạo SOP chi tiết cho quy trình này, bao gồm checklist và template"
+                        </p>
+                        <p class="small dim">⏱️ 5 phút</p>
+                    </div>
+                    <div class="highlight-box" style="text-align:center">
+                        <p class="orange" style="font-size:2em">⚡</p>
+                        <h3>Bài 3 — Workflow</h3>
+                        <p class="small" style="text-align:left">
+                            Tạo 1 workflow file cho công việc bạn hay làm nhất → Yêu cầu Antigravity:<br><br>
+                            "Tạo file workflow cho quy trình [X] của tao, theo format .md với frontmatter"
+                        </p>
+                        <p class="small dim">⏱️ 10 phút</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SLIDE 20: SECURITY -->
+            <section>
+                <h2>🔒 Bảo Mật Cần Biết</h2>
+                <div class="medium" style="text-align:left">
+                    <div class="warning-box">
+                        <h3 class="yellow">⚠️ Quy tắc bảo mật khi dùng AI</h3>
+                    </div>
+                    <br>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Loại data</th>
+                                <th>Được dùng?</th>
+                                <th>Ghi chú</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Data ads (spend, ROAS, campaign)</td>
+                                <td class="green">✅ OK</td>
+                                <td>Business data nội bộ</td>
+                            </tr>
+                            <tr>
+                                <td>Data đơn hàng (tổng hợp)</td>
+                                <td class="green">✅ OK</td>
+                                <td>Aggregated, không có PII</td>
+                            </tr>
+                            <tr>
+                                <td>Quy trình, SOP, template</td>
+                                <td class="green">✅ OK</td>
+                                <td>Internal process</td>
+                            </tr>
+                            <tr>
+                                <td>Câu hỏi nghiệp vụ chung</td>
+                                <td class="green">✅ OK</td>
+                                <td>Phân tích, tư vấn</td>
+                            </tr>
+                            <tr>
+                                <td class="yellow">Tên + SĐT khách hàng</td>
+                                <td class="yellow">⚠️ Cẩn thận</td>
+                                <td>Anonymize nếu có thể</td>
+                            </tr>
+                            <tr>
+                                <td class="red">Mật khẩu, API keys</td>
+                                <td class="red">❌ KHÔNG</td>
+                                <td>Không bao giờ paste vào chat</td>
+                            </tr>
+                            <tr>
+                                <td class="red">CMND, CCCD, thẻ ngân hàng</td>
+                                <td class="red">❌ KHÔNG</td>
+                                <td>Dữ liệu PII nghiêm cấm</td>
+                            </tr>
+                            <tr>
+                                <td class="red">Đường link thanh toán, token</td>
+                                <td class="red">❌ KHÔNG</td>
+                                <td>Nguy cơ bảo mật cao</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <br>
+                    <p class="small dim">💡 Nguyên tắc vàng: Nếu không chắc, <strong>hỏi trưởng nhóm trước</strong></p>
+                </div>
+            </section>
+
+            <!-- SLIDE 21: NEXT STEPS -->
+            <section>
+                <h2>📅 Sau Buổi Training</h2>
+                <div class="medium" style="text-align:left">
+                    <p><span class="step-number">1</span> <strong>Tuần 1:</strong> Mỗi người dùng ad-hoc ít nhất <span
+                            class="accent">3 lần/ngày</span></p>
+                    <p class="small dim" style="margin-left:50px">Hỏi bất cứ gì: tóm tắt file, viết email, tính toán,
+                        tra cứu</p>
+                    <br>
+                    <p><span class="step-number">2</span> <strong>Tuần 2:</strong> Mỗi phòng ban tạo <span
+                            class="accent">ít nhất 2 workflows</span></p>
+                    <p class="small dim" style="margin-left:50px">Chọn 2 công việc lặp lại hàng ngày → tạo .md workflow
+                    </p>
+                    <br>
+                    <p><span class="step-number">3</span> <strong>Tuần 3:</strong> <span class="accent">Share
+                            workflows</span> cross-team</p>
+                    <p class="small dim" style="margin-left:50px">Review meeting: mỗi phòng demo workflow hay nhất</p>
+                    <br>
+                    <p><span class="step-number">4</span> <strong>Tháng 2:</strong> <span class="accent">Tự động
+                            hóa</span> workflows chạy scheduled</p>
+                    <p class="small dim" style="margin-left:50px">Tech team giúp setup auto-run cho workflows đã ổn định
+                    </p>
+                    <br>
+                    <p><span class="step-number">5</span> <strong>Tháng 3+:</strong> <span class="accent">Kết nối
+                            FAOS</span> — unified automation</p>
+                    <p class="small dim" style="margin-left:50px">Tất cả workflows → FAOS → cross-department
+                        intelligence</p>
+                </div>
+            </section>
+
+            <!-- SLIDE 22: RECAP -->
+            <section>
+                <h2>Tóm Tắt</h2>
+                <br>
+                <div class="stat-grid">
+                    <div class="stat-card">
+                        <div class="number">💬</div>
+                        <div class="label">Chat tự nhiên<br>bằng tiếng Việt</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="number">📁</div>
+                        <div class="label">Đẩy file<br>drag & drop</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="number">📝</div>
+                        <div class="label">Tạo workflow<br>.md files</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="number">🔗</div>
+                        <div class="label">Kết nối FAOS<br>tự động hóa</div>
+                    </div>
+                </div>
+                <br>
+                <div class="highlight-box" style="text-align:center">
+                    <p style="font-size:1.1em">
+                        <strong>Công thức:</strong>
+                        <span class="accent">Context</span> +
+                        <span class="green">Task cụ thể</span> +
+                        <span class="yellow">Format output</span> +
+                        <span class="orange">Constraints</span>
+                    </p>
+                </div>
+                <br>
+                <div class="success-box" style="text-align:center">
+                    <p>Mỗi ngày dùng ít nhất <strong class="accent">3 lần</strong> → 1 tháng sau bạn sẽ không thể sống
+                        thiếu nó! 🚀</p>
+                </div>
+            </section>
+
+            <!-- SLIDE 23: Q&A -->
+            <section>
+                <p class="emoji-big">❓</p>
+                <h1>Q&A</h1>
+                <h3>Hỏi đáp & Thực hành</h3>
+                <br>
+                <div class="dim medium">
+                    <p>Bắt đầu thử ngay → mở VS Code / Cursor → gõ bất cứ gì 💬</p>
+                    <br>
+                    <p>Support: hỏi trực tiếp hoặc gửi vào Discord #antigravity-help</p>
+                </div>
+            </section>
+
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.min.js"></script>
+    <script>
+        Reveal.initialize({
+            hash: true,
+            slideNumber: 'c/t',
+            width: 1280,
+            height: 720,
+            margin: 0.08,
+            transition: 'fade',
+            transitionSpeed: 'fast',
+            controls: true,
+            progress: true,
+            center: true,
+        });
+    </script>
+</body>
+
+</html>

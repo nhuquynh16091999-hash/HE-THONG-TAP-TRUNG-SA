@@ -1,0 +1,8 @@
+# Ignore secrets
+*.json
+*.key
+*.pem
+.env
+
+# Rule nghiệp vụ (KHÔNG phải secret) — nguồn sự thật P1
+!talpha_rules.json

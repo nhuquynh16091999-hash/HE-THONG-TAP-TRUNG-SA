@@ -1,0 +1,150 @@
+{
+    "domain": "Software Engineering & Data Architecture — COD E-commerce (Pancake POS + BigQuery)",
+    "project_context": {
+        "tech_stack": {
+            "runtime": "Python 3.11+",
+            "data_warehouse": "Google BigQuery (Star Schema)",
+            "etl": "n8n (Workflow automation, REST API polling)",
+            "orchestration": "LangGraph (Multi-agent graph, state management)",
+            "ads_api": [
+                "Meta Marketing API",
+                "TikTok Business API",
+                "Google Ads API"
+            ],
+            "alerting": "Slack/Telegram Webhooks",
+            "dashboard": "Looker Studio / Streamlit"
+        },
+        "data_model": {
+            "fact_tables": [
+                "sale_order",
+                "order_items",
+                "transactions",
+                "fb_ads_insights",
+                "tiktok_ads_insights"
+            ],
+            "dim_tables": [
+                "customers",
+                "products",
+                "shops",
+                "carriers"
+            ],
+            "gold_views": [
+                "vw_fact_daily_pnl",
+                "vw_fact_marketing_perf",
+                "vw_dim_inventory_risk",
+                "vw_dim_customer_segments"
+            ]
+        }
+    },
+    "code_review_automator": {
+        "checklist": [
+            "Complexity: Cyclomatic complexity < 10?",
+            "Naming: Variables represent intent (no 'x', 'data')?",
+            "Security: No hardcoded secrets/API keys?",
+            "Performance: No N+1 queries in loops?",
+            "Testing: Critical paths covered by unit tests?",
+            "Error Handling: Try/Except blocks specific (no bare 'except:')?",
+            "BigQuery SQL: Uses PARTITION BY for date filters?",
+            "BigQuery SQL: Uses CLUSTER BY for high-cardinality columns?",
+            "BigQuery SQL: Avoids SELECT * (specify columns to reduce scan cost)?",
+            "BigQuery SQL: ROW_NUMBER() for dedup on incremental loads?",
+            "Pancake API: Monetary fields divided by 100 (bani conversion)?",
+            "Pancake API: Status 7 (deleted) excluded from all queries?",
+            "Pancake API: marketer field uses JSON_EXTRACT_SCALAR, not string parse?",
+            "n8n Workflow: Error handling node present on all HTTP requests?",
+            "n8n Workflow: Dedup logic before BigQuery INSERT (avoid duplicates)?",
+            "Agent Script: knowledge.json path resolved via Path(__file__).parent.parent?",
+            "Agent Script: sys.stdout.reconfigure(encoding='utf-8') for Unicode?"
+        ],
+        "severity_levels": {
+            "blocker": "Security flaw, data corruption, or financial miscalculation",
+            "critical": "Wrong revenue/profit number, missing status filter, N+1 query",
+            "major": "Maintainability issue, missing error handling, spaghetti code",
+            "minor": "Formatting, comment, or naming issue"
+        },
+        "bigquery_anti_patterns": [
+            "SELECT * on partitioned tables (scans all data = expensive)",
+            "JOINing without PARTITION filter (cross-partition shuffle)",
+            "Using INT64 for Pancake IDs (they can change format, use STRING)",
+            "Not deduplicating incremental loads (creates phantom revenue)",
+            "Storing monetary fields as INT64 before ÷100 (precision loss)"
+        ]
+    },
+    "adr_template": {
+        "structure": [
+            "Title: [Short Title]",
+            "Status: [Proposed/Accepted/Deprecated]",
+            "Context: What is the problem in our COD ecommerce system?",
+            "Options Considered: What alternatives were evaluated?",
+            "Decision: What are we doing and why?",
+            "Consequences: Impact on BigQuery cost, n8n workflows, agent accuracy",
+            "Review Date: When to revisit this decision?"
+        ],
+        "example_decisions": [
+            {
+                "title": "Use BigQuery Views instead of Materialized Tables for P&L",
+                "context": "Storage cost vs query speed trade-off",
+                "decision": "Views for daily reports (<1s), Materialized for monthly aggregation",
+                "consequence": "$0 storage cost for daily views, ~$5/TB scan cost"
+            },
+            {
+                "title": "LangGraph for Agent Orchestration instead of pure n8n",
+                "context": "n8n cannot handle cyclic debate loops between agents",
+                "decision": "LangGraph for brain (thinking), n8n for muscle (execution)",
+                "consequence": "Need Python server hosting, but gain stateful multi-turn conversations"
+            }
+        ]
+    },
+    "tech_stack_standards": {
+        "language": [
+            "Python 3.11+ (agents, scripts)",
+            "SQL (BigQuery views)",
+            "JSON (knowledge bases)"
+        ],
+        "database": [
+            "BigQuery (Analytics DWH)",
+            "No transactional DB needed (Pancake is source)"
+        ],
+        "framework": [
+            "LangGraph (orchestration)",
+            "n8n (ETL + execution)",
+            "FastAPI (optional API layer)"
+        ],
+        "forbidden_patterns": [
+            "Global mutable state in agent scripts",
+            "Hardcoded BigQuery project/dataset IDs",
+            "Raw SQL strings without parameterization",
+            "SELECT * on any BigQuery query",
+            "Ignoring status 7 (deleted) in financial calculations",
+            "Using partner.cod as revenue (it's carrier-collected, not order amount)"
+        ]
+    },
+    "agent_skill_standards": {
+        "required_files": [
+            "SKILL.md",
+            "data/knowledge.json",
+            "scripts/<name>.py"
+        ],
+        "skill_md_template": [
+            "--- (YAML frontmatter with name and description)",
+            "# Title (Agent Role)",
+            "## Purpose (1-2 sentences)",
+            "## Domain Knowledge (bullet list)",
+            "## Usage (numbered sections with bash commands)",
+            "## Key Formulas / Metrics",
+            "## Data Sources (BigQuery tables referenced)"
+        ],
+        "knowledge_json_rules": [
+            "Must include 'domain' field",
+            "Must include 'schema_review_checklist' array",
+            "All formulas must reference actual BigQuery field names",
+            "Must be valid JSON (no trailing commas)"
+        ],
+        "script_rules": [
+            "Must use argparse with --action",
+            "Must load data from ../data/knowledge.json",
+            "Must handle missing data gracefully (default {})",
+            "Must set stdout encoding to utf-8"
+        ]
+    }
+}

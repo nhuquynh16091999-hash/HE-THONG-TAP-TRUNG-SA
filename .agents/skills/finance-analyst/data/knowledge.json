@@ -1,0 +1,112 @@
+{
+    "domain": "E-Commerce Finance (Cross-border COD)",
+    "currency_handling": {
+        "rule": "All Pancake monetary fields store values in bani (1/100). Divide by 100 at ETL.",
+        "affected_fields": [
+            "cod",
+            "total_price",
+            "shipping_fee",
+            "total_discount",
+            "partner_fee",
+            "return_fee",
+            "fee_marketplace",
+            "surcharge",
+            "cash",
+            "transfer_money",
+            "charged_by_vnpay",
+            "charged_by_momo",
+            "charged_by_card",
+            "money_to_collect",
+            "partner.cod",
+            "partner.total_fee"
+        ],
+        "currencies": {
+            "STRAMARK": "RON",
+            "AUUS1": "USD",
+            "cross_border": [
+                "VND",
+                "USD",
+                "EUR",
+                "RON",
+                "BGN",
+                "PHP"
+            ]
+        }
+    },
+    "revenue_recognition": {
+        "rule": "Revenue = cod ÷ 100, ONLY for orders with status IN (3, 16)",
+        "success_statuses": [
+            3,
+            16
+        ],
+        "partial_return_status": 15,
+        "partial_return_rule": "Partial revenue — needs returned_count per item to calculate net revenue",
+        "excluded_statuses": [
+            7
+        ],
+        "excluded_reason": "Status 7 = deleted orders, must be excluded from ALL financial calculations"
+    },
+    "pnl_formula": {
+        "revenue": "SUM(cod ÷ 100) WHERE status IN (3,16)",
+        "cogs": "SUM(quantity × avg_imported_price ÷ 100) FROM order_items WHERE NOT is_bonus_product",
+        "gross_profit": "revenue - cogs",
+        "shipping_cost": "SUM(partner_fee ÷ 100)",
+        "return_cost": "SUM(return_fee ÷ 100) WHERE status IN (4,5,15)",
+        "platform_fee": "SUM(fee_marketplace ÷ 100)",
+        "surcharge": "SUM(surcharge ÷ 100)",
+        "operating_profit": "gross_profit - shipping_cost - return_cost - platform_fee - surcharge"
+    },
+    "reconciliation": {
+        "rule": "Compare order.cod vs partner.cod for each shipped/delivered order",
+        "formula": "reconciliation_gap = (cod - partner.cod) ÷ 100",
+        "alert_threshold": "gap > 0 or gap < 0 indicates COD discrepancy",
+        "sources": {
+            "order_side": "cod (money we expect to collect)",
+            "carrier_side": "partner.cod (money carrier actually collected)",
+            "prepaid": "cash + transfer_money (customer already paid before delivery)"
+        }
+    },
+    "payment_methods": {
+        "cod": "Cash on Delivery — collected by carrier",
+        "cash": "In-store cash payment",
+        "transfer_money": "Bank transfer (pre-payment)",
+        "charged_by_vnpay": "VNPay e-wallet",
+        "charged_by_momo": "MoMo e-wallet",
+        "charged_by_card": "POS card swipe",
+        "money_to_collect": "Outstanding amount still to be collected"
+    },
+    "cash_flow_forecasting": {
+        "cod_cycle_days": {
+            "domestic": 3,
+            "cross_border": 14,
+            "shopee": 7,
+            "tiktok": 15
+        },
+        "formula": "Expected Cash In (Date T) = SUM(cod) where delivered_date = T - cod_cycle_days",
+        "hold_time_impact": "Providers hold COD for X days before remittance. Must subtract hold days from liquidity.",
+        "remittance_days": [
+            "Tuesday",
+            "Friday"
+        ]
+    },
+    "schema_review_checklist": [
+        "All monetary fields are FLOAT64 (not INT — already ÷100)",
+        "revenue uses cod, NOT total_price (cod = actual money collected)",
+        "total_price is GMV (pre-discount) — for discount analysis only",
+        "partner.cod present for reconciliation",
+        "surcharge included in operating_profit formula",
+        "return_fee only counted for returned orders (status 4,5,15)",
+        "payment method fields (cash, transfer_money, vnpay, momo, card) all present",
+        "money_to_collect tracked for receivables",
+        "Status 7 (deleted) excluded from all financial views",
+        "Partitioned by order_date for cost efficiency"
+    ],
+    "kpi_definitions": {
+        "gross_margin": "(gross_profit / revenue) × 100",
+        "operating_margin": "(operating_profit / revenue) × 100",
+        "return_cost_ratio": "total_return_fees / revenue × 100",
+        "shipping_cost_ratio": "total_shipping_fees / revenue × 100",
+        "aov": "revenue / success_order_count",
+        "collection_rate": "(collected_amount / total_cod) × 100"
+    }
+}

@@ -1,0 +1,117 @@
+{
+    "domain": "BigQuery Data Architecture (E-Commerce Analytics)",
+    "schema_design_principles": {
+        "star_schema": {
+            "fact_tables": [
+                "fact_orders",
+                "fact_order_items",
+                "fact_purchases",
+                "fact_fb_ads"
+            ],
+            "dimension_tables": [
+                "dim_customers",
+                "dim_products",
+                "dim_variations"
+            ],
+            "rule": "Facts contain metrics (amounts, counts). Dimensions contain attributes (names, categories)."
+        },
+        "naming_convention": {
+            "views": "vw_ prefix (e.g., vw_fact_orders)",
+            "materialized": "mv_ prefix (e.g., mv_daily_pnl)",
+            "raw_tables": "No prefix (as-is from ETL)",
+            "columns": "snake_case, no abbreviations except standard ones (id, qty, amt)"
+        },
+        "data_types": {
+            "monetary": "FLOAT64 — already ÷100 from ETL",
+            "ids": "STRING — Pancake IDs can be string format",
+            "counts": "INT64",
+            "flags": "BOOLEAN",
+            "dates": "DATE (partition key) or TIMESTAMP (precision)",
+            "enums": "STRING with CASE mapping"
+        }
+    },
+    "partitioning_strategy": {
+        "fact_orders": {
+            "partition_by": "order_date (DATE)",
+            "cluster_by": [
+                "shop_id",
+                "status_group",
+                "order_currency"
+            ],
+            "rationale": "99% of queries filter by date + shop. Currency needed for cross-border."
+        },
+        "fact_order_items": {
+            "partition_by": "order_date (DATE)",
+            "cluster_by": [
+                "shop_id",
+                "product_id"
+            ],
+            "rationale": "Product analysis always scoped by shop and date."
+        },
+        "fact_fb_ads": {
+            "partition_by": "ad_date (DATE)",
+            "cluster_by": [
+                "account_id",
+                "campaign_id"
+            ],
+            "rationale": "Ad queries always scoped by account and date."
+        },
+        "dim_customers": {
+            "partition_by": null,
+            "cluster_by": null,
+            "rationale": "Small table (<100K rows), no partitioning needed."
+        }
+    },
+    "view_patterns": {
+        "dedup_pattern": "ROW_NUMBER() OVER (PARTITION BY id ORDER BY updated_at DESC) AS _row_num, then filter WHERE _row_num = 1",
+        "computed_columns": "Calculate derived fields (profit, margin, flags) in VIEW definition — no storage cost",
+        "status_mapping": "Use CASE statement to map raw status INT to status_group STRING",
+        "monetary_conversion": "All monetary fields: SAFE_CAST(field AS FLOAT64) / 100.0",
+        "json_extraction": "JSON_EXTRACT_SCALAR(json_field, '$.key') for nested objects",
+        "null_safety": "COALESCE(field, default_value) for all computed columns"
+    },
+    "cost_estimation": {
+        "pricing": "$5 per TB scanned (BigQuery on-demand)",
+        "optimization_rules": [
+            "SELECT only needed columns (never SELECT *)",
+            "Use partition filter in WHERE clause",
+            "Use LIMIT for exploratory queries",
+            "Avoid CROSS JOIN",
+            "Pre-aggregate in materialized views for dashboard queries"
+        ],
+        "typical_scan_sizes": {
+            "fact_orders_30days": "~50MB",
+            "fact_order_items_30days": "~80MB",
+            "dim_customers_all": "~5MB",
+            "fact_fb_ads_30days": "~10MB"
+        }
+    },
+    "data_quality_rules": [
+        "order_id must be NOT NULL and unique (after dedup)",
+        "status_code must be IN (0,1,2,3,4,5,6,7,8,9,11,12,13,15,16,17,20)",
+        "cod ÷ 100 should be > 0 for success orders",
+        "total_price ÷ 100 should be >= cod ÷ 100",
+        "partner.cod should be close to cod (reconciliation_gap < threshold)",
+        "inserted_at should not be in the future",
+        "quantity should be > 0 for non-bonus items",
+        "avg_imported_price should be > 0 (COGS must exist)",
+        "customer_id should exist in dim_customers for most orders",
+        "No duplicate order_id after dedup (verify ROW_NUMBER works)"
+    ],
+    "schema_review_checklist": [
+        "All tables use appropriate PARTITION BY",
+        "All tables use appropriate CLUSTER BY",
+        "Monetary fields are FLOAT64 (not INT64)",
+        "IDs are STRING (not INT64)",
+        "Views use ROW_NUMBER dedup pattern",
+        "Computed columns are in VIEWs, not physical tables",
+        "Status mapping CASE handles all 18 codes + ELSE 'unknown'",
+        "JSON fields use JSON_EXTRACT_SCALAR (not regex)",
+        "COALESCE used for null-safe computations",
+        "Naming follows convention (vw_, mv_, snake_case)",
+        "Cross-table join keys are consistent type (STRING↔STRING)",
+        "Date columns stored as DATE (not STRING) for partition efficiency",
+        "No SELECT * in view definitions",
+        "Materialized views considered for dashboard aggregations"
+    ]
+}

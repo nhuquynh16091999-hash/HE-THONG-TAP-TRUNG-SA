@@ -1,0 +1,1521 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3PL Order Automation — System Architecture</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/theme/black.min.css">
+    <style>
+        :root {
+            --r-background-color: #0a0a1a;
+            --r-main-color: #e0e0e0;
+            --r-heading-color: #00d4ff;
+            --r-link-color: #00d4ff;
+        }
+
+        .reveal {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+        }
+
+        .reveal h1 {
+            font-size: 2.2em;
+            text-shadow: 0 0 20px rgba(0, 212, 255, 0.3);
+        }
+
+        .reveal h2 {
+            font-size: 1.6em;
+            color: #00d4ff;
+        }
+
+        .reveal h3 {
+            font-size: 1.2em;
+            color: #7dd3fc;
+        }
+
+        .reveal table {
+            font-size: 0.55em;
+            margin: 0 auto;
+            border-collapse: collapse;
+        }
+
+        .reveal table th {
+            background: rgba(0, 212, 255, 0.15);
+            color: #00d4ff;
+            padding: 6px 12px;
+        }
+
+        .reveal table td {
+            padding: 5px 10px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .reveal table tr:hover td {
+            background: rgba(0, 212, 255, 0.05);
+        }
+
+        .reveal .small {
+            font-size: 0.6em;
+        }
+
+        .reveal .medium {
+            font-size: 0.7em;
+        }
+
+        .reveal .accent {
+            color: #00d4ff;
+        }
+
+        .reveal .green {
+            color: #34d399;
+        }
+
+        .reveal .red {
+            color: #f87171;
+        }
+
+        .reveal .yellow {
+            color: #fbbf24;
+        }
+
+        .reveal .orange {
+            color: #fb923c;
+        }
+
+        .reveal .purple {
+            color: #c084fc;
+        }
+
+        .reveal .dim {
+            color: #6b7280;
+        }
+
+        .reveal .highlight-box {
+            background: rgba(0, 212, 255, 0.08);
+            border: 1px solid rgba(0, 212, 255, 0.3);
+            border-radius: 12px;
+            padding: 20px;
+            margin: 10px 0;
+        }
+
+        .reveal .warn-box {
+            background: rgba(251, 191, 36, 0.08);
+            border: 1px solid rgba(251, 191, 36, 0.3);
+            border-radius: 12px;
+            padding: 15px 20px;
+            margin: 10px 0;
+        }
+
+        .reveal .red-box {
+            background: rgba(248, 113, 113, 0.08);
+            border: 1px solid rgba(248, 113, 113, 0.3);
+            border-radius: 12px;
+            padding: 15px 20px;
+            margin: 10px 0;
+        }
+
+        .reveal .green-box {
+            background: rgba(52, 211, 153, 0.08);
+            border: 1px solid rgba(52, 211, 153, 0.3);
+            border-radius: 12px;
+            padding: 15px 20px;
+            margin: 10px 0;
+        }
+
+        .reveal .stat-grid {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .reveal .stat-card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 15px 25px;
+            text-align: center;
+            min-width: 120px;
+        }
+
+        .reveal .stat-card .number {
+            font-size: 2em;
+            font-weight: bold;
+            color: #00d4ff;
+        }
+
+        .reveal .stat-card .label {
+            font-size: 0.65em;
+            color: #9ca3af;
+            margin-top: 5px;
+        }
+
+        .reveal pre {
+            font-size: 0.52em;
+        }
+
+        .reveal code {
+            font-size: 0.9em;
+        }
+
+        .reveal .two-col {
+            display: flex;
+            gap: 30px;
+            align-items: flex-start;
+        }
+
+        .reveal .two-col>div {
+            flex: 1;
+        }
+
+        .reveal .icon {
+            font-size: 1.5em;
+        }
+
+        .reveal .tag {
+            display: inline-block;
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-size: 0.6em;
+            font-weight: bold;
+            margin: 2px;
+        }
+
+        .tag-done {
+            background: rgba(52, 211, 153, 0.2);
+            color: #34d399;
+            border: 1px solid rgba(52, 211, 153, 0.3);
+        }
+
+        .tag-new {
+            background: rgba(0, 212, 255, 0.2);
+            color: #00d4ff;
+            border: 1px solid rgba(0, 212, 255, 0.3);
+        }
+
+        .tag-planned {
+            background: rgba(251, 191, 36, 0.2);
+            color: #fbbf24;
+            border: 1px solid rgba(251, 191, 36, 0.3);
+        }
+
+        .tag-critical {
+            background: rgba(248, 113, 113, 0.2);
+            color: #f87171;
+            border: 1px solid rgba(248, 113, 113, 0.3);
+        }
+
+        .reveal .flow-arrow {
+            color: #00d4ff;
+            font-size: 1.2em;
+        }
+
+        .reveal .step-num {
+            display: inline-block;
+            width: 28px;
+            height: 28px;
+            line-height: 28px;
+            background: rgba(0, 212, 255, 0.2);
+            border: 1px solid #00d4ff;
+            border-radius: 50%;
+            text-align: center;
+            font-weight: bold;
+            font-size: 0.8em;
+            color: #00d4ff;
+            margin-right: 8px;
+        }
+
+        .reveal .progress-bar {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            height: 22px;
+            overflow: hidden;
+            margin: 5px 0;
+        }
+
+        .reveal .progress-fill {
+            height: 100%;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            padding-left: 10px;
+            font-size: 0.55em;
+            font-weight: bold;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="reveal">
+        <div class="slides">
+
+            <!-- ============== SLIDE 1: TITLE ============== -->
+            <section>
+                <h1>📦 3PL Order Automation</h1>
+                <h3>Meta Ads → POS → euShipments → Dashboard</h3>
+                <p class="dim" style="margin-top:20px">End-to-End Order Fulfillment System Architecture</p>
+                <p class="small dim">STRAMARK Project — Romania (EUR/RON) — 24/02/2026</p>
+                <br>
+                <div class="stat-grid">
+                    <div class="stat-card">
+                        <div class="number">3</div>
+                        <div class="label">Data Sources</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="number">5</div>
+                        <div class="label">Modules</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="number">7</div>
+                        <div class="label">API Endpoints</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="number">7</div>
+                        <div class="label">Couriers</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ============== SLIDE 2: PROBLEM ============== -->
+            <section>
+                <h2>🔴 Vấn Đề Hiện Tại</h2>
+                <div class="red-box">
+                    <p style="font-size:1.1em"><strong>100% thủ công</strong> — Copy đơn POS → 3PL bằng tay, check
+                        tracking bằng mắt</p>
+                </div>
+                <br>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Bottleneck</th>
+                            <th>Impact</th>
+                            <th>Severity</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>1</td>
+                            <td>Copy đơn POS → 3PL thủ công</td>
+                            <td>15-30 phút/đơn, sai 5-8%</td>
+                            <td class="red">🔴 Critical</td>
+                        </tr>
+                        <tr>
+                            <td>2</td>
+                            <td>Không tracking realtime</td>
+                            <td>Không biết đơn giao/fail kịp thời</td>
+                            <td class="red">🔴 Critical</td>
+                        </tr>
+                        <tr>
+                            <td>3</td>
+                            <td>Đối soát COD manual</td>
+                            <td>1-2 tuần delay</td>
+                            <td class="yellow">🟡 High</td>
+                        </tr>
+                        <tr>
+                            <td>4</td>
+                            <td>Không biết ad nào → đơn nào</td>
+                            <td>ROAS sai, budget phân bổ lệch</td>
+                            <td class="yellow">🟡 High</td>
+                        </tr>
+                        <tr>
+                            <td>5</td>
+                            <td>Return rate ~25-30%</td>
+                            <td>No pre-delivery confirm</td>
+                            <td class="orange">🟠 Medium</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </section>
+
+            <!-- ============== SLIDE 3: SOLUTION OVERVIEW ============== -->
+            <section>
+                <h2>✅ Giải Pháp: Automation End-to-End</h2>
+                <div class="highlight-box">
+                    <p style="font-size:0.95em">Tự động hóa <strong>toàn bộ quy trình</strong> từ khi chạy ads → giao
+                        hàng → đối soát COD</p>
+                </div>
+                <br>
+                <pre style="text-align:center; font-size:0.9em; line-height:2.2">
+<span class="accent">Meta Ads</span> ──(UTM tracking)──→ <span class="green">POS Poscake</span>
+                                    │
+                        Telesale xác nhận đơn
+                                    │
+                          Status = <span class="yellow">8 (packing)</span>
+                                    │ <span class="red">← TRIGGER</span>
+                         <span class="red">🤖 AUTOMATION ENGINE</span>
+                        ┌───────────┴───────────┐
+                        ▼                       ▼
+              <span class="green">Create 3PL Order</span>    <span class="accent">Select Courier</span>
+                        │
+              <span class="green">3PL Pick + Pack</span> → Courier giao
+                        │
+              <span class="purple">Poll Tracking (2h)</span> → Update POS + BQ
+                        │
+                 <span class="accent">Dashboard Realtime</span>
+</pre>
+            </section>
+
+            <!-- ============== SLIDE 4: 3 DATA SOURCES ============== -->
+            <section>
+                <h2>📡 3 Nguồn Dữ Liệu</h2>
+                <div class="two-col">
+                    <div>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Source</th>
+                                    <th>System</th>
+                                    <th>Role</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>1</td>
+                                    <td class="accent">Meta Ads</td>
+                                    <td>FB Graph API v21.0</td>
+                                    <td>Leads + Spend</td>
+                                </tr>
+                                <tr>
+                                    <td>2</td>
+                                    <td class="green">POS</td>
+                                    <td>Poscake API</td>
+                                    <td>Đơn hàng + KH</td>
+                                </tr>
+                                <tr>
+                                    <td>3</td>
+                                    <td class="orange">3PL</td>
+                                    <td>euShipments API</td>
+                                    <td>Fulfillment</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div>
+                        <div class="highlight-box" style="font-size:0.7em">
+                            <p><strong>STRAMARK Config:</strong></p>
+                            <ul style="margin:0">
+                                <li>Shop: <code>1635307570</code> (EU)</li>
+                                <li>Ad Accounts: 2 (TK1, TK2)</li>
+                                <li>3PL Company: <code>ID 3248</code></li>
+                                <li>Warehouse: HelpShip Oradea</li>
+                                <li>Currency: RON (bani ÷100)</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                <br>
+                <p class="small"><span class="tag tag-done">✅ Meta: Verified</span> <span class="tag tag-done">✅ POS:
+                        Verified</span> <span class="tag tag-done">✅ 3PL: Verified 24/02</span></p>
+            </section>
+
+            <!-- ============== SLIDE 5: 3PL API OVERVIEW ============== -->
+            <section>
+                <h2>🔌 euShipments API — 7 Services</h2>
+                <p class="small dim">Base URL: <code>https://api1.inout.bg/api/v1</code> · Auth: Bearer Token</p>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Service</th>
+                            <th>Method</th>
+                            <th>Path</th>
+                            <th>Purpose</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>1</td>
+                            <td>Companies</td>
+                            <td class="green">GET</td>
+                            <td><code>/get-user-companies</code></td>
+                            <td>Lấy sender profile (ID=3248)</td>
+                        </tr>
+                        <tr>
+                            <td>2</td>
+                            <td>Couriers</td>
+                            <td class="green">GET</td>
+                            <td><code>/couriers/{senderId}</code></td>
+                            <td>DS courier available</td>
+                        </tr>
+                        <tr>
+                            <td>3</td>
+                            <td>Product Creation</td>
+                            <td class="yellow">POST</td>
+                            <td><code>/fulfilment/create-product</code></td>
+                            <td>Đăng ký SP mới vào kho</td>
+                        </tr>
+                        <tr>
+                            <td>4</td>
+                            <td>Booking Request</td>
+                            <td class="yellow">POST</td>
+                            <td><code>/fulfilment/create-request</code></td>
+                            <td>Thông báo nhập hàng vào kho</td>
+                        </tr>
+                        <tr>
+                            <td>5</td>
+                            <td><strong class="accent">Order Creation ⭐</strong></td>
+                            <td class="yellow">POST</td>
+                            <td><code>/fulfilment/create-order</code></td>
+                            <td>Tạo đơn giao hàng</td>
+                        </tr>
+                        <tr>
+                            <td>6</td>
+                            <td><strong class="accent">Orders History ⭐</strong></td>
+                            <td class="yellow">POST</td>
+                            <td><code>/fulfilment/orders-history</code></td>
+                            <td>Tracking status + AWB</td>
+                        </tr>
+                        <tr>
+                            <td>7</td>
+                            <td>Product Availability</td>
+                            <td class="green">GET</td>
+                            <td><code>/fulfilment/get-prod-avails</code></td>
+                            <td>Check stock kho</td>
+                        </tr>
+                    </tbody>
+                </table>
+                <br>
+                <div class="warn-box small">
+                    <strong>⚠️ testMode:</strong> Mọi POST request đều có <code>testMode: true/false</code>. Start with
+                    <code>true</code> khi test.
+                </div>
+            </section>
+
+            <!-- ============== SLIDE 6: 3PL VERIFIED DATA ============== -->
+            <section>
+                <h2>✅ Dữ Liệu 3PL Đã Verify (24/02/2026)</h2>
+                <div class="two-col">
+                    <div>
+                        <h3>Company</h3>
+                        <div class="highlight-box small" style="text-align:left">
+                            <strong>ID:</strong> <code>3248</code><br>
+                            <strong>Name:</strong> RO - SI_COMERZ - Aurelia Wear<br>
+                            <strong>MOL:</strong> Pham Thi Phuong Anh<br>
+                            <strong>Warehouse:</strong> HelpShip Oradea
+                        </div>
+                        <h3>Stock Sample</h3>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>SKU</th>
+                                    <th>Qty</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>MK01TITANIUM</td>
+                                    <td class="green"><strong>149</strong></td>
+                                </tr>
+                                <tr>
+                                    <td>D02-NEGRU</td>
+                                    <td>18</td>
+                                </tr>
+                                <tr>
+                                    <td>D04-ROȘU</td>
+                                    <td>varies</td>
+                                </tr>
+                                <tr>
+                                    <td>D04-VERDE</td>
+                                    <td>varies</td>
+                                </tr>
+                                <tr>
+                                    <td colspan="2" class="dim">~12 SKUs total</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div>
+                        <h3>7 Couriers Available</h3>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Courier</th>
+                                    <th>Office</th>
+                                    <th>Country</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td class="accent">8</td>
+                                    <td>Romania Cargus</td>
+                                    <td>✅</td>
+                                    <td>🇷🇴 RO</td>
+                                </tr>
+                                <tr>
+                                    <td>17</td>
+                                    <td>Romania FAN</td>
+                                    <td>❌</td>
+                                    <td>🇷🇴 RO</td>
+                                </tr>
+                                <tr>
+                                    <td>750</td>
+                                    <td>Romania SameDay</td>
+                                    <td>✅</td>
+                                    <td>🇷🇴 RO</td>
+                                </tr>
+                                <tr>
+                                    <td>812</td>
+                                    <td>Romania GLS</td>
+                                    <td>✅</td>
+                                    <td>🇷🇴 RO</td>
+                                </tr>
+                                <tr>
+                                    <td>838</td>
+                                    <td>BG Express One</td>
+                                    <td>❌</td>
+                                    <td>🇧🇬 BG</td>
+                                </tr>
+                                <tr>
+                                    <td>651</td>
+                                    <td>Croatia DPD</td>
+                                    <td>❌</td>
+                                    <td>🇭🇷 HR</td>
+                                </tr>
+                                <tr>
+                                    <td>741</td>
+                                    <td>Slovakia GLS</td>
+                                    <td>❌</td>
+                                    <td>🇸🇰 SK</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ============== SLIDE 7: COST BREAKDOWN ============== -->
+            <section>
+                <h2>💰 Chi Phí Fulfillment (EUR, 20% discount)</h2>
+                <div class="two-col">
+                    <div>
+                        <h3>Shipping per kg (Romania)</h3>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Courier</th>
+                                    <th>≤1kg</th>
+                                    <th>COD</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>GLS PuDo</td>
+                                    <td class="green"><strong>€2.12</strong></td>
+                                    <td>€0.22</td>
+                                </tr>
+                                <tr>
+                                    <td>EasyBox</td>
+                                    <td class="green"><strong>€2.14</strong></td>
+                                    <td>1.1%</td>
+                                </tr>
+                                <tr>
+                                    <td>Cargus PuDo</td>
+                                    <td>€2.26</td>
+                                    <td>€0.35</td>
+                                </tr>
+                                <tr>
+                                    <td>Cargus</td>
+                                    <td>€2.33</td>
+                                    <td>€0.35</td>
+                                </tr>
+                                <tr>
+                                    <td>Sameday</td>
+                                    <td>€2.46</td>
+                                    <td>€0.33</td>
+                                </tr>
+                                <tr>
+                                    <td>GLS RO</td>
+                                    <td>€2.72</td>
+                                    <td>€0.40</td>
+                                </tr>
+                                <tr>
+                                    <td>FAN</td>
+                                    <td>€2.74</td>
+                                    <td>€0.40</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div>
+                        <h3>Đơn Tiêu Biểu (Cargus)</h3>
+                        <div class="highlight-box small" style="text-align:left">
+                            Pick + Pack: <strong>€0.90</strong><br>
+                            Courier Bag: €0.08<br>
+                            Shipping ≤2kg: €2.33<br>
+                            COD Fee min: €0.35<br>
+                            <hr style="border-color:rgba(255,255,255,0.1)">
+                            <strong class="accent" style="font-size:1.2em">TOTAL: €3.66 (~18 RON)</strong>
+                        </div>
+                        <br>
+                        <div class="red-box small" style="text-align:left">
+                            <strong>Nếu hoàn trả thêm:</strong><br>
+                            Return Ship: €2.33 + Reverse: €0.50 + RMA: €1.00<br>
+                            <strong class="red">TOTAL IF FAIL: €7.49 (~37 RON)</strong>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ============== SLIDE 8: POS STATUS FLOW ============== -->
+            <section>
+                <h2>📋 POS Status Flow (Poscake)</h2>
+                <pre style="text-align:center; font-size:0.85em; line-height:2">
+<span class="accent">Lead từ Meta Ads</span>
+        ↓
+  <span class="step-num">0</span> <strong>new</strong> ─────── Đơn mới tạo
+        ↓ <em class="dim">(Telesale gọi xác nhận)</em>
+  <span class="step-num">1</span> <strong>confirmed</strong> ── Đã xác nhận
+        ↓ <em class="dim">(Chuyển đóng gói)</em>
+  <span class="step-num">8</span> <strong class="yellow">packing</strong> ──── <strong class="red">← 🤖 TRIGGER 3PL</strong>
+        ↓ <em class="dim">(Gửi cho 3PL tự động)</em>
+  <span class="step-num">2</span> <strong>shipped</strong> ──── Đang giao hàng
+        ↓
+  ┌─────┴─────┐
+  ↓           ↓
+<span class="step-num green">3</span> <strong class="green">delivered</strong>  <span class="step-num red">4</span> <strong class="red">returning</strong>
+  ↓               ↓
+<span class="step-num green">16</span> <strong class="green">received$</strong> <span class="step-num red">5</span> <strong class="red">returned</strong>
+  <span class="dim">(Success L3/L4)</span>  <span class="dim">(Failed)</span>
+</pre>
+                <p class="small dim">Revenue chỉ tính status IN (3, 16) — "L3 Success"</p>
+            </section>
+
+            <!-- ============== SLIDE 9: ORDER CREATION FLOW ============== -->
+            <section>
+                <h2>🤖 Module 2: Order Automation (Core)</h2>
+                <p class="small dim">POS status=8 → Auto tạo đơn 3PL</p>
+                <pre style="text-align:center; font-size:0.82em; line-height:2">
+<span class="green">POS detect status=8</span> (packing)
+        ↓
+<span class="step-num">1</span> Validate: address, phone, SKU
+        ↓
+<span class="step-num">2</span> Check 3PL stock (<span class="accent">GET /get-prod-avails</span>)
+        ↓
+<span class="step-num">3</span> Select courier (cheapest for weight+dest)
+        ↓
+<span class="step-num">4</span> <strong class="accent">POST /fulfilment/create-order</strong>
+        │  senderId=3248, courierId=auto
+        │  recipient = POS customer info
+        │  inventory = POS items → 3PL SKU
+        │  COD = POS cod ÷ 100 (bani→RON)
+        │  clientReference = "STR-{order_id}"
+        ↓
+<span class="step-num">5</span> Response: orderId + AWB
+        ↓
+<span class="step-num">6</span> Update POS → status=2 (shipped) + tracking
+        ↓
+<span class="step-num">7</span> Save to BigQuery: fulfillment_orders table
+</pre>
+            </section>
+
+            <!-- ============== SLIDE 10: FIELD MAPPING ============== -->
+            <section>
+                <h2>🔗 POS → 3PL Field Mapping</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>POS Field (Poscake)</th>
+                            <th>Transform</th>
+                            <th>3PL Field (euShipments)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>1</td>
+                            <td><code>id</code></td>
+                            <td>Prefix "STR-"</td>
+                            <td><code>clientReference</code></td>
+                        </tr>
+                        <tr>
+                            <td>2</td>
+                            <td>—</td>
+                            <td>Fixed: <code>3248</code></td>
+                            <td><code>senderId</code></td>
+                        </tr>
+                        <tr>
+                            <td>3</td>
+                            <td>—</td>
+                            <td>Auto-select</td>
+                            <td><code>courierId</code></td>
+                        </tr>
+                        <tr>
+                            <td>4</td>
+                            <td><code>bill_full_name</code></td>
+                            <td>Direct</td>
+                            <td><code>recipient.name</code></td>
+                        </tr>
+                        <tr>
+                            <td>5</td>
+                            <td><code>bill_phone_number</code></td>
+                            <td>+40 prefix</td>
+                            <td><code>recipient.phoneNumber</code></td>
+                        </tr>
+                        <tr>
+                            <td>6</td>
+                            <td><code>bill_address</code></td>
+                            <td>Direct</td>
+                            <td><code>recipient.streetName</code></td>
+                        </tr>
+                        <tr>
+                            <td>7</td>
+                            <td><code>bill_city</code></td>
+                            <td>Direct</td>
+                            <td><code>recipient.cityName</code></td>
+                        </tr>
+                        <tr>
+                            <td>8</td>
+                            <td><code>bill_country</code></td>
+                            <td>"RO"</td>
+                            <td><code>recipient.countryIsoCode</code></td>
+                        </tr>
+                        <tr>
+                            <td>9</td>
+                            <td><code>order_items[].barcode</code></td>
+                            <td>Map to 3PL SKU</td>
+                            <td><code>shipmentInventory[].itemSku</code></td>
+                        </tr>
+                        <tr>
+                            <td>10</td>
+                            <td><code>cod ÷ 100</code></td>
+                            <td>bani→RON</td>
+                            <td><code>shipmentCOD.amount</code></td>
+                        </tr>
+                    </tbody>
+                </table>
+                <br>
+                <div class="warn-box small">
+                    <strong>⚠️ CRITICAL:</strong> POS giá trị tiền tệ = <strong>bani</strong> (÷100). VD:
+                    <code>cod=15632</code> = 156.32 RON. PHẢI chia 100!
+                </div>
+            </section>
+
+            <!-- ============== SLIDE 11: TRACKING MODULE ============== -->
+            <section>
+                <h2>📡 Module 3: Status Tracking</h2>
+                <p class="small dim">Poll 3PL mỗi 2h → Update POS + BigQuery + Alerts</p>
+                <div class="two-col">
+                    <div>
+                        <h3>Tracking Flow</h3>
+                        <pre class="small" style="text-align:left; line-height:1.8">
+Every 2 hours:
+  → Get active orders from BQ
+  → POST /orders-history
+  → For each order:
+    ├─ Status changed?
+    │  ├─ Yes → Update POS status
+    │  │       Update BQ tracking
+    │  └─ No  → Skip
+    ├─ Stuck > 48h?
+    │  └─ Yes → Discord ⚠️ Alert
+    └─ Delivered?
+       └─ Yes → Queue COD reconcile
+</pre>
+                    </div>
+                    <div>
+                        <h3>Status Mapping (3PL → POS)</h3>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>3PL Status</th>
+                                    <th>POS Code</th>
+                                    <th>POS Name</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>Created</td>
+                                    <td>2</td>
+                                    <td>shipped</td>
+                                </tr>
+                                <tr>
+                                    <td>In transit</td>
+                                    <td>2</td>
+                                    <td>shipped</td>
+                                </tr>
+                                <tr>
+                                    <td class="green">Delivered</td>
+                                    <td class="green"><strong>3</strong></td>
+                                    <td class="green">delivered ✅</td>
+                                </tr>
+                                <tr>
+                                    <td class="green">COD collected</td>
+                                    <td class="green"><strong>16</strong></td>
+                                    <td class="green">received_money ✅</td>
+                                </tr>
+                                <tr>
+                                    <td class="red">Failed</td>
+                                    <td class="red">4</td>
+                                    <td class="red">returning</td>
+                                </tr>
+                                <tr>
+                                    <td class="red">Returned</td>
+                                    <td class="red">5</td>
+                                    <td class="red">returned</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ============== SLIDE 12: COD RECONCILIATION ============== -->
+            <section>
+                <h2>💸 Module 4: COD Reconciliation</h2>
+                <div class="two-col">
+                    <div>
+                        <pre class="small" style="text-align:left; line-height:1.8">
+Daily 08:00:
+  1. Fetch delivered orders
+     (status=3,16 in POS)
+
+  2. Fetch COD data from 3PL
+     (via dashboard / API)
+
+  3. Match by clientReference:
+     POS order ID ↔ 3PL refNum
+
+  4. Compare COD amounts:
+     ├─ Diff < 5% → ✅ Matched
+     └─ Diff ≥ 5% → 🔴 Alert!
+
+  5. Write to BQ:
+     cod_reconciliation table
+
+  6. Update P&L Dashboard
+</pre>
+                    </div>
+                    <div>
+                        <br>
+                        <div class="stat-grid">
+                            <div class="stat-card">
+                                <div class="number red">1-2w</div>
+                                <div class="label">Hiện tại</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="number green">Daily</div>
+                                <div class="label">Sau automation</div>
+                            </div>
+                        </div>
+                        <br>
+                        <h3>New BQ Table</h3>
+                        <div class="highlight-box small" style="text-align:left">
+                            <code>cod_reconciliation</code><br>
+                            ├─ pos_order_id<br>
+                            ├─ pos_cod_ron<br>
+                            ├─ tpl_cod_ron<br>
+                            ├─ difference_ron<br>
+                            ├─ difference_pct<br>
+                            ├─ status (matched/err)<br>
+                            └─ reconciled_at
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ============== SLIDE 13: DELIVERY OPTIMIZATION ============== -->
+            <section>
+                <h2>🚀 Module 5: Delivery Rate Optimization</h2>
+                <div class="highlight-box">
+                    <p>Target: <strong class="green">85-90%</strong> delivery rate (hiện tại: <span
+                            class="red">~70-75%</span>)</p>
+                </div>
+                <br>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Strategy</th>
+                            <th>How</th>
+                            <th>Expected Impact</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>1</td>
+                            <td><strong>Pre-delivery SMS</strong></td>
+                            <td>Gửi SMS xác nhận trước 24h</td>
+                            <td class="green">+5-8%</td>
+                        </tr>
+                        <tr>
+                            <td>2</td>
+                            <td><strong>Address validation</strong></td>
+                            <td>Validate format trước tạo AWB</td>
+                            <td class="green">-3% sai địa chỉ</td>
+                        </tr>
+                        <tr>
+                            <td>3</td>
+                            <td><strong>Smart retry</strong></td>
+                            <td>Đơn fail lần 1 → retry sau 2 ngày</td>
+                            <td class="green">+5% recovery</td>
+                        </tr>
+                        <tr>
+                            <td>4</td>
+                            <td><strong>Customer blacklist</strong></td>
+                            <td>Block KH hoàn > 3 lần</td>
+                            <td class="green">-2% fake orders</td>
+                        </tr>
+                        <tr>
+                            <td>5</td>
+                            <td><strong>COD amount confirm</strong></td>
+                            <td>Xác nhận COD trước giao</td>
+                            <td class="green">-1% disputes</td>
+                        </tr>
+                        <tr>
+                            <td>6</td>
+                            <td><strong>Courier optimization</strong></td>
+                            <td>Auto-select cheapest courier</td>
+                            <td class="green">Save €0.34/order</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </section>
+
+            <!-- ============== SLIDE 14: ADS ATTRIBUTION ============== -->
+            <section>
+                <h2>🎯 Ads Attribution Logic (Existing)</h2>
+                <p class="small dim">3-pass matching: ads → orders (Meta Ads API + POS UTM params)</p>
+                <pre style="text-align:center; font-size:0.85em; line-height:2">
+<span class="step-num">1</span> <strong class="green">Exact ad_id match</strong> (highest confidence)
+   POS <code>p_utm_term</code> → Meta <code>fb_ads.ad_id</code>
+                    ↓ (unmatched)
+<span class="step-num">2</span> <strong class="yellow">Adset match</strong> (via Graph API lookup)
+   2a. POS <code>utm_ad_id</code> → Graph API → get adset_id
+       → highest-spend ad in same adset
+   2b. POS <code>p_utm_medium</code> → <code>fb_ads.adset_id</code>
+                    ↓ (still unmatched)
+<span class="step-num">3</span> <strong class="orange">Campaign name fallback</strong>
+   POS <code>p_utm_campaign</code> → <code>campaign_name</code> text match
+                    ↓ (still unmatched)
+   <span class="red">❌ Unmatched</span> — reported separately
+</pre>
+                <p class="small"><span class="tag tag-done">✅ Implemented</span> in <code>/api/stramark/realtime</code>
+                    route (764 lines)</p>
+            </section>
+
+            <!-- ============== SLIDE 15: DATA FLOW COMPLETE ============== -->
+            <section>
+                <h2>🔄 Complete Data Flow Architecture</h2>
+                <pre style="text-align:center; font-size:0.75em; line-height:2">
+<span class="accent">LAYER 1: ACQUISITION</span>
+  Meta Ads API ─── n8n (2h) ──→ fb_ads_data, fb_adset_data
+  Poscake API ──── n8n (15m) ─→ staging → sale_order
+  <span class="red">euShipments API ─ ⭐ NEW ─────→ fulfillment_orders, tracking</span>
+
+<span class="accent">LAYER 2: AUTOMATION ⭐ NEW</span>
+  <span class="red">Automation Engine:</span>
+    POS(status=8) → Validate → Check Stock → Select Courier → Create 3PL Order
+    3PL(tracking)  → Poll 2h → Update POS → Update BQ → Alert Discord
+
+<span class="accent">LAYER 3: DATA WAREHOUSE (BigQuery)</span>
+  Raw: sale_order, order_items, fb_ads_data
+  <span class="red">New: fulfillment_orders, fulfillment_tracking, cod_reconciliation</span>
+  Views: vw_fact_orders → marts → vw_fact_daily_pnl_v2
+
+<span class="accent">LAYER 4: PRESENTATION</span>
+  Dashboard (Next.js) → Realtime tab, P&L tab, <span class="red">Fulfillment tab ⭐</span>
+  Discord → Order alerts, Stuck orders, COD discrepancy
+</pre>
+            </section>
+
+            <!-- ============== SLIDE 16: NEW BQ TABLES ============== -->
+            <section>
+                <h2>💾 New BigQuery Tables (3 tables)</h2>
+                <div class="two-col">
+                    <div>
+                        <h3 class="accent">fulfillment_orders</h3>
+                        <div class="highlight-box small" style="text-align:left">
+                            pos_order_id <span class="dim">STRING PK</span><br>
+                            tpl_order_id <span class="dim">INT64</span><br>
+                            awb <span class="dim">STRING (tracking#)</span><br>
+                            courier_name <span class="dim">STRING</span><br>
+                            courier_id <span class="dim">INT64</span><br>
+                            recipient_name/phone/city<br>
+                            cod_amount_ron <span class="dim">FLOAT64</span><br>
+                            shipping_cost_eur <span class="dim">FLOAT64</span><br>
+                            ffm_cost_eur <span class="dim">FLOAT64</span><br>
+                            total_3pl_cost_eur <span class="dim">FLOAT64</span><br>
+                            status <span class="dim">STRING</span><br>
+                            created_at <span class="dim">TIMESTAMP</span>
+                        </div>
+                    </div>
+                    <div>
+                        <h3 class="accent">fulfillment_tracking</h3>
+                        <div class="highlight-box small" style="text-align:left">
+                            pos_order_id <span class="dim">STRING FK</span><br>
+                            tpl_order_id <span class="dim">INT64</span><br>
+                            status <span class="dim">STRING</span><br>
+                            status_detail <span class="dim">STRING</span><br>
+                            event_timestamp <span class="dim">TIMESTAMP</span><br>
+                            synced_at <span class="dim">TIMESTAMP</span>
+                        </div>
+                        <br>
+                        <h3 class="accent">cod_reconciliation</h3>
+                        <div class="highlight-box small" style="text-align:left">
+                            pos_order_id <span class="dim">STRING FK</span><br>
+                            pos_cod_ron / tpl_cod_ron<br>
+                            difference_ron / difference_pct<br>
+                            status <span class="dim">(matched/discrepancy)</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ============== SLIDE 17: FILE STRUCTURE ============== -->
+            <section>
+                <h2>📁 Implementation File Structure</h2>
+                <pre class="small" style="text-align:left">
+<span class="red">modules/fulfillment/</span>                  ← ⭐ NEW MODULE
+├── __init__.py
+├── <span class="accent">eushipments_client.py</span>            ← 3PL API client wrapper
+├── <span class="accent">order_automation.py</span>              ← POS → 3PL order sync
+├── <span class="accent">tracking_poller.py</span>               ← 3PL → POS status sync
+├── <span class="accent">courier_selector.py</span>              ← Auto-select cheapest courier
+├── <span class="accent">cod_reconciler.py</span>                ← COD matching logic
+├── <span class="accent">sku_mapper.py</span>                    ← POS barcode → 3PL refNumber
+├── <span class="accent">address_validator.py</span>             ← Validate address format
+└── <span class="accent">blacklist_manager.py</span>             ← Block frequent returners
+
+<span class="red">dashboard-ui/src/app/api/stramark/</span>
+└── fulfillment/
+    ├── route.ts                      ← Fulfillment status API
+    └── create-order/route.ts         ← Manual order push API
+
+<span class="red">sql/stramark/</span>
+├── 07_fulfillment_orders.sql         ← Fulfillment fact view
+└── 08_vw_delivery_rate.sql           ← Delivery rate analytics
+</pre>
+            </section>
+
+            <!-- ============== SLIDE 18: 3PL ORDER CREATION API ============== -->
+            <section>
+                <h2>📝 API Spec: Create Order (chi tiết)</h2>
+                <div class="two-col">
+                    <div>
+                        <h3 class="green">Request Body</h3>
+                        <pre class="small" style="text-align:left">
+{
+  "testMode": false,
+  <span class="accent">"senderId": 3248,</span>
+  <span class="accent">"courierId": 8,</span>  // Cargus
+  "waybillAvailableDate": "2026-02-24",
+  "serviceName": "",
+  "recipient": {
+    "name": "Ion Popescu",
+    "countryIsoCode": "RO",
+    "cityName": "București",
+    "zipCode": "010101",
+    "streetName": "Str Victoriei 1",
+    "phoneNumber": "+40712345678",
+    "email": "ion@email.com"
+  },
+  "shipmentInventory": [
+    <span class="accent">{"itemSku":"D04-NEGRU","itemQuantity":1}</span>
+  ],
+  "shipmentCOD": {
+    <span class="accent">"amount": 156.32,</span>  // RON ÷100
+    "currency": "RON"
+  },
+  "shipmentWeight": 1.5,
+  "shipmentContent": "Clothing",
+  <span class="accent">"clientReference": "STR-12345"</span>
+}
+</pre>
+                    </div>
+                    <div>
+                        <h3 class="green">Response (Success)</h3>
+                        <pre class="small" style="text-align:left">
+{
+  <span class="green">"orderId": 98765,</span>
+  "code": 200,
+  "error": false
+}
+</pre>
+                        <br>
+                        <h3 class="red">Response (Error)</h3>
+                        <pre class="small" style="text-align:left">
+{
+  "orderId": null,
+  "code": 400,
+  <span class="red">"error": "Insufficient stock"</span>
+}
+</pre>
+                        <br>
+                        <div class="warn-box small" style="text-align:left">
+                            <strong>⚠️ Rules:</strong><br>
+                            • senderId PHẢI = 3248<br>
+                            • itemSku = 3PL refNumber<br>
+                            • COD amount ÷100 (bani→RON)<br>
+                            • Check stock trước khi gọi!<br>
+                            • clientReference = "STR-{pos_id}"
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ============== SLIDE 19: KPI TARGETS ============== -->
+            <section>
+                <h2>📊 KPI Targets</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Metric</th>
+                            <th>Current</th>
+                            <th>After Phase 2</th>
+                            <th>After Phase 5</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Xử lý đơn</td>
+                            <td class="red">15-30 min/đơn</td>
+                            <td class="yellow">
+                                < 1 min</td>
+                            <td class="green"><strong>
+                                    < 30 sec</strong>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>Sai sót data</td>
+                            <td class="red">5-8%</td>
+                            <td class="yellow">
+                                < 1%</td>
+                            <td class="green"><strong>
+                                    < 0.5%</strong>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>Delivery rate</td>
+                            <td class="red">~70-75%</td>
+                            <td class="yellow">~75-80%</td>
+                            <td class="green"><strong>85-90%</strong></td>
+                        </tr>
+                        <tr>
+                            <td>Đối soát COD</td>
+                            <td class="red">1-2 tuần</td>
+                            <td class="yellow">Daily</td>
+                            <td class="green"><strong>Realtime</strong></td>
+                        </tr>
+                        <tr>
+                            <td>FFM cost/đơn</td>
+                            <td>€3.66</td>
+                            <td>€3.66</td>
+                            <td class="green"><strong>€3.32</strong> (GLS PuDo)</td>
+                        </tr>
+                        <tr>
+                            <td>ROAS visibility</td>
+                            <td class="red">Campaign only</td>
+                            <td class="green">Ad-level</td>
+                            <td class="green"><strong>Ad + attribution</strong></td>
+                        </tr>
+                        <tr>
+                            <td>Order status</td>
+                            <td class="red">Manual check</td>
+                            <td class="green">Realtime</td>
+                            <td class="green"><strong>Realtime + alerts</strong></td>
+                        </tr>
+                    </tbody>
+                </table>
+                <br>
+                <div class="green-box">
+                    <p><strong>Estimated savings:</strong> €0.34/đơn shipping + 20% giảm return cost + 90% giảm thời
+                        gian xử lý</p>
+                </div>
+            </section>
+
+            <!-- ============== SLIDE 20: PHASED ROLLOUT ============== -->
+            <section>
+                <h2>🗺️ Phased Rollout (10 Weeks)</h2>
+                <div class="medium">
+                    <p><strong class="accent">Phase 1: Foundation</strong> <span class="dim">(Week 1-2)</span></p>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width:100%;background:linear-gradient(90deg,#34d399,#059669)">
+                            Update YAML + API client + BQ tables</div>
+                    </div>
+
+                    <p><strong class="accent">Phase 2: Auto Orders ⭐</strong> <span class="dim">(Week 3-4)</span></p>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width:0%;background:linear-gradient(90deg,#00d4ff,#0ea5e9)">
+                            order_automation + courier_selector + sku_mapper</div>
+                    </div>
+
+                    <p><strong class="accent">Phase 3: Tracking</strong> <span class="dim">(Week 5-6)</span></p>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width:0%;background:linear-gradient(90deg,#a855f7,#7c3aed)">
+                            tracking_poller + Discord alerts + BQ sync</div>
+                    </div>
+
+                    <p><strong class="accent">Phase 4: COD & Finance</strong> <span class="dim">(Week 7-8)</span></p>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width:0%;background:linear-gradient(90deg,#f59e0b,#d97706)">
+                            cod_reconciler + P&L integration + dashboard tab</div>
+                    </div>
+
+                    <p><strong class="accent">Phase 5: Optimization</strong> <span class="dim">(Week 9-10)</span></p>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width:0%;background:linear-gradient(90deg,#ef4444,#dc2626)">
+                            address_validator + blacklist + SMS + delivery rate</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ============== SLIDE 21: 5 MODULES SUMMARY ============== -->
+            <section>
+                <h2>📦 5 Automation Modules — Tổng Kết</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Module</th>
+                            <th>Data Flow</th>
+                            <th>Trigger</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>1</td>
+                            <td><strong>Lead-to-Order</strong></td>
+                            <td>Meta → POS</td>
+                            <td>Ads impression → UTM tracking</td>
+                            <td><span class="tag tag-done">✅ Có sẵn</span></td>
+                        </tr>
+                        <tr>
+                            <td>2</td>
+                            <td><strong class="accent">Order Fulfillment ⭐</strong></td>
+                            <td>POS → 3PL</td>
+                            <td>POS status=8 (packing)</td>
+                            <td><span class="tag tag-new">🔴 Cần xây</span></td>
+                        </tr>
+                        <tr>
+                            <td>3</td>
+                            <td><strong class="accent">Status Tracking ⭐</strong></td>
+                            <td>3PL → POS → BQ</td>
+                            <td>Poll mỗi 2h</td>
+                            <td><span class="tag tag-new">🔴 Cần xây</span></td>
+                        </tr>
+                        <tr>
+                            <td>4</td>
+                            <td><strong>COD Reconciliation</strong></td>
+                            <td>3PL → BQ</td>
+                            <td>Daily 08:00</td>
+                            <td><span class="tag tag-planned">🟡 Phase 4</span></td>
+                        </tr>
+                        <tr>
+                            <td>5</td>
+                            <td><strong>Delivery Optimization</strong></td>
+                            <td>All systems</td>
+                            <td>Pre-delivery + retry</td>
+                            <td><span class="tag tag-planned">🟡 Phase 5</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+                <br>
+                <div class="highlight-box">
+                    <p><strong>Priority:</strong> Module 2 (Order Automation) + Module 3 (Tracking) → xây trước, impact
+                        cao nhất</p>
+                </div>
+            </section>
+
+            <!-- ============== SLIDE 22: DECISIONS NEEDED ============== -->
+            <section>
+                <h2>❓ Quyết Định Cần Thống Nhất</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Question</th>
+                            <th>Options</th>
+                            <th>Recommendation</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>1</td>
+                            <td><strong>Trigger status?</strong></td>
+                            <td>8 (packing) hay 1 (confirmed)?</td>
+                            <td class="accent">8 — sau khi đã chuẩn bị xong</td>
+                        </tr>
+                        <tr>
+                            <td>2</td>
+                            <td><strong>Test mode?</strong></td>
+                            <td>testMode true/false</td>
+                            <td class="accent">true đầu tiên, false khi go-live</td>
+                        </tr>
+                        <tr>
+                            <td>3</td>
+                            <td><strong>Default courier?</strong></td>
+                            <td>Fix Cargus (8) hay auto-cheapest?</td>
+                            <td class="accent">Auto-select rẻ nhất</td>
+                        </tr>
+                        <tr>
+                            <td>4</td>
+                            <td><strong>SKU mapping?</strong></td>
+                            <td>Auto hay manual table?</td>
+                            <td class="accent">Manual mapping table trước, auto sau</td>
+                        </tr>
+                        <tr>
+                            <td>5</td>
+                            <td><strong>Priority module?</strong></td>
+                            <td>Module 2 hay Module 3 trước?</td>
+                            <td class="accent">Module 2 trước (core value)</td>
+                        </tr>
+                        <tr>
+                            <td>6</td>
+                            <td><strong>Dashboard tab?</strong></td>
+                            <td>New tab hay integrate vào Overview?</td>
+                            <td class="accent">New "Fulfillment" tab</td>
+                        </tr>
+                    </tbody>
+                </table>
+                <br>
+                <div class="warn-box small">
+                    <strong>⚠️ Required before go-live:</strong> SKU mapping (POS barcode → 3PL refNumber), warehouseId
+                    from 3PL
+                </div>
+            </section>
+
+            <!-- ============== SLIDE 23: REFERENCE ============== -->
+            <section>
+                <h2>📚 Reference Documentation</h2>
+                <div class="two-col">
+                    <div>
+                        <h3 class="green">Docs Files</h3>
+                        <table>
+                            <tbody>
+                                <tr>
+                                    <td><code>17_3PL_AUTOMATION_REFERENCE.md</code></td>
+                                    <td>⭐ Single Source of Truth</td>
+                                </tr>
+                                <tr>
+                                    <td><code>STRAMARK_FULFILLMENT_ANALYSIS.md</code></td>
+                                    <td>Cost analysis</td>
+                                </tr>
+                                <tr>
+                                    <td><code>00_SYSTEM_OVERVIEW.md</code></td>
+                                    <td>FAOS architecture</td>
+                                </tr>
+                                <tr>
+                                    <td><code>02_DATABASE_MASTER_SPEC.md</code></td>
+                                    <td>BQ schema</td>
+                                </tr>
+                                <tr>
+                                    <td><code>05_N8N_WORKFLOWS.md</code></td>
+                                    <td>Workflow specs</td>
+                                </tr>
+                                <tr>
+                                    <td><code>DATA_MAPPING_SPEC.md</code></td>
+                                    <td>POS→BQ mapping</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div>
+                        <h3 class="green">Config Files</h3>
+                        <table>
+                            <tbody>
+                                <tr>
+                                    <td><code>config/projects/stramark.yaml</code></td>
+                                    <td>✅ Updated with 3PL</td>
+                                </tr>
+                                <tr>
+                                    <td><code>PROJECT_STATE.md</code></td>
+                                    <td>System state</td>
+                                </tr>
+                                <tr>
+                                    <td><code>RULES.md</code></td>
+                                    <td>Development rules</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        <br>
+                        <h3 class="green">External Links</h3>
+                        <table>
+                            <tbody>
+                                <tr>
+                                    <td>3PL API Docs</td>
+                                    <td><code>getpostman.com/view/26992907</code></td>
+                                </tr>
+                                <tr>
+                                    <td>3PL Dashboard</td>
+                                    <td><code>clients2.inout.bg/cabinet</code></td>
+                                </tr>
+                                <tr>
+                                    <td>POS (Poscake)</td>
+                                    <td><code>pos.pages.fm/api/v1</code></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ============== SLIDE 24: SUMMARY ============== -->
+            <section>
+                <h2>Tổng Kết</h2>
+                <br>
+                <div class="stat-grid">
+                    <div class="stat-card">
+                        <div class="number">3</div>
+                        <div class="label">Data Sources</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="number">5</div>
+                        <div class="label">Modules</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="number">7</div>
+                        <div class="label">3PL APIs</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="number">3</div>
+                        <div class="label">New BQ Tables</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="number">10</div>
+                        <div class="label">Weeks Rollout</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="number">8</div>
+                        <div class="label">Python Modules</div>
+                    </div>
+                </div>
+                <br>
+                <div class="green-box">
+                    <p><strong>End Goal:</strong> Khi telesale chuyển status → 3PL tự nhận đơn → tự giao → tự update →
+                        tự đối soát</p>
+                    <p><strong class="accent">~30 giây/đơn</strong> thay vì 30 phút/đơn. <strong class="green">Zero
+                            manual intervention.</strong></p>
+                </div>
+                <br>
+                <p class="small dim">
+                    📖 Full reference: <code>docs/17_3PL_AUTOMATION_REFERENCE.md</code><br>
+                    🎯 Next step: Confirm decisions (Slide 22) → Start Phase 1
+                </p>
+            </section>
+
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.min.js"></script>
+    <script>
+        Reveal.initialize({
+            hash: true,
+            slideNumber: 'c/t',
+            width: 1280,
+            height: 720,
+            margin: 0.08,
+            transition: 'fade',
+            transitionSpeed: 'fast',
+            controls: true,
+            progress: true,
+            center: true,
+        });
+    </script>
+</body>
+
+</html>

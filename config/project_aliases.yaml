@@ -1,0 +1,42 @@
+# Project ID Aliases
+# Maps legacy/variant project IDs to canonical project_id
+# Used by BaseAgent.project_filter() for SQL WHERE clauses
+
+aliases:
+  # Zen8
+  ZEN8: zen8
+  ZN8: zen8
+  Zen8: zen8
+
+  # PiAlpha
+  PIANPHA: pialpha
+  PIA: pialpha
+  PIALPHA: pialpha
+  PiAlpha: pialpha
+
+  # Stramark
+  STRAMARK: stramark
+  STR: stramark
+  Stramark: stramark
+
+  # Trendify (SRN / Sorina)
+  TRENDIFY: trendify
+  TRD: trendify
+  TDF: trendify
+  Trendify: trendify
+  SRN: trendify
+  SORINA: trendify
+  Sorina: trendify
+
+  # HNLE
+  HNLE: hnle
+  HLNE: hnle
+
+  # T1
+  T1: t1
+
+  # AUUS1 (PiAlpha US-AU)
+  USAU01: AUUS1
+  usau01: AUUS1
+  auus1: AUUS1
+  PiAlpha_USAU: AUUS1

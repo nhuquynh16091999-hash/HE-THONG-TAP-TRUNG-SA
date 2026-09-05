@@ -1,0 +1,569 @@
+{
+  "version": "2026-08-03",
+  "_readme": "NGUỒN RULE DUY NHẤT cho gán marketer / tỷ giá / thị trường / status / test-camp. Sửa rule = sửa file NÀY, mọi consumer (format_all.py, dashboard routes, bot WhatsApp) tự đọc qua loader. Đừng hard-code lại ở nơi khác. Xem docs/TALPHA_METRIC_RULES.md. Bản runtime cho launchd: ~/talpha_reports/talpha_rules.json (deploy bằng ops/talpha_reports/deploy_runtime.sh).",
+  "marketers": {
+    "Loc": {
+      "display": "Lộc",
+      "full": "Hồ Sỹ Lộc"
+    },
+    "ChuThuy": {
+      "display": "Chu Thuý",
+      "full": "Chu Thị Thuý"
+    },
+    "Nhung": {
+      "display": "Nhung",
+      "full": "Hoàng Thị Thùy Nhung"
+    },
+    "The": {
+      "display": "Thế",
+      "full": "Trần Ngọc Thế",
+      "inactive": true
+    },
+    "Mai": {
+      "display": "Mai",
+      "full": "Phạm Hà Thục Mai",
+      "inactive": true
+    },
+    "Chinh": {
+      "display": "Chính",
+      "full": "Chính"
+    },
+    "SAnh": {
+      "display": "S.Anh",
+      "full": "Hồ Sỹ Anh"
+    }
+  },
+  "_unassign_note": "NGƯỜI ĐÃ NGHỈ — Mai và Thế nghỉ 31/08/2026 (CEO chốt 02/09). KHÔNG còn tab trong file TỔNG TEAM, không có file báo cáo riêng, không có tin WhatsApp. Chi ads + đơn của họ dồn HẾT về \"(không gán)\" để CEO lọc tay sau, và \"(không gán)\" KHÔNG cộng vào dòng TỔNG. Vẫn giữ họ trong `marketers` + `pos_marketer_rules` + `camp_marketer_tokens` + `camp_scan_rules`: bỏ đi thì campaign của họ không parse được thị trường/marketer nữa và spend rơi vào DROPPED — biến mất im lặng khỏi mọi báo cáo. Người quay lại làm việc: xoá key khỏi danh sách dưới đây + bỏ `inactive`.",
+  "unassign_marketers": [
+    "Mai",
+    "The"
+  ],
+  "_external_marketers_note": "NGƯỜI NGOÀI TEAM báo cáo nhưng CHẠY CHUNG 14 TKQC của TALPHA và bán chung shop POS. Chi phí + đơn của họ KHÔNG cộng vào số team và KHÔNG hiện trong file báo cáo của team (CEO chốt 10/08) — muốn soi thì xem khối 'NGOÀI TEAM' trên dashboard. Roster team là 7 người; Quân Hoàng nghỉ đầu T7/2026, số gộp vào Nhung.",
+  "external_marketers": {
+    "Kinh": {
+      "display": "Kính (ngoài team)",
+      "full": "Bùi Nguyên Kính"
+    },
+    "Thang": {
+      "display": "Thắng (ngoài team)",
+      "full": "Nguyễn Hữu Thắng"
+    },
+    "Viet": {
+      "display": "Việt (ngoài team)",
+      "full": "Trần Đại Việt"
+    },
+    "Duyen": {
+      "display": "Duyên (ngoài team)",
+      "full": "Nguyễn Duyên"
+    },
+    "Thach": {
+      "display": "Thạch (ngoài team)",
+      "full": "Nguyễn Ngọc Thạch"
+    }
+  },
+  "camp_marketer_tokens": {
+    "_note": "norm_nv: segment campaign NGAY SAU thị trường, sau khi upper + bỏ dấu chấm + bỏ space. Map EXACT.",
+    "CTHUÝ": "ChuThuy",
+    "CTHUY": "ChuThuy",
+    "LOC": "Loc",
+    "LỘC": "Loc",
+    "SLỘC": "Loc",
+    "NTHE": "The",
+    "NTHẾ": "The",
+    "NHUNG": "Nhung",
+    "MAI": "Mai",
+    "CHÍNH": "Chinh",
+    "CHINH": "Chinh",
+    "SANH": "SAnh",
+    "SỸANH": "SAnh",
+    "HỒSỸANH": "SAnh",
+    "QUÂN": "Nhung",
+    "QUAN": "Nhung"
+  },
+  "camp_external_tokens": {
+    "_note": "CÙNG CƠ CHẾ VỊ TRÍ với camp_marketer_tokens (ô ngay sau thị trường) — KHÔNG quét cả tên. Quét cả tên là sai: 'kính lấp lánh' và 'KÍNH UV' là TÊN SẢN PHẨM trong camp của Chu Thuý/Nhung, 'việt quẩt đen' trong camp của Chính. Tra camp_marketer_tokens TRƯỚC, trượt mới tra bảng này.",
+    "KÍNH": "Kinh",
+    "KINH": "Kinh",
+    "THẮNG": "Thang",
+    "THANG": "Thang",
+    "VIỆT": "Viet",
+    "VIET": "Viet",
+    "DUYÊN": "Duyen",
+    "DUYEN": "Duyen",
+    "THẠCH": "Thach",
+    "THACH": "Thach",
+    "MỸPHẨM3": "Kinh",
+    "_note_myphm3": "Kính đặt sai ô — ghi tên TKQC vào chỗ marketer (26,7tr). Xác nhận 07/08 bằng chính các camp 'Kính/Sổ tk/UAE/Mỹ Phẩm 3/...'."
+  },
+  "pos_external_rules": [
+    {
+      "contains": "KÍNH",
+      "key": "Kinh"
+    },
+    {
+      "contains": "THẮNG",
+      "key": "Thang"
+    },
+    {
+      "contains": "ĐẠI VIỆT",
+      "key": "Viet"
+    },
+    {
+      "contains": "DUYÊN",
+      "key": "Duyen"
+    },
+    {
+      "contains": "THẠCH",
+      "key": "Thach"
+    }
+  ],
+  "_pos_external_note": "CHỈ áp dụng SAU KHI pos_marketer_rules trượt — người trong team luôn được ưu tiên.",
+  "pos_marketer_rules": [
+    {
+      "contains": "LỘC",
+      "key": "Loc"
+    },
+    {
+      "contains": "NHUNG",
+      "key": "Nhung"
+    },
+    {
+      "contains": "THU",
+      "key": "ChuThuy",
+      "_note": "bắt cả Thuý/Thúy (2 kiểu dấu Unicode); 'Thùy'=Ù, 'Thục'=Ụ nên không đụng"
+    },
+    {
+      "contains": "MAI",
+      "key": "Mai"
+    },
+    {
+      "contains": "CHÍNH",
+      "key": "Chinh"
+    },
+    {
+      "contains": "THẾ",
+      "key": "The"
+    },
+    {
+      "contains": "ANH",
+      "key": "SAnh"
+    },
+    {
+      "contains": "QUÂN",
+      "key": "Nhung",
+      "_note": "Quân Hoàng nghỉ việc đầu T7/2026, không phát sinh ads mới — số cũ gộp vào Nhung theo CEO chốt 10/08."
+    },
+    {
+      "contains": "NGỌC TÚ",
+      "key": "Mai",
+      "_note": "Tài khoản POS 'Võ Ánh Ngọc Tú' là của Mai — Pancake chưa đổi tên (CEO xác nhận 07/08). Bỏ dòng này khi tên trên Pancake đã sửa."
+    }
+  ],
+  "camp_scan_rules": [
+    {
+      "key": "Loc",
+      "substrings": [
+        "LỘC"
+      ],
+      "word_tokens": [
+        "LOC"
+      ]
+    },
+    {
+      "key": "Nhung",
+      "substrings": [
+        "NHUNG"
+      ]
+    },
+    {
+      "key": "ChuThuy",
+      "substrings": [
+        "THUÝ",
+        "THUY"
+      ]
+    },
+    {
+      "key": "Chinh",
+      "substrings": [
+        "CHÍNH"
+      ],
+      "word_tokens": [
+        "CHINH"
+      ]
+    },
+    {
+      "key": "The",
+      "substrings": [
+        "THẾ"
+      ],
+      "word_tokens": [
+        "THE"
+      ]
+    },
+    {
+      "key": "Mai",
+      "substrings": [
+        "MAI"
+      ]
+    },
+    {
+      "key": "SAnh",
+      "regex": "\\bS?\\.?\\s?ANH\\b"
+    },
+    {
+      "key": "Nhung",
+      "substrings": [
+        "QUÂN"
+      ],
+      "word_tokens": [
+        "QUAN"
+      ]
+    }
+  ],
+  "_camp_scan_note": "Quét CẢ TÊN campaign (dùng cho ads-alerts + bot khi không cần parse segment). word_token = bounded bởi ký tự ngoài A-Z: (^|[^A-Z])TOK([^A-Z]|$). Ưu tiên theo thứ tự mảng.",
+  "_markets_note": "X13 — `pos_money_divisor` là SỐ ĐƠN VỊ PHỤ trên 1 đơn vị tiền MÀ POS ĐANG LƯU, không phải số thập phân của ISO 4217. 6 shop GCC nhập giá kiểu minor units (cod=9900 ⇒ 99,00 SAR) nên chia 100; shop Đài nhập NGUYÊN TWD (cod=950 ⇒ 950 TWD, verify bằng POS API 20/08) nên chia 1. Chia nhầm = tiền lệch 100 lần mà không có cảnh báo nào. Thêm shop mới: LẤY VÀI ĐƠN THẬT TỪ POS API so với giá bán thật rồi mới khai, đừng chép đại 100.",
+  "markets": {
+    "Saudi": {
+      "shop_label": "SA",
+      "rate_vnd": 6850,
+      "currency": "SAR",
+      "pos_money_divisor": 100
+    },
+    "UAE": {
+      "shop_label": "AE",
+      "rate_vnd": 7010,
+      "currency": "AED",
+      "pos_money_divisor": 100
+    },
+    "Kuwait": {
+      "shop_label": "KW",
+      "rate_vnd": 83000,
+      "currency": "KWD",
+      "pos_money_divisor": 100
+    },
+    "Oman": {
+      "shop_label": "OM",
+      "rate_vnd": 66700,
+      "currency": "OMR",
+      "pos_money_divisor": 100
+    },
+    "Qatar": {
+      "shop_label": "QA",
+      "rate_vnd": 7050,
+      "currency": "QAR",
+      "pos_money_divisor": 100
+    },
+    "Bahrain": {
+      "shop_label": "BH",
+      "rate_vnd": 68000,
+      "currency": "BHD",
+      "pos_money_divisor": 100
+    },
+    "Taiwan": {
+      "shop_label": "TW",
+      "rate_vnd": 800,
+      "currency": "TWD",
+      "pos_money_divisor": 1,
+      "_note": "TWD→VND tạm 800 (tỷ giá thật 780–800, sai số nhỏ — KHÔNG phải thủ phạm X13). X13: shop Đài lưu cod NGUYÊN TWD, không chia 100 như 6 shop GCC."
+    }
+  },
+  "market_aliases": {
+    "_note": "mọi cách viết thị trường (campaign segment, POS label, shop_label) → tên chuẩn. SAUDIU = typo campaign của Mai (TKQC die, không sửa tên được).",
+    "SAUDI": "Saudi",
+    "SAUDIU": "Saudi",
+    "KSA": "Saudi",
+    "SAUDI ARABIA": "Saudi",
+    "SA": "Saudi",
+    "UAE": "UAE",
+    "DUBAI": "UAE",
+    "UNITED ARAB EMIRATES": "UAE",
+    "AE": "UAE",
+    "KUWAIT": "Kuwait",
+    "KW": "Kuwait",
+    "OMAN": "Oman",
+    "OM": "Oman",
+    "QATAR": "Qatar",
+    "QA": "Qatar",
+    "BAHRAIN": "Bahrain",
+    "BH": "Bahrain",
+    "TAIWAN": "Taiwan",
+    "TAIWAIN": "Taiwan",
+    "TW": "Taiwan"
+  },
+  "camp_market_tokens": [
+    "SAUDI",
+    "SAUDIU",
+    "UAE",
+    "KUWAIT",
+    "OMAN",
+    "QATAR",
+    "BAHRAIN",
+    "TAIWAN",
+    "TAIWAIN"
+  ],
+  "status": {
+    "gtc_category": "GIAO_THANH_CONG",
+    "gtc_status_names": [
+      "delivered",
+      "received_money"
+    ]
+  },
+  "test_campaign": {
+    "pattern": "(?<![a-zA-Z])[Tt][Ee][Ss][Tt](?![a-zA-Z])",
+    "exempt_markets": [
+      "Taiwan"
+    ],
+    "_note": "campaign chứa từ 'test' đứng riêng = test sản phẩm → tách khỏi báo cáo doanh số; Taiwan miễn rule vì cả market đang test"
+  },
+  "_targets_note": "KPI DOANH SỐ THEO THÁNG của cả team (VND). Nguồn: KH_Q3Q4_2026_Team_Ads.xlsx sheet 'KPI Q3-Q4' — CEO chốt, mỗi tháng là tổng KPI của từng người (T12 = 10,1 tỷ, khớp ghi chú trong file). ⚠ KPI định nghĩa trên DOANH SỐ SHIP, còn dashboard đo DS GIAO THÀNH CÔNG (đơn đã giao xong) nên thanh tiến độ luôn đọc THẤP HƠN KPI trong lúc tháng đang chạy — hàng Trung Đông mất vài tuần mới giao xong. Đừng hạ KPI vì thấy thanh ngắn.",
+  "targets": {
+    "monthly_revenue_vnd": {
+      "2026-07": 4700000000,
+      "2026-08": 5250000000,
+      "2026-09": 6100000000,
+      "2026-10": 7050000000,
+      "2026-11": 8950000000,
+      "2026-12": 10100000000
+    },
+    "marketer_monthly_ship_vnd": {
+      "_note": "LỊCH SỬ — KPI theo DOANH SỐ SHIP, dùng cho tháng 7 và 8. Từ tháng 9 CEO đổi thước đo sang DOANH SỐ GIAO THÀNH CÔNG, xem marketer_monthly_delivered_vnd. Đã bỏ mốc T9–T12 ở đây để không tồn tại hai con số KPI khác nhau cho cùng một tháng.",
+      "Loc": {
+        "2026-07": 1200000000,
+        "2026-08": 1250000000
+      },
+      "ChuThuy": {
+        "2026-07": 800000000,
+        "2026-08": 900000000
+      },
+      "Mai": {
+        "2026-07": 900000000,
+        "2026-08": 950000000
+      },
+      "Nhung": {
+        "2026-07": 800000000,
+        "2026-08": 850000000
+      },
+      "The": {
+        "2026-07": 700000000,
+        "2026-08": 750000000
+      },
+      "Chinh": {
+        "2026-07": 300000000,
+        "2026-08": 450000000
+      }
+    },
+    "delivery_rate_for_pace": 0.632,
+    "_note_delivery_rate": "Tỷ lệ giao thành công dùng để quy KPI tháng ra mốc doanh số SHIP mỗi ngày: mốc ngày = KPI ÷ tỷ lệ này ÷ số ngày trong tháng. 0,632 đo trên tháng 7/2026 — tháng gần nhất đã chốt xong hoàn toàn (ship 6.210tr, giao 3.922tr). Đo lại sau mỗi tháng chốt xong. KHÔNG dùng tỷ lệ riêng từng người cho tới khi mỗi người có đủ một tháng đã chốt.",
+    "marketer_monthly_delivered_vnd": {
+      "_note": "KPI THÁNG của từng người, đo bằng DOANH SỐ GIAO THÀNH CÔNG (tiền của đơn đã tới tay khách), CEO chốt 01/09/2026. Khác thước đo với marketer_monthly_ship_vnd của T7–T8. Tổng team T9 = 3,85 tỷ. S.Anh (leader) lần đầu có KPI.",
+      "Loc": {
+        "2026-09": 1100000000
+      },
+      "ChuThuy": {
+        "2026-09": 1050000000
+      },
+      "Nhung": {
+        "2026-09": 800000000
+      },
+      "Chinh": {
+        "2026-09": 600000000
+      },
+      "SAnh": {
+        "2026-09": 300000000
+      }
+    }
+  },
+  "_thresholds_note": "NGUỒN DUY NHẤT của mọi ngưỡng dùng trong view SQL. Trước đây các số này gõ thẳng vào từng file view nên cùng một rule tồn tại ở 2-3 nơi (frequency 2.5 ở cả 05 và 08; phantom 1.5 ở cả 05, 06, 07) — sửa một chỗ không lan sang chỗ khác. Nay deploy_talpha_analytics.py thay {TH_*} bằng số ở đây. Đổi ngưỡng: sửa file này rồi deploy lại view, KHÔNG sửa trong .sql.",
+  "thresholds": {
+    "roas_excellent": 3.0,
+    "roas_target": 2.5,
+    "roas_danger": 1.3,
+    "momentum_down_ratio": 0.95,
+    "momentum_cost_up_ratio": 1.1,
+    "phantom_revenue_ratio": 1.5,
+    "frequency_saturated": 2.5,
+    "frequency_critical": 3.5,
+    "ctr_dead_frac": 0.005,
+    "impressions_min_dead": 2000,
+    "impressions_min_wearout": 1000,
+    "ctr_wearout_ratio": 0.7,
+    "success_rate_scale_min": 70,
+    "days_active_star": 7,
+    "days_active_mature": 14,
+    "days_active_dog": 5,
+    "cogs_coverage_min_trust": 0.8,
+    "_note_cogs": "cogs_coverage_min_trust: dưới mức này thì lãi gộp/net_profit KHÔNG đáng tin (giá vốn mới khai một phần) — view lớp 1 gắn cờ net_profit_reliable=FALSE thay vì im lặng."
+  },
+  "shipping_fees": {
+    "_note": "Phí 3PL mỗi đơn, TỆ ĐỊA PHƯƠNG, key = shop_label. Đơn GTC = packing + delivery + cod_local×cod_pct + cod_flat. Nguồn: bảng fulfillment talpha.yaml (Boss confirm 06/05). KHÔNG dùng sale_order.shipping_fee (mirror cod, rác). TW chưa khai — market test, chưa chốt 3PL.",
+    "SA": {
+      "partner": "iMile",
+      "packing": 2.5,
+      "delivery": 15,
+      "cod_pct": 0.03,
+      "cod_flat": 0
+    },
+    "AE": {
+      "partner": "iMile",
+      "packing": 3,
+      "delivery": 12,
+      "cod_pct": 0.03,
+      "cod_flat": 0
+    },
+    "KW": {
+      "partner": "PostaPlus",
+      "packing": 0.2,
+      "delivery": 0.9,
+      "cod_pct": 0,
+      "cod_flat": 0.25
+    },
+    "QA": {
+      "partner": "iMile",
+      "packing": 3,
+      "delivery": 17,
+      "cod_pct": 0.04,
+      "cod_flat": 0
+    },
+    "OM": {
+      "partner": "iMile",
+      "packing": 0.4,
+      "delivery": 2,
+      "cod_pct": 0.04,
+      "cod_flat": 0
+    },
+    "BH": {
+      "partner": "Aramex",
+      "packing": 0.4,
+      "delivery": 2,
+      "cod_pct": 0.05,
+      "cod_flat": 0
+    }
+  },
+  "pos_timezone": "Asia/Ho_Chi_Minh",
+  "page_id_pattern": "^\\d{6,}$",
+  "products": {
+    "_note": "Giá vốn (VND/unit) theo SKU — nguồn config/projects/talpha.yaml mục products, valid_from 2026-02-01. SKU khớp product_catalog.sku (đồng bộ từ POS). POS KHÔNG trả giá vốn (variation_info.last_imported_price/avg_price = 0 với mọi item) nên đây là nguồn DUY NHẤT. SKU không có ở đây = chưa khai giá vốn → tab P&L theo SP để trống, KHÔNG coi là 0.",
+    "005": {
+      "name": "Diamond Halo Set",
+      "cost_price_vnd": 180000
+    },
+    "008": {
+      "name": "Necklace Box",
+      "cost_price_vnd": 45000
+    },
+    "009": {
+      "name": "Eye Oil",
+      "cost_price_vnd": 85000
+    },
+    "010": {
+      "name": "Birth Stone Set",
+      "cost_price_vnd": 155000
+    },
+    "011": {
+      "name": "Heart of Ocean Necklace",
+      "cost_price_vnd": 145000
+    },
+    "013": {
+      "name": "Set Emerald",
+      "cost_price_vnd": 195000
+    },
+    "014": {
+      "name": "Set 5 Bracelets",
+      "cost_price_vnd": 115000
+    },
+    "016": {
+      "name": "Green Diamond Set",
+      "cost_price_vnd": 185000
+    },
+    "053": {
+      "name": "Gold Heart Necklace",
+      "cost_price_vnd": 135000
+    },
+    "054": {
+      "name": "Ball Bangles",
+      "cost_price_vnd": 125000
+    },
+    "055": {
+      "name": "Antarctic Krill Oil",
+      "cost_price_vnd": 285000
+    },
+    "057": {
+      "name": "Snail Whitening Cream",
+      "cost_price_vnd": 95000
+    },
+    "058": {
+      "name": "VC Cream",
+      "cost_price_vnd": 75000
+    },
+    "060": {
+      "name": "Whitening Cleanser",
+      "cost_price_vnd": 65000
+    },
+    "063": {
+      "name": "Whitening & Cleansing Milk",
+      "cost_price_vnd": 70000
+    },
+    "065": {
+      "name": "Euphausia Superba Oil",
+      "cost_price_vnd": 310000
+    },
+    "066": {
+      "name": "Snail Collagen Cream",
+      "cost_price_vnd": 98000
+    },
+    "072": {
+      "name": "Couple Ring",
+      "cost_price_vnd": 110000
+    },
+    "073": {
+      "name": "Herbal Eye Cream",
+      "cost_price_vnd": 88000
+    },
+    "081": {
+      "name": "Glutathione Collagen Glow",
+      "cost_price_vnd": 225000
+    },
+    "105": {
+      "name": "Neslemy Dentures",
+      "cost_price_vnd": 140000
+    },
+    "113": {
+      "name": "Turkish Set",
+      "cost_price_vnd": 210000
+    },
+    "120": {
+      "name": "Golden Bloom Necklace",
+      "cost_price_vnd": 138000
+    },
+    "KNK": {
+      "name": "Kinoki",
+      "cost_price_vnd": 70000
+    },
+    "KSC": {
+      "name": "KSA Kasoy Cream",
+      "cost_price_vnd": 70000
+    },
+    "BHS": {
+      "name": "Bubble Herbal Shampoo",
+      "cost_price_vnd": 70000
+    },
+    "BYL": {
+      "name": "Baiyaolang Cream",
+      "cost_price_vnd": 70000
+    }
+  },
+  "external_team": [
+    "Bùi Nguyên Kính",
+    "Nguyễn Ngọc Thạch",
+    "Nguyễn Hữu Thắng",
+    "Trần Đại Việt"
+  ],
+  "_external_note": "tên tag POS ngoài team báo cáo (chung shop POS) → đơn đi theo fallback ad_id hoặc '(không gán)'. Danh sách MÔ TẢ, dùng cho prompt CEO-ask; việc loại họ khỏi bảng marketer do pos_marketer_rules lo (khớp contains) chứ KHÔNG khớp bằng khoá này — POS lưu 'Bùi Nguyên  Kính' 2 dấu cách nên so exact sẽ trượt.",
+  "_quan_note": "Quân Hoàng: nghỉ đầu T7/2026, mọi số liệu (đơn + ads tháng 6) gộp vào Nhung theo chốt của CEO 10/08. Đừng khai lại thành marketer riêng.",
+  "report_sheets": {
+    "_note": "ID file Google Sheet 'TỔNG TEAM THÁNG n' theo từng tháng. Bot đọc số từ ĐÂY qua /api/talpha/sheet-report để tin nhắn và Sheet không bao giờ lệch. Mỗi đầu tháng CEO tạo file mới thì thêm một dòng. format_all.py hiện vẫn giữ GRAND_KEY riêng trong code — nên cho nó đọc key này để chỉ còn MỘT chỗ khai.",
+    "grand_by_month": {
+      "2026-09": "1cGduV47THi-4u43n66oyr1iGxoPc1x0tx5soH3YvpKA"
+    }
+  }
+}

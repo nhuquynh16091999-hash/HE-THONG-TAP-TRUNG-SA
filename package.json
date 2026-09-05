@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "pm2": "^6.0.14",
+    "puppeteer": "^24.40.0"
+  }
+}

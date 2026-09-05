@@ -1,0 +1,112 @@
+{
+    "domain": "E-Commerce Marketing (Cross-border COD)",
+    "github_references": [
+        "facebook/Robyn (Marketing Mix Modeling)",
+        "FB-Ads-Opt-UCB (Budget Allocation)",
+        "tiktok-ads-mcp-server (AI Management)",
+        "Data-Science-for-Marketing-Analytics (Customer Behavior)"
+    ],
+    "roas_formulas": {
+        "gross_roas": "revenue / ad_spend",
+        "net_roas": "(revenue - returns - cogs) / ad_spend",
+        "real_roas": "operating_profit / ad_spend",
+        "break_even_roas": "1 / (gross_margin_percent / 100)",
+        "note": "Real ROAS is the only metric that matters for P&L."
+    },
+    "pnl_ads_formula": {
+        "structure": [
+            "1. Gross Revenue (Confirmed Orders)",
+            "2. (-) Cancellations/Returns (Est. %)",
+            "3. (=) Net Revenue",
+            "4. (-) COGS (Product Cost)",
+            "5. (-) Shipping & Fulfillment Fees",
+            "6. (-) Ads Spend (FB + TT + GG)",
+            "7. (=) Net Profit (Ads P&L)"
+        ],
+        "metrics": {
+            "profit_per_order": "Net Profit / Total Orders",
+            "roi": "(Net Profit / Ads Spend) * 100"
+        }
+    },
+    "platform_specific_metrics": {
+        "facebook": [
+            "CPM (Cost per 1000 Impressions)",
+            "CTR (Click-Through Rate)",
+            "CPC (Cost per Click)",
+            "CPP (Cost per Purchase)",
+            "Frequency (Ad fatigue indicator)"
+        ],
+        "tiktok": [
+            "Hook Rate (2s View / Impressions)",
+            "Retention Rate (WATCHED_FULL_VIDEO)",
+            "CTR (Click / View)",
+            "CPA (Cost per Action)",
+            "Profile Visits"
+        ],
+        "google": [
+            "Search Imp. Share",
+            "Quality Score (1-10)",
+            "Conv. Rate",
+            "Cost / Conv."
+        ]
+    },
+    "ads_optimization_rules": {
+        "kill_rules": [
+            "Spend > 1x Target CPA & No Sale → KILL Ad",
+            "Spend > 2x Target CPA & ROAS < Break-even → KILL AdSet",
+            "CTR < 0.5% (FB) or < 0.3% (TT) after 2000 Impr → KILL Creative"
+        ],
+        "scale_rules": [
+            "ROAS > 2.5x & CPA < Target → Increase Budget 20% every 24h",
+            "Hook Rate > 30% (TikTok) → Duplicate into new AdGroup",
+            "Winning Creative → Create 3 variations (Hook/CTA)"
+        ],
+        "revive_rules": [
+            "Good ROAS but High Frequency (>3) → Refresh Creative",
+            "High ATC but Low Purchase → Check Landing Page/Offer"
+        ]
+    },
+    "content_analytics": {
+        "metrics": {
+            "hook_rate": "3-second video plays / Impressions",
+            "hold_rate": "15-second video plays / Impressions",
+            "engagement_rate": "(Likes + Comments + Shares) / Impressions"
+        },
+        "benchmarks": {
+            "hook_rate_good": "> 25%",
+            "hold_rate_good": "> 10%",
+            "ctr_good": "> 1.5%"
+        }
+    },
+    "attribution_hierarchy": {
+        "level_1": "marketer.name",
+        "level_2": "ads_source",
+        "level_3": "utm_campaign",
+        "level_4": "marketplace",
+        "unified_rule": "COALESCE(utm_source, marketplace_name, ads_source)"
+    },
+    "marketer_extraction": {
+        "correct": "JSON_EXTRACT_SCALAR(marketer, '$.name')",
+        "fallback": "REGEXP_EXTRACT(marketer, r\"'name':\\s*'([^']+)'\")"
+    },
+    "marketplace_decode": {
+        "-3": "Shopee",
+        "-4": "Lazada",
+        "-9": "TikTok Shop",
+        "-11": "Website"
+    },
+    "schema_review_checklist": [
+        "ad_spend table synced daily (FB/TT/GG) via n8n",
+        "utm_id joined with ad_id for attribution",
+        "hook_rate/retention metrics available in ads_insights",
+        "break_even_roas calculated dynamically from COGS",
+        "marketer field extracted via JSON_EXTRACT_SCALAR",
+        "marketplace_id decoded (-3=Shopee, -4=Lazada, -9=TikTok, -11=Web)",
+        "ads_source field present for campaign-level attribution",
+        "campaign_name normalized across platforms",
+        "spend in USD, revenue in local currency — exchange rate needed",
+        "frequency field present for ad fatigue detection",
+        "cost_per_purchase / cost_per_action computed",
+        "ad_creative_id linked to content_analytics for Hook Rate analysis"
+    ]
+}

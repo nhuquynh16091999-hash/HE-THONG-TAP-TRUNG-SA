@@ -1,0 +1,46 @@
+{
+    "name": "dashboard-ui",
+    "version": "0.1.0",
+    "private": true,
+    "scripts": {
+        "dev": "next dev",
+        "validate": "python3 ../scripts/validate-dashboard-queries.py",
+        "prebuild": "node scripts/sync-config.mjs && (npm run validate || echo 'Validation warnings (non-blocking)')",
+        "build": "next build",
+        "start": "next start",
+        "lint": "next lint"
+    },
+    "dependencies": {
+        "@anthropic-ai/sdk": "^0.55.1",
+        "@google-cloud/bigquery": "^7.5.0",
+        "@google/genai": "^1.52.0",
+        "@tanstack/react-table": "^8.21.3",
+        "@types/js-yaml": "^4.0.9",
+        "axios": "^1.13.5",
+        "bcryptjs": "^3.0.3",
+        "clsx": "^2.1.0",
+        "date-fns": "^3.3.1",
+        "js-yaml": "^4.1.1",
+        "lucide-react": "^0.344.0",
+        "next": "^16.1.6",
+        "next-auth": "^5.0.0-beta.30",
+        "proper-lockfile": "^4.1.2",
+        "react": "^19.0.0",
+        "react-dom": "^19.0.0",
+        "react-markdown": "^10.1.0",
+        "recharts": "^2.12.2",
+        "tailwind-merge": "^2.2.1"
+    },
+    "devDependencies": {
+        "@types/bcryptjs": "^2.4.6",
+        "@types/node": "^20",
+        "@types/react": "^19.2.14",
+        "@types/react-dom": "^19.2.3",
+        "autoprefixer": "^10.0.1",
+        "eslint": "^8",
+        "eslint-config-next": "^16.1.6",
+        "postcss": "^8",
+        "tailwindcss": "^3.3.0",
+        "typescript": "^5"
+    }
+}

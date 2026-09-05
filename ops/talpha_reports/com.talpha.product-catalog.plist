@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<!-- E2 — làm tươi product_catalog mỗi ngày.
+     Trước đây script chỉ chạy tay: bảng cũ ~1,5 tháng (ghi cuối ~giữa 06/2026)
+     → 38,7% dòng order_items không khớp catalog, SP mới lên sàn thì vô hình,
+     và shop Taiwan mất 100% (script thiếu hẳn TW cho tới E2).
+     Rẻ: ~412 variation / 7 shop, không đụng Meta API.
+     RunAtLoad: máy ngủ/tắt qua đêm → bật lên làm tươi ngay, không chờ 24h.
+     Deploy: cp vào ~/Library/LaunchAgents/ rồi launchctl unload+load. -->
+<dict>
+    <key>Label</key><string>com.talpha.product-catalog</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>/Users/syanh/talpha_reports/catalog_cron.sh</string>
+    </array>
+    <key>RunAtLoad</key><true/>
+    <key>StartInterval</key><integer>86400</integer>
+    <key>StandardOutPath</key><string>/Users/syanh/talpha_reports/catalog_launchd.log</string>
+    <key>StandardErrorPath</key><string>/Users/syanh/talpha_reports/catalog_launchd.log</string>
+</dict>
+</plist>

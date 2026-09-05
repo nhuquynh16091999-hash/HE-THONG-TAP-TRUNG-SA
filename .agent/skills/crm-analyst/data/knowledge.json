@@ -1,0 +1,115 @@
+{
+    "domain": "E-Commerce CRM (Cross-border COD)",
+    "rfm_model": {
+        "recency": {
+            "field": "days_since_last_order",
+            "scoring": {
+                "5": "0-30 days",
+                "4": "31-60 days",
+                "3": "61-90 days",
+                "2": "91-180 days",
+                "1": "> 180 days"
+            }
+        },
+        "frequency": {
+            "field": "success_order_count",
+            "scoring": {
+                "5": "> 10 orders",
+                "4": "6-10 orders",
+                "3": "3-5 orders",
+                "2": "2 orders",
+                "1": "1 order"
+            }
+        },
+        "monetary": {
+            "field": "lifetime_value (LTV)",
+            "scoring": {
+                "5": "Top 20%",
+                "4": "Top 21-40%",
+                "3": "Top 41-60%",
+                "2": "Top 61-80%",
+                "1": "Bottom 20%"
+            }
+        },
+        "segments": {
+            "Champions": "R=5, F=5, M=5 (Buy often, spend big, recent)",
+            "Loyal": "R=3-5, F=4-5 (Regular buyers)",
+            "Potential Loyalist": "R=4-5, F=2-3 (Recent buyers, promising)",
+            "New Customers": "R=5, F=1 (Just bought first time)",
+            "At Risk": "R=2-3, F=3-5 (Big spenders who stopped buying)",
+            "Can't Lose": "R=1-2, F=5 (VIPs gone silent)",
+            "Lost": "R=1, F=1 (One time long ago)"
+        }
+    },
+    "fraud_detection": {
+        "signals": [
+            {
+                "name": "Boom History",
+                "rule": "> 2 failed orders",
+                "action": "Auto-flag 'HIGH' risk"
+            },
+            {
+                "name": "Duplicate Phone",
+                "rule": "Same phone, different name",
+                "action": "Merge & check blacklist"
+            },
+            {
+                "name": "High Return Rate",
+                "rule": "return_rate > 50%",
+                "action": "Require prepayment"
+            },
+            {
+                "name": "Suspicious COD",
+                "rule": "First order COD > 3x AOV",
+                "action": "Phone confirm required"
+            },
+            {
+                "name": "Blocked Customer",
+                "rule": "is_blocked = TRUE",
+                "action": "Auto-cancel"
+            }
+        ],
+        "fraud_risk_score_formula": "CASE WHEN is_blocked THEN 'BLOCKED' WHEN returned/total > 0.5 THEN 'HIGH' WHEN returned > 3 THEN 'MEDIUM' ELSE 'LOW' END"
+    },
+    "customer_health": {
+        "lifecycle_stages": {
+            "new": "1 order, < 30 days",
+            "active_repeat": "2+ orders, < 60 days",
+            "active_vip": "5+ orders, < 30 days",
+            "at_risk": "High value, no order > 60 days",
+            "churned": "No order > 90 days",
+            "blocked": "Blacklisted due to fraud"
+        },
+        "formula": "Derived from Recency (days_since_last) + Frequency (success_count) + Blocked Status"
+    },
+    "audience_export": {
+        "segments_to_export": [
+            {
+                "name": "VIP_High_LTV",
+                "criteria": "segment IN ('Champions', 'Loyal')",
+                "dest": "Facebook Custom Audience (Lookalike Seed)"
+            },
+            {
+                "name": "Win_Back_Risk",
+                "criteria": "segment IN ('At Risk', 'Can't Lose')",
+                "dest": "SMS/Email Campaign (Discount Offer)"
+            },
+            {
+                "name": "Exclude_Fraud",
+                "criteria": "fraud_risk_score IN ('HIGH', 'BLOCKED')",
+                "dest": "Facebook Exclusion List"
+            }
+        ],
+        "sync_frequency": "Daily (automated view export)"
+    },
+    "schema_review_checklist": [
+        "customer_segment derived from RFM",
+        "fraud_risk_score calculated field",
+        "customer_health lifecycle stage",
+        "lifetime_value pre-calculated",
+        "last_order_at timestamp present",
+        "returned_orders count present",
+        "return_rate computed field",
+        "days_since_last_order computed field"
+    ]
+}
