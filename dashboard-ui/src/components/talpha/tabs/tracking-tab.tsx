@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { format } from "date-fns";
-import { RefreshCw, AlertTriangle, Store, PackageX, Clock, Download, Upload } from "lucide-react";
+import { RefreshCw, AlertTriangle, Store, PackageX, Clock, Download, Upload, FileSpreadsheet, ShieldAlert } from "lucide-react";
 import TabSkeleton, { ErrorState } from "@/components/ui/tab-skeleton";
 import { formatNumber, cn } from "../utils";
 
@@ -62,6 +62,7 @@ export default function TALPHATrackingTab({ dateRange }: Props) {
     const [importing, setImporting] = useState(false);
     const [importMsg, setImportMsg] = useState("");
     const [unknownStatuses, setUnknownStatuses] = useState<{ value: string; count: number }[]>([]);
+    const [publicWarning, setPublicWarning] = useState("");
     const fileRef = useRef<HTMLInputElement>(null);
 
     const from = dateRange?.from ? format(dateRange.from, "yyyy-MM-dd") : "2026-01-01";
@@ -98,12 +99,13 @@ export default function TALPHATrackingTab({ dateRange }: Props) {
         } finally { setSyncing(false); }
     };
 
-    const importPartner = async (file: File) => {
-        setImporting(true); setImportMsg(""); setUnknownStatuses([]); setError("");
+    const importPartner = async (file?: File) => {
+        setImporting(true); setImportMsg(""); setUnknownStatuses([]); setPublicWarning(""); setError("");
         try {
-            const fd = new FormData();
-            fd.append("file", file);
-            const res = await fetch("/api/talpha/tracking/import", { method: "POST", body: fd });
+            // Không đính kèm file thì route tự đọc thẳng Google Sheet của đối tác.
+            const opts: RequestInit = { method: "POST" };
+            if (file) { const fd = new FormData(); fd.append("file", file); opts.body = fd; }
+            const res = await fetch("/api/talpha/tracking/import", opts);
             const d = await res.json();
             if (!res.ok) throw new Error(d.error || "Không đọc được file");
             const s = d.summary;
@@ -111,8 +113,10 @@ export default function TALPHATrackingTab({ dateRange }: Props) {
                 `Đọc ${d.rows} dòng · ${d.status_changed} đơn đổi trạng thái · ` +
                 `${s.waiting_pickup.orders} đơn đang chờ khách lấy (${Math.round(s.waiting_pickup.cod).toLocaleString("vi-VN")} NT$) · ` +
                 `tỷ lệ hoàn ${(s.return_rate * 100).toFixed(1)}%` +
-                (d.kept_from_17track ? ` · giữ ${d.kept_from_17track} đơn theo số 17TRACK mới hơn` : ""));
+                (d.kept_from_17track ? ` · giữ ${d.kept_from_17track} đơn theo số 17TRACK mới hơn` : "")
+                + (d.via ? ` · nguồn: ${d.via}` : ""));
             setUnknownStatuses(d.unknown_statuses || []);
+            setPublicWarning(d.public_link_warning || "");
             await load();
         } catch (e) {
             setError(e instanceof Error ? e.message : "Không đọc được file");
@@ -191,10 +195,15 @@ export default function TALPHATrackingTab({ dateRange }: Props) {
                 </div>
                 <input ref={fileRef} type="file" accept=".csv,.tsv,.txt,text/csv" className="hidden"
                     onChange={(e) => { const f = e.target.files?.[0]; if (f) importPartner(f); }} />
-                <button onClick={() => fileRef.current?.click()} disabled={importing}
+                <button onClick={() => importPartner()} disabled={importing}
                     className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50">
-                    <Upload className="h-4 w-4" />
-                    {importing ? "Đang đọc…" : "Nhập file đối tác"}
+                    <FileSpreadsheet className={cn("h-4 w-4", importing && "animate-pulse")} />
+                    {importing ? "Đang đọc…" : "Đọc bảng đối tác"}
+                </button>
+                <button onClick={() => fileRef.current?.click()} disabled={importing}
+                    title="Dùng khi bảng chưa mở quyền — tải file CSV lên tay"
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-sm hover:bg-muted disabled:opacity-50">
+                    <Upload className="h-4 w-4" /> Tải file
                 </button>
                 <button onClick={sync} disabled={syncing || !hasKey}
                     className="inline-flex items-center gap-1.5 rounded-lg bg-orange-500 px-3 py-2 text-sm font-medium text-white hover:bg-orange-600 disabled:opacity-50">
@@ -218,6 +227,15 @@ export default function TALPHATrackingTab({ dateRange }: Props) {
                     <ul className="mt-1 space-y-0.5 font-mono text-xs text-amber-800/70 dark:text-amber-200/60">
                         {unknownStatuses.map((u) => <li key={u.value}>{u.count}× “{u.value}”</li>)}
                     </ul>
+                </div>
+            )}
+            {publicWarning && (
+                <div className="flex gap-3 rounded-xl border-l-4 border-rose-500 bg-rose-50 p-4 text-sm dark:bg-rose-500/10">
+                    <ShieldAlert className="mt-0.5 h-4 w-4 flex-none text-rose-600 dark:text-rose-400" />
+                    <div className="text-rose-900 dark:text-rose-200">
+                        <div className="font-medium">Bảng đối tác đang để công khai</div>
+                        <p className="mt-1 text-rose-800/80 dark:text-rose-200/70">{publicWarning}</p>
+                    </div>
                 </div>
             )}
             {syncMsg && <p className="rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-300">{syncMsg}</p>}

@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { parsePartnerFile, summarise } from "@/lib/talpha/partner-file";
+import { RULES } from "@/lib/talpha/rules";
+import { fetchSheetCsv, sheetIdFrom, serviceAccountEmail, SheetError } from "@/lib/talpha/sheet-source";
 import { updateStore, readStore } from "@/lib/talpha/store";
 
 export const dynamic = "force-dynamic";
@@ -7,8 +9,9 @@ export const dynamic = "force-dynamic";
 // ═══════════════════════════════════════════════════════════════════
 // NHẬP FILE ĐƠN HÀNG CỦA ĐỐI TÁC 3PL
 //
-//   POST — tải file CSV/TSV lên, đọc trạng thái, ghi vào kho tracking
-//   GET  — xem lần nhập gần nhất
+//   POST            — đọc THẲNG Google Sheet của đối tác (không cần đính kèm gì)
+//   POST kèm file   — hoặc tải file CSV/TSV lên tay
+//   GET             — xem lần nhập gần nhất
 //
 // Đây là nguồn trạng thái MIỄN PHÍ và là nguồn CHÍNH. 17TRACK chỉ soi thêm cho
 // đơn đáng ngờ vì nó tốn quota.
@@ -51,22 +54,54 @@ export async function GET() {
     });
 }
 
-export async function POST(req: NextRequest) {
-    try {
+type PartnerCfg = { sheet_id?: string; sheet_gid?: string };
+const partnerCfg = (): PartnerCfg =>
+    ((RULES as unknown as { tracking?: { partner_file?: PartnerCfg } }).tracking?.partner_file) || {};
+
+/** Lấy nội dung CSV: ưu tiên file đính kèm, không có thì đọc thẳng Google Sheet. */
+async function readSource(req: NextRequest): Promise<{ text: string; name: string; via: string; isPublic?: boolean }> {
+    const ct = req.headers.get("content-type") || "";
+    if (ct.includes("multipart/form-data")) {
         const form = await req.formData();
         const file = form.get("file");
-        if (!(file instanceof File)) {
-            return NextResponse.json({ error: "Thiếu file" }, { status: 400 });
+        if (file instanceof File) {
+            if (file.size > MAX_UPLOAD_BYTES) throw new SheetError("File quá 16MB — cắt bớt rồi tải lại", 413);
+            if (/\.xlsx?$/i.test(file.name)) {
+                throw new SheetError(
+                    "Chưa đọc được file Excel. Trên Google Sheet chọn Tệp → Tải xuống → CSV rồi tải lên lại.", 415);
+            }
+            return { text: await file.text(), name: file.name, via: "tải lên tay", isPublic: false };
         }
-        if (file.size > MAX_UPLOAD_BYTES) {
-            return NextResponse.json({ error: "File quá 16MB — cắt bớt rồi tải lại" }, { status: 413 });
-        }
-        if (/\.xlsx?$/i.test(file.name)) {
-            return NextResponse.json({
-                error: "Chưa đọc được file Excel. Trên Google Sheet chọn Tệp → Tải xuống → CSV rồi tải lên lại.",
-            }, { status: 415 });
-        }
+    }
 
+    const cfg = partnerCfg();
+    const id = sheetIdFrom(cfg.sheet_id || "");
+    if (!id) {
+        throw new SheetError(
+            "Chưa khai bảng của đối tác. Điền sheet_id vào talpha_rules.json → " +
+            "tracking.partner_file, hoặc tải file CSV lên tay.", 428);
+    }
+    const r = await fetchSheetCsv(id, cfg.sheet_gid || "0");
+    return {
+        text: r.csv,
+        name: "Google Sheet đối tác",
+        via: r.via === "service_account" ? "tài khoản dịch vụ" : "link công khai",
+        isPublic: r.is_public,
+    };
+}
+
+export async function POST(req: NextRequest) {
+    try {
+        let source: { text: string; name: string; via: string; isPublic?: boolean };
+        try {
+            source = await readSource(req);
+        } catch (e) {
+            if (e instanceof SheetError) {
+                return NextResponse.json({ error: e.message }, { status: e.status ?? 502 });
+            }
+            throw e;
+        }
+        const file = { name: source.name, text: () => Promise.resolve(source.text) };
         const parsed = parsePartnerFile(await file.text());
         if (parsed.missing_columns.length) {
             return NextResponse.json({
@@ -135,6 +170,13 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({
             ok: true,
             filename: file.name,
+            via: source.via,
+            // Nhắc khoá bảng lại nếu đang đọc bằng link công khai — bảng có tên,
+            // số điện thoại và địa chỉ khách.
+            public_link_warning: source.isPublic
+                ? `Bảng đang ở chế độ ai có link đều xem được, mà trong đó có thông tin khách. ` +
+                  `Nên đổi sang riêng tư rồi chia sẻ quyền Người xem cho ${serviceAccountEmail() || "email tài khoản dịch vụ"}.`
+                : null,
             rows: parsed.rows.length,
             columns_found: Object.keys(parsed.columns),
             status_changed: changed,

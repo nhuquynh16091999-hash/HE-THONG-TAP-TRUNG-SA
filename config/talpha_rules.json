@@ -285,6 +285,9 @@
     "_limit_note": "17TRACK cho tối đa 40 mã mỗi lượt gọi và 3 lượt mỗi giây; quá thì trả lỗi 429.",
     "_partner_note": "File đơn hàng của đối tác 3PL (Google Sheet 'BẢNG LÊN ĐƠN', xuất CSV, cập nhật 2 ngày/lần). Đây là nguồn trạng thái MIỄN PHÍ và đã có sẵn 'Đợi khách đến lấy hàng' — chính tín hiệu cần bắt. 17TRACK chỉ để soi thêm cho đơn đáng ngờ, vì nó tốn quota.",
     "partner_file": {
+      "sheet_id": "1UGEcebSs-hDV2FB0P-4aDn6eKOkTjmhe44bwdbfxJXc",
+      "sheet_gid": "0",
+      "_sheet_note": "Bảng 'BẢNG LÊN ĐƠN' của đối tác, cập nhật 2 ngày/lần. Dashboard đọc thẳng, không phải tải file tay. ⚠️ BẢO MẬT: bảng chứa tên, số điện thoại và địa chỉ khách. NÊN để bảng ở chế độ riêng tư rồi chia sẻ quyền Người xem cho email tài khoản dịch vụ đang đọc BigQuery — hệ thống tự dùng khoá đó. Để 'ai có link đều xem được' là công khai dữ liệu khách.",
       "column_map": {
         "order_no": [
           "order no.",
