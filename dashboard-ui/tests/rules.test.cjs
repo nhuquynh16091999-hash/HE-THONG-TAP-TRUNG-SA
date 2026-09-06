@@ -111,4 +111,21 @@ t("gán tay theo order_uid được ưu tiên cao nhất", () => {
     delete sa.manual["TW-42"];
 });
 
+console.log("── Tên gọi khác ──");
+t("Lâm là Lộc — tên xuất hiện NHIỀU NHẤT trong file đối tác", () => {
+    // Sỹ Anh xác nhận 07/09/2026. Không khai thì 35 đơn của Lộc rơi vào ô trống.
+    assert.strictEqual(pos("Lâm"), "Loc");
+    assert.strictEqual(pos("Lam"), "Loc");
+    assert.strictEqual(pos("Nguyễn Văn Lâm"), "Loc");
+});
+t("khai tên gọi khác không làm hỏng người khác", () => {
+    for (const key of ROSTER) {
+        assert.strictEqual(pos(R.RULES.marketers[key].display), key);
+    }
+});
+t("campaign ghi Lâm cũng về Lộc", () => {
+    assert.strictEqual(R.parseCampaign("TAIWAN / Lâm / SP / 1")[1], "Loc");
+});
+
+
 console.log(`\n${pass} phép thử — tất cả đạt.`);

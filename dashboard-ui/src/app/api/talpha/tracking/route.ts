@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { bigquery } from "@/lib/bigquery";
 import {
     DISPLAY, UNASSIGNED, SALE_DISPLAY, SALE_UNASSIGNED,
-    attributeOrder, buildAdidOwner, resolveSale,
+    attributeOrder, buildAdidOwner, resolveSale, normPosMarketer,
 } from "@/lib/talpha/rules";
 import { trackingFromLink } from "@/lib/talpha/cod-recon";
 import {
@@ -76,7 +76,12 @@ async function loadShipments(from: string, to: string): Promise<Shipment[]> {
             order_id: pm?.order_no || "",
             order_date: pm?.ship_date ?? null,
             customer: "", phone: "",
-            marketer: pm?.marketer || null,
+            // Tên trong file đối tác phải đi qua luật gán người, không dùng thô:
+            // họ ghi "Lâm" mà trong hệ thống là "Lộc" — cùng một người.
+            marketer: (() => {
+                const key = normPosMarketer(pm?.marketer);
+                return key ? (DISPLAY[key] || key) : (pm?.marketer || null);
+            })(),
             sale: SALE_UNASSIGNED,
             cod_local: pm?.cod_local ?? 0,
             status: saved?.status ?? null,

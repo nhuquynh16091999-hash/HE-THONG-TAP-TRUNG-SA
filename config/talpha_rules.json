@@ -31,7 +31,10 @@
   "marketers": {
     "Loc": {
       "display": "Lộc",
-      "full": "Lộc"
+      "full": "Lộc",
+      "aliases": [
+        "Lâm"
+      ]
     },
     "SAnh": {
       "display": "Sỹ Anh",
@@ -97,6 +100,15 @@
       "key": "Loc"
     },
     {
+      "contains": "LÂM",
+      "key": "Loc",
+      "_note": "Lâm là tên gọi khác của Lộc (Sỹ Anh xác nhận 07/09/2026). Trong file đối tác \"Lâm\" là tên xuất hiện NHIỀU NHẤT — không khai thì đơn của Lộc rơi hết vào ô trống."
+    },
+    {
+      "contains": "LAM",
+      "key": "Loc"
+    },
+    {
       "contains": "THÁI",
       "key": "Thai"
     },
@@ -138,9 +150,11 @@
     {
       "key": "Loc",
       "substrings": [
+        "LÂM",
         "LỘC"
       ],
       "word_tokens": [
+        "LAM",
         "LOC"
       ]
     },
@@ -185,6 +199,8 @@
     "_note": "Segment đã được chuẩn hoá: viết HOA, bỏ dấu chấm và khoảng trắng.",
     "LỘC": "Loc",
     "LOC": "Loc",
+    "LÂM": "Loc",
+    "LAM": "Loc",
     "SỸANH": "SAnh",
     "SYANH": "SAnh",
     "SANH": "SAnh",
