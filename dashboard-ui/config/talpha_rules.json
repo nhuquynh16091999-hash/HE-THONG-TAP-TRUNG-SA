@@ -27,77 +27,114 @@
     "ĐÀI",
     "DAI"
   ],
-  "_people_note": "CƠ CẤU MỚI: 5 marketer chạy ads · 2 sale chốt đơn · 1 giám đốc. 'key' là mã nội bộ, KHÔNG đổi sau khi đã chạy (mọi bảng/báo cáo tham chiếu theo key). 'display' là tên hiện trên dashboard. Sửa người = sửa ở ĐÂY rồi deploy lại view.",
+  "_people_note": "CƠ CẤU từ 05/09/2026. 'key' là mã nội bộ, KHÔNG đổi sau khi đã chạy — mọi báo cáo tham chiếu theo key. 'display' là tên hiện trên dashboard. Thương giữ CẢ HAI vai: vừa chạy ads vừa chốt đơn, nên có mặt ở cả marketers lẫn sales.",
   "marketers": {
     "Loc": {
       "display": "Lộc",
-      "full": "Hồ Sỹ Lộc"
-    },
-    "ChuThuy": {
-      "display": "Chu Thuý",
-      "full": "Chu Thị Thuý"
-    },
-    "Nhung": {
-      "display": "Nhung",
-      "full": "Hoàng Thị Thùy Nhung"
-    },
-    "Chinh": {
-      "display": "Chính",
-      "full": "Chính"
+      "full": "Lộc"
     },
     "SAnh": {
-      "display": "S.Anh",
+      "display": "Sỹ Anh",
       "full": "Hồ Sỹ Anh"
+    },
+    "Thai": {
+      "display": "Thái",
+      "full": "Thái"
+    },
+    "Thuong": {
+      "display": "Thương",
+      "full": "Thương",
+      "also_sale": true
+    },
+    "Quynh": {
+      "display": "Quỳnh",
+      "full": "Quỳnh"
+    },
+    "Thang": {
+      "display": "Thắng",
+      "full": "Thắng"
     }
   },
   "sales": {
-    "Sale1": {
-      "display": "Sale 1",
-      "full": "",
-      "_todo": "CHƯA KHAI TÊN"
+    "Thuong": {
+      "display": "Thương",
+      "full": "Thương",
+      "also_marketer": true
     },
     "Sale2": {
       "display": "Sale 2",
       "full": "",
-      "_todo": "CHƯA KHAI TÊN"
+      "_todo": "Ghế trống, chưa có người. Điền tên rồi thêm luật nhận diện vào sale_assignment."
     }
   },
   "director": {
     "key": "GD",
     "display": "Giám đốc",
     "full": "",
-    "_todo": "CHƯA KHAI TÊN — điền full name của giám đốc."
+    "_todo": "CHƯA KHAI TÊN — điền họ tên giám đốc."
   },
   "_marketer_match_note": "Gán marketer cho ĐƠN: quét ô `marketer` của POS theo pos_marketer_rules (so chữ HOA, bỏ dấu không được — 'Chu Thuý' khác 'Thúy' ở kiểu dấu Unicode nên match bằng 'THU'). Trượt hết ⇒ fallback theo ad_id sang chủ campaign ⇒ vẫn trượt thì vào '(không gán)'. KHÔNG bỏ đơn lặng lẽ.",
   "pos_marketer_rules": [
+    {
+      "contains": "SỸ ANH",
+      "key": "SAnh"
+    },
+    {
+      "contains": "SY ANH",
+      "key": "SAnh"
+    },
+    {
+      "contains": "S.ANH",
+      "key": "SAnh",
+      "_note": "Ba dòng của Sỹ Anh phải đứng TRƯỚC mọi tên khác. Không dùng 'ANH' trần: 'ANH' nằm trong rất nhiều tên Việt (Thanh, Ánh, Anh Tuấn…) nên sẽ vơ nhầm."
+    },
     {
       "contains": "LỘC",
       "key": "Loc"
     },
     {
-      "contains": "NHUNG",
-      "key": "Nhung"
+      "contains": "LOC",
+      "key": "Loc"
     },
     {
-      "contains": "THU",
-      "key": "ChuThuy",
-      "_note": "bắt cả Thuý/Thúy (2 kiểu dấu Unicode); 'Thùy'=Ù, 'Thục'=Ụ nên không đụng"
+      "contains": "THÁI",
+      "key": "Thai"
     },
     {
-      "contains": "CHÍNH",
-      "key": "Chinh"
+      "contains": "THAI",
+      "key": "Thai"
     },
     {
-      "contains": "ANH",
-      "key": "SAnh"
+      "contains": "THƯƠNG",
+      "key": "Thuong"
     },
     {
-      "contains": "QUÂN",
-      "key": "Nhung",
-      "_note": "Quân Hoàng nghỉ việc đầu T7/2026, không phát sinh ads mới — số cũ gộp vào Nhung theo CEO chốt 10/08."
+      "contains": "THUONG",
+      "key": "Thuong"
+    },
+    {
+      "contains": "QUỲNH",
+      "key": "Quynh"
+    },
+    {
+      "contains": "QUYNH",
+      "key": "Quynh"
+    },
+    {
+      "contains": "THẮNG",
+      "key": "Thang"
+    },
+    {
+      "contains": "THANG",
+      "key": "Thang",
+      "_note": "'THẮNG' viết hoa vẫn còn dấu nên KHÔNG chứa 'THANG' — bắt buộc khai cả hai dòng."
     }
   ],
   "camp_scan_rules": [
+    {
+      "key": "SAnh",
+      "regex": "S[YỸ]?[.\\s]?ANH"
+    },
     {
       "key": "Loc",
       "substrings": [
@@ -108,59 +145,60 @@
       ]
     },
     {
-      "key": "Nhung",
+      "key": "Thai",
       "substrings": [
-        "NHUNG"
-      ]
-    },
-    {
-      "key": "ChuThuy",
-      "substrings": [
-        "THUÝ",
-        "THUY"
-      ]
-    },
-    {
-      "key": "Chinh",
-      "substrings": [
-        "CHÍNH"
+        "THÁI"
       ],
       "word_tokens": [
-        "CHINH"
+        "THAI"
       ]
     },
     {
-      "key": "SAnh",
-      "regex": "\\bS?\\.?\\s?ANH\\b"
-    },
-    {
-      "key": "Nhung",
+      "key": "Thuong",
       "substrings": [
-        "QUÂN"
+        "THƯƠNG"
       ],
       "word_tokens": [
-        "QUAN"
+        "THUONG"
+      ]
+    },
+    {
+      "key": "Quynh",
+      "substrings": [
+        "QUỲNH"
+      ],
+      "word_tokens": [
+        "QUYNH"
+      ]
+    },
+    {
+      "key": "Thang",
+      "substrings": [
+        "THẮNG"
+      ],
+      "word_tokens": [
+        "THANG"
       ]
     }
   ],
   "camp_marketer_tokens": {
-    "_note": "norm_nv: segment campaign NGAY SAU thị trường, sau khi upper + bỏ dấu chấm + bỏ space. Map EXACT.",
-    "CTHUÝ": "ChuThuy",
-    "CTHUY": "ChuThuy",
-    "LOC": "Loc",
+    "_note": "Segment đã được chuẩn hoá: viết HOA, bỏ dấu chấm và khoảng trắng.",
     "LỘC": "Loc",
-    "SLỘC": "Loc",
-    "NHUNG": "Nhung",
-    "CHÍNH": "Chinh",
-    "CHINH": "Chinh",
-    "SANH": "SAnh",
+    "LOC": "Loc",
     "SỸANH": "SAnh",
-    "HỒSỸANH": "SAnh",
-    "QUÂN": "Nhung",
-    "QUAN": "Nhung"
+    "SYANH": "SAnh",
+    "SANH": "SAnh",
+    "THÁI": "Thai",
+    "THAI": "Thai",
+    "THƯƠNG": "Thuong",
+    "THUONG": "Thuong",
+    "QUỲNH": "Quynh",
+    "QUYNH": "Quynh",
+    "THẮNG": "Thang",
+    "THANG": "Thang"
   },
   "unassigned_label": "(không gán)",
-  "_sale_note": "POS KHÔNG có trường 'sale'. Đơn được gán cho sale theo thứ tự: (1) bảng gán tay `sale_assignment.manual` — khoá là order_uid ('TW-<id>'); (2) theo page_id trong `sale_assignment.by_page`; (3) theo từ khoá trong ô tags của đơn — `sale_assignment.by_tag`; trượt hết ⇒ '(chưa gán sale)'. Gán tay ở màn Đối soát/Đơn hàng ghi thẳng vào mục `manual`.",
+  "_sale_note": "POS KHÔNG có trường 'sale'. Đơn gán cho sale theo 3 bậc: (1) bảng gán tay `manual`, khoá là order_uid dạng 'TW-<id>'; (2) page_id → `by_page`; (3) từ khoá trong ô tags → `by_tag`. Trượt hết ⇒ '(chưa gán sale)'. CỐ Ý để trống cả ba: Thương vừa chạy ads vừa chốt đơn, nên KHÔNG thể suy 'đơn do Thương chạy ads = Thương chốt' — làm vậy là gán bừa. Chốt được quy tắc thật (theo page, theo tag, hay gán tay) thì khai vào đây.",
   "sale_assignment": {
     "by_tag": {},
     "by_page": {},
@@ -229,6 +267,21 @@
       ]
     }
   },
+  "_tracking_note": "Theo dõi vận đơn qua 17TRACK. TIỀN: đăng ký 1 mã = 1 quota, tính MỘT LẦN; sau khi đăng ký thì hỏi trạng thái bao nhiêu lần cũng miễn phí. Vì vậy sổ đăng ký (data/tracking.json → registered) là thứ PHẢI giữ — mất nó là đăng ký lại từ đầu và đốt quota. Khoá API để ở biến môi trường TRACK17_API_KEY, KHÔNG khai vào file này.",
+  "tracking": {
+    "provider": "17track",
+    "api_base": "https://api.17track.net/track/v2.4",
+    "carrier": null,
+    "_carrier_note": "Mã hãng vận chuyển của 17TRACK. Để null thì 17TRACK tự nhận diện — khai đúng mã thì nhận diện chắc hơn. Chốt được 3PL Đài thì điền vào.",
+    "pickup_expire_days": 7,
+    "_pickup_note": "Số ngày hàng nằm ở cửa hàng tiện lợi trước khi bị trả về. Đài thường 7 ngày — HỎI LẠI đơn vị vận chuyển rồi sửa cho đúng, vì mốc cảnh báo \"sắp mất hàng\" tính từ đây.",
+    "warn_before_expire_days": 2,
+    "stale_days": 21,
+    "_stale_note": "Quá số ngày này mà trạng thái không nhúc nhích thì coi là đơn kẹt, nêu ra để người soi.",
+    "batch_size": 40,
+    "rate_limit_per_sec": 3,
+    "_limit_note": "17TRACK cho tối đa 40 mã mỗi lượt gọi và 3 lượt mỗi giây; quá thì trả lỗi 429."
+  },
   "status": {
     "gtc_category": "GIAO_THANH_CONG",
     "gtc_status_names": [
@@ -257,18 +310,6 @@
       "Loc": {
         "2026-07": 1200000000,
         "2026-08": 1250000000
-      },
-      "ChuThuy": {
-        "2026-07": 800000000,
-        "2026-08": 900000000
-      },
-      "Nhung": {
-        "2026-07": 800000000,
-        "2026-08": 850000000
-      },
-      "Chinh": {
-        "2026-07": 300000000,
-        "2026-08": 450000000
       }
     },
     "delivery_rate_for_pace": 0.632,
@@ -277,15 +318,6 @@
       "_note": "KPI THÁNG của từng người, đo bằng DOANH SỐ GIAO THÀNH CÔNG (tiền của đơn đã tới tay khách), CEO chốt 01/09/2026. Khác thước đo với marketer_monthly_ship_vnd của T7–T8. Tổng team T9 = 3,85 tỷ. S.Anh (leader) lần đầu có KPI.",
       "Loc": {
         "2026-09": 1100000000
-      },
-      "ChuThuy": {
-        "2026-09": 1050000000
-      },
-      "Nhung": {
-        "2026-09": 800000000
-      },
-      "Chinh": {
-        "2026-09": 600000000
       },
       "SAnh": {
         "2026-09": 300000000
@@ -431,5 +463,11 @@
       "2026-09": "1cGduV47THi-4u43n66oyr1iGxoPc1x0tx5soH3YvpKA"
     }
   },
-  "_marketers_todo": "TẠM lấy 5 người đang active của hệ cũ. Chốt danh sách thật thì sửa `marketers` + `pos_marketer_rules` + `camp_scan_rules` cho khớp."
+  "_todo": [
+    "Tên đầy đủ của giám đốc (director.full).",
+    "Tên bạn sale thứ hai (sales.Sale2) khi có người.",
+    "Phí 3PL Đài Loan (shipping_fees.TW) — chưa khai thì mọi số lãi/lỗ thiếu phí vận chuyển.",
+    "Quy tắc gán sale (sale_assignment) — hiện mọi đơn rơi vào \"(chưa gán sale)\".",
+    "KPI tháng cho đội mới (targets) — số đang là của đội cũ."
+  ]
 }

@@ -20,6 +20,7 @@ import TALPHAAdHealthTab from "./tabs/ad-health-tab";
 import TALPHAOrdersTab from "./tabs/orders-tab";
 import TALPHAAdSpendTab from "./tabs/ad-spend-tab";
 import TALPHACodReconTab from "./tabs/cod-recon-tab";
+import TALPHATrackingTab from "./tabs/tracking-tab";
 
 /**
  * Điều hướng gom về 5 mục theo đúng cấu trúc AUUS1 (Báo cáo · Sản phẩm ·
@@ -42,6 +43,7 @@ const NAV_GROUPS: NavGroup[] = [
         id: "don-hang", emoji: "🧾", label: "Đơn hàng",
         tabs: [
             { id: "orders", label: "Danh sách đơn" },
+            { id: "tracking", label: "Theo dõi vận đơn" },
             { id: "cod-recon", label: "Đối soát COD" },
         ],
     },
@@ -176,6 +178,7 @@ export default function TALPHADashboardShell() {
                     {activeTab === "pnl" && <TALPHAPnLTab dateRange={dateRange} projectId="TALPHA" />}
                     {activeTab === "product-pnl" && <TALPHAProductPnLTab dateRange={dateRange} projectId="TALPHA" />}
                     {activeTab === "orders" && <TALPHAOrdersTab dateRange={dateRange} projectId="TALPHA" />}
+                    {activeTab === "tracking" && <TALPHATrackingTab dateRange={dateRange} projectId="TALPHA" />}
                     {activeTab === "cod-recon" && <TALPHACodReconTab dateRange={dateRange} projectId="TALPHA" />}
                     {activeTab === "products" && <TALPHAProductsTab dateRange={dateRange} projectId="TALPHA" />}
                     {activeTab === "marketing" && <TALPHAMarketingTab dateRange={dateRange} projectId="TALPHA" />}

@@ -267,6 +267,21 @@
       ]
     }
   },
+  "_tracking_note": "Theo dõi vận đơn qua 17TRACK. TIỀN: đăng ký 1 mã = 1 quota, tính MỘT LẦN; sau khi đăng ký thì hỏi trạng thái bao nhiêu lần cũng miễn phí. Vì vậy sổ đăng ký (data/tracking.json → registered) là thứ PHẢI giữ — mất nó là đăng ký lại từ đầu và đốt quota. Khoá API để ở biến môi trường TRACK17_API_KEY, KHÔNG khai vào file này.",
+  "tracking": {
+    "provider": "17track",
+    "api_base": "https://api.17track.net/track/v2.4",
+    "carrier": null,
+    "_carrier_note": "Mã hãng vận chuyển của 17TRACK. Để null thì 17TRACK tự nhận diện — khai đúng mã thì nhận diện chắc hơn. Chốt được 3PL Đài thì điền vào.",
+    "pickup_expire_days": 7,
+    "_pickup_note": "Số ngày hàng nằm ở cửa hàng tiện lợi trước khi bị trả về. Đài thường 7 ngày — HỎI LẠI đơn vị vận chuyển rồi sửa cho đúng, vì mốc cảnh báo \"sắp mất hàng\" tính từ đây.",
+    "warn_before_expire_days": 2,
+    "stale_days": 21,
+    "_stale_note": "Quá số ngày này mà trạng thái không nhúc nhích thì coi là đơn kẹt, nêu ra để người soi.",
+    "batch_size": 40,
+    "rate_limit_per_sec": 3,
+    "_limit_note": "17TRACK cho tối đa 40 mã mỗi lượt gọi và 3 lượt mỗi giây; quá thì trả lỗi 429."
+  },
   "status": {
     "gtc_category": "GIAO_THANH_CONG",
     "gtc_status_names": [
