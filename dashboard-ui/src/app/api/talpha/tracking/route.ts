@@ -37,71 +37,125 @@ type Registered = { order_uid: string | null; registered_at: string; carrier: nu
 type Saved = {
     status: string | null; sub_status: string | null; status_since: string;
     last_event_time: string | null; last_event: string | null;
+    source?: "doi_tac" | "17track"; raw_status?: string | null;
+    ship_date?: string | null; order_date?: string | null;
 };
-type Store = { registered: Record<string, Registered>; statuses: Record<string, Saved> };
+type PartnerMeta = {
+    order_no: string; ship_method: string; cod_local: number; marketer: string;
+    recon: string; store_name: string; store_code: string;
+    ship_date: string | null; track17_code: string | null;
+};
+type Store = {
+    registered: Record<string, Registered>;
+    statuses: Record<string, Saved>;
+    partner?: Record<string, PartnerMeta>;
+};
 
-const emptyStore = (): Store => ({ registered: {}, statuses: {} });
+const emptyStore = (): Store => ({ registered: {}, statuses: {}, partner: {} });
 
-/** Đơn trong kỳ có mã vận đơn — nguồn để theo dõi. */
+/**
+ * Danh sách vận đơn = HỢP của hai nguồn, khớp theo mã vận đơn:
+ *   • đơn trong BigQuery (có tên khách, SĐT, marketer, sale)
+ *   • dòng trong file đối tác (có trạng thái giao hàng)
+ *
+ * Phải là hợp chứ không phải giao: lúc mới dựng, BigQuery còn trống mà file đối
+ * tác đã có 600 đơn — lấy giao thì màn hình trắng trơn dù dữ liệu nằm sẵn đó.
+ * Ngược lại, đơn vừa lên trong POS mà file đối tác chưa cập nhật cũng phải hiện.
+ */
 async function loadShipments(from: string, to: string): Promise<Shipment[]> {
-    const [adRows] = await bigquery.query({
-        query: `SELECT DISTINCT CAST(ad_id AS STRING) AS ad_id, campaign_name
-                FROM \`${BQ_PROJECT}.${BQ_DATASET}.fb_ads_data\`
-                WHERE ad_id IS NOT NULL AND campaign_name IS NOT NULL`,
-    });
-    const adidOwner = buildAdidOwner(adRows as { ad_id: string; campaign_name: string }[]);
-
-    const [rows] = await bigquery.query({
-        query: `
-            SELECT
-                v.order_uid, v.order_id, v.order_date, v.pos_money_divisor,
-                v.status_category, v.marketer_name, v.resolved_ad_id,
-                o.cod, o.tracking_link, o.page_id, o.tags,
-                o.bill_full_name, o.bill_phone_number
-            FROM \`${BQ_PROJECT}.${BQ_DATASET}.vw_orders_std\` v
-            LEFT JOIN \`${BQ_PROJECT}.${BQ_DATASET}.sale_order\` o
-                   ON v.shop_id = o.shop_id AND v.order_id = o.id
-            WHERE v.order_date BETWEEN @from AND @to
-              AND o.tracking_link IS NOT NULL AND TRIM(o.tracking_link) != ''
-              -- Đơn huỷ/đơn thô chưa có hàng đi đường, đăng ký vào là phí quota.
-              AND v.status_category NOT IN ('HUY', 'DON_THO')`,
-        params: { from, to },
-    });
-
     const store = readStore<Store>(STORE, emptyStore());
+    const partner = store.partner || {};
+    const byTracking = new Map<string, Shipment>();
 
-    return (rows as Record<string, unknown>[]).flatMap((r) => {
-        const tracking = trackingFromLink(r.tracking_link as string | null);
-        if (!tracking) return [];
-        const divisor = Number(r.pos_money_divisor) || 1;
-        const { key } = attributeOrder(
-            r.marketer_name as string | null, r.resolved_ad_id as string | null, adidOwner);
-        const saleKey = resolveSale({
-            order_uid: r.order_uid as string,
-            page_id: r.page_id as string | null,
-            tags: r.tags as string | null,
-        });
+    const shipmentFrom = (tracking: string): Shipment => {
         const saved = store.statuses[tracking];
-        return [{
+        const pm = partner[tracking];
+        return {
             tracking,
-            order_uid: r.order_uid as string,
-            order_id: String(r.order_id ?? ""),
-            order_date: r.order_date && typeof r.order_date === "object"
-                ? (r.order_date as { value: string }).value
-                : String(r.order_date ?? ""),
-            customer: (r.bill_full_name as string) || "",
-            phone: (r.bill_phone_number as string) || "",
-            marketer: key === UNASSIGNED ? UNASSIGNED : (DISPLAY[key] || key),
-            sale: saleKey ? (SALE_DISPLAY[saleKey] || saleKey) : SALE_UNASSIGNED,
-            cod_local: (Number(r.cod) || 0) / divisor,
-            status: (saved?.status as MainStatus) ?? null,
+            order_uid: null,
+            order_id: pm?.order_no || "",
+            order_date: pm?.ship_date ?? null,
+            customer: "", phone: "",
+            marketer: pm?.marketer || null,
+            sale: SALE_UNASSIGNED,
+            cod_local: pm?.cod_local ?? 0,
+            status: saved?.status ?? null,
             sub_status: saved?.sub_status ?? null,
             status_since: saved?.status_since ?? null,
             last_event_time: saved?.last_event_time ?? null,
             last_event: saved?.last_event ?? null,
             registered: !!store.registered[tracking],
-        } satisfies Shipment];
-    });
+            source: saved?.source ?? null,
+            raw_status: saved?.raw_status ?? null,
+            ship_date: saved?.ship_date ?? pm?.ship_date ?? saved?.order_date ?? null,
+        };
+    };
+
+    // ── Nguồn 1: file đối tác ──
+    for (const tracking of Object.keys(partner)) {
+        byTracking.set(tracking, shipmentFrom(tracking));
+    }
+
+    // ── Nguồn 2: BigQuery — bổ sung thông tin khách và người phụ trách ──
+    try {
+        const [adRows] = await bigquery.query({
+            query: `SELECT DISTINCT CAST(ad_id AS STRING) AS ad_id, campaign_name
+                    FROM \`${BQ_PROJECT}.${BQ_DATASET}.fb_ads_data\`
+                    WHERE ad_id IS NOT NULL AND campaign_name IS NOT NULL`,
+        });
+        const adidOwner = buildAdidOwner(adRows as { ad_id: string; campaign_name: string }[]);
+
+        const [rows] = await bigquery.query({
+            query: `
+                SELECT
+                    v.order_uid, v.order_id, v.order_date, v.pos_money_divisor,
+                    v.marketer_name, v.resolved_ad_id,
+                    o.cod, o.tracking_link, o.page_id, o.tags,
+                    o.bill_full_name, o.bill_phone_number
+                FROM \`${BQ_PROJECT}.${BQ_DATASET}.vw_orders_std\` v
+                LEFT JOIN \`${BQ_PROJECT}.${BQ_DATASET}.sale_order\` o
+                       ON v.shop_id = o.shop_id AND v.order_id = o.id
+                WHERE v.order_date BETWEEN @from AND @to
+                  AND o.tracking_link IS NOT NULL AND TRIM(o.tracking_link) != ''
+                  -- Đơn huỷ/đơn thô chưa có hàng đi đường, theo dõi làm gì.
+                  AND v.status_category NOT IN ('HUY', 'DON_THO')`,
+            params: { from, to },
+        });
+
+        for (const r of rows as Record<string, unknown>[]) {
+            const tracking = trackingFromLink(r.tracking_link as string | null);
+            if (!tracking) continue;
+            const divisor = Number(r.pos_money_divisor) || 1;
+            const { key } = attributeOrder(
+                r.marketer_name as string | null, r.resolved_ad_id as string | null, adidOwner);
+            const saleKey = resolveSale({
+                order_uid: r.order_uid as string,
+                page_id: r.page_id as string | null,
+                tags: r.tags as string | null,
+            });
+            const base = byTracking.get(tracking) ?? shipmentFrom(tracking);
+            byTracking.set(tracking, {
+                ...base,
+                order_uid: r.order_uid as string,
+                order_id: String(r.order_id ?? base.order_id),
+                order_date: r.order_date && typeof r.order_date === "object"
+                    ? (r.order_date as { value: string }).value
+                    : String(r.order_date ?? base.order_date ?? ""),
+                customer: (r.bill_full_name as string) || "",
+                phone: (r.bill_phone_number as string) || "",
+                marketer: key === UNASSIGNED ? UNASSIGNED : (DISPLAY[key] || key),
+                sale: saleKey ? (SALE_DISPLAY[saleKey] || saleKey) : SALE_UNASSIGNED,
+                // Tiền lấy từ POS khi có — đó là nguồn chuẩn của doanh thu.
+                cod_local: (Number(r.cod) || 0) / divisor || base.cod_local,
+            });
+        }
+    } catch (e) {
+        // BigQuery hỏng hoặc chưa có số thì vẫn trả được phần từ file đối tác,
+        // thay vì để cả tab trắng trơn.
+        console.warn("tracking: không đọc được BigQuery, chỉ dùng file đối tác:", e);
+    }
+
+    return [...byTracking.values()];
 }
 
 function range(req: NextRequest) {
@@ -192,7 +246,9 @@ export async function POST(req: NextRequest) {
             for (const t of info.found) {
                 const prev = cur.statuses[t.number];
                 if (!prev || prev.status !== t.status) changed++;
-                cur.statuses[t.number] = mergeStatus(prev, t, now);
+                // Đánh dấu nguồn 17track: lần nhập file đối tác sau sẽ KHÔNG ghi
+                // đè, vì file trễ 2 ngày còn 17TRACK gần thời gian thực.
+                cur.statuses[t.number] = { ...mergeStatus(prev, t, now), source: "17track" };
             }
             return cur;
         });

@@ -1,8 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { format } from "date-fns";
-import { RefreshCw, AlertTriangle, Store, PackageX, Clock, Download } from "lucide-react";
+import { RefreshCw, AlertTriangle, Store, PackageX, Clock, Download, Upload } from "lucide-react";
 import TabSkeleton, { ErrorState } from "@/components/ui/tab-skeleton";
 import { formatNumber, cn } from "../utils";
 
@@ -14,6 +14,8 @@ type Shipment = {
     cod_local: number; status: string | null; sub_status: string | null;
     status_since: string | null; last_event_time: string | null; last_event: string | null;
     registered: boolean;
+    source?: "doi_tac" | "17track" | null;
+    raw_status?: string | null;
 };
 type Alert = {
     level: "gap" | "canh_bao" | "nhac";
@@ -26,6 +28,8 @@ const STATUS_VI: Record<string, string> = {
     NotFound: "Chưa có thông tin", InfoReceived: "Đã tạo vận đơn", InTransit: "Đang vận chuyển",
     Expired: "Quá hạn theo dõi", AvailableForPickup: "Đã tới cửa hàng", OutForDelivery: "Đang giao",
     DeliveryFailure: "Giao hỏng", Delivered: "Đã giao", Exception: "Sự cố",
+    // Hai trạng thái chỉ file đối tác mới có:
+    Returned: "Đã hoàn về kho", Cancelled: "Đã huỷ",
 };
 const STATUS_STYLE: Record<string, string> = {
     AvailableForPickup: "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400",
@@ -34,6 +38,8 @@ const STATUS_STYLE: Record<string, string> = {
     Exception: "bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-400",
     InTransit: "bg-sky-100 text-sky-700 dark:bg-sky-500/15 dark:text-sky-400",
     OutForDelivery: "bg-sky-100 text-sky-700 dark:bg-sky-500/15 dark:text-sky-400",
+    Returned: "bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-400",
+    Cancelled: "bg-slate-100 text-slate-600 dark:bg-slate-500/15 dark:text-slate-400",
 };
 const LEVEL_STYLE = {
     gap: { bar: "bg-rose-500", chip: "bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-400", label: "Gấp" },
@@ -53,6 +59,10 @@ export default function TALPHATrackingTab({ dateRange }: Props) {
     const [hasKey, setHasKey] = useState(true);
     const [cfg, setCfg] = useState({ pickup_expire_days: 7, warn_before_expire_days: 2, stale_days: 21 });
     const [tab, setTab] = useState<"alerts" | "all">("alerts");
+    const [importing, setImporting] = useState(false);
+    const [importMsg, setImportMsg] = useState("");
+    const [unknownStatuses, setUnknownStatuses] = useState<{ value: string; count: number }[]>([]);
+    const fileRef = useRef<HTMLInputElement>(null);
 
     const from = dateRange?.from ? format(dateRange.from, "yyyy-MM-dd") : "2026-01-01";
     const to = dateRange?.to ? format(dateRange.to, "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd");
@@ -88,6 +98,30 @@ export default function TALPHATrackingTab({ dateRange }: Props) {
         } finally { setSyncing(false); }
     };
 
+    const importPartner = async (file: File) => {
+        setImporting(true); setImportMsg(""); setUnknownStatuses([]); setError("");
+        try {
+            const fd = new FormData();
+            fd.append("file", file);
+            const res = await fetch("/api/talpha/tracking/import", { method: "POST", body: fd });
+            const d = await res.json();
+            if (!res.ok) throw new Error(d.error || "Không đọc được file");
+            const s = d.summary;
+            setImportMsg(
+                `Đọc ${d.rows} dòng · ${d.status_changed} đơn đổi trạng thái · ` +
+                `${s.waiting_pickup.orders} đơn đang chờ khách lấy (${Math.round(s.waiting_pickup.cod).toLocaleString("vi-VN")} NT$) · ` +
+                `tỷ lệ hoàn ${(s.return_rate * 100).toFixed(1)}%` +
+                (d.kept_from_17track ? ` · giữ ${d.kept_from_17track} đơn theo số 17TRACK mới hơn` : ""));
+            setUnknownStatuses(d.unknown_statuses || []);
+            await load();
+        } catch (e) {
+            setError(e instanceof Error ? e.message : "Không đọc được file");
+        } finally {
+            setImporting(false);
+            if (fileRef.current) fileRef.current.value = "";
+        }
+    };
+
     const exportCsv = () => {
         const head = ["Mã đơn", "Mã vận đơn", "Ngày đơn", "Trạng thái", "Từ ngày", "COD (TWD)",
             "Khách", "SĐT", "Marketer", "Sale", "Sự kiện cuối"];
@@ -118,11 +152,12 @@ export default function TALPHATrackingTab({ dateRange }: Props) {
                 <div className="flex gap-3 rounded-xl border-l-4 border-amber-500 bg-amber-50 p-4 text-sm dark:bg-amber-500/10">
                     <AlertTriangle className="mt-0.5 h-4 w-4 flex-none text-amber-600 dark:text-amber-400" />
                     <div className="text-amber-900 dark:text-amber-200">
-                        <div className="font-medium">Chưa có khoá 17TRACK</div>
+                        <div className="font-medium">Chưa có khoá 17TRACK — không sao</div>
                         <p className="mt-1 text-amber-800/80 dark:text-amber-200/70">
                             Lấy khoá ở <span className="font-mono">17track.net/en/api</span> rồi điền
                             <span className="font-mono"> TRACK17_API_KEY</span> vào <span className="font-mono">dashboard-ui/.env.local</span>.
-                            Chưa có khoá thì bảng dưới vẫn liệt kê được vận đơn, chỉ chưa biết trạng thái.
+                            Không bắt buộc: file đối tác đã cho đủ trạng thái và hoàn toàn miễn phí.
+                            17TRACK chỉ để soi thêm những đơn đáng ngờ, vì nó tốn quota.
                         </p>
                     </div>
                 </div>
@@ -154,6 +189,13 @@ export default function TALPHATrackingTab({ dateRange }: Props) {
                         </button>
                     ))}
                 </div>
+                <input ref={fileRef} type="file" accept=".csv,.tsv,.txt,text/csv" className="hidden"
+                    onChange={(e) => { const f = e.target.files?.[0]; if (f) importPartner(f); }} />
+                <button onClick={() => fileRef.current?.click()} disabled={importing}
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50">
+                    <Upload className="h-4 w-4" />
+                    {importing ? "Đang đọc…" : "Nhập file đối tác"}
+                </button>
                 <button onClick={sync} disabled={syncing || !hasKey}
                     className="inline-flex items-center gap-1.5 rounded-lg bg-orange-500 px-3 py-2 text-sm font-medium text-white hover:bg-orange-600 disabled:opacity-50">
                     <RefreshCw className={cn("h-4 w-4", syncing && "animate-spin")} />
@@ -165,6 +207,19 @@ export default function TALPHATrackingTab({ dateRange }: Props) {
                 </button>
             </div>
 
+            {importMsg && <p className="rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-300">{importMsg}</p>}
+            {unknownStatuses.length > 0 && (
+                <div className="rounded-lg border-l-4 border-amber-500 bg-amber-50 px-3 py-2 text-sm dark:bg-amber-500/10">
+                    <div className="font-medium text-amber-900 dark:text-amber-200">Có trạng thái chưa khai</div>
+                    <p className="mt-0.5 text-amber-800/80 dark:text-amber-200/70">
+                        Những đơn này không vào được cảnh báo nào. Khai thêm vào{" "}
+                        <span className="font-mono">talpha_rules.json → tracking.partner_file.status_map</span>:
+                    </p>
+                    <ul className="mt-1 space-y-0.5 font-mono text-xs text-amber-800/70 dark:text-amber-200/60">
+                        {unknownStatuses.map((u) => <li key={u.value}>{u.count}× “{u.value}”</li>)}
+                    </ul>
+                </div>
+            )}
             {syncMsg && <p className="rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-300">{syncMsg}</p>}
             {error && shipments.length > 0 && (
                 <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700 dark:bg-rose-500/10 dark:text-rose-300">{error}</p>
@@ -219,7 +274,7 @@ export default function TALPHATrackingTab({ dateRange }: Props) {
                                     <th className="px-3 py-2.5 text-right font-medium">COD</th>
                                     <th className="px-3 py-2.5 text-left font-medium">Khách</th>
                                     <th className="px-3 py-2.5 text-left font-medium">Sale</th>
-                                    <th className="px-3 py-2.5 text-left font-medium">Sự kiện cuối</th>
+                                    <th className="px-3 py-2.5 text-left font-medium">Nguồn</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -240,7 +295,7 @@ export default function TALPHATrackingTab({ dateRange }: Props) {
                                         </td>
                                         <td className={cn("px-3 py-2", !s.sale && "text-muted-foreground")}>{s.sale || "—"}</td>
                                         <td className="px-3 py-2 text-xs text-muted-foreground">
-                                            <div className="max-w-[240px] truncate">{s.last_event || "—"}</div>
+                                            {s.source === "17track" ? "17TRACK" : s.source === "doi_tac" ? "file đối tác" : "—"}
                                         </td>
                                     </tr>
                                 ))}

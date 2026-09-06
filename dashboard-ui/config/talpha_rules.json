@@ -276,11 +276,107 @@
     "pickup_expire_days": 7,
     "_pickup_note": "Số ngày hàng nằm ở cửa hàng tiện lợi trước khi bị trả về. Đài thường 7 ngày — HỎI LẠI đơn vị vận chuyển rồi sửa cho đúng, vì mốc cảnh báo \"sắp mất hàng\" tính từ đây.",
     "warn_before_expire_days": 2,
+    "transit_days_estimate": 3,
+    "_transit_note": "Số ngày hàng đi từ kho tới cửa hàng tiện lợi. File đối tác chỉ có NGÀY XUẤT KHO, không có ngày hàng tới cửa hàng — nên đồng hồ đếm hạn lấy tính từ ngày xuất kho trừ đi số này. Ước thừa thì cảnh báo nổ sớm, mà nổ sớm còn hơn mất hàng. Có 17TRACK thì dùng mốc thật của 17TRACK, bỏ qua ước lượng này.",
     "stale_days": 21,
     "_stale_note": "Quá số ngày này mà trạng thái không nhúc nhích thì coi là đơn kẹt, nêu ra để người soi.",
     "batch_size": 40,
     "rate_limit_per_sec": 3,
-    "_limit_note": "17TRACK cho tối đa 40 mã mỗi lượt gọi và 3 lượt mỗi giây; quá thì trả lỗi 429."
+    "_limit_note": "17TRACK cho tối đa 40 mã mỗi lượt gọi và 3 lượt mỗi giây; quá thì trả lỗi 429.",
+    "_partner_note": "File đơn hàng của đối tác 3PL (Google Sheet 'BẢNG LÊN ĐƠN', xuất CSV, cập nhật 2 ngày/lần). Đây là nguồn trạng thái MIỄN PHÍ và đã có sẵn 'Đợi khách đến lấy hàng' — chính tín hiệu cần bắt. 17TRACK chỉ để soi thêm cho đơn đáng ngờ, vì nó tốn quota.",
+    "partner_file": {
+      "column_map": {
+        "order_no": [
+          "order no.",
+          "order no",
+          "ma don",
+          "mã đơn"
+        ],
+        "tracking": [
+          "tracking number",
+          "tracking no",
+          "mã vận đơn"
+        ],
+        "track17_code": [
+          "ma tra cuu 17 track",
+          "mã tra cứu 17 track",
+          "17track",
+          "ma 17track"
+        ],
+        "status": [
+          "note",
+          "trang thai",
+          "trạng thái",
+          "status"
+        ],
+        "ship_method": [
+          "phuong thuc van chuyen",
+          "phương thức vận chuyển",
+          "shipping method"
+        ],
+        "cod": [
+          "cod amount (nt$)",
+          "cod amount",
+          "cod",
+          "so tien"
+        ],
+        "marketer": [
+          "mkt",
+          "marketer"
+        ],
+        "recon": [
+          "doi soat",
+          "đối soát"
+        ],
+        "ship_date": [
+          "ngay xuat kho",
+          "ngày xuất kho"
+        ],
+        "order_date": [
+          "ngay len don",
+          "ngày lên đơn"
+        ],
+        "store_name": [
+          "ten cua hang tien loi",
+          "tên của hàng tiện lợi",
+          "tên cửa hàng tiện lợi"
+        ],
+        "store_code": [
+          "ma cua hang tien loi",
+          "mã cửa hàng tiện lợi"
+        ],
+        "quantity": [
+          "quantity",
+          "so luong",
+          "số lượng"
+        ],
+        "sku": [
+          "sku"
+        ]
+      },
+      "_status_note": "Cột NOTE của đối tác → trạng thái chuẩn (dùng chung bảng với 17TRACK). Giá trị lạ KHÔNG bị nuốt: hiện nguyên văn lên dashboard để người khai bổ sung.",
+      "status_map": {
+        "Đợi khách đến lấy hàng": "AvailableForPickup",
+        "Đã giao thành công": "Delivered",
+        "Đang trung chuyển": "InTransit",
+        "Đã chuyển tiếp": "InTransit",
+        "Đang giao hàng": "OutForDelivery",
+        "Xuất kho": "InTransit",
+        "Đã lên đơn": "InfoReceived",
+        "Chưa lên đơn": "NotFound",
+        "Đang hoàn về kho": "DeliveryFailure",
+        "Đã hoàn về kho": "Returned",
+        "Hủy đơn": "Cancelled",
+        "Huỷ đơn": "Cancelled"
+      },
+      "_code_note": "Sinh mã tra cứu 17TRACK từ mã vận đơn: 8 số (7-Eleven) → thêm tiền tố '73N'; 10–11 số (Family Mart, giao tại nhà) → giữ nguyên. Suy từ 289 dòng đối tác đã điền tay, sai đúng 1 dòng. Đối tác chỉ điền tay ~một nửa, phần còn lại sinh tự động.",
+      "track17_code_rules": [
+        {
+          "digits": 8,
+          "prefix": "73N"
+        }
+      ]
+    }
   },
   "status": {
     "gtc_category": "GIAO_THANH_CONG",

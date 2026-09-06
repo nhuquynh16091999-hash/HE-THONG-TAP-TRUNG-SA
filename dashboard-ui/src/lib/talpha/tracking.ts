@@ -20,6 +20,7 @@ type TrackingConfig = {
     carrier?: number | null;
     pickup_expire_days?: number;
     warn_before_expire_days?: number;
+    transit_days_estimate?: number;
     stale_days?: number;
     batch_size?: number;
     rate_limit_per_sec?: number;
@@ -33,6 +34,7 @@ export const TRACK_CFG: Required<Omit<TrackingConfig, "carrier">> & { carrier: n
         carrier: c.carrier ?? null,
         pickup_expire_days: Number(c.pickup_expire_days ?? 7),
         warn_before_expire_days: Number(c.warn_before_expire_days ?? 2),
+        transit_days_estimate: Number(c.transit_days_estimate ?? 3),
         stale_days: Number(c.stale_days ?? 21),
         batch_size: Math.min(Number(c.batch_size ?? 40), 40),   // 17TRACK trần 40
         rate_limit_per_sec: Math.min(Number(c.rate_limit_per_sec ?? 3), 3),
@@ -61,11 +63,26 @@ export const STATUS_VI: Record<MainStatus, string> = {
     Exception: "Sự cố",
 };
 
-/** Đơn đã đi tới đích cuối — không cần theo dõi tiếp, không cần cảnh báo. */
-export const TERMINAL: ReadonlySet<MainStatus> = new Set<MainStatus>(["Delivered", "Expired"]);
+/**
+ * Đơn đã đi tới đích cuối — không theo dõi tiếp, không cảnh báo.
+ *
+ * "Returned" và "Cancelled" chỉ có ở file đối tác, không có trong bảng của
+ * 17TRACK. Đơn đã hoàn về kho thì tiền mất rồi, nhắc nữa chỉ làm loãng những
+ * đơn còn cứu được — nhưng vẫn ĐẾM để báo cáo tỷ lệ hoàn.
+ */
+export const TERMINAL: ReadonlySet<string> = new Set([
+    "Delivered", "Expired", "Returned", "Cancelled",
+]);
+
+/** Nhãn cho trạng thái chỉ có ở file đối tác. */
+export const EXTRA_STATUS_VI: Record<string, string> = {
+    Returned: "Đã hoàn về kho",
+    Cancelled: "Đã huỷ",
+};
 
 export function statusLabel(s?: string | null): string {
-    return s && s in STATUS_VI ? STATUS_VI[s as MainStatus] : "Chưa rõ";
+    if (!s) return "Chưa rõ";
+    return STATUS_VI[s as MainStatus] || EXTRA_STATUS_VI[s] || "Chưa rõ";
 }
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -82,13 +99,19 @@ export type Shipment = {
     marketer: string | null;
     sale: string | null;
     cod_local: number;              // TWD
-    status: MainStatus | null;
+    /** 9 mã của 17TRACK, cộng "Returned"/"Cancelled" chỉ file đối tác mới có. */
+    status: string | null;
     sub_status: string | null;
     /** Lần đầu thấy đơn ở TRẠNG THÁI HIỆN TẠI — gốc để đếm "nằm ở cửa hàng mấy ngày". */
     status_since: string | null;
     last_event_time: string | null;
     last_event: string | null;
     registered: boolean;
+    /** Trạng thái đến từ đâu — để UI nói rõ số này mới tới mức nào. */
+    source?: "doi_tac" | "17track" | null;
+    raw_status?: string | null;
+    /** Ngày xuất kho theo file đối tác — đồng hồ đáng tin hơn status_since. */
+    ship_date?: string | null;
 };
 
 /** gấp = sắp mất hàng · canh_bao = cần người xử · nhac = việc thường ngày. */
@@ -122,11 +145,43 @@ export function daysBetween(fromIso?: string | null, now: Date = new Date()): nu
     return Math.floor((now.getTime() - t) / 86_400_000);
 }
 
-/** Còn mấy ngày nữa hàng ở cửa hàng bị trả về. Âm = đã quá hạn. */
+/**
+ * Còn mấy ngày nữa hàng ở cửa hàng bị trả về. Âm = đã quá hạn.
+ *
+ * Hai đồng hồ, ưu tiên cái đáng tin hơn:
+ *
+ *   • 17TRACK nói đúng lúc hàng TỚI cửa hàng ⇒ đếm thẳng từ status_since.
+ *
+ *   • File đối tác chỉ có NGÀY XUẤT KHO, không có ngày tới cửa hàng ⇒ đếm từ
+ *     ngày xuất kho rồi trừ thời gian đi đường ước lượng. Nếu chỉ dựa vào
+ *     status_since thì lần nhập file đầu tiên coi MỌI đơn là "vừa mới tới" —
+ *     kiểm trên dữ liệu thật: cả 45 đơn đang ở cửa hàng đều đã xuất kho 8–21
+ *     ngày, tức đều quá hạn, mà hệ thống lại báo nhẹ hều. Hỏng đúng lúc cần nhất.
+ */
 export function daysLeftAtStore(s: Shipment, now: Date = new Date()): number | null {
     if (s.status !== "AvailableForPickup") return null;
+
+    if (s.source === "17track") {
+        const d = daysBetween(s.status_since, now);
+        return d === null ? null : TRACK_CFG.pickup_expire_days - d;
+    }
+
+    const sinceShip = daysBetween(s.ship_date ? `${s.ship_date}T00:00:00Z` : null, now);
+    if (sinceShip !== null) {
+        return TRACK_CFG.pickup_expire_days + TRACK_CFG.transit_days_estimate - sinceShip;
+    }
+
     const d = daysBetween(s.status_since, now);
     return d === null ? null : TRACK_CFG.pickup_expire_days - d;
+}
+
+/** Số ngày hàng đã nằm chờ, theo đồng hồ đáng tin nhất đang có. */
+export function daysWaiting(s: Shipment, now: Date = new Date()): number | null {
+    if (s.source !== "17track" && s.ship_date) {
+        const d = daysBetween(`${s.ship_date}T00:00:00Z`, now);
+        if (d !== null) return Math.max(0, d - TRACK_CFG.transit_days_estimate);
+    }
+    return daysBetween(s.status_since, now);
 }
 
 /**
@@ -139,26 +194,33 @@ export function buildAlerts(shipments: Shipment[], now: Date = new Date()): Trac
     const out: TrackAlert[] = [];
 
     for (const s of shipments) {
-        if (!s.registered) {
-            out.push({
-                level: "nhac", code: "chua_dang_ky",
-                title: "Chưa đăng ký theo dõi",
-                detail: "Đơn có mã vận đơn nhưng chưa gửi sang 17TRACK — bấm “Đồng bộ” để đăng ký.",
-                days: null, shipment: s,
-            });
+        // Chỉ giục đăng ký 17TRACK khi ĐANG MÙ hẳn — không có trạng thái từ
+        // nguồn nào. File đối tác đã nói được trạng thái thì khỏi tốn quota;
+        // giục đăng ký cả những đơn đó chỉ tạo ra hàng trăm dòng nhiễu.
+        if (!s.status) {
+            if (!s.registered) {
+                out.push({
+                    level: "nhac", code: "chua_dang_ky",
+                    title: "Chưa biết đơn đang ở đâu",
+                    detail: "Không có trạng thái từ file đối tác lẫn 17TRACK. Tải file mới, hoặc đăng ký 17TRACK để soi riêng đơn này.",
+                    days: null, shipment: s,
+                });
+            }
             continue;
         }
 
-        if (!s.status || TERMINAL.has(s.status)) continue;
+        if (TERMINAL.has(s.status)) continue;
 
         if (s.status === "AvailableForPickup") {
             const left = daysLeftAtStore(s, now);
-            const atStore = daysBetween(s.status_since, now);
+            const atStore = daysWaiting(s, now);
             if (left !== null && left <= TRACK_CFG.warn_before_expire_days) {
                 out.push({
                     level: "gap", code: "sap_bi_tra_ve",
                     title: left < 0 ? "Đã quá hạn lấy hàng" : `Còn ${left} ngày là bị trả về`,
-                    detail: `Nằm ở cửa hàng ${atStore} ngày. Gọi khách ngay, quá hạn là mất cả tiền hàng lẫn phí ship hai chiều.`,
+                    detail: s.ship_date
+                        ? `Xuất kho ${daysBetween(`${s.ship_date}T00:00:00Z`, now)} ngày trước mà khách chưa lấy. Gọi ngay — quá hạn là mất cả tiền hàng lẫn phí ship hai chiều.`
+                        : `Nằm ở cửa hàng ${atStore} ngày. Gọi khách ngay, quá hạn là mất cả tiền hàng lẫn phí ship hai chiều.`,
                     days: atStore, shipment: s,
                 });
             } else {
@@ -185,7 +247,10 @@ export function buildAlerts(shipments: Shipment[], now: Date = new Date()): Trac
         }
 
         const idle = daysBetween(s.last_event_time || s.status_since, now);
-        if (idle !== null && idle >= TRACK_CFG.stale_days) {
+        // Bỏ qua mốc vô lý (>1 năm): gần như luôn là gõ nhầm năm trong file đối
+        // tác — đã gặp đơn ghi xuất kho 2025 mà lên đơn 2026. Báo "đứng im 398
+        // ngày" chỉ làm người đọc mất tin vào cảnh báo.
+        if (idle !== null && idle >= TRACK_CFG.stale_days && idle < 365) {
             out.push({
                 level: "canh_bao", code: "dung_im",
                 title: `Đứng im ${idle} ngày`,

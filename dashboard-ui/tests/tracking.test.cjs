@@ -142,4 +142,50 @@ t("mọi trạng thái của 17TRACK đều có nhãn", () => {
     }
 });
 
+console.log("── Đồng hồ đếm hạn theo ngày xuất kho ──");
+const shipDaysAgo = (n) => new Date(NOW.getTime() - n * 86400000).toISOString().slice(0, 10);
+
+t("BẪY: file đối tác chỉ có ngày XUẤT KHO, không có ngày tới cửa hàng", () => {
+    // Nếu chỉ đếm từ status_since thì lần nhập file đầu tiên coi MỌI đơn là "vừa
+    // tới". Kiểm trên dữ liệu thật: cả 45 đơn ở cửa hàng đều xuất kho 8–21 ngày
+    // trước, tức đều quá hạn, mà hệ thống lại báo nhẹ hều — hỏng đúng lúc cần nhất.
+    const s = ship({
+        status: "AvailableForPickup", source: "doi_tac",
+        status_since: NOW.toISOString(),      // vừa nhập file xong
+        ship_date: shipDaysAgo(13),           // nhưng hàng đã đi 13 ngày
+    });
+    const a = T.buildAlerts([s], NOW);
+    assert.strictEqual(a[0].level, "gap", "phải báo GẤP theo ngày xuất kho");
+    assert.ok(a[0].detail.includes("Xuất kho"));
+});
+t("đơn vừa xuất kho thì chỉ nhắc, không kêu gấp", () => {
+    const s = ship({
+        status: "AvailableForPickup", source: "doi_tac",
+        status_since: NOW.toISOString(), ship_date: shipDaysAgo(2),
+    });
+    assert.strictEqual(T.buildAlerts([s], NOW)[0].level, "nhac");
+});
+t("có 17TRACK thì tin mốc của 17TRACK, bỏ ước lượng đi đường", () => {
+    const s = ship({
+        status: "AvailableForPickup", source: "17track",
+        status_since: daysAgo(1), ship_date: shipDaysAgo(30),
+    });
+    assert.strictEqual(T.daysLeftAtStore(s, NOW), T.TRACK_CFG.pickup_expire_days - 1);
+});
+t("mốc vô lý quá 1 năm KHÔNG đẻ ra cảnh báo đứng im", () => {
+    // Gặp thật: đối tác gõ nhầm năm, ra "đứng im 398 ngày".
+    const s = ship({ status: "InTransit", status_since: daysAgo(398), last_event_time: daysAgo(398) });
+    assert.strictEqual(T.buildAlerts([s], NOW).filter((a) => a.code === "dung_im").length, 0);
+});
+t("đứng im trong khoảng hợp lý thì vẫn báo", () => {
+    const s = ship({ status: "InTransit", status_since: daysAgo(40), last_event_time: daysAgo(40) });
+    assert.strictEqual(T.buildAlerts([s], NOW)[0].code, "dung_im");
+});
+t("file đối tác đã cho trạng thái thì KHÔNG giục đăng ký 17TRACK", () => {
+    // Giục cả 589 đơn là hàng trăm dòng nhiễu, che mất việc thật.
+    const s = ship({ registered: false, status: "InTransit", source: "doi_tac" });
+    assert.strictEqual(T.buildAlerts([s], NOW).filter((a) => a.code === "chua_dang_ky").length, 0);
+});
+
+
 console.log(`\n${pass} phép thử — tất cả đạt.`);
