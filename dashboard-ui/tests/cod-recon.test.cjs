@@ -76,4 +76,92 @@ t("tổng tiền cộng đúng", () => {
     assert.strictEqual(r.summary.fee_total, 15);
 });
 
+// ─── Khoá hai tầng — dựng lại từ dữ liệu thật 7 kỳ sao kê NAZA ──────────────
+console.log("── Khoá hai tầng: mã vận đơn rồi mới tới mã đơn ──");
+
+/** Sao kê ghi cả mã đơn — cần để thử tầng khoá thứ hai. */
+const stm2 = (tracking, orderId, amount, fee = 0) => ({
+    tracking, order_id: orderId, amount, fee, paid_date: "2026-09-03", status: "paid",
+});
+
+t("mã vận đơn có số 0 ở đầu vẫn khớp — '06722405704' = '6722405704'", () => {
+    const r = R.reconcile([pos(1, "6722405704", 749)], [stm("06722405704", 749)]);
+    assert.strictEqual(r.summary.matched, 1);
+});
+
+t("BẪY THẬT: đơn GIAO LẠI đổi mã vận đơn nhưng giữ mã đơn → vẫn phải khớp", () => {
+    // T1115 thật: file mình ghi 17952890, NAZA trả trên 17959110 sau khi gửi lại.
+    const r = R.reconcile(
+        [{ ...pos(0, "17952890", 799), order_id: "T1115", order_uid: "TW-T1115" }],
+        [stm2("17959110", "T1115", 799)],
+    );
+    assert.strictEqual(r.summary.matched, 1, "phải khớp qua tầng 2, không được báo mất tiền");
+    assert.strictEqual(r.lines[0].matched_by, "order_id_giao_lai");
+    assert.strictEqual(r.lines[0].paid_tracking, "17959110", "giữ mã vận đơn 3PL thật sự trả");
+    assert.strictEqual(r.lines[0].tracking, "17952890", "vẫn giữ mã vận đơn gốc của mình");
+});
+
+t("mã vận đơn luôn thắng mã đơn khi cả hai cùng khớp được", () => {
+    const r = R.reconcile(
+        [{ ...pos(0, "111", 100), order_id: "T1", order_uid: "u1" },
+         { ...pos(0, "222", 200), order_id: "T2", order_uid: "u2" }],
+        [stm2("222", "T1", 200)],
+    );
+    assert.strictEqual(r.lines[0].matched_by, "tracking");
+    assert.strictEqual(r.lines[0].order_uid, "u2");
+});
+
+t("BẪY THẬT: mã đơn dùng lại (T1402) không được nuốt hai lần thanh toán", () => {
+    // T1402 thật xuất hiện 2 lần: 1.500 TWD trên mã 17916892, 749 TWD trên 17992306.
+    const r = R.reconcile(
+        [{ ...pos(0, "17916892", 1500), order_id: "T1402", order_uid: "u-a" }],
+        [stm2("17916892", "T1402", 1500), stm2("17992306", "T1402", 749)],
+    );
+    assert.strictEqual(r.summary.matched, 1);
+    assert.strictEqual(r.summary.extra_in_statement, 1, "lần trả thứ hai là tiền thừa, phải lộ ra");
+});
+
+t("tầng 2 bỏ qua tiền tố TAIWAN- và hậu tố -Z", () => {
+    const r = R.reconcile(
+        [{ ...pos(0, "999", 500), order_id: "T1020", order_uid: "u1" }],
+        [stm2("888", "TAIWAN-T1020", 500)],
+    );
+    assert.strictEqual(r.summary.matched, 1);
+    assert.strictEqual(r.lines[0].matched_by, "order_id_giao_lai");
+});
+
+console.log("── Tách tiền còn chờ khỏi tiền quá hạn ──");
+
+t("đã giao gần đây, tiền chưa về → chua_ve_tien (nhịp thanh toán bình thường)", () => {
+    const r = R.reconcile([pos(1, "A", 900)], [], { asOf: "2026-09-10", overdueDays: 30 });
+    assert.strictEqual(r.lines[0].verdict, "chua_ve_tien");
+    assert.strictEqual(r.summary.overdue, 0);
+});
+
+t("đã giao quá 30 ngày mà tiền vẫn chưa về → qua_han, phải đi đòi", () => {
+    const r = R.reconcile([pos(1, "A", 900)], [], { asOf: "2026-11-01", overdueDays: 30 });
+    assert.strictEqual(r.lines[0].verdict, "qua_han");
+    assert.strictEqual(r.summary.overdue, 1);
+    assert.strictEqual(r.summary.overdue_amount, 900);
+});
+
+t("cả hai loại đều là tiền treo — pending_amount cộng chung", () => {
+    const r = R.reconcile(
+        [pos(1, "A", 900), { ...pos(2, "B", 100), order_date: "2026-01-01" }],
+        [], { asOf: "2026-09-10", overdueDays: 30 },
+    );
+    assert.strictEqual(r.summary.missing_in_statement, 2);
+    assert.strictEqual(r.summary.pending_amount, 1000);
+    assert.strictEqual(r.summary.overdue_amount, 100);
+});
+
+t("diff_total chỉ cộng phần LỆCH THẬT, không cộng đơn chưa về tiền", () => {
+    // Trộn chung thì một đơn chưa về 900 sẽ giả dạng thành 'lệch 900' và
+    // nuốt mất khoản lệch thật 50 — hai việc khác hẳn nhau.
+    const r = R.reconcile([pos(1, "A", 900), pos(2, "B", 950)], [stm("B", 900)]);
+    assert.strictEqual(r.summary.mismatched, 1);
+    assert.strictEqual(r.summary.diff_total, -50);
+    assert.strictEqual(r.summary.pending_amount, 900);
+});
+
 console.log(`\n${pass} phép thử — tất cả đạt.`);

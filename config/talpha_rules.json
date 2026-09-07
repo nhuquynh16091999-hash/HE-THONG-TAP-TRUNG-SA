@@ -263,67 +263,141 @@
     "manual": {},
     "unassigned_label": "(chưa gán sale)"
   },
-  "_shipping_note": "Phí 3PL mỗi đơn, tính bằng TWD. Đơn giao thành công = packing + delivery + cod_local×cod_pct + cod_flat. KHÔNG dùng sale_order.shipping_fee (nó mirror cod, là rác). ⚠ CHƯA CHỐT: hệ cũ để trống vì Đài là market test. Giờ Đài là thị trường DUY NHẤT — chưa khai thì mọi con số lãi/lỗ và đối soát COD đều thiếu phí vận chuyển.",
+  "_shipping_note": "Bảng giá 3PL Đài Loan — NAZA供应链. Nguồn: '18.10 COD TỪ TQ ĐI 8 NƯỚC.xlsx' sheet 'ĐÀI LOAN'. Phí ghi bằng RMB, sao kê cũng tính bằng RMB rồi mới quy ra VND. Đã soát ngược 463 dòng phí thật của 7 kỳ: khớp bảng giá 100%, lệch 0 RMB.",
   "shipping_fees": {
     "TW": {
-      "partner": "",
-      "packing": 0,
-      "delivery": 0,
-      "cod_pct": 0,
-      "cod_flat": 0,
-      "declared": false,
-      "_todo": "CHƯA KHAI — cần: tên đơn vị vận chuyển, phí đóng gói, phí giao, % thu hộ COD."
-    }
+      "partner": "NAZA供应链",
+      "currency": "RMB",
+      "declared": true,
+      "source_file": "18.10 COD TỪ TQ ĐI 8 NƯỚC.xlsx — sheet 'ĐÀI LOAN'",
+      "_channel_note": "Khớp kênh bằng token trong cột 运输方式/PHƯƠNG THỨC VẬN CHUYỂN của sao kê. Tên kênh mỗi file mỗi khác nên phải dò bằng token, không so chuỗi nguyên.",
+      "channels": [
+        {
+          "code": "cvs",
+          "name": "Cửa hàng tiện lợi 7-Eleven / FamilyMart",
+          "first_kg": 27,
+          "tokens": [
+            "711",
+            "7-11",
+            "7 ELEVEN",
+            "7ELEVEN",
+            "全家",
+            "FAMILY MART",
+            "FAMILYMART",
+            "FAMILY"
+          ]
+        },
+        {
+          "code": "hct",
+          "name": "HCT Logistics — giao tận nhà",
+          "first_kg": 32,
+          "tokens": [
+            "新竹",
+            "HCT",
+            "TẬN NHÀ",
+            "TAN NHA",
+            "GIAO TẠI NHÀ",
+            "GIAO TAI NHA"
+          ]
+        },
+        {
+          "code": "yamato",
+          "name": "Yamato Transport",
+          "first_kg": 38,
+          "tokens": [
+            "YAMATO",
+            "黑猫",
+            "黑貓"
+          ]
+        }
+      ],
+      "_extra_kg_note": "Bảng giá ghi: dưới 3KG tính 15 RMB/kg, trên 3KG tính 19 RMB/kg — áp cho phần SAU kg đầu tiên.",
+      "extra_kg": {
+        "under_3kg": 15,
+        "over_3kg": 19
+      },
+      "op_fee_per_parcel": 3,
+      "_op_fee_note": "3 RMB/đơn, thu đều trên cả 463 đơn. KHÔNG có trong bảng giá — bảng giá ghi 'Phí thao tác chuyển hàng: Miễn phí'. Cần hỏi NAZA khoản này là gì. Đã trả 1.389 RMB qua 7 kỳ.",
+      "warehouse": {
+        "return_inbound": "Miễn phí trong 1 tháng kể từ ngày nhập kho",
+        "transfer_handling": "Miễn phí — kiểm hàng, đổi đơn, xuất kho",
+        "reship": "Tính như phí gửi trực tiếp, không thu thêm phí đóng gói"
+      }
+    },
+    "_todo_other_markets": "Chỉ có Đài Loan. Thêm thị trường thì khai thêm khoá ở đây."
   },
   "cod_settlement": {
-    "_note": "Đối soát COD: khớp file sao kê 3PL với đơn trong POS. Cột file sao kê khai ở column_map, tên cột không phân biệt hoa thường và bỏ qua khoảng trắng thừa.",
-    "match_key": "tracking",
-    "_match_key_note": "tracking = khớp theo mã vận đơn (lấy từ tracking_link của POS); order_id = khớp theo mã đơn.",
-    "amount_tolerance_local": 1,
-    "_tolerance_note": "Lệch dưới ngưỡng này (TWD) coi như khớp — tránh báo động vì làm tròn.",
-    "column_map": {
-      "tracking": [
-        "tracking",
-        "tracking_no",
-        "mã vận đơn",
-        "waybill",
-        "awb",
-        "so vd"
+    "_note": "Công thức quyết toán của NAZA, đã kiểm đúng trên cả 7 kỳ (lệch 0).",
+    "formula": [
+      "TWD_ròng = tổng COD thu − hoàn tiền khiếu nại",
+      "RMB = TWD_ròng × tỷ_giá_TWD_RMB",
+      "RMB_ròng = RMB − phí vận chuyển − phí thao tác",
+      "VND = RMB_ròng × tỷ_giá_RMB_VND",
+      "VND_phải_trả = VND − phí mua hàng kỳ này ± điều chỉnh kỳ trước"
+    ],
+    "_carry_note": "Kỳ ÂM được mang sang kỳ sau. Thật: kỳ 24/07 ra −163,29 RMB, kỳ 31/07 trừ lại đúng −636.831 VND (−163,29 × 3.900).",
+    "statement_sheets": {
+      "summary": [
+        "汇总",
+        "TỔNG",
+        "TONG",
+        "TOTAL"
       ],
-      "order_id": [
-        "order_id",
-        "order",
-        "mã đơn",
-        "don hang"
-      ],
-      "amount": [
-        "amount",
-        "cod",
-        "cod_amount",
-        "số tiền",
-        "so tien",
-        "thu hộ"
+      "cod": [
+        "COD"
       ],
       "fee": [
-        "fee",
-        "phí",
-        "phi",
-        "shipping_fee",
-        "service_fee"
-      ],
-      "paid_date": [
-        "paid_date",
-        "settle_date",
-        "ngày thanh toán",
-        "ngay tt",
-        "date"
-      ],
-      "status": [
-        "status",
-        "trạng thái",
-        "trang thai"
+        "运费",
+        "VẬN CHUYỂN",
+        "VAN CHUYEN"
       ]
-    }
+    },
+    "_sheet_note": "Tên sheet mỗi file mỗi khác ('汇总 TỔNG', 'TỔNG', '汇总', ' ĐỐI SOÁT COD' có dấu cách đầu). Phải dò bằng token, và dò sheet phí TRƯỚC sheet COD vì tên sheet COD ngắn hơn.",
+    "header_anchors": {
+      "order_id": [
+        "原单号"
+      ],
+      "tracking": [
+        "转单号"
+      ],
+      "cod_amount": [
+        "COD金额",
+        "COD"
+      ],
+      "recv_date": [
+        "收货日期"
+      ],
+      "ship_date": [
+        "出货日期"
+      ],
+      "channel": [
+        "运输方式",
+        "产品名称"
+      ],
+      "chargeable_kg": [
+        "计费重"
+      ],
+      "ship_fee": [
+        "速递运费"
+      ],
+      "op_fee": [
+        "操作费",
+        "快递运费"
+      ]
+    },
+    "_anchor_note": "Neo vào mã tiếng Trung vì phần tiếng Việt đổi liên tục. Dòng tiêu đề nằm ở r1/r3/r5 tuỳ file.",
+    "match_key": "tracking",
+    "fallback_match_key": "order_id",
+    "_match_note": "Mã vận đơn duy nhất tuyệt đối trên 784 dòng thật → khoá chính. Mã đơn KHÔNG duy nhất: T1402 dùng lại cho 2 lần giao khác nhau. Nhưng đơn GIAO LẠI đổi mã vận đơn mà giữ mã đơn, nên vẫn cần tầng 2. Bỏ tầng 2 thì 5 đơn thật bị báo nhầm là mất tiền.",
+    "order_id_strip": [
+      "^TAIWAN[-\\s]*",
+      "[-\\s]*Z$",
+      "-\\d+$"
+    ],
+    "_strip_note": "Mã đơn thật có tiền tố TAIWAN-, hậu tố -Z (转寄 = chuyển tiếp) và -1 (lần giao lại).",
+    "amount_tolerance_local": 1,
+    "pending_alert_days": 30,
+    "_pending_note": "Quá 30 ngày kể từ ngày xuất kho mà chưa về tiền thì coi như mất, không phải chờ."
   },
   "_tracking_note": "Theo dõi vận đơn qua 17TRACK. TIỀN: đăng ký 1 mã = 1 quota, tính MỘT LẦN; sau khi đăng ký thì hỏi trạng thái bao nhiêu lần cũng miễn phí. Vì vậy sổ đăng ký (data/tracking.json → registered) là thứ PHẢI giữ — mất nó là đăng ký lại từ đầu và đốt quota. Khoá API để ở biến môi trường TRACK17_API_KEY, KHÔNG khai vào file này.",
   "tracking": {
@@ -623,9 +697,11 @@
   "_todo": [
     "Tên đầy đủ của giám đốc (director.full).",
     "Tên bạn sale thứ hai (sales.Sale2) khi có người.",
-    "Phí 3PL Đài Loan (shipping_fees.TW) — chưa khai thì mọi số lãi/lỗ thiếu phí vận chuyển.",
     "Quy tắc gán sale (sale_assignment) — hiện mọi đơn rơi vào \"(chưa gán sale)\".",
-    "KPI tháng cho đội mới (targets) — số đang là của đội cũ."
+    "KPI tháng cho đội mới (targets) — số đang là của đội cũ.",
+    "Hỏi NAZA khoản 'phí thao tác' 3 RMB/đơn: bảng giá ghi miễn phí, thực tế thu đều. Đã trả 1.389 RMB qua 7 kỳ.",
+    "Sửa 6 mã vận đơn đang bị gán cho hai đơn khác nhau trong file đơn tổng (xem cảnh báo ở tab Đối soát).",
+    "Điền mã vận đơn cho 39 dòng đang để trống trong file đơn tổng."
   ],
   "_camp_naming_note": "CHUẨN ĐẶT TÊN CAMPAIGN (xem docs/CHUAN_DAT_TEN_CAMPAIGN.md):\n    MARKETER/TỆPKHÁCH/SANPHAM/TRANG/NGAY[/TEST]\nÔ hai là TỆP KHÁCH (PHI/INDO/VN/TW) — cộng đồng ở Đài mà quảng cáo nhắm tới, KHÔNG phải nước giao hàng. Thị trường luôn là Đài Loan nên không cần ghi.\nMarketer ở ô ĐẦU, dùng mã KHÔNG DẤU. Dấu / chỉ để ngăn ô — viết ngày kiểu 27/08 là tự đẻ thêm ô, mọi ô sau lệch hết."
 }

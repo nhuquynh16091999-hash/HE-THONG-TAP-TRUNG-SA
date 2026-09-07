@@ -157,8 +157,13 @@ export type PosOrder = {
 export type ReconVerdict =
     | "khop"                  // sao kê và POS khớp cả mã lẫn tiền
     | "lech_tien"             // khớp mã, lệch số tiền quá ngưỡng
-    | "chua_ve_tien"          // POS đã giao nhưng sao kê chưa có
-    | "thua_o_sao_ke";        // sao kê có mà POS không tìm ra đơn
+    | "chua_ve_tien"          // đã giao, sao kê chưa có, còn trong hạn chờ
+    | "qua_han"               // đã giao quá lâu mà tiền vẫn chưa về — phải đi đòi
+    | "thua_o_sao_ke";        // sao kê có mà không tìm ra đơn của mình
+
+/** Đơn khớp bằng đường nào. Đơn GIAO LẠI đổi mã vận đơn nhưng giữ mã đơn, nên
+ *  khớp được bằng mã đơn là dấu hiệu 3PL đã gửi lại lần hai. */
+export type MatchedBy = "tracking" | "order_id_giao_lai";
 
 export type ReconLine = {
     verdict: ReconVerdict;
@@ -174,6 +179,11 @@ export type ReconLine = {
     diff: number;             // sao kê − POS
     fee: number;
     paid_date: string;
+    matched_by: MatchedBy | null;
+    /** Mã vận đơn 3PL thật sự trả tiền — khác `tracking` khi đơn bị giao lại. */
+    paid_tracking: string | null;
+    /** Số ngày kể từ ngày xuất kho, dùng để tách "còn chờ" khỏi "quá hạn". */
+    age_days: number | null;
 };
 
 export type ReconResult = {
@@ -181,39 +191,116 @@ export type ReconResult = {
     summary: {
         matched: number;
         mismatched: number;
-        missing_in_statement: number;
+        missing_in_statement: number;   // gồm cả chua_ve_tien lẫn qua_han
         extra_in_statement: number;
+        overdue: number;                // số đơn quá hạn chờ — phải đi đòi
+        overdue_amount: number;
+        reshipped: number;              // số đơn khớp được nhờ tầng khoá thứ hai
         pos_total: number;
         stm_total: number;
         fee_total: number;
-        diff_total: number;
-        pending_amount: number;   // tiền đơn đã giao mà sao kê chưa trả
+        diff_total: number;             // chỉ cộng phần LỆCH THẬT, không cộng đơn chưa về
+        pending_amount: number;         // tiền đơn đã giao mà sao kê chưa trả
+    };
+    /** Vấn đề của CHÍNH DỮ LIỆU ĐƠN, không phải kết luận đối soát. Để riêng vì
+     *  cách xử lý khác hẳn: sửa file nguồn, chứ không đi đòi 3PL. */
+    data_issues: {
+        duplicate_tracking: { tracking: string; orders: string[] }[];
+        orders_without_tracking: number;
     };
     match_key: string;
     tolerance: number;
 };
 
-const keyOf = (o: { tracking?: string | null; order_id?: string | null }) =>
-    (MATCH_KEY === "tracking" ? o.tracking : o.order_id)?.toString().trim().toUpperCase() || "";
+/** Mã vận đơn: bỏ dấu cách và gạch, viết hoa. Bỏ số 0 ở đầu CHỈ KHI toàn chữ số
+ *  — cùng một đơn được ghi '06722405704' ở file này và '6722405704' ở file kia.
+ *  Không được cắt luôn phần chữ: mã 17TRACK có dạng '73N17897055', và POS có thể
+ *  lưu mã kiểu 'TW123'; cắt chữ đi thì hai đơn khác nhau hoá ra cùng một khoá. */
+const trkKey = (v?: string | null) => {
+    const s = String(v ?? "").trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
+    return /^\d+$/.test(s) ? s.replace(/^0+/, "") || s : s;
+};
+
+const STRIP_RULES = ((CFG as { order_id_strip?: string[] }).order_id_strip || []).map(
+    (p) => new RegExp(p, "i"),
+);
+
+const ordKey = (v?: string | null) => {
+    let s = String(v ?? "").trim().toUpperCase();
+    s = s.replace(/\s*\([^)]*\)\s*/g, " ").trim();   // 'T1467 (7564042426-z)' → 'T1467'
+    for (const re of STRIP_RULES) s = s.replace(re, "");
+    return s.trim();
+};
+
+const daysBetween = (from?: string | null, to?: string | null): number | null => {
+    if (!from) return null;
+    const a = Date.parse(from), b = to ? Date.parse(to) : Date.now();
+    if (!Number.isFinite(a) || !Number.isFinite(b)) return null;
+    return Math.floor((b - a) / 86_400_000);
+};
 
 /**
  * Đối chiếu. `posOrders` chỉ nên chứa đơn ĐÃ GIAO trong kỳ đang soát — đơn chưa
  * giao thì 3PL chưa có lý do trả tiền, đưa vào chỉ tạo báo động giả.
+ *
+ * KHOÁ ĐỐI CHIẾU HAI TẦNG, và thứ tự này không được đảo:
+ *
+ *   Tầng 1 — MÃ VẬN ĐƠN. Đo trên 784 dòng sao kê thật: duy nhất tuyệt đối,
+ *            không một mã nào lặp. Đây là khoá chính.
+ *   Tầng 2 — MÃ ĐƠN, chỉ khi tầng 1 trượt. Đơn giao lần đầu hỏng sẽ được gửi
+ *            lại bằng MÃ VẬN ĐƠN MỚI trong khi mã đơn giữ nguyên; file của mình
+ *            vẫn ghi mã vận đơn cũ. Bỏ tầng 2 thì 5 đơn thật bị kết luận nhầm
+ *            là mất tiền, trong khi 3PL đã trả đủ trên mã vận đơn mới.
+ *
+ * Mã đơn KHÔNG được làm khoá chính: T1402 thật sự được dùng lại cho hai lần
+ * giao khác nhau, hai mã vận đơn khác nhau, 1.500 và 749 TWD.
  */
-export function reconcile(posOrders: PosOrder[], stmRows: StatementRow[]): ReconResult {
-    const posByKey = new Map<string, PosOrder>();
+export function reconcile(
+    posOrders: PosOrder[],
+    stmRows: StatementRow[],
+    opts: { asOf?: string; overdueDays?: number } = {},
+): ReconResult {
+    const overdueDays = Number(
+        opts.overdueDays ?? (CFG as { pending_alert_days?: number }).pending_alert_days ?? 30,
+    );
+
+    const byTrk = new Map<string, PosOrder>();
+    const byOrd = new Map<string, PosOrder>();
+    // Một mã vận đơn lẽ ra chỉ thuộc về một đơn. Khi không phải vậy, bảng khoá
+    // chỉ giữ được đơn đầu tiên và đơn còn lại sẽ bị kết luận sai mà không kêu
+    // tiếng nào. Thật: 6 mã trong file đối tác đang mang hai đơn khác nhau, có
+    // cặp lệch tới 1.000 TWD. Nên phải đếm ra và trả về, không nuốt.
+    const dupTracking: { tracking: string; orders: string[] }[] = [];
+    let noTracking = 0;
+
     for (const o of posOrders) {
-        const k = keyOf(o);
-        if (k) posByKey.set(k, o);
+        const t = trkKey(o.tracking);
+        if (!t) noTracking++;
+        else if (byTrk.has(t)) {
+            const hit = dupTracking.find((d) => d.tracking === t);
+            if (hit) hit.orders.push(o.order_id);
+            else dupTracking.push({ tracking: t, orders: [byTrk.get(t)!.order_id, o.order_id] });
+        } else byTrk.set(t, o);
+
+        const k = ordKey(o.order_id);
+        if (k && !byOrd.has(k)) byOrd.set(k, o);
     }
 
     const lines: ReconLine[] = [];
-    const seen = new Set<string>();
+    const claimed = new Set<string>();          // order_uid đã được sao kê nhận
 
     for (const s of stmRows) {
-        const k = keyOf(s);
-        const pos = k ? posByKey.get(k) : undefined;
-        if (pos) seen.add(k);
+        const t = trkKey(s.tracking);
+        let pos = t ? byTrk.get(t) : undefined;
+        let how: MatchedBy | null = pos ? "tracking" : null;
+        if (!pos) {
+            const k = ordKey(s.order_id);
+            const cand = k ? byOrd.get(k) : undefined;
+            // Chỉ nhận tầng 2 khi đơn đó chưa bị dòng sao kê nào khác nhận, để
+            // một mã đơn dùng lại không nuốt mất hai lần thanh toán khác nhau.
+            if (cand && !claimed.has(cand.order_uid)) { pos = cand; how = "order_id_giao_lai"; }
+        }
+        if (pos) claimed.add(pos.order_uid);
 
         const posAmt = pos ? pos.cod_local : 0;
         const diff = s.amount - posAmt;
@@ -227,7 +314,7 @@ export function reconcile(posOrders: PosOrder[], stmRows: StatementRow[]): Recon
             verdict,
             order_uid: pos?.order_uid ?? null,
             order_id: pos?.order_id || s.order_id,
-            tracking: s.tracking || pos?.tracking || "",
+            tracking: pos?.tracking || s.tracking || "",
             order_date: pos?.order_date ?? null,
             status_name: pos?.status_name ?? null,
             marketer: pos?.marketer ?? null,
@@ -237,15 +324,19 @@ export function reconcile(posOrders: PosOrder[], stmRows: StatementRow[]): Recon
             diff,
             fee: s.fee,
             paid_date: s.paid_date,
+            matched_by: how,
+            paid_tracking: s.tracking || null,
+            age_days: daysBetween(pos?.order_date, opts.asOf),
         });
     }
 
-    // Đơn đã giao nhưng sao kê chưa nhắc tới = tiền còn treo ở 3PL.
+    // Đơn đã giao nhưng không dòng sao kê nào nhận = tiền còn nằm ở 3PL.
+    // Tách theo tuổi: mới thì là nhịp thanh toán bình thường, quá lâu là phải đi đòi.
     for (const o of posOrders) {
-        const k = keyOf(o);
-        if (k && seen.has(k)) continue;
+        if (claimed.has(o.order_uid)) continue;
+        const age = daysBetween(o.order_date, opts.asOf);
         lines.push({
-            verdict: "chua_ve_tien",
+            verdict: age !== null && age > overdueDays ? "qua_han" : "chua_ve_tien",
             order_uid: o.order_uid,
             order_id: o.order_id,
             tracking: o.tracking || "",
@@ -258,24 +349,35 @@ export function reconcile(posOrders: PosOrder[], stmRows: StatementRow[]): Recon
             diff: -o.cod_local,
             fee: 0,
             paid_date: "",
+            matched_by: null,
+            paid_tracking: null,
+            age_days: age,
         });
     }
 
     const by = (v: ReconVerdict) => lines.filter((l) => l.verdict === v);
     const sum = (xs: ReconLine[], f: (l: ReconLine) => number) => xs.reduce((s, l) => s + f(l), 0);
+    const pending = [...by("chua_ve_tien"), ...by("qua_han")];
 
     return {
         lines,
         summary: {
             matched: by("khop").length,
             mismatched: by("lech_tien").length,
-            missing_in_statement: by("chua_ve_tien").length,
+            missing_in_statement: pending.length,
             extra_in_statement: by("thua_o_sao_ke").length,
+            overdue: by("qua_han").length,
+            overdue_amount: sum(by("qua_han"), (l) => l.pos_amount),
+            reshipped: lines.filter((l) => l.matched_by === "order_id_giao_lai").length,
             pos_total: sum(lines, (l) => l.pos_amount),
             stm_total: sum(lines, (l) => l.stm_amount),
             fee_total: sum(lines, (l) => l.fee),
-            diff_total: sum(lines, (l) => l.diff),
-            pending_amount: sum(by("chua_ve_tien"), (l) => l.pos_amount),
+            diff_total: sum(by("lech_tien"), (l) => l.diff),
+            pending_amount: sum(pending, (l) => l.pos_amount),
+        },
+        data_issues: {
+            duplicate_tracking: dupTracking,
+            orders_without_tracking: noTracking,
         },
         match_key: MATCH_KEY,
         tolerance: TOLERANCE,
