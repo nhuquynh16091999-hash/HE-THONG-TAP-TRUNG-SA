@@ -28,11 +28,18 @@ pm2 logs talpha-dashboard     # xem log
 pm2 restart talpha-dashboard  # khởi động lại sau khi sửa code
 ```
 
-Sau khi sửa code thì phải **dựng lại** rồi mới khởi động lại:
+Sau khi sửa code, dùng đúng lệnh này — nó dựng xong mới khởi động lại:
 
 ```bash
-cd dashboard-ui && npm run build && pm2 restart talpha-dashboard
+cd dashboard-ui && npm run deploy
 ```
+
+**Đừng chạy `npm run build` khi pm2 đang chạy rồi bỏ đó.** Dựng lại là mọi file
+chunk đổi tên, nhưng tiến trình cũ vẫn phục vụ trang HTML trỏ vào tên cũ — trình
+duyệt ném `ChunkLoadError` và người dùng thấy **màn trắng**, chẳng có thông báo gì
+hiểu được. Đã dính thật. `npm run deploy` làm đúng thứ tự nên không vướng.
+
+Người dùng đang mở sẵn trang cũ thì bảo họ tải lại trang (Cmd+Shift+R).
 
 ---
 

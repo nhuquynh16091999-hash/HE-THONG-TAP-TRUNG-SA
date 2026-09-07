@@ -44,6 +44,15 @@ const NAV_GROUPS: NavGroup[] = [
         tabs: [
             { id: "orders", label: "Danh sách đơn" },
             { id: "tracking", label: "Theo dõi vận đơn" },
+        ],
+    },
+    // Đối soát đứng riêng chứ không nằm trong Đơn hàng: đây là việc soát TIỀN —
+    // tiền 3PL đã trả có khớp đơn đã giao không — làm theo kỳ, người làm và nhịp
+    // làm đều khác việc tra cứu đơn hằng ngày. Sau còn thêm đối soát tồn kho và
+    // đối soát chi phí vào cùng mục này.
+    {
+        id: "doi-soat", emoji: "🧮", label: "Đối soát",
+        tabs: [
             { id: "cod-recon", label: "Đối soát COD" },
         ],
     },
