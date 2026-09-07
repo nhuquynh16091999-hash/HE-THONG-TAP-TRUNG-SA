@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { bigquery } from "@/lib/bigquery";
-import { DISPLAY, parseCampaign, isTestCampaign, parseAudience, AUDIENCE_DISPLAY } from "@/lib/talpha/rules";
+import { DISPLAY, parseCampaign, isTestCampaign, parseAudience, AUDIENCE_DISPLAY,
+         parseProductCode, productName, isUnknownProduct } from "@/lib/talpha/rules";
 
 export const dynamic = "force-dynamic";
 
@@ -72,6 +73,10 @@ export async function GET(req: NextRequest) {
         // Đài hết. Đây là chiều để biết tệp nào ra tin nhắn rẻ nhất.
         const byAudience = new Map<string, Bucket>();
         let audienceUnknown = 0;
+        // Mã sản phẩm bóc từ tên campaign — nối chi phí quảng cáo với giá vốn để
+        // tính lãi lỗ tới từng mã hàng.
+        const byProduct = new Map<string, Bucket>();
+        let productUnknown = 0;
         let testSpend = 0, testCampaigns = 0;
         let unknownSpend = 0;
         const unknownNames: string[] = [];
@@ -94,6 +99,18 @@ export async function GET(req: NextRequest) {
                 byAudience.set(aud, ab);
             } else {
                 audienceUnknown += spend;
+            }
+
+            const sku = parseProductCode(name);
+            if (sku) {
+                const pb = byProduct.get(sku) || empty();
+                pb.spend += spend;
+                pb.messages += Number(r.messages) || 0;
+                pb.clicks += Number(r.clicks) || 0;
+                pb.campaigns += 1;
+                byProduct.set(sku, pb);
+            } else {
+                productUnknown += spend;
             }
 
             if (isTestCampaign(name)) { testSpend += spend; testCampaigns++; continue; }
@@ -138,6 +155,20 @@ export async function GET(req: NextRequest) {
             }))
             .sort((a, b) => b.spend_vnd - a.spend_vnd);
 
+        const products = Array.from(byProduct.entries())
+            .map(([code, b]) => ({
+                code,
+                name: productName(code),
+                // Chưa khai giá vốn thì lãi gộp của mã này sẽ ẢO CAO — nêu ra chứ
+                // không im lặng để người đọc tưởng đang lãi tốt.
+                cost_declared: !isUnknownProduct(code),
+                spend_vnd: b.spend,
+                messages: b.messages,
+                campaigns: b.campaigns,
+                cost_per_message: b.messages > 0 ? b.spend / b.messages : null,
+            }))
+            .sort((a, b) => b.spend_vnd - a.spend_vnd);
+
         const campaigns = (campRows as Record<string, unknown>[])
             .map((r) => {
                 const name = String(r.campaign_name || "");
@@ -147,6 +178,7 @@ export async function GET(req: NextRequest) {
                     account_name: String(r.account_name || ""),
                     marketer: key ? (DISPLAY[key] || key) : null,
                     audience: (() => { const a = parseAudience(name); return a ? (AUDIENCE_DISPLAY[a] || a) : null; })(),
+                    product_code: parseProductCode(name),
                     is_test: isTestCampaign(name),
                     spend_vnd: Number(r.spend) || 0,
                     clicks: Number(r.clicks) || 0,
@@ -178,7 +210,7 @@ export async function GET(req: NextRequest) {
 
         return NextResponse.json({
             from, to,
-            daily, accounts, marketers, audiences, campaigns,
+            daily, accounts, marketers, audiences, products, campaigns,
             totals: {
                 spend_vnd: totalSpend,
                 messages: daily.reduce((s, d) => s + d.messages, 0),
@@ -192,6 +224,10 @@ export async function GET(req: NextRequest) {
                 unattributed_spend_vnd: unknownSpend,
                 unattributed_samples: unknownNames,
                 audience_unknown_spend_vnd: audienceUnknown,
+                product_unknown_spend_vnd: productUnknown,
+                product_no_cost_spend_vnd: Array.from(byProduct.entries())
+                    .filter(([c]) => isUnknownProduct(c))
+                    .reduce((n, [, b]) => n + b.spend, 0),
             },
         });
     } catch (e) {

@@ -22,15 +22,21 @@ type Audience = {
     key: string; audience: string; spend_vnd: number; messages: number;
     clicks: number; campaigns: number; cost_per_message: number | null;
 };
+type Product = {
+    code: string; name: string | null; cost_declared: boolean;
+    spend_vnd: number; messages: number; campaigns: number; cost_per_message: number | null;
+};
 type Campaign = {
     campaign_name: string; account_name: string; marketer: string | null;
     audience: string | null;
+    product_code: string | null;
     is_test: boolean; spend_vnd: number; clicks: number; impressions: number; messages: number;
 };
 type Totals = {
     spend_vnd: number; messages: number; clicks: number; impressions: number;
     test_spend_vnd: number; test_campaigns: number;
     unattributed_spend_vnd: number; unattributed_samples: string[];
+    product_unknown_spend_vnd?: number; product_no_cost_spend_vnd?: number;
 };
 
 export default function TALPHAAdSpendTab({ dateRange }: Props) {
@@ -40,6 +46,7 @@ export default function TALPHAAdSpendTab({ dateRange }: Props) {
     const [marketers, setMarketers] = useState<MarketerRow[]>([]);
     const [accounts, setAccounts] = useState<Account[]>([]);
     const [audiences, setAudiences] = useState<Audience[]>([]);
+    const [products, setProducts] = useState<Product[]>([]);
     const [campaigns, setCampaigns] = useState<Campaign[]>([]);
     const [totals, setTotals] = useState<Totals | null>(null);
     const [showTest, setShowTest] = useState(false);
@@ -56,6 +63,7 @@ export default function TALPHAAdSpendTab({ dateRange }: Props) {
             setDaily(d.daily || []); setMarketers(d.marketers || []);
             setAccounts(d.accounts || []); setCampaigns(d.campaigns || []);
             setAudiences(d.audiences || []);
+            setProducts(d.products || []);
             setTotals(d.totals);
         } catch (e) {
             setError(e instanceof Error ? e.message : "Lỗi không rõ");
@@ -173,6 +181,51 @@ export default function TALPHAAdSpendTab({ dateRange }: Props) {
                         Đây là các cộng đồng đang sống <b>tại Đài Loan</b> mà quảng cáo nhắm tới, không phải thị trường khác —
                         hàng vẫn giao ở Đài, vẫn thu TWD. Tệp có giá mỗi tin rẻ nhất là chỗ đáng cân nhắc dồn thêm ngân sách.
                     </p>
+                </Panel>
+            )}
+
+            {products.length > 0 && (
+                <Panel title="Theo mã sản phẩm">
+                    <table className="w-full text-sm">
+                        <thead>
+                            <tr className="border-b border-border text-xs uppercase tracking-wide text-muted-foreground">
+                                <th className="py-2 text-left font-medium">Mã</th>
+                                <th className="py-2 text-left font-medium">Sản phẩm</th>
+                                <th className="py-2 text-right font-medium">Chi tiêu</th>
+                                <th className="py-2 text-right font-medium">Tin nhắn</th>
+                                <th className="py-2 text-right font-medium">Giá mỗi tin</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {products.map((p) => (
+                                <tr key={p.code} className="border-b border-border/40 last:border-0">
+                                    <td className="py-2 font-mono">{p.code}</td>
+                                    <td className={cn("py-2", !p.cost_declared && "text-amber-600 dark:text-amber-400")}>
+                                        {p.name || (
+                                            <span title="Chưa khai giá vốn — lãi gộp của mã này sẽ ảo cao">
+                                                ⚠ chưa khai giá vốn
+                                            </span>
+                                        )}
+                                    </td>
+                                    <td className="py-2 text-right font-mono tabular-nums">{formatVNDCompact(p.spend_vnd)}</td>
+                                    <td className="py-2 text-right tabular-nums">{formatNumber(p.messages)}</td>
+                                    <td className="py-2 text-right font-mono tabular-nums text-muted-foreground">
+                                        {p.cost_per_message ? formatVNDCompact(p.cost_per_message) : "—"}
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                    {(totals.product_no_cost_spend_vnd || totals.product_unknown_spend_vnd) ? (
+                        <p className="mt-2 text-xs text-amber-700 dark:text-amber-400">
+                            {totals.product_no_cost_spend_vnd ? (
+                                <>{formatVNDCompact(totals.product_no_cost_spend_vnd)} chạy vào mã <b>chưa khai giá vốn</b> — lãi gộp của phần này ảo cao. </>
+                            ) : null}
+                            {totals.product_unknown_spend_vnd ? (
+                                <>{formatVNDCompact(totals.product_unknown_spend_vnd)} ở campaign <b>không ghi mã sản phẩm</b> — đặt tên theo chuẩn thì số tự về đúng mã.</>
+                            ) : null}
+                        </p>
+                    ) : null}
                 </Panel>
             )}
 

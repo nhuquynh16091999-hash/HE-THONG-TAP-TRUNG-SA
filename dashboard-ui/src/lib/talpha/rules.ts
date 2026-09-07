@@ -264,6 +264,45 @@ export function parseAudience(cn?: string | null): string | null {
     return null;
 }
 
+// ═══════════════════════════════════════════════════════════════════
+// MÃ SẢN PHẨM trong tên campaign
+//
+// Ô thứ tư theo chuẩn, dạng "042-BLACK" hay "040 - VONGVANG1" — ba số đầu là mã
+// SKU, phần sau là biến thể. Bóc được mã này thì nối được CHI PHÍ QUẢNG CÁO với
+// GIÁ VỐN của chính sản phẩm đó, tức là tính được lãi lỗ tới từng mã hàng chứ
+// không chỉ tổng.
+//
+// Nhận bằng HÌNH DẠNG (ba số rồi tới ký tự không phải số) chứ không bằng vị trí,
+// nên đọc được cả tên cũ đặt khác thứ tự. Ngày kiểu "2808" bốn số liền không bị
+// bắt nhầm vì sau ba số đầu vẫn là số.
+// ═══════════════════════════════════════════════════════════════════
+const SKU_RE = /^(\d{3})(?![0-9])/;
+
+/** Ô sản phẩm → mã SKU ba số. Không thấy thì null, KHÔNG đoán. */
+export function parseProductCode(cn?: string | null): string | null {
+    for (const seg of String(cn || "").split("/")) {
+        const m = seg.trim().match(SKU_RE);
+        if (m) return m[1];
+    }
+    return null;
+}
+
+/** Mã SKU đã khai giá vốn trong talpha_rules.json → products. */
+export const PRODUCT_CODES: ReadonlySet<string> = new Set(
+    Object.keys((RULES as unknown as { products?: Record<string, unknown> }).products || {})
+        .filter((k) => !k.startsWith("_")));
+
+export function productName(code?: string | null): string | null {
+    if (!code) return null;
+    const p = (RULES as unknown as { products?: Record<string, { name?: string }> }).products || {};
+    return p[code]?.name || null;
+}
+
+/** Mã có trong tên campaign nhưng CHƯA khai giá vốn — lãi gộp của nó sẽ ảo cao. */
+export function isUnknownProduct(code?: string | null): boolean {
+    return !!code && !PRODUCT_CODES.has(code);
+}
+
 /** campaign_name → [thị trường, key marketer]; quy ước '… / <Thị trường> / <Marketer> / …'. */
 export function parseCampaign(cn?: string | null): [string | null, string | null] {
     const p = String(cn || "").split("/").map((x) => x.trim());

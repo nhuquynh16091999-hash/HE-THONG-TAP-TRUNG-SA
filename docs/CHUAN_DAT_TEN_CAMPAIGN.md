@@ -8,7 +8,7 @@
 ## Công thức
 
 ```
-THỊTRƯỜNG/MARKETER/TỆPKHÁCH/SANPHAM/TENTRANG/NGAY
+THỊTRƯỜNG/MARKETER/TỆPKHÁCH/MÃSANPHAM/TENTRANG/NGAY/TEST
 ```
 
 Thêm `/TEST` ở cuối nếu là campaign thử sản phẩm.
@@ -24,7 +24,7 @@ TW/SANH/TW/BONGTAI-TRON/LuckyClover/2808/TEST
 
 ---
 
-## Sáu ô, theo đúng thứ tự
+## Các ô, theo đúng thứ tự
 
 ### 1. Thị trường — hiện luôn là `TW`
 
@@ -81,13 +81,21 @@ Bổ chi tiêu theo tệp là chiều phân tích đáng tiền. Đo 30 ngày th
 
 Tệp người Việt ra tin nhắn rẻ chưa bằng nửa tệp Philippines, mà chỉ được 6% ngân sách.
 
-### 4. Sản phẩm — mã SKU, không dấu, nối bằng gạch ngang
+### 4. Mã sản phẩm — BẮT BUỘC bắt đầu bằng mã SKU ba số
 
 ```
-042-BLACK        036-BROWN        SET-KIM-CUONG
+042-BLACK        036-BROWN        040-VONGVANG1        053-SET10
 ```
 
-Có mã SKU thì dùng mã. Không có thì viết không dấu, thay khoảng trắng bằng `-`.
+Ba số đầu là mã SKU, phần sau là biến thể. **Phải có ba số đầu** — đó là thứ nối
+chi phí quảng cáo với giá vốn, tức là thứ cho biết mã hàng nào thật sự có lãi.
+
+Viết `SET-KIM-CUONG` không có mã thì tiền chạy vào ô "không rõ mã". Đo 30 ngày
+thật: **23,5 triệu** đang nằm ở ô đó, không quy được về sản phẩm nào.
+
+Và trong số đã có mã, **20 triệu chạy vào mã CHƯA KHAI GIÁ VỐN** — lãi gộp của
+phần này đang ảo cao. Dashboard có đánh dấu ⚠ ở bảng "Theo mã sản phẩm"; thấy dấu
+đó thì khai giá vốn vào `config/talpha_rules.json → products`.
 
 ### 5. Tên trang — viết liền hoặc nối gạch
 
@@ -117,7 +125,7 @@ TW/THUONG/PHI/SET KIM CƯƠNG/LuxeGold Jewelry - 27/08
 
 **Trong tên campaign, `/` chỉ được dùng để ngăn ô. Không dùng ở chỗ nào khác.**
 
-### Campaign test — thêm `/TEST` ở cuối
+### 7. `/TEST` — chỉ thêm khi là campaign thử
 
 ```
 TW/SANH/TW/BONGTAI-TRON/LuckyClover/2808/TEST
@@ -153,6 +161,7 @@ chạy. Nhưng tên cũ đọc bằng cách đoán, còn tên mới đọc chắ
 - [ ] Ô 2 có phải mã marketer không dấu trong bảng trên không?
 - [ ] Ô 3 có phải mã tệp khách (`PHI` / `INDO` / `VN` / `TW`) không?
 - [ ] Trong tên còn dấu `/` nào không phải để ngăn ô không?
-- [ ] Đếm đủ 6 ô chưa?
+- [ ] Ô 4 có bắt đầu bằng **mã SKU ba số** không?
+- [ ] Đếm đủ 6 ô chưa? (7 nếu là campaign test)
 
 Sai một ô là tiền chạy sang người khác, mà báo cáo vẫn ra bình thường.

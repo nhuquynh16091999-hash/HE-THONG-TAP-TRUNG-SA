@@ -202,4 +202,32 @@ t("không rõ tệp thì trả null, KHÔNG mặc định về tệp nào", () =
 });
 
 
+console.log("── Mã sản phẩm trong tên campaign ──");
+t("bóc mã 3 số từ ô sản phẩm", () => {
+    assert.strictEqual(R.parseProductCode("TW/LOC/PHI/042-BLACK/Trang/2808"), "042");
+    assert.strictEqual(R.parseProductCode("TW/THAI/INDO/040 - VONGVANG1/Lumora/1908"), "040");
+    assert.strictEqual(R.parseProductCode("Lộc/Philippine/036 - BROWN/TaiwanSavings/28-8"), "036");
+});
+t("BẪY: ngày 2808 KHÔNG bị bắt nhầm thành mã sản phẩm", () => {
+    // Bốn số liền không phải mã. Bắt nhầm là chi phí chạy vào một mã không tồn tại.
+    assert.strictEqual(R.parseProductCode("TW/LOC/PHI/SP-KHONG-MA/Trang/2808"), null);
+});
+t("không ghi mã thì trả null, KHÔNG đoán", () => {
+    assert.strictEqual(R.parseProductCode("TW/SANH/TW/SET-KIM-CUONG/LuxeGold/2808"), null);
+});
+t("mã CHƯA khai giá vốn phải bị nêu ra", () => {
+    // 20 triệu chi tiêu đang chạy vào mã chưa khai giá vốn. Im lặng là lãi gộp ảo cao.
+    assert.strictEqual(R.isUnknownProduct("042"), true);
+    assert.strictEqual(R.isUnknownProduct("053"), false);
+    assert.strictEqual(R.productName("053"), "Gold Heart Necklace");
+});
+t("/TEST ở ô cuối — chuẩn 7 ô đầy đủ", () => {
+    const n = "TW/LOC/PHI/042-BLACK/TaiwanPrimeLeather/2808/TEST";
+    assert.strictEqual(R.isTestCampaign(n), true);
+    assert.strictEqual(R.parseCampaign(n)[1], "Loc");
+    assert.strictEqual(R.parseAudience(n), "PHI");
+    assert.strictEqual(R.parseProductCode(n), "042");
+});
+
+
 console.log(`\n${pass} phép thử — tất cả đạt.`);
