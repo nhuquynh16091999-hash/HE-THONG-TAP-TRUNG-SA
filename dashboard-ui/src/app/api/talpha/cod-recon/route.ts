@@ -8,7 +8,8 @@ import {
     parseStatement, reconcile, trackingFromLink,
     MATCH_KEY, TOLERANCE, type PosOrder, type StatementRow,
 } from "@/lib/talpha/cod-recon";
-import { readStore, updateStore } from "@/lib/talpha/store";
+import { readStoreFresh, updateStore } from "@/lib/talpha/store";
+import { MAX_UPLOAD_BYTES, tooBigMessage } from "@/lib/talpha/upload-limit";
 
 export const dynamic = "force-dynamic";
 
@@ -30,7 +31,6 @@ const BQ_DATASET = process.env.DATASET || "TALPHA_Dataset";
 // ═══════════════════════════════════════════════════════════════════
 
 const STORE = "cod_statements";
-const MAX_UPLOAD_BYTES = 8 * 1024 * 1024;
 
 type Statement = {
     id: string;
@@ -119,7 +119,7 @@ export async function GET(req: NextRequest) {
     const to = q.get("to") || "";
     const statementId = q.get("statement") || "";
 
-    const store = readStore(STORE, emptyStore());
+    const store = await readStoreFresh(STORE, emptyStore());
     const list = store.statements.map((s) => ({
         id: s.id, filename: s.filename, uploaded_at: s.uploaded_at,
         row_count: s.row_count, detected_columns: s.detected_columns,
@@ -159,7 +159,7 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: "Thiếu file sao kê" }, { status: 400 });
         }
         if (file.size > MAX_UPLOAD_BYTES) {
-            return NextResponse.json({ error: "File quá 8MB — cắt bớt kỳ rồi tải lại" }, { status: 413 });
+            return NextResponse.json({ error: tooBigMessage() }, { status: 413 });
         }
         if (/\.xlsx?$/i.test(file.name)) {
             return NextResponse.json({

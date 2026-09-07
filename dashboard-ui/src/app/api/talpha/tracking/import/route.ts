@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { parsePartnerFile, summarise } from "@/lib/talpha/partner-file";
 import { RULES } from "@/lib/talpha/rules";
 import { fetchSheetCsv, sheetIdFrom, serviceAccountEmail, SheetError } from "@/lib/talpha/sheet-source";
-import { updateStore, readStore } from "@/lib/talpha/store";
+import { readStoreFresh, updateStore } from "@/lib/talpha/store";
+import { MAX_UPLOAD_BYTES, tooBigMessage } from "@/lib/talpha/upload-limit";
 
 export const dynamic = "force-dynamic";
 
@@ -21,7 +22,6 @@ export const dynamic = "force-dynamic";
 // ═══════════════════════════════════════════════════════════════════
 
 const STORE = "tracking";
-const MAX_UPLOAD_BYTES = 16 * 1024 * 1024;
 
 type Saved = {
     status: string | null; sub_status: string | null; status_since: string;
@@ -47,7 +47,7 @@ type Store = {
 const emptyStore = (): Store => ({ registered: {}, statuses: {}, partner: {} });
 
 export async function GET() {
-    const s = readStore<Store>(STORE, emptyStore());
+    const s = await readStoreFresh<Store>(STORE, emptyStore());
     return NextResponse.json({
         last_import: s.partner_import ?? null,
         partner_rows: Object.keys(s.partner || {}).length,
@@ -65,7 +65,7 @@ async function readSource(req: NextRequest): Promise<{ text: string; name: strin
         const form = await req.formData();
         const file = form.get("file");
         if (file instanceof File) {
-            if (file.size > MAX_UPLOAD_BYTES) throw new SheetError("File quá 16MB — cắt bớt rồi tải lại", 413);
+            if (file.size > MAX_UPLOAD_BYTES) throw new SheetError(tooBigMessage(), 413);
             if (/\.xlsx?$/i.test(file.name)) {
                 throw new SheetError(
                     "Chưa đọc được file Excel. Trên Google Sheet chọn Tệp → Tải xuống → CSV rồi tải lên lại.", 415);

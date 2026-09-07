@@ -10,7 +10,7 @@ import {
     type Shipment, type MainStatus,
 } from "@/lib/talpha/tracking";
 import { register, getTrackInfo, hasApiKey, Track17Error } from "@/lib/talpha/track17";
-import { readStore, updateStore } from "@/lib/talpha/store";
+import { readStoreFresh, updateStore } from "@/lib/talpha/store";
 
 export const dynamic = "force-dynamic";
 
@@ -63,7 +63,7 @@ const emptyStore = (): Store => ({ registered: {}, statuses: {}, partner: {} });
  * Ngược lại, đơn vừa lên trong POS mà file đối tác chưa cập nhật cũng phải hiện.
  */
 async function loadShipments(from: string, to: string): Promise<Shipment[]> {
-    const store = readStore<Store>(STORE, emptyStore());
+    const store = await readStoreFresh<Store>(STORE, emptyStore());
     const partner = store.partner || {};
     const byTracking = new Map<string, Shipment>();
 
