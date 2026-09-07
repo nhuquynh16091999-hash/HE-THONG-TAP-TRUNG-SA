@@ -146,4 +146,39 @@ t("thật sự không có ai thì trả null, KHÔNG đoán bừa", () => {
 });
 
 
+console.log("── Chuẩn đặt tên campaign ──");
+const CHUAN = [
+    ["LOC/TW/042-BLACK/TaiwanPrimeLeather/2808",   "Taiwan",      "Loc"],
+    ["SANH/TW/BONGTAI-TRON/LuckyClover/2808",      "Taiwan",      "SAnh"],
+    ["THAI/ID/040-VONGVANG1/Lumora/1908",          "Indonesia",   "Thai"],
+    ["THUONG/PH/SET-KIM-CUONG/LuxeGold/0109",      "Philippines", "Thuong"],
+    ["QUYNH/VN/TUI-DU-LICH/ATShop/0109",           "Vietnam",     "Quynh"],
+    ["THANG/TW/036-BROWN/TaiwanSavings/2808",      "Taiwan",      "Thang"],
+];
+t("cả 6 marketer đọc đúng theo chuẩn mới", () => {
+    for (const [name, mkt, key] of CHUAN) {
+        assert.deepStrictEqual(R.parseCampaign(name), [mkt, key], name);
+    }
+});
+t("mã thị trường 2 chữ đọc đúng", () => {
+    for (const [code, want] of [["TW","Taiwan"],["PH","Philippines"],["ID","Indonesia"],["VN","Vietnam"]]) {
+        assert.strictEqual(R.parseCampaign(`LOC/${code}/SP/Trang/2808`)[0], want, code);
+    }
+});
+t("/TEST ở cuối được nhận là campaign thử", () => {
+    assert.strictEqual(R.isTestCampaign("SANH/TW/BONGTAI/LuckyClover/2808/TEST"), true);
+    assert.strictEqual(R.isTestCampaign("SANH/TW/BONGTAI/LuckyClover/2808"), false);
+});
+t("BẪY: ngày viết 27/08 tự đẻ thêm ô — marketer vẫn phải đúng", () => {
+    // Dấu / là ký tự ngăn ô. Viết ngày có / thì mọi ô sau lệch hết. Đã gặp thật.
+    // Ô đầu vẫn là marketer nên vẫn cứu được — đó là lý do marketer phải ở ô ĐẦU.
+    assert.strictEqual(R.parseCampaign("THUONG/PH/SET KIM CUONG/LuxeGold - 27/08")[1], "Thuong");
+});
+t("mã không dấu tránh bẫy chữ hoa tiếng Việt", () => {
+    // "THẮNG" viết hoa vẫn còn dấu nên KHÔNG chứa "THANG".
+    assert.strictEqual("Thắng".toUpperCase().includes("THANG"), false);
+    assert.strictEqual(R.parseCampaign("THANG/TW/SP/Trang/2808")[1], "Thang");
+});
+
+
 console.log(`\n${pass} phép thử — tất cả đạt.`);

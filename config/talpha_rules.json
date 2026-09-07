@@ -15,17 +15,39 @@
     }
   },
   "market_aliases": {
+    "_note": "Mọi cách viết thị trường → tên chuẩn. Dùng để ĐỌC ô thị trường trong tên campaign; KHÔNG dùng để quy đổi tiền (tiền tra theo shop_label trong `markets`). Vì thế khai được cả thị trường chỉ có quảng cáo mà chưa có shop POS.",
+    "TW": "Taiwan",
     "TAIWAN": "Taiwan",
     "TAIWAIN": "Taiwan",
-    "TW": "Taiwan",
     "ĐÀI": "Taiwan",
-    "DAI": "Taiwan"
+    "DAI": "Taiwan",
+    "PH": "Philippines",
+    "PHI": "Philippines",
+    "PHILIPPINE": "Philippines",
+    "PHILIPPINES": "Philippines",
+    "ID": "Indonesia",
+    "INDO": "Indonesia",
+    "INDONESIA": "Indonesia",
+    "VN": "Vietnam",
+    "VIỆT": "Vietnam",
+    "VIET": "Vietnam"
   },
   "camp_market_tokens": [
+    "TW",
     "TAIWAN",
     "TAIWAIN",
     "ĐÀI",
-    "DAI"
+    "DAI",
+    "PH",
+    "PHI",
+    "PHILIPPINE",
+    "PHILIPPINES",
+    "ID",
+    "INDO",
+    "INDONESIA",
+    "VN",
+    "VIỆT",
+    "VIET"
   ],
   "_people_note": "CƠ CẤU từ 05/09/2026. 'key' là mã nội bộ, KHÔNG đổi sau khi đã chạy — mọi báo cáo tham chiếu theo key. 'display' là tên hiện trên dashboard. Thương giữ CẢ HAI vai: vừa chạy ads vừa chốt đơn, nên có mặt ở cả marketers lẫn sales.",
   "marketers": {
@@ -584,5 +606,6 @@
     "Phí 3PL Đài Loan (shipping_fees.TW) — chưa khai thì mọi số lãi/lỗ thiếu phí vận chuyển.",
     "Quy tắc gán sale (sale_assignment) — hiện mọi đơn rơi vào \"(chưa gán sale)\".",
     "KPI tháng cho đội mới (targets) — số đang là của đội cũ."
-  ]
+  ],
+  "_camp_naming_note": "CHUẨN ĐẶT TÊN CAMPAIGN (xem docs/CHUAN_DAT_TEN_CAMPAIGN.md):\n    MARKETER/THỊTRƯỜNG/SANPHAM/TRANG/NGAY[/TEST]\nMarketer ở ô ĐẦU, thị trường ô HAI, cả hai dùng mã KHÔNG DẤU. Dấu / chỉ để ngăn ô — viết ngày kiểu 27/08 là tự đẻ thêm ô, mọi ô sau lệch hết. Hệ thống vẫn đọc được tên cũ, nhưng tên cũ đọc bằng cách đoán."
 }
