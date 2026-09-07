@@ -36,6 +36,7 @@ type Totals = {
     spend_vnd: number; messages: number; clicks: number; impressions: number;
     test_spend_vnd: number; test_campaigns: number;
     unattributed_spend_vnd: number; unattributed_samples: string[];
+    product_testing_spend_vnd?: number;
     product_unknown_spend_vnd?: number; product_no_cost_spend_vnd?: number;
 };
 
@@ -216,13 +217,19 @@ export default function TALPHAAdSpendTab({ dateRange }: Props) {
                             ))}
                         </tbody>
                     </table>
+                    {totals.product_testing_spend_vnd ? (
+                        <p className="mt-2 text-xs text-muted-foreground">
+                            {formatVNDCompact(totals.product_testing_spend_vnd)} chạy cho <b>sản phẩm đang test</b> (ô mã ghi
+                            {" "}<span className="font-mono">TEST</span>) — chưa có mã là đúng, win rồi thì thay ô đó bằng mã thật.
+                        </p>
+                    ) : null}
                     {(totals.product_no_cost_spend_vnd || totals.product_unknown_spend_vnd) ? (
                         <p className="mt-2 text-xs text-amber-700 dark:text-amber-400">
                             {totals.product_no_cost_spend_vnd ? (
                                 <>{formatVNDCompact(totals.product_no_cost_spend_vnd)} chạy vào mã <b>chưa khai giá vốn</b> — lãi gộp của phần này ảo cao. </>
                             ) : null}
                             {totals.product_unknown_spend_vnd ? (
-                                <>{formatVNDCompact(totals.product_unknown_spend_vnd)} ở campaign <b>không ghi mã sản phẩm</b> — đặt tên theo chuẩn thì số tự về đúng mã.</>
+                                <>{formatVNDCompact(totals.product_unknown_spend_vnd)} ở campaign <b>quên ghi mã sản phẩm</b> — đặt tên theo chuẩn thì số tự về đúng mã.</>
                             ) : null}
                         </p>
                     ) : null}

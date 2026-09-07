@@ -90,6 +90,26 @@ Tệp người Việt ra tin nhắn rẻ chưa bằng nửa tệp Philippines, m
 Ba số đầu là mã SKU, phần sau là biến thể. **Phải có ba số đầu** — đó là thứ nối
 chi phí quảng cáo với giá vốn, tức là thứ cho biết mã hàng nào thật sự có lãi.
 
+**Đang test sản phẩm chưa có mã thì ghi `TEST` vào chính ô này:**
+
+```
+TW/THUONG/VN/TEST/BaloDaGiaTot/0709          ← đang thử, chưa nhập hàng
+TW/THUONG/VN/058-BALO-DA/BaloDaGiaTot/0709   ← win rồi, thay đúng ô đó
+```
+
+Cách này gọn ở chỗ: lên mã thật chỉ việc thay **một ô**, số ô không đổi, marketer
+và tệp khách giữ nguyên nên số lịch sử không gãy làm đôi.
+
+Hệ thống phân biệt **ba loại** chứ không gộp một rổ:
+
+| Ô mã | Nghĩa | Có phải lỗi không |
+|---|---|---|
+| `042-BLACK` | có mã | không |
+| `TEST` | đang thử, chưa có mã | **không** — đúng quy trình |
+| `SET-KIM-CUONG` | quên ghi mã | **có** — cần sửa tên |
+
+Gộp chung thì không biết chỗ nào đáng đi nhắc người đặt lại tên.
+
 Viết `SET-KIM-CUONG` không có mã thì tiền chạy vào ô "không rõ mã". Đo 30 ngày
 thật: **23,5 triệu** đang nằm ở ô đó, không quy được về sản phẩm nào.
 

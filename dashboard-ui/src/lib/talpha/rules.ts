@@ -298,6 +298,19 @@ export function productName(code?: string | null): string | null {
     return p[code]?.name || null;
 }
 
+/**
+ * Ô mã sản phẩm ghi "TEST" — đang thử sản phẩm, CHƯA CÓ mã.
+ *
+ * Khác hẳn với "quên ghi mã". Sản phẩm test chưa nhập hàng nên chưa có SKU; win
+ * rồi thì thay đúng ô đó bằng mã thật, số ô không đổi. Còn "quên ghi mã" là lỗi
+ * đặt tên cần sửa. Gộp hai thứ vào một rổ là không biết chỗ nào đáng đi nhắc.
+ */
+export function isProductTesting(cn?: string | null): boolean {
+    return String(cn || "")
+        .split("/")
+        .some((seg) => seg.trim().toUpperCase() === "TEST");
+}
+
 /** Mã có trong tên campaign nhưng CHƯA khai giá vốn — lãi gộp của nó sẽ ảo cao. */
 export function isUnknownProduct(code?: string | null): boolean {
     return !!code && !PRODUCT_CODES.has(code);

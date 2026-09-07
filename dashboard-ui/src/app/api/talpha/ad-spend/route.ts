@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { bigquery } from "@/lib/bigquery";
 import { DISPLAY, parseCampaign, isTestCampaign, parseAudience, AUDIENCE_DISPLAY,
-         parseProductCode, productName, isUnknownProduct } from "@/lib/talpha/rules";
+         parseProductCode, productName, isUnknownProduct, isProductTesting } from "@/lib/talpha/rules";
 
 export const dynamic = "force-dynamic";
 
@@ -76,6 +76,9 @@ export async function GET(req: NextRequest) {
         // Mã sản phẩm bóc từ tên campaign — nối chi phí quảng cáo với giá vốn để
         // tính lãi lỗ tới từng mã hàng.
         const byProduct = new Map<string, Bucket>();
+        // Ba rổ khác nhau, đừng gộp: có mã · đang test chưa có mã · quên ghi mã.
+        // Chỉ rổ cuối mới là lỗi đặt tên cần đi nhắc.
+        let productTesting = 0;
         let productUnknown = 0;
         let testSpend = 0, testCampaigns = 0;
         let unknownSpend = 0;
@@ -109,6 +112,8 @@ export async function GET(req: NextRequest) {
                 pb.clicks += Number(r.clicks) || 0;
                 pb.campaigns += 1;
                 byProduct.set(sku, pb);
+            } else if (isProductTesting(name)) {
+                productTesting += spend;
             } else {
                 productUnknown += spend;
             }
@@ -224,6 +229,7 @@ export async function GET(req: NextRequest) {
                 unattributed_spend_vnd: unknownSpend,
                 unattributed_samples: unknownNames,
                 audience_unknown_spend_vnd: audienceUnknown,
+                product_testing_spend_vnd: productTesting,
                 product_unknown_spend_vnd: productUnknown,
                 product_no_cost_spend_vnd: Array.from(byProduct.entries())
                     .filter(([c]) => isUnknownProduct(c))

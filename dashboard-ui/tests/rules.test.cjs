@@ -230,4 +230,39 @@ t("/TEST ở ô cuối — chuẩn 7 ô đầy đủ", () => {
 });
 
 
+console.log("── Sản phẩm đang test, chưa có mã ──");
+const TESTCAMP = "TW/THƯƠNG/VN/TEST/Balo Da Giá Tốt/7-9";
+t("chuỗi thật của Sỹ Anh đọc đúng đủ bốn chiều", () => {
+    assert.strictEqual(R.parseCampaign(TESTCAMP)[0], "Taiwan");
+    assert.strictEqual(R.parseCampaign(TESTCAMP)[1], "Thuong");
+    assert.strictEqual(R.parseAudience(TESTCAMP), "VN");
+    assert.strictEqual(R.isTestCampaign(TESTCAMP), true);
+});
+t("TEST ở ô mã sản phẩm = đang thử, KHÁC với quên ghi mã", () => {
+    // Sản phẩm test chưa nhập hàng nên chưa có SKU — đúng, không phải lỗi.
+    // Gộp chung với "quên ghi mã" là không biết chỗ nào đáng đi nhắc.
+    assert.strictEqual(R.isProductTesting(TESTCAMP), true);
+    assert.strictEqual(R.parseProductCode(TESTCAMP), null);
+    // Quên ghi mã thì KHÔNG được tính là đang test.
+    assert.strictEqual(R.isProductTesting("TW/LOC/PHI/SET-KIM-CUONG/LuxeGold/2808"), false);
+});
+t("win rồi thay TEST bằng mã thật — số ô không đổi", () => {
+    const sau = "TW/THƯƠNG/VN/058-BALO-DA/Balo Da Giá Tốt/7-9";
+    assert.strictEqual(R.parseProductCode(sau), "058");
+    assert.strictEqual(R.isProductTesting(sau), false);
+    assert.strictEqual(R.isTestCampaign(sau), false);
+    // Marketer và tệp khách giữ nguyên — số lịch sử không gãy.
+    assert.strictEqual(R.parseCampaign(sau)[1], "Thuong");
+    assert.strictEqual(R.parseAudience(sau), "VN");
+});
+t("TEST ở ô cuối vẫn nhận, không bắt phải đổi chỗ", () => {
+    assert.strictEqual(R.isProductTesting("TW/LOC/PHI/042-BLACK/Trang/2808/TEST"), true);
+    assert.strictEqual(R.parseProductCode("TW/LOC/PHI/042-BLACK/Trang/2808/TEST"), "042");
+});
+t("chữ 'test' nằm trong tên trang KHÔNG bị nhận nhầm", () => {
+    // "Contest" hay "Latest" không được biến campaign thành campaign thử.
+    assert.strictEqual(R.isProductTesting("TW/LOC/PHI/042-BLACK/ContestShop/2808"), false);
+});
+
+
 console.log(`\n${pass} phép thử — tất cả đạt.`);
