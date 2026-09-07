@@ -32,8 +32,12 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                 }
 
                 try {
-                    // Call internal API to validate credentials (runs in Node.js)
-                    const baseUrl = process.env.AUTH_URL || process.env.NEXTAUTH_URL || "http://localhost:3000";
+                    // Gọi ngược vào chính mình để kiểm mật khẩu (chạy trong Node.js).
+                    // Cố ý dùng localhost chứ KHÔNG dùng AUTH_URL: khi mở ra ngoài
+                    // bằng Cloudflare Tunnel thì AUTH_URL là địa chỉ công khai, gọi
+                    // vòng ra internet rồi quay lại vừa chậm vừa đứt nếu tunnel rớt.
+                    // Đây là cuộc gọi nội bộ, đi thẳng cổng local là đúng.
+                    const baseUrl = process.env.INTERNAL_URL || `http://127.0.0.1:${process.env.PORT || 3000}`;
                     const res = await fetch(`${baseUrl}/api/auth/validate`, {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
