@@ -209,11 +209,64 @@ export function costPriceVnd(sku?: string | null): number | null {
 export const UNASSIGNED = "(không gán)";
 export type AttrSource = "pos_tag" | "ad_id" | "unassigned";
 
+// ═══════════════════════════════════════════════════════════════════
+// TỆP KHÁCH — cộng đồng ở Đài Loan mà quảng cáo nhắm tới
+//
+// Ô thứ hai của tên campaign ghi PHI / INDO / VN / TW. Đây KHÔNG phải nước giao
+// hàng: hàng vẫn giao ở Đài, thu TWD, qua 7-Eleven. Đó là các cộng đồng lao động
+// nước ngoài đang sống tại Đài.
+//
+// Đọc nhầm ô này thành thị trường là tưởng công ty bán ở bốn nước khác nhau, rồi
+// quy đổi tiền theo bốn tỷ giá — sai từ gốc.
+// ═══════════════════════════════════════════════════════════════════
+type AudienceCfg = Record<string, { display: string; tokens: string[] }>;
+
+const AUD: AudienceCfg =
+    (RULES as unknown as { audiences?: AudienceCfg }).audiences || {};
+
+export const AUDIENCE_DISPLAY: Record<string, string> = Object.fromEntries(
+    Object.entries(AUD).map(([k, v]) => [k, v.display]));
+
+/** Chuỗi đã chuẩn hoá → key tệp khách. */
+const AUDIENCE_TOKENS: Record<string, string> = Object.fromEntries(
+    Object.entries(AUD).flatMap(([key, v]) =>
+        (v.tokens || []).map((tok) => [tok.toUpperCase().replace(/[\s.]/g, ""), key])));
+
+export function normAudience(s?: string | null): string | null {
+    if (!s) return null;
+    return AUDIENCE_TOKENS[String(s).trim().toUpperCase().replace(/[\s.]/g, "")] || null;
+}
+
+/**
+ * campaign_name → key tệp khách.
+ *
+ * Ô thứ hai theo chuẩn; nếu tên không theo chuẩn thì dò khắp các ô. Không tìm
+ * thấy thì trả null — KHÔNG mặc định về tệp nào, vì đoán bừa là số của một tệp
+ * chui sang tệp khác mà báo cáo vẫn ra bình thường.
+ */
+export function parseAudience(cn?: string | null): string | null {
+    const p = String(cn || "").split("/").map((x) => x.trim());
+    if (p.length > 1) {
+        const second = normAudience(p[1]);
+        if (second) return second;
+    }
+    for (const seg of p) {
+        const a = normAudience(seg);
+        if (a) return a;
+    }
+    return null;
+}
+
 /** campaign_name → [thị trường, key marketer]; quy ước '… / <Thị trường> / <Marketer> / …'. */
 export function parseCampaign(cn?: string | null): [string | null, string | null] {
     const p = String(cn || "").split("/").map((x) => x.trim());
     const mi = p.findIndex((s) => s.toUpperCase() in CAMP_MARKETS);
-    const market = mi >= 0 ? CAMP_MARKETS[p[mi].toUpperCase()] : null;
+    // Hệ thống chỉ có MỘT thị trường nên tên campaign không cần ghi. Không thấy
+    // token nào thì lấy thị trường chính — đây là suy ra từ cấu hình, không phải
+    // đoán mò. Thêm thị trường thứ hai thì phải bắt ghi rõ trong tên.
+    const market = mi >= 0
+        ? CAMP_MARKETS[p[mi].toUpperCase()]
+        : ((RULES as unknown as { primary_market?: string }).primary_market || null);
 
     // Ba cách tìm marketer, thử lần lượt. Đội đặt tên campaign theo hai quy ước
     // khác nhau qua các thời kỳ, và chỉ nhận một quy ước là mất hết số của quy

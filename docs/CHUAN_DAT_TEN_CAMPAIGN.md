@@ -8,7 +8,7 @@
 ## Công thức
 
 ```
-MARKETER/THỊTRƯỜNG/SANPHAM/TRANG/NGAY
+MARKETER/TỆPKHÁCH/SANPHAM/TRANG/NGAY
 ```
 
 Thêm `/TEST` ở cuối nếu là campaign thử sản phẩm.
@@ -16,9 +16,9 @@ Thêm `/TEST` ở cuối nếu là campaign thử sản phẩm.
 ### Ví dụ đúng
 
 ```
-LOC/TW/042-BLACK/TaiwanPrimeLeather/2808
-THUONG/PH/SET-KIM-CUONG/LuxeGold/0109
-THAI/ID/040-VONGVANG1/LumoraJewelry/1908
+LOC/PHI/042-BLACK/TaiwanPrimeLeather/2808
+THUONG/INDO/SET-KIM-CUONG/LuxeGold/0109
+THAI/VN/040-VONGVANG1/LumoraJewelry/1908
 SANH/TW/BONGTAI-TRON/LuckyClover/2808/TEST
 ```
 
@@ -45,25 +45,35 @@ viết hoa ra `"THẮNG"` — máy so với `"THANG"` là **không khớp**. Đ�
 đọc theo kiểu "tìm thị trường rồi lấy ô kế tiếp" — mong manh, đổi thứ tự một chút
 là hỏng. Ô đầu thì không bao giờ nhầm.
 
-### 2. Thị trường — nơi GIAO HÀNG, dùng mã 2 chữ
+### 2. Tệp khách — cộng đồng ở Đài mà quảng cáo nhắm tới
 
-| Thị trường | Mã |
+| Tệp khách | Mã |
 |---|---|
-| Đài Loan | `TW` |
-| Philippines | `PH` |
-| Indonesia | `ID` |
-| Việt Nam | `VN` |
+| Người Philippines | `PHI` |
+| Người Indonesia | `INDO` |
+| Người Việt | `VN` |
+| Người Đài bản địa | `TW` |
 
-**Đây là ô đang gây lẫn lộn nhiều nhất.** Đo trên 30 ngày gần nhất: 45,6 triệu
-chi tiêu ghi `Philippine`, `INDO`, `VN` — **không một đồng nào ghi Đài Loan**,
-trong khi toàn bộ đơn hàng thực tế lại giao ở Đài qua 7-Eleven và FamilyMart.
+**Đây KHÔNG phải thị trường.** Công ty chỉ bán ở **một thị trường: Đài Loan**.
+Hàng giao qua 7-Eleven và FamilyMart ở Đài, thu bằng TWD. Bốn mã trên là các cộng
+đồng đang **sống tại Đài** — lao động Philippines, Indonesia, Việt Nam, và người
+Đài bản địa.
 
-Ô này phải là **nơi hàng được giao tới tay khách**, vì nó quyết định:
-- tiền quy đổi theo tỷ giá nào
-- phí vận chuyển tính theo bảng nào
-- đơn nào vào báo cáo thị trường nào
+Vì chỉ có một thị trường nên **không cần ghi thị trường vào tên campaign**.
 
-Nếu muốn ghi thêm tệp khách nhắm tới thì để ở ô ghi chú cuối, đừng để ở đây.
+> Ô này từng bị đọc nhầm thành nước giao hàng, dẫn tới kết luận sai là công ty
+> đang bán ở bốn nước. Thực tế toàn bộ đơn đều ở Đài.
+
+Bổ chi tiêu theo tệp là chiều phân tích đáng tiền. Đo 30 ngày thật:
+
+| Tệp | Chi tiêu | Ngân sách | Giá mỗi tin nhắn |
+|---|---|---|---|
+| Người Philippines | 31,5 tr | 69% | 20.172đ |
+| Người Indonesia | 10,0 tr | 22% | 23.473đ |
+| **Người Việt** | 2,6 tr | 6% | **10.504đ** ← rẻ nhất |
+| Người Đài | 948 k | 2% | 30.594đ |
+
+Tệp người Việt ra tin nhắn rẻ chưa bằng nửa tệp Philippines, mà chỉ được 6% ngân sách.
 
 ### 3. Sản phẩm — mã SKU, không dấu, nối bằng gạch ngang
 
@@ -115,8 +125,8 @@ tiền thật đã tiêu, không giấu.
 ## Bốn quy tắc cứng
 
 1. **`/` chỉ để ngăn ô.** Không dùng trong ngày tháng, tên sản phẩm hay tên trang.
-2. **Không dấu tiếng Việt** ở ô marketer và ô thị trường.
-3. **Đúng thứ tự.** Marketer luôn ở ô đầu, thị trường luôn ở ô hai.
+2. **Không dấu tiếng Việt** ở ô marketer và ô tệp khách.
+3. **Đúng thứ tự.** Marketer luôn ở ô đầu, tệp khách luôn ở ô hai.
 4. **Không đổi tên campaign sau khi đã chạy.** Đổi tên là số lịch sử gãy làm đôi:
    nửa cũ gán một người, nửa mới gán người khác.
 
@@ -136,7 +146,7 @@ Hệ thống hiện **đọc được cả tên cũ lẫn tên mới** — khôn
 Đọc lại tên campaign và tự hỏi:
 
 - [ ] Ô đầu có phải mã marketer không dấu trong bảng trên không?
-- [ ] Ô hai có phải mã thị trường **nơi giao hàng** không?
+- [ ] Ô hai có phải mã tệp khách (`PHI`/`INDO`/`VN`/`TW`) không?
 - [ ] Trong tên còn dấu `/` nào không phải để ngăn ô không?
 - [ ] Đếm đủ 5 ô chưa?
 

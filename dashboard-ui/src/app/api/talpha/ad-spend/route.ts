@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { bigquery } from "@/lib/bigquery";
-import { DISPLAY, parseCampaign, isTestCampaign } from "@/lib/talpha/rules";
+import { DISPLAY, parseCampaign, isTestCampaign, parseAudience, AUDIENCE_DISPLAY } from "@/lib/talpha/rules";
 
 export const dynamic = "force-dynamic";
 
@@ -67,6 +67,11 @@ export async function GET(req: NextRequest) {
         type Bucket = { spend: number; messages: number; clicks: number; impressions: number; campaigns: number };
         const empty = (): Bucket => ({ spend: 0, messages: 0, clicks: 0, impressions: 0, campaigns: 0 });
         const byMarketer = new Map<string, Bucket>();
+        // Tệp khách = cộng đồng ở Đài mà quảng cáo nhắm tới (Philippines,
+        // Indonesia, Việt, người Đài). KHÔNG phải thị trường — hàng vẫn giao ở
+        // Đài hết. Đây là chiều để biết tệp nào ra tin nhắn rẻ nhất.
+        const byAudience = new Map<string, Bucket>();
+        let audienceUnknown = 0;
         let testSpend = 0, testCampaigns = 0;
         let unknownSpend = 0;
         const unknownNames: string[] = [];
@@ -74,6 +79,23 @@ export async function GET(req: NextRequest) {
         for (const r of campRows as Record<string, unknown>[]) {
             const name = String(r.campaign_name || "");
             const spend = Number(r.spend) || 0;
+
+            // Đếm tệp khách TRƯỚC mọi lệnh continue. Đặt sau thì campaign test và
+            // campaign chưa nhận ra marketer bị bỏ luôn khỏi bảng tệp — đã dính:
+            // bảng tệp chỉ hiện 20,7/45,6 triệu mà nhìn vào không thấy thiếu.
+            const aud = parseAudience(name);
+            if (aud) {
+                const ab = byAudience.get(aud) || empty();
+                ab.spend += spend;
+                ab.messages += Number(r.messages) || 0;
+                ab.clicks += Number(r.clicks) || 0;
+                ab.impressions += Number(r.impressions) || 0;
+                ab.campaigns += 1;
+                byAudience.set(aud, ab);
+            } else {
+                audienceUnknown += spend;
+            }
+
             if (isTestCampaign(name)) { testSpend += spend; testCampaigns++; continue; }
 
             const [, key] = parseCampaign(name);
@@ -104,6 +126,18 @@ export async function GET(req: NextRequest) {
             }))
             .sort((a, b) => b.spend_vnd - a.spend_vnd);
 
+        const audiences = Array.from(byAudience.entries())
+            .map(([key, b]) => ({
+                key,
+                audience: AUDIENCE_DISPLAY[key] || key,
+                spend_vnd: b.spend,
+                messages: b.messages,
+                clicks: b.clicks,
+                campaigns: b.campaigns,
+                cost_per_message: b.messages > 0 ? b.spend / b.messages : null,
+            }))
+            .sort((a, b) => b.spend_vnd - a.spend_vnd);
+
         const campaigns = (campRows as Record<string, unknown>[])
             .map((r) => {
                 const name = String(r.campaign_name || "");
@@ -112,6 +146,7 @@ export async function GET(req: NextRequest) {
                     campaign_name: name,
                     account_name: String(r.account_name || ""),
                     marketer: key ? (DISPLAY[key] || key) : null,
+                    audience: (() => { const a = parseAudience(name); return a ? (AUDIENCE_DISPLAY[a] || a) : null; })(),
                     is_test: isTestCampaign(name),
                     spend_vnd: Number(r.spend) || 0,
                     clicks: Number(r.clicks) || 0,
@@ -143,7 +178,7 @@ export async function GET(req: NextRequest) {
 
         return NextResponse.json({
             from, to,
-            daily, accounts, marketers, campaigns,
+            daily, accounts, marketers, audiences, campaigns,
             totals: {
                 spend_vnd: totalSpend,
                 messages: daily.reduce((s, d) => s + d.messages, 0),
@@ -156,6 +191,7 @@ export async function GET(req: NextRequest) {
                 // nuốt mất, vì đó là dấu hiệu tên campaign đặt sai quy ước.
                 unattributed_spend_vnd: unknownSpend,
                 unattributed_samples: unknownNames,
+                audience_unknown_spend_vnd: audienceUnknown,
             },
         });
     } catch (e) {

@@ -18,8 +18,13 @@ type MarketerRow = {
     clicks: number; impressions: number; campaigns: number; cost_per_message: number | null;
 };
 type Account = { account_id: string; account_name: string; spend_vnd: number; messages: number };
+type Audience = {
+    key: string; audience: string; spend_vnd: number; messages: number;
+    clicks: number; campaigns: number; cost_per_message: number | null;
+};
 type Campaign = {
     campaign_name: string; account_name: string; marketer: string | null;
+    audience: string | null;
     is_test: boolean; spend_vnd: number; clicks: number; impressions: number; messages: number;
 };
 type Totals = {
@@ -34,6 +39,7 @@ export default function TALPHAAdSpendTab({ dateRange }: Props) {
     const [daily, setDaily] = useState<Daily[]>([]);
     const [marketers, setMarketers] = useState<MarketerRow[]>([]);
     const [accounts, setAccounts] = useState<Account[]>([]);
+    const [audiences, setAudiences] = useState<Audience[]>([]);
     const [campaigns, setCampaigns] = useState<Campaign[]>([]);
     const [totals, setTotals] = useState<Totals | null>(null);
     const [showTest, setShowTest] = useState(false);
@@ -49,6 +55,7 @@ export default function TALPHAAdSpendTab({ dateRange }: Props) {
             if (!res.ok) throw new Error(d.error || "Không tải được chi phí quảng cáo");
             setDaily(d.daily || []); setMarketers(d.marketers || []);
             setAccounts(d.accounts || []); setCampaigns(d.campaigns || []);
+            setAudiences(d.audiences || []);
             setTotals(d.totals);
         } catch (e) {
             setError(e instanceof Error ? e.message : "Lỗi không rõ");
@@ -86,8 +93,8 @@ export default function TALPHAAdSpendTab({ dateRange }: Props) {
                             {formatVNDCompact(totals.unattributed_spend_vnd)} chưa nhận ra chủ campaign
                         </div>
                         <p className="mt-1 text-amber-800/80 dark:text-amber-200/70">
-                            Tên campaign không theo quy ước <span className="font-mono">Thị trường / Marketer / SP / …</span> nên
-                            không gán được về ai. Tiền vẫn đã tiêu — sửa tên campaign trên Meta thì số này tự về đúng người.
+                            Tên campaign không theo chuẩn <span className="font-mono">MARKETER/TỆPKHÁCH/SANPHAM/TRANG/NGAY</span> nên
+                            không gán được về ai. Tiền vẫn đã tiêu — đặt lại tên theo chuẩn thì số tự về đúng người.
                         </p>
                         {totals.unattributed_samples.length > 0 && (
                             <ul className="mt-2 space-y-0.5 font-mono text-xs text-amber-800/70 dark:text-amber-200/60">
@@ -116,6 +123,58 @@ export default function TALPHAAdSpendTab({ dateRange }: Props) {
                     </ComposedChart>
                 </ResponsiveContainer>
             </div>
+
+            {audiences.length > 0 && (
+                <Panel title="Theo tệp khách — cùng một thị trường Đài Loan">
+                    <table className="w-full text-sm">
+                        <thead>
+                            <tr className="border-b border-border text-xs uppercase tracking-wide text-muted-foreground">
+                                <th className="py-2 text-left font-medium">Tệp khách</th>
+                                <th className="py-2 text-right font-medium">Chi tiêu</th>
+                                <th className="py-2 text-right font-medium">Phần ngân sách</th>
+                                <th className="py-2 text-right font-medium">Tin nhắn</th>
+                                <th className="py-2 text-right font-medium">Giá mỗi tin</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {audiences.map((a) => {
+                                const share = totals.spend_vnd > 0 ? a.spend_vnd / totals.spend_vnd : 0;
+                                // Rẻ nhất bảng — chỗ đáng dồn thêm ngân sách.
+                                const cheapest = a.cost_per_message !== null && a.cost_per_message ===
+                                    Math.min(...audiences.filter((x) => x.cost_per_message !== null)
+                                        .map((x) => x.cost_per_message as number));
+                                return (
+                                    <tr key={a.key} className="border-b border-border/40 last:border-0">
+                                        <td className="py-2 font-medium">{a.audience}</td>
+                                        <td className="py-2 text-right font-mono tabular-nums">{formatVNDCompact(a.spend_vnd)}</td>
+                                        <td className="py-2 text-right">
+                                            <div className="flex items-center justify-end gap-2">
+                                                <span className="h-1.5 w-16 overflow-hidden rounded-sm bg-muted">
+                                                    <span className="block h-full rounded-sm bg-orange-500"
+                                                        style={{ width: `${Math.round(share * 100)}%` }} />
+                                                </span>
+                                                <span className="w-10 text-right tabular-nums text-muted-foreground">
+                                                    {(share * 100).toFixed(1)}%
+                                                </span>
+                                            </div>
+                                        </td>
+                                        <td className="py-2 text-right tabular-nums">{formatNumber(a.messages)}</td>
+                                        <td className={cn("py-2 text-right font-mono tabular-nums",
+                                            cheapest && "font-semibold text-emerald-600 dark:text-emerald-400")}>
+                                            {a.cost_per_message ? formatVNDCompact(a.cost_per_message) : "—"}
+                                            {cheapest && <span className="ml-1 text-[10px] font-normal">rẻ nhất</span>}
+                                        </td>
+                                    </tr>
+                                );
+                            })}
+                        </tbody>
+                    </table>
+                    <p className="mt-2 text-xs text-muted-foreground">
+                        Đây là các cộng đồng đang sống <b>tại Đài Loan</b> mà quảng cáo nhắm tới, không phải thị trường khác —
+                        hàng vẫn giao ở Đài, vẫn thu TWD. Tệp có giá mỗi tin rẻ nhất là chỗ đáng cân nhắc dồn thêm ngân sách.
+                    </p>
+                </Panel>
+            )}
 
             <div className="grid gap-4 lg:grid-cols-2">
                 <Panel title="Theo marketer">
@@ -186,6 +245,7 @@ export default function TALPHAAdSpendTab({ dateRange }: Props) {
                             <tr className="border-b border-border text-xs uppercase tracking-wide text-muted-foreground">
                                 <th className="px-4 py-2 text-left font-medium">Campaign</th>
                                 <th className="px-4 py-2 text-left font-medium">Marketer</th>
+                                <th className="px-4 py-2 text-left font-medium">Tệp</th>
                                 <th className="px-4 py-2 text-right font-medium">Chi tiêu</th>
                                 <th className="px-4 py-2 text-right font-medium">Click</th>
                                 <th className="px-4 py-2 text-right font-medium">Tin nhắn</th>
@@ -202,6 +262,7 @@ export default function TALPHAAdSpendTab({ dateRange }: Props) {
                                         {c.marketer || "chưa nhận ra"}
                                         {c.is_test && <span className="ml-1 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] text-amber-700 dark:bg-amber-500/15 dark:text-amber-400">test</span>}
                                     </td>
+                                    <td className={cn("px-4 py-2 text-xs", !c.audience && "text-muted-foreground")}>{c.audience || "—"}</td>
                                     <td className="px-4 py-2 text-right font-mono tabular-nums">{formatVNDCompact(c.spend_vnd)}</td>
                                     <td className="px-4 py-2 text-right tabular-nums">{formatNumber(c.clicks)}</td>
                                     <td className="px-4 py-2 text-right tabular-nums">{formatNumber(c.messages)}</td>

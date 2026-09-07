@@ -15,40 +15,60 @@
     }
   },
   "market_aliases": {
-    "_note": "Mọi cách viết thị trường → tên chuẩn. Dùng để ĐỌC ô thị trường trong tên campaign; KHÔNG dùng để quy đổi tiền (tiền tra theo shop_label trong `markets`). Vì thế khai được cả thị trường chỉ có quảng cáo mà chưa có shop POS.",
+    "_note": "Mọi cách viết thị trường → tên chuẩn. Hệ thống MỘT thị trường: Đài Loan.",
     "TW": "Taiwan",
     "TAIWAN": "Taiwan",
     "TAIWAIN": "Taiwan",
     "ĐÀI": "Taiwan",
-    "DAI": "Taiwan",
-    "PH": "Philippines",
-    "PHI": "Philippines",
-    "PHILIPPINE": "Philippines",
-    "PHILIPPINES": "Philippines",
-    "ID": "Indonesia",
-    "INDO": "Indonesia",
-    "INDONESIA": "Indonesia",
-    "VN": "Vietnam",
-    "VIỆT": "Vietnam",
-    "VIET": "Vietnam"
+    "DAI": "Taiwan"
   },
   "camp_market_tokens": [
     "TW",
     "TAIWAN",
     "TAIWAIN",
     "ĐÀI",
-    "DAI",
-    "PH",
-    "PHI",
-    "PHILIPPINE",
-    "PHILIPPINES",
-    "ID",
-    "INDO",
-    "INDONESIA",
-    "VN",
-    "VIỆT",
-    "VIET"
+    "DAI"
   ],
+  "_audience_note": "TỆP KHÁCH: cộng đồng người nước ngoài đang SỐNG Ở ĐÀI LOAN mà quảng cáo nhắm tới — lao động Philippines, Indonesia, Việt Nam, và người Đài bản địa. ĐÂY KHÔNG PHẢI THỊ TRƯỜNG. Hàng vẫn giao ở Đài, vẫn thu TWD, vẫn qua 7-Eleven. Ô thứ hai của tên campaign là tệp khách chứ không phải nước giao hàng — đọc nhầm chỗ này là tưởng công ty đang bán ở bốn nước khác nhau.",
+  "audiences": {
+    "PHI": {
+      "display": "Người Philippines",
+      "tokens": [
+        "PHI",
+        "PH",
+        "PHILIPPINE",
+        "PHILIPPINES",
+        "PHILIPPIN"
+      ]
+    },
+    "INDO": {
+      "display": "Người Indonesia",
+      "tokens": [
+        "INDO",
+        "ID",
+        "INDONESIA"
+      ]
+    },
+    "VN": {
+      "display": "Người Việt",
+      "tokens": [
+        "VN",
+        "VIET",
+        "VIỆT",
+        "VIETNAM"
+      ]
+    },
+    "TW": {
+      "display": "Người Đài",
+      "tokens": [
+        "TW",
+        "DAILOAN",
+        "ĐÀI",
+        "DAI",
+        "TAIWAN"
+      ]
+    }
+  },
   "_people_note": "CƠ CẤU từ 05/09/2026. 'key' là mã nội bộ, KHÔNG đổi sau khi đã chạy — mọi báo cáo tham chiếu theo key. 'display' là tên hiện trên dashboard. Thương giữ CẢ HAI vai: vừa chạy ads vừa chốt đơn, nên có mặt ở cả marketers lẫn sales.",
   "marketers": {
     "Loc": {
@@ -607,5 +627,5 @@
     "Quy tắc gán sale (sale_assignment) — hiện mọi đơn rơi vào \"(chưa gán sale)\".",
     "KPI tháng cho đội mới (targets) — số đang là của đội cũ."
   ],
-  "_camp_naming_note": "CHUẨN ĐẶT TÊN CAMPAIGN (xem docs/CHUAN_DAT_TEN_CAMPAIGN.md):\n    MARKETER/THỊTRƯỜNG/SANPHAM/TRANG/NGAY[/TEST]\nMarketer ở ô ĐẦU, thị trường ô HAI, cả hai dùng mã KHÔNG DẤU. Dấu / chỉ để ngăn ô — viết ngày kiểu 27/08 là tự đẻ thêm ô, mọi ô sau lệch hết. Hệ thống vẫn đọc được tên cũ, nhưng tên cũ đọc bằng cách đoán."
+  "_camp_naming_note": "CHUẨN ĐẶT TÊN CAMPAIGN (xem docs/CHUAN_DAT_TEN_CAMPAIGN.md):\n    MARKETER/TỆPKHÁCH/SANPHAM/TRANG/NGAY[/TEST]\nÔ hai là TỆP KHÁCH (PHI/INDO/VN/TW) — cộng đồng ở Đài mà quảng cáo nhắm tới, KHÔNG phải nước giao hàng. Thị trường luôn là Đài Loan nên không cần ghi.\nMarketer ở ô ĐẦU, dùng mã KHÔNG DẤU. Dấu / chỉ để ngăn ô — viết ngày kiểu 27/08 là tự đẻ thêm ô, mọi ô sau lệch hết."
 }
