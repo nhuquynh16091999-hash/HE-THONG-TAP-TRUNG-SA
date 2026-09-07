@@ -18,64 +18,49 @@ bigquery:
 
 # ─── 3. FACEBOOK ADS — app riêng "Talpha Post" ───
 meta_ads:
-  app_id: "1492490978955925"                            # App "Talpha Post"
-  app_secret: "${TALPHA_META_APP_SECRET}"               # ⚠️ Value in .env
-  access_token: "${TALPHA_META_ACCESS_TOKEN}"           # ⚠️ Long-lived token, value in .env
+  app_id: "1010162072048699"                            # App "Dashboard Sỹ Anh Ngoài"
+  access_token: "${TALPHA_META_ACCESS_TOKEN}"           # Token System User, giá trị ở .env.local
+  # ─── 10 TÀI KHOẢN QUẢNG CÁO ───
+  # Lấy THẲNG từ Meta API ngày 07/09/2026 bằng chính token đang dùng, không chép tay.
+  # Cấu hình cũ khai 15 tài khoản GCC của hệ thống cũ — không cái nào còn đúng.
+  # Thêm tài khoản mới: khai đủ ở CẢ BA mục dưới, thiếu một chỗ là spend bị đếm
+  # thiếu mà không có cảnh báo nào.
   ad_account_ids:
-    - "act_832444553250352"       # Mỹ phẩm 3 5/6/2026
-    - "act_1990279368211651"      # Mỹ phẩm 2 6/5/2026
-    - "act_1146444450958264"      # Mỹ phẩm 5/6/2026
-    - "act_416558701342048"       # Tiểu Alpha 1
-    - "act_4382396978703883"      # Trang sức 27/04/2026
-    - "act_869269479518459"       # Mai 01
-    - "act_1670165974333671"      # Nhật Bản - 03
-    - "act_1284981146939856"      # Sỹ Lộc 03
-    - "act_1543721207473858"      # Trung Đông múi h Mỹ (Lộc) — có spend nhưng trước bị thiếu
-    - "act_1380444643991154"      # Trang sức 15/6/2026 — có spend nhưng trước bị thiếu
-    - "act_1343764530945320"      # Đài 18-05-2026 (thị trường Taiwan, VND)
-    - "act_2490459691392269"      # Sỹ Anh Dubai 01 (UAE, VND)
-    - "act_2071538856772150"      # Sỹ Anh Mỹ 03 (VND)
-    - "act_1341405590946084"      # Sỹ Anh Kuwait 02 (Kuwait, VND)
-    - "act_1669476730831714"      # Sỹ Anh Saudi 04 (tz Kuwait, VND) — thêm 10/08
-  # Tên hiển thị TKQC — NGUỒN DUY NHẤT cho dashboard (realtime route + Ads Command
-  # Center đọc từ đây, KHÔNG hard-code lại trong code). Thêm TKQC = thêm cả 2 mục.
+    - "act_2316553302504985"  # TK CÁ NHÂN NEW 1 — đã tắt
+    - "act_1025294735296964"  # NEW3 — chưa duyệt
+    - "act_256210853826298"   # Sỹ Anh Taiwan 4 — đang chạy
+    - "act_620354173588998"   # Sỹ Anh Taiwan 6 — chưa duyệt
+    - "act_355509637365145"   # Sỹ Anh Taiwan 5 — đang chạy
+    - "act_9429066663871702"  # TKQC Chạy Đài Loan — đã tắt
+    - "act_1044243500995626"  # Sỹ Anh Taiwan 3 — đã tắt
+    - "act_1623263399046753"  # TK BM Thuyên ngu 02 — đang chạy
+    - "act_2033341657422931"  # TK BM Thuyên 01 — đang chạy
+    - "act_1308534557829101"  # Sỹ Anh Taiwan 1 — đã tắt
   ad_account_names:
-    act_832444553250352: "Mỹ phẩm 3 5/6/2026"
-    act_1990279368211651: "Mỹ phẩm 2 6/5/2026"
-    act_1146444450958264: "Mỹ phẩm 5/6/2026"
-    act_416558701342048: "Tiểu Alpha 1"
-    act_4382396978703883: "Trang sức 27/04/2026"
-    act_869269479518459: "Mai 01"
-    act_1670165974333671: "Nhật Bản - 03"
-    act_1284981146939856: "Sỹ Lộc 03"
-    act_1543721207473858: "Trung Đông múi h Mỹ"
-    act_1380444643991154: "Trang sức 15/6/2026"
-    act_1343764530945320: "Đài 18-05-2026"
-    act_2490459691392269: "Sỹ Anh Dubai 01"
-    act_2071538856772150: "Sỹ Anh Mỹ 03"
-    act_1341405590946084: "Sỹ Anh Kuwait 02"
-    act_1669476730831714: "Sỹ Anh Saudi 04"
-  # Múi giờ từng TKQC — lấy từ Meta API (timezone_name) 03/08/2026, KHÔNG đoán theo tên.
-  # Spend cột `date` đã theo múi giờ NÀY của từng account (rule #6 TALPHA_METRIC_RULES):
-  # 3 account chạy America/Los_Angeles → ngày spend lệch VN, cả tháng mới khớp.
+    act_2316553302504985: "TK CÁ NHÂN NEW 1"
+    act_1025294735296964: "NEW3"
+    act_256210853826298: "Sỹ Anh Taiwan 4"
+    act_620354173588998: "Sỹ Anh Taiwan 6"
+    act_355509637365145: "Sỹ Anh Taiwan 5"
+    act_9429066663871702: "TKQC Chạy Đài Loan"
+    act_1044243500995626: "Sỹ Anh Taiwan 3"
+    act_1623263399046753: "TK BM Thuyên ngu 02"
+    act_2033341657422931: "TK BM Thuyên 01"
+    act_1308534557829101: "Sỹ Anh Taiwan 1"
+  # Múi giờ từng tài khoản — lấy từ Meta API, KHÔNG đoán theo tên.
+  # Cột `date` của spend đã theo múi giờ NÀY, nên 2 tài khoản Bangkok lệch ngày
+  # so với 8 tài khoản còn lại; cả tháng mới khớp (rule #6 TALPHA_METRIC_RULES).
   ad_account_timezones:
-    act_832444553250352: "Asia/Kuwait"          # Mỹ phẩm 3 5/6/2026
-    act_1990279368211651: "Asia/Kuwait"         # Mỹ phẩm 2 6/5/2026
-    act_1146444450958264: "Asia/Kuwait"         # Mỹ phẩm 5/6/2026
-    act_416558701342048: "Asia/Bangkok"         # Tiểu Alpha 1
-    act_4382396978703883: "Asia/Dubai"          # Trang sức 27/04/2026
-    act_869269479518459: "Asia/Qatar"           # Mai 01
-    act_1670165974333671: "Asia/Tokyo"          # Nhật Bản - 03
-    act_1284981146939856: "America/Los_Angeles" # Sỹ Lộc 03
-    act_1543721207473858: "America/Los_Angeles" # Trung Đông múi h Mỹ
-    act_1380444643991154: "Asia/Dubai"          # Trang sức 15/6/2026
-    act_1343764530945320: "Asia/Taipei"         # Đài 18-05-2026
-    act_2490459691392269: "Asia/Dubai"          # Sỹ Anh Dubai 01
-    act_2071538856772150: "America/Los_Angeles" # Sỹ Anh Mỹ 03
-    act_1341405590946084: "Asia/Kuwait"         # Sỹ Anh Kuwait 02
-    act_1669476730831714: "Asia/Kuwait"         # Sỹ Anh Saudi 04 (Meta khai tz Kuwait, KHÔNG phải Riyadh)
-  business_id: "1356322402694811"
-  pixel_id: ""                    # ❌ CẦN BỔ SUNG (nếu có)
+    act_2316553302504985: "Asia/Ho_Chi_Minh"
+    act_1025294735296964: "Asia/Ho_Chi_Minh"
+    act_256210853826298: "Asia/Ho_Chi_Minh"
+    act_620354173588998: "Asia/Ho_Chi_Minh"
+    act_355509637365145: "Asia/Ho_Chi_Minh"
+    act_9429066663871702: "Asia/Ho_Chi_Minh"
+    act_1044243500995626: "Asia/Ho_Chi_Minh"
+    act_1623263399046753: "Asia/Bangkok"
+    act_2033341657422931: "Asia/Bangkok"
+    act_1308534557829101: "Asia/Ho_Chi_Minh"
 
 # ─── 4. POS / ORDER MANAGEMENT ───
 pos_system: poscake
