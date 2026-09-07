@@ -149,45 +149,53 @@ t("thật sự không có ai thì marketer trả null, KHÔNG đoán bừa", () 
 
 
 console.log("── Chuẩn đặt tên campaign ──");
+// THỊTRƯỜNG/MARKETER/TỆPKHÁCH/SANPHAM/TENTRANG/NGAY
 const CHUAN = [
-    ["LOC/PHI/042-BLACK/TaiwanPrimeLeather/2808", "PHI",  "Loc"],
-    ["SANH/TW/BONGTAI-TRON/LuckyClover/2808",     "TW",   "SAnh"],
-    ["THAI/INDO/040-VONGVANG1/Lumora/1908",       "INDO", "Thai"],
-    ["THUONG/VN/SET-KIM-CUONG/LuxeGold/0109",     "VN",   "Thuong"],
-    ["QUYNH/PHI/TUI-DU-LICH/ATShop/0109",         "PHI",  "Quynh"],
-    ["THANG/INDO/036-BROWN/TaiwanSavings/2808",   "INDO", "Thang"],
+    ["TW/LOC/PHI/042-BLACK/TaiwanPrimeLeather/2808", "Loc",    "PHI"],
+    ["TW/SANH/INDO/SET-KIM-CUONG/LuxeGold/0109",     "SAnh",   "INDO"],
+    ["TW/THAI/VN/040-VONGVANG1/Lumora/1908",         "Thai",   "VN"],
+    ["TW/THUONG/TW/BONGTAI-TRON/LuckyClover/2808",   "Thuong", "TW"],
+    ["TW/QUYNH/PHI/TUI-DU-LICH/ATShop/0109",         "Quynh",  "PHI"],
+    ["TW/THANG/INDO/036-BROWN/TaiwanSavings/2808",   "Thang",  "INDO"],
 ];
-t("cả 6 marketer và 4 tệp khách đọc đúng theo chuẩn", () => {
-    for (const [name, aud, key] of CHUAN) {
+t("6 marketer × 4 tệp khách đọc đúng theo chuẩn 6 ô", () => {
+    for (const [name, key, aud] of CHUAN) {
+        assert.strictEqual(R.parseCampaign(name)[0], "Taiwan", `thị trường của ${name}`);
         assert.strictEqual(R.parseCampaign(name)[1], key, `marketer của ${name}`);
         assert.strictEqual(R.parseAudience(name), aud, `tệp khách của ${name}`);
     }
 });
-t("BẪY: tệp khách KHÔNG phải thị trường — mọi đơn đều ở Đài Loan", () => {
-    // Đọc nhầm ô hai thành nước giao hàng là tưởng công ty bán ở bốn nước, rồi
-    // quy đổi tiền theo bốn tỷ giá. Thực tế chỉ một thị trường: Đài Loan.
-    for (const [name] of CHUAN) {
-        assert.strictEqual(R.parseCampaign(name)[0], "Taiwan", name);
-    }
-    assert.deepStrictEqual(Object.keys(R.RULES.markets), ["Taiwan"]);
+t("BẪY CHẾT NGƯỜI: TW vừa là thị trường vừa là tệp người Đài", () => {
+    // "TW/LOC/PHI/..." — quét từ trái sang thì ô đầu khớp ngay TW, MỌI campaign
+    // đều bị gán tệp "người Đài" kể cả cái ghi rõ PHI. Không lỗi, không cảnh báo,
+    // chỉ có toàn bộ bảng tệp khách sai. Phải loại ô thị trường ra trước.
+    assert.strictEqual(R.parseAudience("TW/LOC/PHI/SP/Trang/2808"), "PHI");
+    assert.strictEqual(R.parseAudience("TW/LOC/INDO/SP/Trang/2808"), "INDO");
+    // Mà "TW/SANH/TW/..." thì tệp ĐÚNG là người Đài — không được loại nhầm.
+    assert.strictEqual(R.parseAudience("TW/SANH/TW/SP/Trang/2808"), "TW");
 });
-t("cách viết cũ của tệp khách vẫn đọc được", () => {
+t("BẪY: mã marketer không được nuốt ô tệp khách", () => {
+    assert.strictEqual(R.parseAudience("TW/THAI/VN/SP/Trang/2808"), "VN");
+    assert.strictEqual(R.parseCampaign("TW/THAI/VN/SP/Trang/2808")[1], "Thai");
+});
+t("định dạng CŨ vẫn đọc được, không phá campaign đang chạy", () => {
+    assert.strictEqual(R.parseAudience("LOC/PHI/042-BLACK/Trang/2808"), "PHI");
+    assert.strictEqual(R.parseCampaign("LOC/PHI/042-BLACK/Trang/2808")[1], "Loc");
     assert.strictEqual(R.parseAudience("Lộc/Philippine/036/TaiwanSavings/28-8"), "PHI");
-    assert.strictEqual(R.parseAudience("Thainx/INDO/040/Lumora/19-8"), "INDO");
-    assert.strictEqual(R.parseAudience("THƯƠNG/VN/TÚI/ATShop/1-9"), "VN");
+    assert.strictEqual(R.parseCampaign("THƯƠNG/VN/TÚI/ATShop/1-9")[1], "Thuong");
 });
 t("/TEST ở cuối được nhận là campaign thử", () => {
-    assert.strictEqual(R.isTestCampaign("SANH/TW/BONGTAI/LuckyClover/2808/TEST"), true);
-    assert.strictEqual(R.isTestCampaign("SANH/TW/BONGTAI/LuckyClover/2808"), false);
+    assert.strictEqual(R.isTestCampaign("TW/SANH/TW/BONGTAI/LuckyClover/2808/TEST"), true);
+    assert.strictEqual(R.isTestCampaign("TW/SANH/TW/BONGTAI/LuckyClover/2808"), false);
 });
-t("BẪY: ngày viết 27/08 tự đẻ thêm ô — marketer vẫn phải đúng", () => {
-    // Dấu / là ký tự ngăn ô. Ô đầu vẫn là marketer nên vẫn cứu được — đó chính
-    // là lý do marketer phải nằm ở ô ĐẦU.
-    assert.strictEqual(R.parseCampaign("THUONG/PHI/SET KIM CUONG/LuxeGold - 27/08")[1], "Thuong");
+t("BẪY: ngày viết 27/08 tự đẻ thêm ô — marketer và tệp vẫn phải đúng", () => {
+    const n = "TW/THUONG/PHI/SET KIM CUONG/LuxeGold - 27/08";
+    assert.strictEqual(R.parseCampaign(n)[1], "Thuong");
+    assert.strictEqual(R.parseAudience(n), "PHI");
 });
 t("mã không dấu tránh bẫy chữ hoa tiếng Việt", () => {
     assert.strictEqual("Thắng".toUpperCase().includes("THANG"), false);
-    assert.strictEqual(R.parseCampaign("THANG/PHI/SP/Trang/2808")[1], "Thang");
+    assert.strictEqual(R.parseCampaign("TW/THANG/PHI/SP/Trang/2808")[1], "Thang");
 });
 t("không rõ tệp thì trả null, KHÔNG mặc định về tệp nào", () => {
     assert.strictEqual(R.parseAudience("Camp linh tinh khong theo mau"), null);

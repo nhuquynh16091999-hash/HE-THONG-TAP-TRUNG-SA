@@ -246,12 +246,19 @@ export function normAudience(s?: string | null): string | null {
  */
 export function parseAudience(cn?: string | null): string | null {
     const p = String(cn || "").split("/").map((x) => x.trim());
-    if (p.length > 1) {
-        const second = normAudience(p[1]);
-        if (second) return second;
-    }
-    for (const seg of p) {
-        const a = normAudience(seg);
+
+    // Ô thị trường và ô marketer bị LOẠI khỏi vòng tìm tệp khách.
+    //
+    // Vì sao bắt buộc: mã "TW" vừa là thị trường Đài Loan vừa là tệp "người Đài".
+    // Với tên kiểu "TW/LOC/PHI/..." mà quét từ trái sang thì ô đầu khớp ngay TW,
+    // và MỌI campaign đều bị gán tệp "người Đài" — kể cả những cái ghi rõ PHI hay
+    // INDO. Không lỗi, không cảnh báo, chỉ có toàn bộ bảng tệp khách sai.
+    const marketIdx = p.findIndex((s) => s.toUpperCase() in CAMP_MARKETS);
+    const marketerIdx = p.findIndex((s) => normCampMarketer(s) !== null);
+
+    for (let i = 0; i < p.length; i++) {
+        if (i === marketIdx || i === marketerIdx) continue;
+        const a = normAudience(p[i]);
         if (a) return a;
     }
     return null;
