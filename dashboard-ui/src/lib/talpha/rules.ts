@@ -213,8 +213,29 @@ export type AttrSource = "pos_tag" | "ad_id" | "unassigned";
 export function parseCampaign(cn?: string | null): [string | null, string | null] {
     const p = String(cn || "").split("/").map((x) => x.trim());
     const mi = p.findIndex((s) => s.toUpperCase() in CAMP_MARKETS);
-    if (mi < 0) return [null, null];
-    return [CAMP_MARKETS[p[mi].toUpperCase()], mi + 1 < p.length ? normCampMarketer(p[mi + 1]) : null];
+    const market = mi >= 0 ? CAMP_MARKETS[p[mi].toUpperCase()] : null;
+
+    // Ba cách tìm marketer, thử lần lượt. Đội đặt tên campaign theo hai quy ước
+    // khác nhau qua các thời kỳ, và chỉ nhận một quy ước là mất hết số của quy
+    // ước kia — đo trên dữ liệu thật: 40,1/45,6 triệu (88% chi tiêu) rơi vào ô
+    // "không nhận ra chủ" chỉ vì luật cũ chỉ biết quy ước cũ.
+
+    // 1. Quy ước CŨ: "… / Thị trường / Marketer / …" — marketer đứng SAU thị trường.
+    if (mi >= 0 && mi + 1 < p.length) {
+        const after = normCampMarketer(p[mi + 1]);
+        if (after) return [market, after];
+    }
+
+    // 2. Quy ước MỚI (đang dùng): "Marketer / Thị trường / SP / Trang / Ngày"
+    //    — marketer đứng ĐẦU.
+    if (p.length) {
+        const first = normCampMarketer(p[0]);
+        if (first) return [market, first];
+    }
+
+    // 3. Không theo quy ước nào: quét cả tên. Thà bắt được người ở vị trí lạ còn
+    //    hơn ném cả campaign vào ô "không nhận ra chủ".
+    return [market, scanCampaignMarketer(cn)];
 }
 
 /** [{ad_id, campaign_name}] → {ad_id: key marketer} — bảng tra cho BẬC 2. */

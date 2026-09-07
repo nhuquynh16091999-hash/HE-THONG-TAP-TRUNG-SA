@@ -128,4 +128,22 @@ t("campaign ghi Lâm cũng về Lộc", () => {
 });
 
 
+console.log("── Hai quy ước đặt tên campaign ──");
+t("quy ước MỚI: marketer ở ô ĐẦU", () => {
+    // Quy ước đang dùng thật: "Marketer / Thị trường / SP / Trang / Ngày".
+    // Luật cũ chỉ biết quy ước "Thị trường / Marketer" nên bỏ sót 88% chi tiêu.
+    assert.strictEqual(R.parseCampaign("Lộc/Philippine/042 - BLACK/Taiwan Prime Leather/28-8")[1], "Loc");
+    assert.strictEqual(R.parseCampaign("THƯƠNG/VN/TÚI DU LỊCH/A.T.Shop/1347370118449146/1-9")[1], "Thuong");
+});
+t("quy ước CŨ vẫn chạy, không phá bản cũ", () => {
+    assert.strictEqual(R.parseCampaign("Taiwan / Lộc / Vòng tay / 123456")[1], "Loc");
+});
+t("không theo quy ước nào thì quét cả tên", () => {
+    assert.strictEqual(R.parseCampaign("khuyến mãi hè Lộc chạy thử")[1], "Loc");
+});
+t("thật sự không có ai thì trả null, KHÔNG đoán bừa", () => {
+    assert.strictEqual(R.parseCampaign("Camp linh tinh khong ten nguoi")[1], null);
+});
+
+
 console.log(`\n${pass} phép thử — tất cả đạt.`);

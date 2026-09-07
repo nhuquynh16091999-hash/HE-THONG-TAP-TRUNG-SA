@@ -38,17 +38,71 @@ def find_config_path() -> Optional[Path]:
     return None
 
 
+def _from_yaml() -> Optional[dict]:
+    """Dựng cấu hình từ config/projects/talpha.yaml — NGUỒN DUY NHẤT.
+
+    Trước đây danh sách tài khoản quảng cáo nằm ở nhiều nơi (yaml cho dashboard,
+    ad_accounts.json cho sync, bản runtime, và mấy chỗ gõ tay trong code). Thêm
+    một tài khoản mà sót một chỗ là spend bị đếm thiếu ÂM THẦM — không lỗi, không
+    cảnh báo, chỉ có số nhỏ hơn thực tế. Nay sync đọc chung một file với dashboard.
+    """
+    yml = _PROJECT_ROOT / "config" / "projects" / "talpha.yaml"
+    if not yml.exists():
+        return None
+    try:
+        import yaml  # noqa: PLC0415
+    except ImportError:
+        log.warning("Chưa cài PyYAML — quay về đọc ad_accounts.json")
+        return None
+    try:
+        with open(yml, "r", encoding="utf-8") as f:
+            data = yaml.safe_load(f) or {}
+    except Exception as e:
+        log.warning(f"Đọc {yml} lỗi ({e}) — quay về đọc ad_accounts.json")
+        return None
+
+    meta = data.get("meta_ads") or {}
+    ids = meta.get("ad_account_ids") or []
+    if not ids:
+        return None
+    names = meta.get("ad_account_names") or {}
+    tzs = meta.get("ad_account_timezones") or {}
+    return {
+        "projects": {
+            "talpha": {
+                "access_token_env": "TALPHA_META_ACCESS_TOKEN",
+                "accounts": [
+                    {
+                        "id": aid,
+                        "name": names.get(aid, aid),
+                        "timezone": tzs.get(aid),
+                        # yaml chỉ liệt kê tài khoản đang dùng; muốn tạm ngưng một
+                        # tài khoản thì bỏ nó khỏi ad_account_ids.
+                        "status": "active",
+                    }
+                    for aid in ids
+                ],
+            }
+        }
+    }
+
+
 def load_ad_accounts_config() -> dict:
-    """Load the full ad_accounts.json config (first existing candidate)."""
+    """Cấu hình tài khoản quảng cáo. Ưu tiên talpha.yaml, sau đó mới tới file JSON."""
+    from_yaml = _from_yaml()
+    if from_yaml:
+        log.debug("Đọc tài khoản quảng cáo từ config/projects/talpha.yaml")
+        return from_yaml
+
     path = find_config_path()
     if path is None:
         log.warning(
-            "ad_accounts.json not found in any candidate: "
+            "Không thấy talpha.yaml lẫn ad_accounts.json ở: "
             + ", ".join(str(p) for p in CONFIG_CANDIDATES)
         )
         return {"projects": {}}
 
-    log.debug(f"Loading ad accounts config from {path}")
+    log.debug(f"Đọc tài khoản quảng cáo từ {path}")
     with open(path, "r", encoding="utf-8") as f:
         return json.load(f)
 
