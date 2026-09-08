@@ -4,7 +4,10 @@
 > không cần Cloudflare Tunnel, và chạy được **cả nửa đường ống** bơm số vào
 > BigQuery — thứ máy Mac chưa làm.
 
-Máy chủ hiện tại: `139.180.131.21` (Vultr).
+Máy chủ hiện tại: **`139.180.131.21`** (Vultr) — **CentOS Stream 9**, 1 CPU,
+951MB RAM, 2,3GB swap, 17GB đĩa trống.
+
+**Đang chạy: http://139.180.131.21:3000**
 
 ---
 
@@ -43,44 +46,43 @@ ssh -i ~/.ssh/id_ed25519_talpha_vps root@139.180.131.21 "sed -i 's/^#*PasswordAu
 
 ---
 
-## ⚠️ Khoá máy chủ đã đổi
+## Máy chủ này dùng dnf, không phải apt
 
-Cả **ba** khoá của `139.180.131.21` khác với bản lưu trong `~/.ssh/known_hosts`:
+CentOS Stream 9 nên khác Ubuntu ở ba chỗ, kịch bản đã tự nhận dạng và xử lý cả hai họ:
 
-| Loại | Đang lưu | Máy chủ trình ra bây giờ |
+| | CentOS/RHEL | Ubuntu/Debian |
 |---|---|---|
-| ED25519 | `W4QcbkvC…NWlPtA` | `WhT6ATwg…CVajl8` |
-| RSA | `k/GGvgCH…CsnFyc` | `VnJSL7FL…PX73uk` |
-| ECDSA | `Z76aiWj3…ctyGNE` | `2ExNs0Zr…wsOvmc` |
+| Cài gói | `dnf` | `apt-get` |
+| Tường lửa | `firewalld` | `ufw` |
+| Kho Node | `rpm.nodesource.com` | `deb.nodesource.com` |
 
-Đổi **cả ba cùng lúc** gần như chắc chắn là máy đã được **cài lại hệ điều hành**
-(dựng lại VPS là sinh khoá mới toàn bộ). Nhưng vẫn phải xác nhận trước khi tin,
-vì trên lý thuyết đó cũng là dấu hiệu bị chen giữa đường truyền.
-
-**Cách xác nhận chắc chắn:** vào console web của Vultr (không qua SSH), chạy
-`ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub` rồi so với `WhT6ATwg…`.
-
-Xác nhận xong thì xoá bản cũ đi:
-
-```bash
-ssh-keygen -R 139.180.131.21
-```
+**RAM 951MB là sát nút.** `next build` ngốn quãng 1,5–2GB. Không có swap thì
+build bị nhân hệ điều hành giết giữa chừng, mà thông báo lỗi chẳng nhắc gì tới
+bộ nhớ — chỉ thấy chữ `Killed`, rất khó đoán. Máy này đã có sẵn 2,3GB swap;
+kịch bản vẫn tự kiểm và tạo thêm nếu thiếu, đồng thời chặn trần bộ nhớ Node ở
+1536MB khi build.
 
 ---
 
 ## Dựng lần đầu
 
-### 1. Khoá deploy cho GitHub
+### 1. Cho máy chủ đọc được repo
 
-Máy chủ cần đọc được repo riêng:
+Máy chủ cần đọc repo riêng trên GitHub. Cách đang dùng là **mượn khoá của máy
+Mac** (`ssh -A`, agent forwarding): trong lúc kết nối, máy chủ dùng nhờ khoá
+GitHub của máy Mac; hết phiên là hết quyền, **khoá không bao giờ nằm lại trên
+máy chủ**. Không phải cài gì lên GitHub.
+
+Đánh đổi: máy chủ chỉ kéo code được **khi máy Mac đang kết nối vào**. Muốn máy
+chủ tự cập nhật một mình (ví dụ đặt lịch cron), thì phải cài khoá deploy riêng:
 
 ```bash
 ssh -i ~/.ssh/id_ed25519_talpha_vps root@139.180.131.21 \
-  'ssh-keygen -t ed25519 -N "" -f ~/.ssh/id_ed25519_github -C talpha-vps >/dev/null; cat ~/.ssh/id_ed25519_github.pub'
+  'ssh-keygen -t ed25519 -N "" -f ~/.ssh/id_ed25519_github -C talpha-vps >/dev/null 2>&1; cat ~/.ssh/id_ed25519_github.pub'
 ```
 
-Dán khoá in ra vào GitHub → repo `HE-THONG-TAP-TRUNG-SA` → `Settings` →
-`Deploy keys` → `Add deploy key` (chỉ cần quyền đọc).
+Dán khoá in ra vào GitHub → repo → `Settings` → `Deploy keys` → `Add deploy key`.
+Không cần tích "Allow write access".
 
 ### 2. Chép cấu hình bí mật lên
 

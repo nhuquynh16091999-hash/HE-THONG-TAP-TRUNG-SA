@@ -15,7 +15,11 @@ KEY="${KEY:-$HOME/.ssh/id_ed25519_talpha_vps}"
 APP_DIR="${APP_DIR:-/opt/talpha}"
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
-SSH=(ssh -i "$KEY" -o IdentitiesOnly=yes -o ConnectTimeout=15 "root@$HOST")
+# -A cho máy chủ MƯỢN khoá GitHub của máy Mac trong lúc kết nối, thay vì phải
+# cài khoá deploy riêng lên GitHub. Khoá không bao giờ nằm lại trên máy chủ —
+# hết phiên là hết quyền.
+GH_KEY="${GH_KEY:-$HOME/.ssh/id_ed25519_hethong}"
+SSH=(ssh -A -i "$KEY" -o IdentitiesOnly=yes -o ConnectTimeout=15 "root@$HOST")
 SCP=(scp -i "$KEY" -o IdentitiesOnly=yes -q)
 
 say() { printf '\n\033[1;33m▸ %s\033[0m\n' "$*"; }
@@ -40,36 +44,22 @@ fi
 echo "   xong"
 
 # ─────────────────────────────────────────────────────────────────────────
-say "2/5 · Khoá deploy cho GitHub"
-PUB=$("${SSH[@]}" '
-    if [ ! -f ~/.ssh/id_ed25519_github ]; then
-        ssh-keygen -t ed25519 -N "" -f ~/.ssh/id_ed25519_github -C talpha-vps >/dev/null 2>&1
-    fi
-    grep -q "github.com" ~/.ssh/config 2>/dev/null || printf "Host github.com\n  IdentityFile ~/.ssh/id_ed25519_github\n  IdentitiesOnly yes\n  StrictHostKeyChecking accept-new\n" >> ~/.ssh/config
-    cat ~/.ssh/id_ed25519_github.pub')
+say "2/5 · Cho máy chủ đọc được repo"
+# Nạp khoá GitHub vào agent của máy Mac để chuyển tiếp sang máy chủ.
+ssh-add -l 2>/dev/null | grep -q "$(ssh-keygen -lf "$GH_KEY" | awk '{print $2}')" \
+    || ssh-add "$GH_KEY" 2>/dev/null \
+    || die "Không nạp được $GH_KEY vào ssh-agent"
 
-if "${SSH[@]}" 'ssh -T -o BatchMode=yes git@github.com 2>&1 | grep -q "successfully authenticated"'; then
-    echo "   máy chủ đã đọc được repo"
+# Cấu hình cũ trên máy chủ có thể ép dùng khoá riêng của nó — bỏ đi để khoá
+# mượn qua agent được dùng.
+"${SSH[@]}" 'sed -i "/^Host github.com/,+3d" ~/.ssh/config 2>/dev/null || true'
+
+if "${SSH[@]}" 'ssh -T -o BatchMode=yes -o StrictHostKeyChecking=accept-new git@github.com 2>&1 | grep -q "successfully authenticated"'; then
+    echo "   máy chủ đọc được repo (mượn khoá của máy Mac)"
 else
-    cat <<EOF
-
-   ┌─────────────────────────────────────────────────────────────────┐
-   │  CẦN LÀM TAY MỘT LẦN — máy chủ chưa đọc được repo riêng          │
-   └─────────────────────────────────────────────────────────────────┘
-
-   Mở: https://github.com/nhuquynh16091999-hash/HE-THONG-TAP-TRUNG-SA/settings/keys
-   Bấm "Add deploy key", đặt tên "VPS talpha", dán nguyên dòng dưới đây:
-
-$PUB
-
-   KHÔNG cần tích "Allow write access" — máy chủ chỉ cần đọc.
-   Dán xong chạy lại kịch bản này.
-
-EOF
-    exit 2
+    die "Máy chủ vẫn không đọc được repo. Xem mục 'Khoá deploy' trong docs/DEPLOY_VPS.md"
 fi
 
-# ─────────────────────────────────────────────────────────────────────────
 say "3/5 · Dựng máy chủ (Node · pm2 · code · build · tường lửa)"
 "${SCP[@]}" "$REPO_ROOT/ops/deploy/vps-setup.sh" "root@$HOST:/root/vps-setup.sh"
 "${SSH[@]}" 'bash /root/vps-setup.sh'
