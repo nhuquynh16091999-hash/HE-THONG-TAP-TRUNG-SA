@@ -27,8 +27,23 @@ const OWNER_PREFIX = OWNER_MAP[DEPLOYMENT_MODE] || "/talpha";
 
 const PROTECTED_PREFIXES = [OWNER_PREFIX, "/admin"];
 
+/**
+ * DASHBOARD_PUBLIC=true → BỎ HẲN lớp đăng nhập, ai có địa chỉ cũng vào thẳng.
+ *
+ * ⚠️ Máy chủ đang ở IP công khai. Bật cờ này là mở toàn bộ tên, số điện thoại,
+ * địa chỉ khách hàng, doanh thu và chi phí quảng cáo cho bất kỳ ai gõ đúng địa
+ * chỉ. Sỹ Anh đã được cảnh báo và chọn như vậy (08/09/2026).
+ *
+ * Code đăng nhập vẫn còn nguyên, không xoá — bỏ cờ này đi là khoá lại ngay,
+ * không phải dựng lại gì. Muốn vừa tiện vừa kín thì xem hai cách trong
+ * docs/BAO_MAT_DASHBOARD.md: nhớ đăng nhập 90 ngày, hoặc chỉ mở cho IP công ty.
+ */
+const PUBLIC_MODE = String(process.env.DASHBOARD_PUBLIC || "").toLowerCase() === "true";
+
 export default auth((req) => {
     const { pathname } = req.nextUrl;
+
+    if (PUBLIC_MODE) return NextResponse.next();
 
     // Protected routes need auth
     const isProtected = PROTECTED_PREFIXES.some((p) => pathname.startsWith(p));

@@ -45,13 +45,35 @@ FB_TOKEN = (
 )
 DISCORD_WEBHOOK = os.environ.get('DISCORD_WEBHOOK_ETL', '')
 
-POS_SHOPS = [
-    # HỆ MỚI 05/09/2026: MỘT thị trường Đài Loan ⇒ MỘT shop POS.
-    # 6 shop GCC (SA/AE/KW/OM/QA/BH) đã ngừng — bỏ khỏi sync để không kéo về
-    # đơn của thị trường không còn kinh doanh. Cần bật lại thì thêm dòng ở đây
-    # VÀ khai market tương ứng trong config/talpha_rules.json → markets.
-    {"key": os.environ.get("TALPHA_POSCAKE_TW_KEY", ""), "label": "TW", "shop_id": "1328343252", "currency": "TWD"},
-]
+def _pos_shops():
+    """Danh sách shop POS, đọc THẲNG từ config/talpha_rules.json → markets.
+
+    HỆ MỚI 05/09/2026: MỘT thị trường Đài Loan ⇒ MỘT shop POS. 6 shop GCC
+    (SA/AE/KW/OM/QA/BH) đã ngừng nên không còn trong config.
+
+    Trước đây shop_id ghi cứng ở đây, và nó SAI: mã cũ 1328343252 là của hệ
+    thống trước, key thật trả về "Cửa hàng không tồn tại". Ghi cứng ở hai nơi
+    thì sớm muộn cũng lệch nhau — nay chỉ còn một chỗ khai là config.
+    """
+    path = os.path.join(PROJECT_DIR, "config", "talpha_rules.json")
+    with open(path, encoding="utf-8") as fh:
+        rules = json.load(fh)
+
+    out = []
+    for _, m in (rules.get("markets") or {}).items():
+        label = m.get("shop_label", "")
+        if not label:
+            continue
+        out.append({
+            "key": os.environ.get(f"TALPHA_POSCAKE_{label}_KEY", ""),
+            "label": label,
+            "shop_id": str(m.get("shop_id", "")),
+            "currency": m.get("currency", ""),
+        })
+    return out
+
+
+POS_SHOPS = _pos_shops()
 
 # ── Logging ──────────────────────────────────────────────────────
 log_dir = os.path.join(PROJECT_DIR, 'logs')
@@ -174,6 +196,41 @@ ADSET_SCHEMA = [
 # ORDER SYNC
 # ═══════════════════════════════════════════════════════════════════
 
+def _drop_foreign_currency(orders, items, shop):
+    """Bỏ đơn KHÁC LOẠI TIỀN với loại đã khai cho shop.
+
+    Shop Đài thật đang chứa lẫn 71 đơn ghi bằng VND (650.000–1.000.000) nằm
+    cạnh 200 đơn TWD (749–1.399). Hai loại tiền đó không được cộng chung, và
+    nguy hơn nữa là mọi con số VND đều đi qua `revenue_vnd()` — hàm đó nhân
+    với tỷ giá 800 vì tin rằng số đầu vào là TWD. Một đơn 730.000 VND lọt qua
+    sẽ hoá thành 584 TRIỆU VND doanh thu, đủ làm hỏng mọi báo cáo mà không
+    có dấu hiệu nào báo sai.
+
+    Nên chặn ngay ở cửa vào, và ghi rõ số đơn bị bỏ chứ không bỏ im lặng.
+    """
+    want = (shop.get("currency") or "").upper()
+    if not want:
+        return orders, items
+
+    keep, dropped = [], {}
+    keep_ids = set()
+    for o in orders:
+        cur = (o.get("order_currency") or want).upper()
+        if cur == want:
+            keep.append(o)
+            keep_ids.add(str(o.get("id", "")))
+        else:
+            dropped[cur] = dropped.get(cur, 0) + 1
+
+    if dropped:
+        log.warning(
+            f"  {shop['label']}: bỏ {sum(dropped.values())} đơn khác loại tiền {dropped} "
+            f"— shop khai {want}. Cộng vào là sai doanh thu, xem _drop_foreign_currency."
+        )
+    kept_items = [it for it in items if str(it.get("order_id", "")) in keep_ids]
+    return keep, kept_items
+
+
 def sync_all_orders(window_start=None) -> tuple[int, int]:
     """Fetch đơn TẠO từ `window_start` trở đi ở mọi POS shop rồi ghi vào BQ.
 
@@ -210,6 +267,8 @@ def sync_all_orders(window_start=None) -> tuple[int, int]:
         if orders is None:
             failed_shops.append(shop["label"])
             continue
+
+        orders, items = _drop_foreign_currency(orders, items, shop)
         all_orders.extend(orders)
         all_items.extend(items)
 

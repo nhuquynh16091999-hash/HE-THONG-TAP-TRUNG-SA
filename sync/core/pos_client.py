@@ -55,11 +55,16 @@ class PoscakeClient:
                 params={"api_key": self.api_key},
                 timeout=15,
             )
-            shops = resp.json().get("data", [])
+            body = resp.json()
+            # Endpoint /shops trả về khoá "shops", KHÔNG phải "data" như các
+            # endpoint khác của cùng API. Bản trước chỉ đọc "data" nên luôn dò
+            # ra rỗng và báo "shop_id NOT FOUND", trong khi key hoàn toàn tốt.
+            shops = body.get("shops") or body.get("data") or []
             if shops:
                 sid = str(shops[0].get("id", ""))
-                log.info(f"  [{self.shop_label}] Discovered shop_id={sid}")
+                log.info(f"  [{self.shop_label}] Discovered shop_id={sid} ({shops[0].get('name')})")
                 return sid
+            log.warning(f"  [{self.shop_label}] /shops không trả shop nào: {str(body)[:120]}")
         except Exception as e:
             log.warning(f"  [{self.shop_label}] Shop ID discovery failed: {e}")
         return ""
@@ -232,7 +237,12 @@ class PoscakeClient:
             "p_utm_content":   str(o.get("p_utm_content", "") or ""),
             "p_utm_term":      str(o.get("p_utm_term", "") or ""),
             "p_utm_id":        str(o.get("p_utm_id", "") or ""),
-            "order_currency":  self.currency,
+            # Loại tiền THẬT của đơn, không phải của shop. Gán cứng self.currency
+            # là dán nhãn TWD lên cả đơn ghi bằng VND — shop Đài đang lẫn 71 đơn
+            # VND (650.000–1.000.000) giữa 200 đơn TWD (749–1.399). Dán nhãn sai
+            # thì bộ lọc ở talpha_sync không nhận ra, đơn VND lọt vào rồi bị nhân
+            # tỷ giá 800 như thể là TWD.
+            "order_currency":  str(o.get("order_currency") or self.currency),
             "customer_id":     str((o.get("customer") or {}).get("id", "")),
             "customer_name":   str((o.get("customer") or {}).get("name", "")),
             "bill_full_name":  str(o.get("bill_full_name", "") or ""),
