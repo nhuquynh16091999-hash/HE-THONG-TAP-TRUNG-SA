@@ -6,12 +6,13 @@
   "markets": {
     "Taiwan": {
       "shop_label": "TW",
-      "shop_id": "1328343252",
+      "shop_id": "408074608",
       "currency": "TWD",
       "rate_vnd": 800,
       "pos_money_divisor": 1,
       "display": "Đài Loan",
-      "_note": "TWD→VND tạm 800 (thật 780–800). Đây là thị trường DUY NHẤT nên tỷ giá sai là sai toàn hệ — soát lại mỗi tháng."
+      "_note": "TWD→VND tạm 800 (thật 780–800). Đây là thị trường DUY NHẤT nên tỷ giá sai là sai toàn hệ — soát lại mỗi tháng.",
+      "_shop_id_note": "Đổi từ 1328343252 sang 408074608 ngày 08/09/2026. Key Poscake thật trả \"Cửa hàng không tồn tại\" với mã cũ — mã cũ là của hệ thống trước."
     }
   },
   "market_aliases": {
@@ -487,6 +488,26 @@
         ],
         "sku": [
           "sku"
+        ],
+        "contact_name": [
+          "contact name(*)",
+          "contact name",
+          "ten khach",
+          "tên khách",
+          "khach hang"
+        ],
+        "phone": [
+          "phone",
+          "sdt",
+          "số điện thoại",
+          "so dien thoai",
+          "phone number"
+        ],
+        "return_order_no": [
+          "ma don moi cua don di kho hang hoan",
+          "mã đơn mới của đơn đi kho hàng hoàn",
+          "ma don moi",
+          "mã đơn mới"
         ]
       },
       "_status_note": "Cột NOTE của đối tác → trạng thái chuẩn (dùng chung bảng với 17TRACK). Giá trị lạ KHÔNG bị nuốt: hiện nguyên văn lên dashboard để người khai bổ sung.",
@@ -510,7 +531,8 @@
           "digits": 8,
           "prefix": "73N"
         }
-      ]
+      ],
+      "_column_note": "Tên cột chuẩn hoá trước khi so: bỏ dấu, bỏ ký tự lạ như (*), về chữ thường. Nên 'Contact Name(*)' khớp với 'contact name'."
     }
   },
   "status": {
@@ -697,9 +719,11 @@
   "_todo": [
     "Tên đầy đủ của giám đốc (director.full).",
     "Tên bạn sale thứ hai (sales.Sale2) khi có người.",
-    "Phí 3PL Đài Loan (shipping_fees.TW) — chưa khai thì mọi số lãi/lỗ thiếu phí vận chuyển.",
     "Quy tắc gán sale (sale_assignment) — hiện mọi đơn rơi vào \"(chưa gán sale)\".",
-    "KPI tháng cho đội mới (targets) — số đang là của đội cũ."
+    "KPI tháng cho đội mới (targets) — số đang là của đội cũ.",
+    "Hỏi NAZA khoản 'phí thao tác' 3 RMB/đơn: bảng giá ghi miễn phí, thực tế thu đều. Đã trả 1.389 RMB qua 7 kỳ.",
+    "Sửa 6 mã vận đơn đang bị gán cho hai đơn khác nhau trong file đơn tổng (xem cảnh báo ở tab Đối soát).",
+    "Điền mã vận đơn cho 39 dòng đang để trống trong file đơn tổng."
   ],
   "_camp_naming_note": "CHUẨN ĐẶT TÊN CAMPAIGN (xem docs/CHUAN_DAT_TEN_CAMPAIGN.md):\n    MARKETER/TỆPKHÁCH/SANPHAM/TRANG/NGAY[/TEST]\nÔ hai là TỆP KHÁCH (PHI/INDO/VN/TW) — cộng đồng ở Đài mà quảng cáo nhắm tới, KHÔNG phải nước giao hàng. Thị trường luôn là Đài Loan nên không cần ghi.\nMarketer ở ô ĐẦU, dùng mã KHÔNG DẤU. Dấu / chỉ để ngăn ô — viết ngày kiểu 27/08 là tự đẻ thêm ô, mọi ô sau lệch hết."
 }

@@ -44,6 +44,11 @@ type PartnerMeta = {
     order_no: string; ship_method: string; cod_local: number; marketer: string;
     recon: string; store_name: string; store_code: string;
     ship_date: string | null; track17_code: string | null;
+    // Thêm 05 trường cho Sổ đơn hàng: nó cần cả khách lẫn hàng, không chỉ vận đơn.
+    order_date?: string | null;
+    contact_name?: string; phone?: string;
+    sku?: string; quantity?: string;
+    return_order_no?: string;
 };
 type Store = {
     registered: Record<string, Registered>;

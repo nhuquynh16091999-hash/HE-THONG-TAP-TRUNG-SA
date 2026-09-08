@@ -33,6 +33,11 @@ type PartnerMeta = {
     order_no: string; ship_method: string; cod_local: number; marketer: string;
     recon: string; store_name: string; store_code: string;
     ship_date: string | null; track17_code: string | null;
+    // Thêm 05 trường cho Sổ đơn hàng: nó cần cả khách lẫn hàng, không chỉ vận đơn.
+    order_date?: string | null;
+    contact_name?: string; phone?: string;
+    sku?: string; quantity?: string;
+    return_order_no?: string;
 };
 type Store = {
     registered: Record<string, unknown>;
@@ -129,6 +134,10 @@ export async function POST(req: NextRequest) {
                     order_no: r.order_no, ship_method: r.ship_method, cod_local: r.cod_local,
                     marketer: r.marketer, recon: r.recon, store_name: r.store_name,
                     store_code: r.store_code, ship_date: r.ship_date, track17_code: r.track17_code,
+                    order_date: r.order_date,
+                    contact_name: r.contact_name, phone: r.phone,
+                    sku: r.sku, quantity: r.quantity,
+                    return_order_no: r.return_order_no,
                 };
 
                 if (!r.status) continue;

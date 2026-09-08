@@ -60,7 +60,7 @@ function normHeader(s: string): string {
 export type PartnerColumns = Partial<Record<
     "order_no" | "tracking" | "track17_code" | "status" | "ship_method" | "cod" |
     "marketer" | "recon" | "ship_date" | "order_date" | "store_name" | "store_code" |
-    "quantity" | "sku", number>>;
+    "quantity" | "sku" | "contact_name" | "phone" | "return_order_no", number>>;
 
 export function detectPartnerColumns(header: string[]): PartnerColumns {
     const norm = header.map(normHeader);
@@ -132,6 +132,10 @@ export type PartnerRow = {
     store_code: string;
     quantity: string;
     sku: string;
+    contact_name: string;
+    phone: string;
+    /** Mã đơn MỚI khi đơn cũ bị hoàn về kho rồi gửi lại. Khác `tracking` gốc. */
+    return_order_no: string;
 };
 
 export type PartnerParse = {
@@ -193,6 +197,9 @@ export function parsePartnerFile(text: string): PartnerParse {
             store_code: at(r, columns.store_code),
             quantity: at(r, columns.quantity),
             sku: at(r, columns.sku),
+            contact_name: at(r, columns.contact_name),
+            phone: at(r, columns.phone),
+            return_order_no: at(r, columns.return_order_no),
         });
     }
 

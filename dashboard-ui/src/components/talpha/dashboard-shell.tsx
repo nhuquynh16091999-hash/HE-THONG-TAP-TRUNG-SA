@@ -20,6 +20,7 @@ import TALPHAAdHealthTab from "./tabs/ad-health-tab";
 import TALPHAOrdersTab from "./tabs/orders-tab";
 import TALPHAAdSpendTab from "./tabs/ad-spend-tab";
 import TALPHACodReconTab from "./tabs/cod-recon-tab";
+import TALPHAOrderLedgerTab from "./tabs/order-ledger-tab";
 import TALPHATrackingTab from "./tabs/tracking-tab";
 
 /**
@@ -39,21 +40,22 @@ const NAV_GROUPS: NavGroup[] = [
             { id: "product-pnl", label: "P&L theo SP" },
         ],
     },
+    // Đơn hàng và Đối soát GỘP một mục.
+    //
+    // Bản trước tách đôi vì nghĩ soát tiền là việc riêng theo kỳ. Chạy thật thì
+    // hoá ra người dùng phải nhảy qua nhảy lại: nhìn thấy một đơn quá hạn ở tab
+    // Đối soát rồi lại sang tab Đơn hàng tra tên khách và số điện thoại để đi
+    // đòi. Cùng một đơn, hai màn hình.
+    //
+    // Nay Sổ đơn hàng gánh cả hai: mỗi đơn một dòng, có cả thông tin khách lẫn
+    // tình trạng tiền. Hai tab cũ giữ nguyên cho việc tra cứu chuyên sâu.
     {
-        id: "don-hang", emoji: "🧾", label: "Đơn hàng",
+        id: "don-hang", emoji: "🧾", label: "Đơn hàng & Đối soát",
         tabs: [
+            { id: "order-ledger", label: "Sổ đơn hàng" },
+            { id: "cod-recon", label: "Đối soát COD" },
             { id: "orders", label: "Danh sách đơn" },
             { id: "tracking", label: "Theo dõi vận đơn" },
-        ],
-    },
-    // Đối soát đứng riêng chứ không nằm trong Đơn hàng: đây là việc soát TIỀN —
-    // tiền 3PL đã trả có khớp đơn đã giao không — làm theo kỳ, người làm và nhịp
-    // làm đều khác việc tra cứu đơn hằng ngày. Sau còn thêm đối soát tồn kho và
-    // đối soát chi phí vào cùng mục này.
-    {
-        id: "doi-soat", emoji: "🧮", label: "Đối soát",
-        tabs: [
-            { id: "cod-recon", label: "Đối soát COD" },
         ],
     },
     { id: "san-pham", emoji: "📦", label: "Sản phẩm", tabs: [{ id: "products", label: "Sản phẩm & Kho" }] },
@@ -188,6 +190,7 @@ export default function TALPHADashboardShell() {
                     {activeTab === "product-pnl" && <TALPHAProductPnLTab dateRange={dateRange} projectId="TALPHA" />}
                     {activeTab === "orders" && <TALPHAOrdersTab dateRange={dateRange} projectId="TALPHA" />}
                     {activeTab === "tracking" && <TALPHATrackingTab dateRange={dateRange} projectId="TALPHA" />}
+                    {activeTab === "order-ledger" && <TALPHAOrderLedgerTab dateRange={dateRange} projectId="TALPHA" />}
                     {activeTab === "cod-recon" && <TALPHACodReconTab dateRange={dateRange} projectId="TALPHA" />}
                     {activeTab === "products" && <TALPHAProductsTab dateRange={dateRange} projectId="TALPHA" />}
                     {activeTab === "marketing" && <TALPHAMarketingTab dateRange={dateRange} projectId="TALPHA" />}

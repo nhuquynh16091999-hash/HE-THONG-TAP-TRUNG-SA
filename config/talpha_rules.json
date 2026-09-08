@@ -488,6 +488,26 @@
         ],
         "sku": [
           "sku"
+        ],
+        "contact_name": [
+          "contact name(*)",
+          "contact name",
+          "ten khach",
+          "tên khách",
+          "khach hang"
+        ],
+        "phone": [
+          "phone",
+          "sdt",
+          "số điện thoại",
+          "so dien thoai",
+          "phone number"
+        ],
+        "return_order_no": [
+          "ma don moi cua don di kho hang hoan",
+          "mã đơn mới của đơn đi kho hàng hoàn",
+          "ma don moi",
+          "mã đơn mới"
         ]
       },
       "_status_note": "Cột NOTE của đối tác → trạng thái chuẩn (dùng chung bảng với 17TRACK). Giá trị lạ KHÔNG bị nuốt: hiện nguyên văn lên dashboard để người khai bổ sung.",
@@ -511,7 +531,8 @@
           "digits": 8,
           "prefix": "73N"
         }
-      ]
+      ],
+      "_column_note": "Tên cột chuẩn hoá trước khi so: bỏ dấu, bỏ ký tự lạ như (*), về chữ thường. Nên 'Contact Name(*)' khớp với 'contact name'."
     }
   },
   "status": {
