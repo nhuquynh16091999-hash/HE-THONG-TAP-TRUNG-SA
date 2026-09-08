@@ -12,7 +12,7 @@ Usage:
   client = MetaAdsClient(access_token=os.environ["TALPHA_META_ACCESS_TOKEN"])
   rows = client.fetch_ads_insights(account_id="act_832444553250352", date_start="2026-06-01", date_stop="2026-06-19")
 """
-import time, logging, requests
+import re, time, logging, requests
 from typing import Optional
 
 log = logging.getLogger(__name__)
@@ -29,6 +29,18 @@ RATE_LIMIT_CODES = {4, 17, 32, 613, 80000, 80003, 80004, 80014}
 
 class MetaFetchError(Exception):
     """Fetch 1 account thất bại hẳn (timeout/limit hết retry) — để caller KHÔNG ghi 0 đè."""
+
+
+def _mask_secrets(text) -> str:
+    """Che token trong mọi chuỗi trước khi ghi log.
+
+    Thông báo lỗi của Meta CHÉP NGUYÊN access token vào phần message
+    ("Malformed access token EAAOWvK9…"). Ghi thẳng ra journal là token nằm
+    vĩnh viễn trong nhật ký máy chủ, ai đọc được log là dùng được token.
+    Đã xảy ra thật trên máy chủ ngày 08/09/2026.
+    """
+    s = str(text)
+    return re.sub(r"\bEAA[A-Za-z0-9_\-]{20,}", "EAA…<token đã che>", s)
 
 
 def _is_rate_limit(err: dict) -> bool:
@@ -109,9 +121,9 @@ class MetaAdsClient:
             except requests.RequestException as e:
                 last_err = e
                 wait = 2 ** attempt
-                log.warning(f"  Meta request lần {attempt+1}/{META_MAX_RETRIES}: {e} → chờ {wait}s")
+                log.warning(f"  Meta request lần {attempt+1}/{META_MAX_RETRIES}: {_mask_secrets(e)} → chờ {wait}s")
                 time.sleep(wait)
-        raise MetaFetchError(f"Meta request thất bại sau {META_MAX_RETRIES} lần: {last_err}")
+        raise MetaFetchError(_mask_secrets(f"Meta request thất bại sau {META_MAX_RETRIES} lần: {last_err}"))
 
     def _get(self, path: str, params: dict) -> dict:
         """Tương thích ngược — wrapper quanh _request."""
@@ -149,7 +161,7 @@ class MetaAdsClient:
         while True:
             if isinstance(data, dict) and data.get("error"):
                 # rate limit đã được _request tự chờ+thử lại; tới đây là lỗi KHÁC → fail hẳn account.
-                raise MetaFetchError(f"[{account_id}] Meta error: {data['error']}")
+                raise MetaFetchError(_mask_secrets(f"[{account_id}] Meta error: {data['error']}"))
 
             for row in data.get("data", []):
                 rows.append(row)
