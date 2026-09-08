@@ -113,6 +113,66 @@ export async function GET(req: NextRequest) {
         const { rows, extra } = buildLedger(orders, paid, fees, { asOf });
         const summary = summarise(rows, extra);
 
+        // ── BÁO CÁO TỪNG KỲ SAO KÊ ────────────────────────────────────
+        //
+        // Việc thật của mỗi tuần, đúng lời Sỹ Anh: "bên vận chuyển gửi file đối
+        // soát — những đơn nào về, và có bị lệch không". Bốn loại lệch, do chính
+        // Sỹ Anh chốt:
+        //   1. 3PL trả khác số trên đơn
+        //   2. Đã giao mà chưa về tiền   (không thuộc kỳ nào — tính toàn cục)
+        //   3. 3PL trả cho đơn mình không có
+        //   4. Phí thu sai bảng giá
+        //
+        // Tính theo TỪNG KỲ chứ không gộp: một tuần một file, và câu hỏi luôn là
+        // "kỳ NÀY có vấn đề gì", không phải "từ đầu tới giờ".
+        const byPeriod = stm.statements.map((st) => {
+            const mine = rows.filter((r) => r.paid_period === st.filename);
+            const lech = mine.filter((r) => r.diff_twd !== null && Math.abs(r.diff_twd) > 1);
+            const phiSai = mine.filter((r) => r.fee_wrong);
+            const thua = extra.filter((e) => e.period === st.filename);
+            const n = st.naza;
+            return {
+                id: st.id,
+                filename: st.filename,
+                uploaded_at: st.uploaded_at,
+                orders_paid: mine.length,
+                total_twd: mine.reduce((a, r) => a + (r.paid_twd ?? 0), 0),
+                fee_rmb: mine.reduce((a, r) => a + (r.ship_fee_rmb ?? 0) + (r.op_fee_rmb ?? 0), 0),
+                // Bốn loại lệch
+                lech_tien: lech.map((r) => ({
+                    order_no: r.order_no, tracking: r.tracking,
+                    cod_twd: r.cod_twd, paid_twd: r.paid_twd, diff_twd: r.diff_twd,
+                })),
+                phi_sai: phiSai.map((r) => ({
+                    order_no: r.order_no, tracking: r.tracking, ship_fee_rmb: r.ship_fee_rmb,
+                })),
+                thua_sao_ke: thua.map((e) => ({
+                    order_no: e.order_no, tracking: e.tracking, amount_twd: e.amount_twd,
+                })),
+                // Phép quyết toán của chính kỳ đó, do NAZA khai
+                settlement: n ? {
+                    cod_twd: n.summary.cod_twd,
+                    rate_twd_rmb: n.summary.rate_twd_rmb,
+                    ship_fee_rmb: n.summary.ship_fee_rmb,
+                    op_fee_rmb: n.summary.op_fee_rmb,
+                    rate_rmb_vnd: n.summary.rate_rmb_vnd,
+                    purchase_vnd: n.summary.purchase_vnd,
+                    payable_vnd: n.summary.payable_vnd,
+                    math_ok: n.checks.math_ok,
+                    math_note: n.checks.math_note,
+                } : null,
+            };
+        }).sort((a, b) => (a.uploaded_at < b.uploaded_at ? 1 : -1));
+
+        // Loại lệch thứ 2 KHÔNG thuộc kỳ nào: đơn đã giao mà chưa kỳ nào trả
+        // tiền. Gắn nó vào một kỳ cụ thể là sai — nó là món nợ đang treo.
+        const chuaVeTien = rows
+            .filter((r) => (r.light === "vang" || r.light === "do") && r.paid_twd === null)
+            .map((r) => ({
+                order_no: r.order_no, tracking: r.tracking, cod_twd: r.cod_twd,
+                age_days: r.age_days, qua_han: r.light === "do",
+            }));
+
         // ── Cảnh báo ở mức kỳ ─────────────────────────────────────────
         const notes: string[] = [];
         if (!orders.length) {
@@ -145,6 +205,8 @@ export async function GET(req: NextRequest) {
             summary,
             extra,
             status_vi: PARTNER_STATUS_VI,
+            periods: byPeriod,
+            chua_ve_tien: chuaVeTien,
             statements: stm.statements.map((s) => ({ id: s.id, filename: s.filename })),
             warnings: notes,
         });
