@@ -372,6 +372,24 @@ def _transform_adset_row(r: dict, account_id: str, account_name: str) -> dict:
     }
 
 
+def _is_permanent_meta_error(err) -> bool:
+    """Lỗi Meta thuộc loại KHÔNG bao giờ tự khỏi khi thử lại.
+
+    Chủ tài khoản chưa cấp quyền, tài khoản không tồn tại, token sai app —
+    những cái đó phải người vào Business Manager sửa, chờ bao lâu cũng vậy.
+    Khác hẳn rate limit hay lỗi mạng, vốn đáng chờ rồi thử lại.
+    """
+    t = str(err).lower()
+    return any(k in t for k in (
+        "has not grant",            # (#200) chủ tài khoản chưa cấp ads_read/ads_management
+        "not grant ads_management",
+        "does not exist",
+        "unsupported get request",
+        "malformed access token",
+        "session has expired",
+    ))
+
+
 def sync_fb_ads(days_back: int = 1, since: str = None, until: str = None) -> tuple[int, int]:
     """Fetch Meta Ads insights → BQ theo cơ chế raw/rebuild (X2).
 
@@ -415,6 +433,13 @@ def sync_fb_ads(days_back: int = 1, since: str = None, until: str = None) -> tup
                 break
             except MetaFetchError as e:
                 log.error(f"    {acct['name']} fetch lỗi (lần {attempt+1}/3): {e}")
+                # Lỗi PHÂN QUYỀN không bao giờ tự hết — thử lại chỉ tốn thời gian.
+                # Config từng khai 15 tài khoản của hệ thống cũ mà token mới không
+                # có quyền cái nào: 15 × 3 lần × 32 giây = 24 PHÚT mỗi vòng sync,
+                # để rồi vẫn ghi 0 dòng. Chỉ thử lại lỗi tạm thời (mạng, rate limit).
+                if _is_permanent_meta_error(e):
+                    log.error(f"    ⚠️ {acct['name']}: lỗi phân quyền — bỏ qua, không thử lại.")
+                    break
                 if attempt < 2:
                     time.sleep(30)
         if rows is None:

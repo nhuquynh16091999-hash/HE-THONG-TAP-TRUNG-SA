@@ -4,89 +4,57 @@
       "access_token_env": "TALPHA_META_ACCESS_TOKEN",
       "accounts": [
         {
-          "id": "act_832444553250352",
-          "name": "Mỹ phẩm 3 5/6/2026",
-          "status": "active",
-          "bill_threshold_vnd": 20472625
+          "id": "act_2316553302504985",
+          "name": "TK CÁ NHÂN NEW 1",
+          "status": "disabled"
         },
         {
-          "id": "act_1990279368211651",
-          "name": "Mỹ phẩm 2 6/5/2026",
+          "id": "act_1025294735296964",
+          "name": "NEW3",
+          "status": "unsettled"
+        },
+        {
+          "id": "act_256210853826298",
+          "name": "Sỹ Anh Taiwan 4",
           "status": "active"
         },
         {
-          "id": "act_1146444450958264",
-          "name": "Mỹ phẩm 5/6/2026",
-          "status": "active",
-          "billing_hidden": true
+          "id": "act_620354173588998",
+          "name": "Sỹ Anh Taiwan 6",
+          "status": "unsettled"
         },
         {
-          "id": "act_416558701342048",
-          "name": "Tiểu Alpha 1",
-          "status": "active",
-          "bill_threshold_vnd": 17967233
-        },
-        {
-          "id": "act_4382396978703883",
-          "name": "Trang sức 27/04/2026",
-          "status": "active",
-          "billing_hidden": true
-        },
-        {
-          "id": "act_869269479518459",
-          "name": "Mai 01",
-          "status": "active",
-          "billing_hidden": true
-        },
-        {
-          "id": "act_1670165974333671",
-          "name": "Nhật Bản - 03",
-          "status": "active",
-          "billing_hidden": true
-        },
-        {
-          "id": "act_1284981146939856",
-          "name": "Sỹ Lộc 03",
-          "status": "active",
-          "billing_hidden": true
-        },
-        {
-          "id": "act_1543721207473858",
-          "name": "Trung Đông múi h Mỹ",
-          "status": "active",
-          "bill_threshold_vnd": 15208514
-        },
-        {
-          "id": "act_1380444643991154",
-          "name": "Trang sức 15/6/2026",
+          "id": "act_355509637365145",
+          "name": "Sỹ Anh Taiwan 5",
           "status": "active"
         },
         {
-          "id": "act_1343764530945320",
-          "name": "Đài 18-05-2026",
+          "id": "act_9429066663871702",
+          "name": "TKQC Chạy Đài Loan",
+          "status": "disabled"
+        },
+        {
+          "id": "act_1044243500995626",
+          "name": "Sỹ Anh Taiwan 3",
+          "status": "disabled"
+        },
+        {
+          "id": "act_1623263399046753",
+          "name": "TK BM Thuyên ngu 02",
           "status": "active"
         },
         {
-          "id": "act_2490459691392269",
-          "name": "Sỹ Anh Dubai 01",
+          "id": "act_2033341657422931",
+          "name": "TK BM Thuyên 01",
           "status": "active"
         },
         {
-          "id": "act_2071538856772150",
-          "name": "Sỹ Anh Mỹ 03",
-          "status": "active"
-        },
-        {
-          "id": "act_1341405590946084",
-          "name": "Sỹ Anh Kuwait 02",
-          "status": "active"
-        },
-        {
-          "id": "act_1669476730831714",
-          "name": "Sỹ Anh Saudi 04",
-          "status": "active"
+          "id": "act_1308534557829101",
+          "name": "Sỹ Anh Taiwan 1",
+          "status": "disabled"
         }
-      ]
+      ],
+      "_note": "Danh sách này lấy THẲNG từ /me/adaccounts của token System User ngày 08/09/2026. Bản cũ khai 15 tài khoản của hệ thống trước (Mỹ phẩm, Nhật Bản, Dubai, Kuwait, Saudi) — token mới KHÔNG có quyền một cái nào, nên mỗi vòng sync đốt 24 phút thử lại vô ích rồi ghi 0 dòng. Đổi token thì chạy lại scripts/refresh_ad_accounts.py chứ đừng sửa tay."
     }
   }
 }
