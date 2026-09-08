@@ -101,11 +101,11 @@ scp -i ~/.ssh/id_ed25519_talpha_vps ops/deploy/vps-setup.sh root@139.180.131.21:
 ssh -i ~/.ssh/id_ed25519_talpha_vps root@139.180.131.21 'bash /root/vps-setup.sh'
 ```
 
-Kịch bản làm 7 việc: gói hệ thống → Node 22 → pm2 → kéo code → dựng bản chạy →
-pm2 khởi chạy + bật lại khi reboot → tường lửa.
+Kịch bản làm 8 việc: nhận dạng máy → gói hệ thống → swap → Node 22 → pm2 →
+kéo code → dựng bản chạy → pm2 khởi chạy + bật lại khi reboot → tường lửa.
 
-**Về tường lửa:** mở SSH **trước** rồi mới bật `ufw`. Làm ngược thứ tự là tự
-khoá mình ra ngoài, phải vào console của Vultr mới gỡ được.
+**Về tường lửa:** mở SSH **trước** rồi mới bật tường lửa. Làm ngược thứ tự là
+tự khoá mình ra ngoài, phải vào console của Vultr mới gỡ được.
 
 ---
 
@@ -131,9 +131,18 @@ duyệt ném `ChunkLoadError` và người dùng thấy **màn trắng** không 
 Đang chạy trần ở cổng 3000. Muốn có HTTPS và tên miền:
 
 ```bash
-apt-get install -y nginx certbot python3-certbot-nginx
+# CentOS Stream 9 — máy hiện tại
+dnf install -y nginx certbot python3-certbot-nginx
 # trỏ tên miền về 139.180.131.21 trước, rồi:
 certbot --nginx -d dashboard.tenmiencuaban.com
+firewall-cmd --permanent --add-service=http --add-service=https && firewall-cmd --reload
+```
+
+⚠️ SELinux đang bật (`Enforcing`). Nginx sẽ **không** nối được sang cổng 3000 nếu
+chưa cho phép — thiếu bước này là lỗi 502 mà log nginx chỉ ghi "Permission denied":
+
+```bash
+setsebool -P httpd_can_network_connect 1
 ```
 
 Có tên miền cố định rồi thì khai `NEXTAUTH_URL` và `AUTH_URL` trong `.env.local`
