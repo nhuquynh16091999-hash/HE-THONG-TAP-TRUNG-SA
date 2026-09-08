@@ -22,9 +22,30 @@ type Market = { currency?: string; rate_vnd?: number; pos_money_divisor?: number
 const TW: Market =
     (RULES as unknown as { markets?: Record<string, Market> }).markets?.Taiwan || {};
 
-type Product = { name?: string; cost_price_vnd?: number };
+type Product = { name?: string; cost_price_rmb?: number; cost_price_vnd?: number };
 const PRODUCTS: Record<string, Product> =
     (RULES as unknown as { products?: Record<string, Product> }).products || {};
+
+/**
+ * Giá vốn một cái, tính ra VND.
+ *
+ * Ưu tiên GIÁ TỆ: hàng nhập từ Trung Quốc, trả bằng tệ, nên tệ mới là con số
+ * thật; VND chỉ là kết quả quy đổi tại một thời điểm.
+ *
+ * Quy đổi bằng ĐÚNG tỷ giá của kỳ sao kê đang xét, không phải tỷ giá hôm nay.
+ * Doanh thu và giá vốn cùng đi qua một tỷ giá thì biên lãi không bị tỷ giá làm
+ * méo — tỷ giá nhảy 2% giữa các kỳ mà chỉ một vế đổi theo là lãi tự nhiên
+ * phình ra hoặc teo lại dù chẳng bán khác gì.
+ */
+function unitCostVnd(code: string, rateRmbVnd: number | null): number | null {
+    const p = PRODUCTS[code];
+    if (!p) return null;
+    if (typeof p.cost_price_rmb === "number" && p.cost_price_rmb > 0) {
+        return p.cost_price_rmb * (rateRmbVnd ?? FALLBACK_RMB_VND);
+    }
+    if (typeof p.cost_price_vnd === "number" && p.cost_price_vnd > 0) return p.cost_price_vnd;
+    return null;
+}
 
 const CFG = (RULES as unknown as {
     cod_settlement?: { pending_alert_days?: number; amount_tolerance_local?: number };
@@ -34,6 +55,8 @@ export const OVERDUE_DAYS = Number(CFG.pending_alert_days ?? 30);
 export const TOLERANCE_TWD = Number(CFG.amount_tolerance_local ?? 1);
 /** Tỷ giá dự phòng khi bản sao kê không nói tỷ giá của kỳ đó. */
 export const FALLBACK_TWD_VND = Number(TW.rate_vnd ?? 800);
+/** Tỷ giá RMB→VND dự phòng, chỉ dùng khi bản sao kê không nói tỷ giá kỳ đó. */
+export const FALLBACK_RMB_VND = 3860;
 
 // ─────────────────────────────────────────────────────────────────────────
 // Chuẩn hoá khoá — phải giống hệt cod-recon.ts, lệch một chữ là hai bên
@@ -238,14 +261,20 @@ export function buildLedger(
         // ── tiền ra ────────────────────────────────────────────────────
         const fee = (tk ? feeByTrack.get(tk) : undefined) || (ok ? feeByOrder.get(ok) : undefined);
 
+        // ── quy đổi ────────────────────────────────────────────────────
+        // Tính tỷ giá TRƯỚC giá vốn: giá vốn ghi bằng tệ nên cũng cần tỷ giá,
+        // và phải là ĐÚNG tỷ giá của kỳ đã trả tiền cho đơn này.
+        const rTwdRmb = hit?.rate_twd_rmb ?? null;
+        const rRmbVnd = hit?.rate_rmb_vnd ?? fee?.rate_rmb_vnd ?? null;
+
         // ── giá vốn ────────────────────────────────────────────────────
         const codes = productCodes(o.sku);
         const qty = Math.max(1, Number(o.quantity) || 1);
         const missing: string[] = [];
         let cogs: number | null = 0;
         for (const c of codes) {
-            const cost = PRODUCTS[c]?.cost_price_vnd;
-            if (typeof cost === "number" && cost > 0) cogs = (cogs ?? 0) + cost * qty;
+            const cost = unitCostVnd(c, rRmbVnd);
+            if (cost !== null) cogs = (cogs ?? 0) + cost * qty;
             else missing.push(c);
         }
         // Thiếu bất kỳ mã nào là KHÔNG tính giá vốn cả đơn. Cộng nửa vời ra con
@@ -253,16 +282,12 @@ export function buildLedger(
         // theo hướng nguy hiểm nhất.
         if (!codes.length || missing.length) cogs = null;
 
-        // ── quy đổi ────────────────────────────────────────────────────
-        const rTwdRmb = hit?.rate_twd_rmb ?? null;
-        const rRmbVnd = hit?.rate_rmb_vnd ?? fee?.rate_rmb_vnd ?? null;
         const twdToVnd = (twd: number): number =>
             rTwdRmb && rRmbVnd ? twd * rTwdRmb * rRmbVnd : twd * FALLBACK_TWD_VND;
 
         const gross = hit ? twdToVnd(hit.amount_twd) : null;
         const feeRmb = fee ? fee.ship_fee_rmb + fee.op_fee_rmb : null;
-        const feeVnd = feeRmb === null ? null
-            : feeRmb * (rRmbVnd ?? FALLBACK_TWD_VND / (rTwdRmb || 0.203));
+        const feeVnd = feeRmb === null ? null : feeRmb * (rRmbVnd ?? FALLBACK_RMB_VND);
 
         let net: number | null = null;
         if (gross !== null) net = gross - (feeVnd ?? 0) - (cogs ?? 0);

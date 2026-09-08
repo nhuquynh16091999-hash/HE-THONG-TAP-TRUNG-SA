@@ -216,9 +216,13 @@ t("không ghi mã thì trả null, KHÔNG đoán", () => {
     assert.strictEqual(R.parseProductCode("TW/SANH/TW/SET-KIM-CUONG/LuxeGold/2808"), null);
 });
 t("mã CHƯA khai giá vốn phải bị nêu ra", () => {
-    // 20 triệu chi tiêu đang chạy vào mã chưa khai giá vốn. Im lặng là lãi gộp ảo cao.
-    assert.strictEqual(R.isUnknownProduct("042"), true);
-    assert.strictEqual(R.isUnknownProduct("053"), false);
+    // Im lặng bỏ qua mã chưa khai giá là lãi gộp ảo cao.
+    // 042 TỪNG chưa khai — nay đã có (bảng mua hàng 08/09/2026, 15,5 tệ), nên
+    // phép thử này đổi sang một mã chắc chắn không tồn tại. Giữ nguyên bản cũ
+    // là nó sẽ hỏng mỗi lần khai thêm giá, mà hỏng vì dữ liệu tốt lên.
+    assert.strictEqual(R.isUnknownProduct("042"), false, "042 đã khai giá vốn");
+    assert.strictEqual(R.isUnknownProduct("999"), true, "mã không tồn tại phải bị nêu");
+    assert.strictEqual(R.isUnknownProduct(""), false, "chuỗi rỗng không phải mã lạ");
     assert.strictEqual(R.productName("053"), "Gold Heart Necklace");
 });
 t("/TEST ở ô cuối — chuẩn 7 ô đầy đủ", () => {

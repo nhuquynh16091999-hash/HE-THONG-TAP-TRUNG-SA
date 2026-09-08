@@ -600,7 +600,7 @@
   "pos_timezone": "Asia/Ho_Chi_Minh",
   "page_id_pattern": "^\\d{6,}$",
   "products": {
-    "_note": "Giá vốn (VND/unit) theo SKU — nguồn config/projects/talpha.yaml mục products, valid_from 2026-02-01. SKU khớp product_catalog.sku (đồng bộ từ POS). POS KHÔNG trả giá vốn (variation_info.last_imported_price/avg_price = 0 với mọi item) nên đây là nguồn DUY NHẤT. SKU không có ở đây = chưa khai giá vốn → tab P&L theo SP để trống, KHÔNG coi là 0.",
+    "_note": "Giá vốn theo mã SKU. NGUỒN CHUẨN là cost_price_rmb — hàng nhập từ Trung Quốc và trả bằng tệ, nên tệ mới là con số thật. VND quy đổi lúc tính, dùng ĐÚNG tỷ giá của kỳ sao kê đang xét: doanh thu và giá vốn cùng một tỷ giá thì biên lãi không bị tỷ giá làm méo. Nguồn: bảng mua hàng của Sỹ Anh, 16/07–08/2026, 197 lần mua, 41 mã. Mỗi mã chỉ có ĐÚNG MỘT giá suốt kỳ — đã kiểm, không mã nào có hai giá.",
     "005": {
       "name": "Diamond Halo Set",
       "cost_price_vnd": 180000
@@ -635,39 +635,57 @@
     },
     "053": {
       "name": "Gold Heart Necklace",
-      "cost_price_vnd": 135000
+      "cost_price_rmb": 15.0,
+      "_gia_cu_vnd": 135000,
+      "_canh_bao": "Giá cũ 135,000đ vs giá mới 15.0 tệ (~57,900đ) — lệch 57%. Đang DÙNG GIÁ MỚI. Sỹ Anh xác nhận lại mã này."
     },
     "054": {
       "name": "Ball Bangles",
-      "cost_price_vnd": 125000
+      "cost_price_rmb": 11.0,
+      "_gia_cu_vnd": 125000,
+      "_canh_bao": "Giá cũ 125,000đ vs giá mới 11.0 tệ (~42,460đ) — lệch 66%. Đang DÙNG GIÁ MỚI. Sỹ Anh xác nhận lại mã này."
     },
     "055": {
       "name": "Antarctic Krill Oil",
-      "cost_price_vnd": 285000
+      "cost_price_rmb": 4.0,
+      "_gia_cu_vnd": 285000,
+      "_canh_bao": "Giá cũ 285,000đ vs giá mới 4.0 tệ (~15,440đ) — lệch 95%. Đang DÙNG GIÁ MỚI. Sỹ Anh xác nhận lại mã này."
     },
     "057": {
       "name": "Snail Whitening Cream",
-      "cost_price_vnd": 95000
+      "cost_price_rmb": 16.5,
+      "_gia_cu_vnd": 95000,
+      "_canh_bao": "Giá cũ 95,000đ vs giá mới 16.5 tệ (~63,690đ) — lệch 33%. Đang DÙNG GIÁ MỚI. Sỹ Anh xác nhận lại mã này."
     },
     "058": {
       "name": "VC Cream",
-      "cost_price_vnd": 75000
+      "cost_price_rmb": 16.5,
+      "_gia_cu_vnd": 75000,
+      "_canh_bao": "Giá cũ 75,000đ vs giá mới 16.5 tệ (~63,690đ) — lệch 15%. Đang DÙNG GIÁ MỚI. Sỹ Anh xác nhận lại mã này."
     },
     "060": {
       "name": "Whitening Cleanser",
-      "cost_price_vnd": 65000
+      "cost_price_rmb": 9.0,
+      "_gia_cu_vnd": 65000,
+      "_canh_bao": "Giá cũ 65,000đ vs giá mới 9.0 tệ (~34,740đ) — lệch 47%. Đang DÙNG GIÁ MỚI. Sỹ Anh xác nhận lại mã này."
     },
     "063": {
       "name": "Whitening & Cleansing Milk",
-      "cost_price_vnd": 70000
+      "cost_price_rmb": 39.0,
+      "_gia_cu_vnd": 70000,
+      "_canh_bao": "Giá cũ 70,000đ vs giá mới 39.0 tệ (~150,540đ) — lệch 115%. Đang DÙNG GIÁ MỚI. Sỹ Anh xác nhận lại mã này."
     },
     "065": {
       "name": "Euphausia Superba Oil",
-      "cost_price_vnd": 310000
+      "cost_price_rmb": 22.0,
+      "_gia_cu_vnd": 310000,
+      "_canh_bao": "Giá cũ 310,000đ vs giá mới 22.0 tệ (~84,920đ) — lệch 73%. Đang DÙNG GIÁ MỚI. Sỹ Anh xác nhận lại mã này."
     },
     "066": {
       "name": "Snail Collagen Cream",
-      "cost_price_vnd": 98000
+      "cost_price_rmb": 32.0,
+      "_gia_cu_vnd": 98000,
+      "_canh_bao": "Giá cũ 98,000đ vs giá mới 32.0 tệ (~123,520đ) — lệch 26%. Đang DÙNG GIÁ MỚI. Sỹ Anh xác nhận lại mã này."
     },
     "072": {
       "name": "Couple Ring",
@@ -708,6 +726,135 @@
     "BYL": {
       "name": "Baiyaolang Cream",
       "cost_price_vnd": 70000
+    },
+    "_cost_note": "cost_price_vnd (nếu còn) là số CŨ mang từ hệ thống trước, valid_from 2026-02-01, của thị trường GCC. Khi có cả hai thì DÙNG cost_price_rmb.",
+    "020": {
+      "name": "020-ATTL hong",
+      "cost_price_rmb": 26.0
+    },
+    "027": {
+      "name": "027 - DDVS",
+      "cost_price_rmb": 6.2
+    },
+    "030": {
+      "name": "030 - COOLING GEL",
+      "cost_price_rmb": 4.5
+    },
+    "031": {
+      "name": "031 - RANGGIA",
+      "cost_price_rmb": 21.0
+    },
+    "032": {
+      "name": "032 - THUOCNHOMAT",
+      "cost_price_rmb": 16.0
+    },
+    "033": {
+      "name": "033 - FITGUM ( BỘT RAU XANH )",
+      "cost_price_rmb": 12.5
+    },
+    "035": {
+      "name": "035 - SOTRON",
+      "cost_price_rmb": 10.2
+    },
+    "036": {
+      "name": "036 - BROWN",
+      "cost_price_rmb": 8.9
+    },
+    "037": {
+      "name": "037 - BLACK",
+      "cost_price_rmb": 8.9
+    },
+    "038": {
+      "name": "038 - KEMSEO1",
+      "cost_price_rmb": 8.65
+    },
+    "040": {
+      "name": "040 - VONGVANG1",
+      "cost_price_rmb": 7.0
+    },
+    "041": {
+      "name": "041 - TRAGUNG",
+      "cost_price_rmb": 18.8
+    },
+    "042": {
+      "name": "042 - BLACK",
+      "cost_price_rmb": 15.5
+    },
+    "043": {
+      "name": "043 - COFFEE",
+      "cost_price_rmb": 15.5
+    },
+    "044": {
+      "name": "044 - BROWN",
+      "cost_price_rmb": 15.5
+    },
+    "045": {
+      "name": "045 - SET3",
+      "cost_price_rmb": 23.5
+    },
+    "046": {
+      "name": "046 - SET4",
+      "cost_price_rmb": 6.5
+    },
+    "047": {
+      "name": "047 - SET5",
+      "cost_price_rmb": 10.0
+    },
+    "048": {
+      "name": "048 - SET6",
+      "cost_price_rmb": 22.0
+    },
+    "049": {
+      "name": "049 - SET7",
+      "cost_price_rmb": 4.5
+    },
+    "050": {
+      "name": "050 - SET8",
+      "cost_price_rmb": 12.5
+    },
+    "051": {
+      "name": "051 - WATCH",
+      "cost_price_rmb": 25.0
+    },
+    "052": {
+      "name": "052 - SET9",
+      "cost_price_rmb": 10.0
+    },
+    "056": {
+      "name": "056 - SET11",
+      "cost_price_rmb": 21.0
+    },
+    "059": {
+      "name": "059 - SET 13",
+      "cost_price_rmb": 14.0
+    },
+    "061": {
+      "name": "061 - DAY CHUYEN VANG",
+      "cost_price_rmb": 9.5
+    },
+    "062": {
+      "name": "062 - LẮC TAY VÀNG",
+      "cost_price_rmb": 9.0
+    },
+    "064": {
+      "name": "064 - TUIDA - DEN",
+      "cost_price_rmb": 39.0
+    },
+    "067": {
+      "name": "067 - TUI KARO - TRANG",
+      "cost_price_rmb": 32.0
+    },
+    "068": {
+      "name": "068 - SET CHIM CONG 1",
+      "cost_price_rmb": 23.0
+    },
+    "070": {
+      "name": "070 - SET15",
+      "cost_price_rmb": 27.5
+    },
+    "071": {
+      "name": "071 - VONGDA",
+      "cost_price_rmb": 8.0
     }
   },
   "report_sheets": {
@@ -717,6 +864,8 @@
     }
   },
   "_todo": [
+    "Xác nhận 9 mã có giá vốn lệch >5% so với số cũ (xem products.<mã>._canh_bao).",
+    "Gán mã SKU cho 12 sản phẩm trong bảng mua hàng chỉ ghi tên tiếng Việt (máy lược điện, son, dung dịch vệ sinh, hương trầm, kem đánh răng, gel…).",
     "Tên đầy đủ của giám đốc (director.full).",
     "Tên bạn sale thứ hai (sales.Sale2) khi có người.",
     "Quy tắc gán sale (sale_assignment) — hiện mọi đơn rơi vào \"(chưa gán sale)\".",

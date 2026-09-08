@@ -126,7 +126,7 @@ export async function GET(req: NextRequest) {
             notes.push(
                 `${summary.cogs_missing_orders}/${summary.total} đơn chưa tính được giá vốn ` +
                 `(thiếu ${codes.length} mã: ${codes.slice(0, 12).join(", ")}${codes.length > 12 ? "…" : ""}). ` +
-                "Khai vào talpha_rules.json → products.<mã>.cost_price_vnd. " +
+                "Khai vào talpha_rules.json → products.<mã>.cost_price_rmb (giá nhập bằng TỆ). " +
                 "Chừng nào chưa khai, cột “Còn lại” mới là số TRƯỚC giá vốn.",
             );
         }
