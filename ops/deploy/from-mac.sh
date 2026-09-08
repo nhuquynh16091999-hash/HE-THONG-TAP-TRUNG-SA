@@ -34,6 +34,18 @@ say "0/5 · Kiểm tra vào được máy chủ bằng khoá"
 # ─────────────────────────────────────────────────────────────────────────
 say "1/5 · Chép cấu hình bí mật (không nằm trong git)"
 [ -f "$REPO_ROOT/dashboard-ui/.env.local" ] || die "Thiếu dashboard-ui/.env.local ở máy Mac"
+
+# systemd EnvironmentFile KHÔNG cắt ghi chú cuối dòng như bash: nó lấy nguyên
+# phần sau dấu = làm giá trị. Dòng
+#     TALPHA_META_ACCESS_TOKEN=EAA...   # hết hạn 06/11/2026
+# thành một token dính đuôi ghi chú, và Meta trả "Malformed access token".
+# Máy Mac vẫn chạy tốt vì bash cắt ghi chú — lỗi CHỈ hiện trên máy chủ, mà
+# thông báo lại chẳng nhắc gì tới ghi chú. Đã mất một vòng gỡ vì chuyện này.
+if grep -qE '^[A-Z0-9_]+=[^#]*[^ ]  *#' "$REPO_ROOT/dashboard-ui/.env.local"; then
+    echo "   Các dòng có ghi chú ở đuôi:"
+    grep -nE '^[A-Z0-9_]+=[^#]*[^ ]  *#' "$REPO_ROOT/dashboard-ui/.env.local" | cut -d= -f1
+    die ".env.local có ghi chú cuối dòng — systemd sẽ nuốt cả vào giá trị. Chuyển ghi chú lên dòng riêng."
+fi
 "${SSH[@]}" "mkdir -p $APP_DIR/dashboard-ui"
 "${SCP[@]}" "$REPO_ROOT/dashboard-ui/.env.local" "root@$HOST:$APP_DIR/dashboard-ui/.env.local"
 if [ -f "$REPO_ROOT/bigquery_key.json" ]; then
