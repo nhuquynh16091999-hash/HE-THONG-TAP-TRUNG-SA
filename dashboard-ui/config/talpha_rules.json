@@ -855,6 +855,11 @@
     "071": {
       "name": "071 - VONGDA",
       "cost_price_rmb": 8.0
+    },
+    "026": {
+      "name": "SON",
+      "cost_price_rmb": 6.7,
+      "_nguon": "Bảng mua hàng 20/07/2026 — dòng ghi rõ 'SON, 2 ( MÃ 026), 6.7 tệ/sp'. Đây là mã do CHÍNH bảng chỉ ra, không phải tau đoán."
     }
   },
   "report_sheets": {
