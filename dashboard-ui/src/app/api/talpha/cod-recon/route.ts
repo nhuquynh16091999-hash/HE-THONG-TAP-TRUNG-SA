@@ -248,18 +248,37 @@ export async function GET(req: NextRequest) {
         const ALL_FROM = "2000-01-01";
         const ALL_TO = "2999-12-31";
 
-        let orders: PosOrder[] = [];
-        let source: "pos" | "doi_tac" = "pos";
+        // HỢP hai nguồn, không chọn một.
+        //
+        // POS và file đối tác đều trả lời "đơn nào đã giao", nhưng lệch nhau rất
+        // xa: POS mới có 5 đơn giao thành công có COD, file đối tác có 361 —
+        // đội không cập nhật trạng thái lên POS kịp. Bản trước chỉ lấy file đối
+        // tác KHI BigQuery trống; đến lúc POS có vài đơn thì hệ thống bỏ luôn
+        // file đối tác, và đối soát tụt từ 316 đơn khớp xuống 0.
+        //
+        // Nên gộp: POS thắng khi cùng một mã vận đơn (có marketer, có sale),
+        // đơn nào POS chưa biết thì lấy từ file đối tác.
+        let posOrders: PosOrder[] = [];
         try {
-            orders = await loadDeliveredOrders(ALL_FROM, ALL_TO);
+            posOrders = await loadDeliveredOrders(ALL_FROM, ALL_TO);
         } catch (e) {
-            // BigQuery hỏng hoặc bảng chưa có — vẫn đối soát được bằng file đối tác.
-            console.warn("cod-recon: không đọc được đơn từ BigQuery, dùng file đối tác:", e);
+            console.warn("cod-recon: không đọc được đơn từ BigQuery, chỉ dùng file đối tác:", e);
         }
-        if (!orders.length) {
-            orders = await loadPartnerDelivered(ALL_FROM, ALL_TO);
-            if (orders.length) source = "doi_tac";
-        }
+        const partnerOrders = await loadPartnerDelivered(ALL_FROM, ALL_TO);
+
+        const merged = new Map<string, PosOrder>();
+        const keyOf = (o: PosOrder) => {
+            const t = String(o.tracking ?? "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+            const norm = /^\d+$/.test(t) ? t.replace(/^0+/, "") || t : t;
+            return norm || `ORD:${o.order_id}`;
+        };
+        for (const o of partnerOrders) merged.set(keyOf(o), o);
+        for (const o of posOrders) merged.set(keyOf(o), o);   // POS ghi đè
+        const orders = [...merged.values()];
+
+        const source: "pos" | "doi_tac" | "ca_hai" =
+            posOrders.length && partnerOrders.length ? "ca_hai"
+                : posOrders.length ? "pos" : "doi_tac";
 
         // Sao kê phải CỘNG DỒN cả các kỳ, không chỉ kỳ đang xem.
         //
@@ -291,9 +310,24 @@ export async function GET(req: NextRequest) {
         }
         if (source === "doi_tac") {
             notes.unshift(
-                `Đang đối soát với ${orders.length} đơn đọc từ FILE ĐỐI TÁC, không phải từ POS ` +
-                "(chưa có key Poscake). Số tiền COD lấy theo file đối tác — có key rồi sẽ tự đổi sang POS.",
+                `Đang đối soát với ${orders.length} đơn đọc từ FILE ĐỐI TÁC, không phải từ POS. ` +
+                "Số tiền COD lấy theo file đối tác.",
             );
+        } else if (source === "ca_hai") {
+            notes.unshift(
+                `Đối soát với ${orders.length} đơn giao thành công, gộp từ hai nguồn: ` +
+                `POS ${posOrders.length} đơn · file đối tác ${partnerOrders.length} đơn. ` +
+                "Trùng mã vận đơn thì lấy theo POS.",
+            );
+            // POS chậm hơn hẳn thực tế thì phải nói ra, vì mọi báo cáo khác chỉ
+            // đọc POS và sẽ thiếu đúng chừng đó đơn.
+            if (partnerOrders.length > posOrders.length * 3) {
+                notes.push(
+                    `POS mới ghi ${posOrders.length} đơn giao thành công trong khi đối tác báo ` +
+                    `${partnerOrders.length}. Trạng thái trên POS đang chậm hơn thực tế rất nhiều — ` +
+                    "các báo cáo doanh thu đọc POS sẽ thiếu đúng chừng đó đơn.",
+                );
+            }
         } else if (!orders.length) {
             notes.push(
                 "Không có đơn đã giao nào trong kỳ này. Kiểm tra khoảng ngày, " +

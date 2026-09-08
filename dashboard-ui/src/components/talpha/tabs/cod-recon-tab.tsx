@@ -85,7 +85,7 @@ export default function TALPHACodReconTab({ dateRange }: Props) {
     const [warnings, setWarnings] = useState<string[]>([]);
     const [matchKey, setMatchKey] = useState("tracking");
     const [naza, setNaza] = useState<Naza | null>(null);
-    const [orderSource, setOrderSource] = useState<"pos" | "doi_tac">("pos");
+    const [orderSource, setOrderSource] = useState<"pos" | "doi_tac" | "ca_hai">("pos");
     const [filter, setFilter] = useState<Verdict | "all">("qua_han");
     const fileRef = useRef<HTMLInputElement>(null);
 
@@ -214,9 +214,9 @@ export default function TALPHACodReconTab({ dateRange }: Props) {
                                 Sao kê NAZA — đọc được cả phí
                             </span>
                         )}
-                        {orderSource === "doi_tac" && (
+                        {orderSource !== "pos" && (
                             <span className="rounded-full bg-sky-100 px-2 py-0.5 text-[11px] font-medium text-sky-700 dark:bg-sky-500/15 dark:text-sky-400">
-                                Đơn đọc từ file đối tác
+                                {orderSource === "ca_hai" ? "Đơn gộp POS + file đối tác" : "Đơn đọc từ file đối tác"}
                             </span>
                         )}
                         {current && current.missing_columns.length > 0 && (
