@@ -13,7 +13,7 @@
  *
  * Hàm thuần — không đọc file, không gọi mạng.
  */
-import { RULES } from "./rules";
+import { RULES, normPosMarketer, DISPLAY } from "./rules";
 
 // ─────────────────────────────────────────────────────────────────────────
 // Cấu hình
@@ -78,6 +78,19 @@ export function orderKey(v?: string | null): string {
  *  "042 - BLACK + 043 - COFFEE" là hai sản phẩm, phải cộng cả hai giá vốn. */
 export function productCodes(sku?: string | null): string[] {
     return [...new Set(String(sku ?? "").match(/\b\d{3}\b/g) || [])];
+}
+
+/** Tên marketer về đúng MỘT cách gọi cho cả hệ thống.
+ *
+ *  File đối tác ghi "Lâm", mọi báo cáo khác gọi "Lộc" — cùng một người. Để
+ *  nguyên thì Sổ đơn hàng và bảng chi tiêu quảng cáo nói về hai người khác
+ *  nhau, và không ai nối được doanh thu với chi phí của chính người đó.
+ *  normPosMarketer đã nắm sẵn bảng bí danh trong talpha_rules.json. */
+function canonMarketer(raw?: string | null): string {
+    const s = String(raw ?? "").trim();
+    if (!s) return "";
+    const key = normPosMarketer(s);
+    return key ? (DISPLAY[key] || key) : s;
 }
 
 const daysBetween = (from?: string | null, to?: string | null): number | null => {
@@ -340,7 +353,7 @@ export function buildLedger(
             quantity: qty,
             contact_name: o.contact_name || "",
             phone: o.phone || "",
-            marketer: o.marketer || "",
+            marketer: canonMarketer(o.marketer),
             status: o.status || "",
             status_raw: o.status_raw || "",
             recon_manual: o.recon_manual || "",

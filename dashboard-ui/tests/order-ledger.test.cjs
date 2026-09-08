@@ -150,6 +150,18 @@ t("phí đúng bảng giá → không gắn cờ", () =>
 t("phí lệch bảng giá → gắn cờ", () =>
     assert.strictEqual(one([ord()], [pay()], [fee({ ship_fee_rmb: 35 })]).rows[0].fee_wrong, true));
 
+console.log("── Tên marketer về một cách gọi ──");
+t("BẪY THẬT: file đối tác ghi 'Lâm', hệ thống gọi 'Lộc' — phải quy về một", () => {
+    // Để nguyên thì Sổ đơn hàng và bảng chi tiêu quảng cáo nói về hai người
+    // khác nhau, không ai nối được doanh thu với chi phí của chính người đó.
+    const { rows } = one([ord({ marketer: "Lâm" })]);
+    assert.strictEqual(rows[0].marketer, "Lộc");
+});
+t("tên đã chuẩn thì giữ nguyên", () =>
+    assert.strictEqual(one([ord({ marketer: "Thái" })]).rows[0].marketer, "Thái"));
+t("bỏ trống thì để trống, KHÔNG đoán", () =>
+    assert.strictEqual(one([ord({ marketer: "" })]).rows[0].marketer, ""));
+
 console.log("── Tổng hợp ──");
 t("đếm đèn và cộng tiền đúng", () => {
     const { rows, extra } = one(

@@ -17,7 +17,6 @@ import TALPHAProductPnLTab from "./tabs/product-pnl-tab";
 import TALPHACustomerTab from "./tabs/customer-tab";
 import TALPHAMarketIntelTab from "./tabs/market-intel-tab";
 import TALPHAAdHealthTab from "./tabs/ad-health-tab";
-import TALPHAOrdersTab from "./tabs/orders-tab";
 import TALPHAAdSpendTab from "./tabs/ad-spend-tab";
 import TALPHACodReconTab from "./tabs/cod-recon-tab";
 import TALPHAOrderLedgerTab from "./tabs/order-ledger-tab";
@@ -49,12 +48,18 @@ const NAV_GROUPS: NavGroup[] = [
     //
     // Nay Sổ đơn hàng gánh cả hai: mỗi đơn một dòng, có cả thông tin khách lẫn
     // tình trạng tiền. Hai tab cũ giữ nguyên cho việc tra cứu chuyên sâu.
+    // "Danh sách đơn" đã BỎ, gộp vào Sổ đơn hàng.
+    //
+    // Hai tab đó chỉ khác nhau ở nguồn: tab cũ đọc POS (200 đơn, mà chỉ 5 đơn
+    // có trạng thái giao đúng), Sổ đơn hàng đọc file đối tác (656 đơn, đủ vòng
+    // đời tiền). Ba cột riêng của tab cũ thì: Marketer nay đã có trong Sổ,
+    // Sale rỗng cho MỌI đơn vì sale_assignment chưa khai, còn Doanh thu VND
+    // tính từ POS nên chỉ đúng cho 5 đơn — Sổ tính lại từ tiền 3PL trả thật.
     {
         id: "don-hang", emoji: "🧾", label: "Đơn hàng & Đối soát",
         tabs: [
             { id: "order-ledger", label: "Sổ đơn hàng" },
             { id: "cod-recon", label: "Đối soát COD" },
-            { id: "orders", label: "Danh sách đơn" },
             { id: "tracking", label: "Theo dõi vận đơn" },
         ],
     },
@@ -188,7 +193,6 @@ export default function TALPHADashboardShell() {
                     {activeTab === "overview" && <TALPHACeoOverviewTab dateRange={dateRange} projectId="TALPHA" />}
                     {activeTab === "pnl" && <TALPHAPnLTab dateRange={dateRange} projectId="TALPHA" />}
                     {activeTab === "product-pnl" && <TALPHAProductPnLTab dateRange={dateRange} projectId="TALPHA" />}
-                    {activeTab === "orders" && <TALPHAOrdersTab dateRange={dateRange} projectId="TALPHA" />}
                     {activeTab === "tracking" && <TALPHATrackingTab dateRange={dateRange} projectId="TALPHA" />}
                     {activeTab === "order-ledger" && <TALPHAOrderLedgerTab dateRange={dateRange} projectId="TALPHA" />}
                     {activeTab === "cod-recon" && <TALPHACodReconTab dateRange={dateRange} projectId="TALPHA" />}

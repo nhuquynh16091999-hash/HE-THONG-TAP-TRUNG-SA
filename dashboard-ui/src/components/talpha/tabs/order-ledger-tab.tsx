@@ -106,7 +106,7 @@ export default function TALPHAOrderLedgerTab({ dateRange }: Props) {
         return rows.filter((r) => {
             if (filter !== "all" && r.light !== filter) return false;
             if (!needle) return true;
-            return [r.order_no, r.tracking, r.track17_code, r.contact_name, r.phone, r.sku]
+            return [r.order_no, r.tracking, r.track17_code, r.contact_name, r.phone, r.sku, r.marketer]
                 .some((v) => String(v || "").toLowerCase().includes(needle));
         });
     }, [rows, filter, q]);
@@ -114,13 +114,13 @@ export default function TALPHAOrderLedgerTab({ dateRange }: Props) {
     const exportCsv = () => {
         const head = ["Đèn", "Đối soát (tay)", "Trạng thái", "Ngày lên đơn", "Ngày xuất kho",
             "PTVC", "Order No", "Tracking", "Mã đơn hoàn", "Mã 17TRACK", "SKU", "SL",
-            "Tên khách", "Điện thoại", "COD (NT$)", "3PL trả (NT$)", "Lệch",
+            "Tên khách", "Điện thoại", "Marketer", "COD (NT$)", "3PL trả (NT$)", "Lệch",
             "Phí ship (¥)", "Phí thao tác (¥)", "Giá vốn (đ)", "Còn lại (đ)", "Ghi chú"];
         const esc = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
         const body = shown.map((r) => [
             r.light, r.recon_manual, r.status_raw, r.order_date, r.ship_date,
             r.ship_method, r.order_no, r.tracking, r.return_order_no, r.track17_code,
-            r.sku, r.quantity, r.contact_name, r.phone,
+            r.sku, r.quantity, r.contact_name, r.phone, r.marketer,
             r.cod_twd, r.paid_twd ?? "", r.diff_twd ?? "",
             r.ship_fee_rmb ?? "", r.op_fee_rmb ?? "", r.cogs_vnd ?? "",
             r.net_vnd === null ? "" : Math.round(r.net_vnd),
@@ -183,7 +183,7 @@ export default function TALPHAOrderLedgerTab({ dateRange }: Props) {
                 <div className="relative ml-auto">
                     <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
                     <input value={q} onChange={(e) => setQ(e.target.value)}
-                        placeholder="Tìm mã đơn, vận đơn, tên, SĐT, SKU…"
+                        placeholder="Tìm mã đơn, vận đơn, tên, SĐT, SKU, marketer…"
                         className="w-64 rounded-lg border border-border bg-card py-1.5 pl-8 pr-3 text-sm" />
                 </div>
                 <button onClick={load} className="inline-flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-sm hover:bg-muted">
@@ -196,14 +196,14 @@ export default function TALPHAOrderLedgerTab({ dateRange }: Props) {
 
             {/* ── Bảng ── */}
             <div className="overflow-x-auto rounded-xl border border-border bg-card">
-                <table className="w-full min-w-[1580px] text-sm">
+                <table className="w-full min-w-[1680px] text-sm">
                     <thead>
                         {/* Gộp nhóm cột: 20 cột phẳng thì không ai đọc nổi đâu là đâu. */}
                         <tr className="border-b border-border text-[11px] uppercase tracking-wide text-muted-foreground">
                             <th className="px-3 py-2 text-left" colSpan={3}>Trạng thái</th>
                             <th className="border-l border-border px-3 py-2 text-left" colSpan={2}>Thời gian</th>
                             <th className="border-l border-border px-3 py-2 text-left" colSpan={5}>Định danh đơn</th>
-                            <th className="border-l border-border px-3 py-2 text-left" colSpan={4}>Hàng &amp; khách</th>
+                            <th className="border-l border-border px-3 py-2 text-left" colSpan={5}>Hàng · khách · người chạy</th>
                             <th className="border-l border-border px-3 py-2 text-right" colSpan={6}>Tiền</th>
                         </tr>
                         <tr className="border-b border-border text-[11px] font-medium text-muted-foreground">
@@ -221,6 +221,7 @@ export default function TALPHAOrderLedgerTab({ dateRange }: Props) {
                             <th className="px-3 py-2 text-right">SL</th>
                             <th className="px-3 py-2 text-left">Tên khách</th>
                             <th className="px-3 py-2 text-left">Điện thoại</th>
+                            <th className="px-3 py-2 text-left">Marketer</th>
                             <th className="border-l border-border px-3 py-2 text-right">COD</th>
                             <th className="px-3 py-2 text-center">Đã đối soát</th>
                             <th className="px-3 py-2 text-center">Trừ vận chuyển</th>
@@ -255,6 +256,7 @@ export default function TALPHAOrderLedgerTab({ dateRange }: Props) {
                                 <td className="px-3 py-2 text-right tabular-nums">{r.quantity}</td>
                                 <td className="px-3 py-2 whitespace-nowrap">{r.contact_name || "—"}</td>
                                 <td className="px-3 py-2 whitespace-nowrap font-mono text-xs">{r.phone || "—"}</td>
+                                <td className="px-3 py-2 whitespace-nowrap">{r.marketer || "—"}</td>
 
                                 <td className="border-l border-border px-3 py-2 text-right tabular-nums">
                                     {TWD(r.cod_twd)}
@@ -302,7 +304,7 @@ export default function TALPHAOrderLedgerTab({ dateRange }: Props) {
                             </tr>
                         ))}
                         {!shown.length && (
-                            <tr><td colSpan={19} className="px-3 py-10 text-center text-muted-foreground">
+                            <tr><td colSpan={20} className="px-3 py-10 text-center text-muted-foreground">
                                 Không có đơn nào trong nhóm này.
                             </td></tr>
                         )}
