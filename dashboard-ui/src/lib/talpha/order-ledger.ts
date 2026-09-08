@@ -163,6 +163,8 @@ export type LedgerRow = {
     order_date: string;
     ship_date: string;
     age_days: number | null;
+    /** Số kỳ sao kê đã chốt SAU ngày đơn này giao. >= 2 mà chưa có tiền là quá hạn. */
+    ky_da_qua: number;
     // hàng & khách
     ship_method: string;
     sku: string;
@@ -215,9 +217,18 @@ export function buildLedger(
     orders: OrderSource[],
     paid: PaidLine[],
     fees: FeeLine[],
-    opts: { asOf?: string; overdueDays?: number } = {},
+    opts: { asOf?: string; overdueDays?: number; periodDates?: string[] } = {},
 ): { rows: LedgerRow[]; extra: PaidLine[] } {
     const overdue = Number(opts.overdueDays ?? OVERDUE_DAYS);
+
+    // NGÀY CHỐT CỦA TỪNG KỲ SAO KÊ, sắp tăng dần.
+    //
+    // "Quá hạn" đếm theo SỐ KỲ ĐÃ TRÔI QUA, không đếm ngày — đây là luật Sỹ Anh
+    // chốt: "đơn đã giao mà qua hai kỳ sao kê liền vẫn không thấy". Đếm ngày là
+    // sai bản chất: NAZA trả theo kỳ chứ không trả theo ngày, nên một đơn giao
+    // sát trước kỳ và một đơn giao ngay sau kỳ có cùng số ngày chờ nhưng khác
+    // hẳn nhau về mức đáng lo.
+    const periodEnds = (opts.periodDates || []).filter(Boolean).sort();
 
     const paidByTrack = new Map<string, PaidLine>();
     const paidByOrder = new Map<string, PaidLine>();
@@ -314,6 +325,9 @@ export function buildLedger(
 
         // ── đèn ────────────────────────────────────────────────────────
         const age = daysBetween(o.order_date || o.ship_date, opts.asOf);
+        // Bao nhiêu kỳ sao kê đã chốt SAU khi đơn này giao xong.
+        const dGiao = o.ship_date || o.order_date || "";
+        const kyDaQua = dGiao ? periodEnds.filter((d) => d > dGiao).length : 0;
         const diff = hit ? hit.amount_twd - o.cod_twd : null;
         const delivered = o.status === "Delivered";
         const dead = o.status === "Returned" || o.status === "Cancelled";
@@ -331,12 +345,18 @@ export function buildLedger(
             note = tick.tru_tien_hang
                 ? "Xong sạch — tiền đã về, đã trừ phí và giá vốn."
                 : "Tiền đã về và khớp. Chưa trừ được giá vốn vì thiếu khai giá.";
-        } else if (delivered && age !== null && age > overdue) {
+        } else if (delivered && kyDaQua >= 2) {
             light = "do";
-            note = `Đã giao ${age} ngày mà tiền chưa về — quá hạn, phải đòi.`;
+            note = `Đã qua ${kyDaQua} kỳ sao kê mà đơn này vẫn chưa được trả tiền — phải đòi.`;
+        } else if (delivered && !periodEnds.length && age !== null && age > overdue) {
+            // Chưa tải bản sao kê nào thì không đếm kỳ được — lùi về đếm ngày.
+            light = "do";
+            note = `Đã giao ${age} ngày mà tiền chưa về. (Chưa có sao kê nào để đếm kỳ.)`;
         } else if (delivered) {
             light = "vang";
-            note = "Đã giao, tiền chưa về — còn trong nhịp thanh toán bình thường.";
+            note = kyDaQua === 1
+                ? "Đã qua 1 kỳ sao kê chưa thấy — theo dõi, kỳ sau chưa có thì đòi."
+                : "Đã giao, tiền chưa về — còn trong nhịp thanh toán bình thường.";
         }
 
         rows.push({
@@ -347,6 +367,7 @@ export function buildLedger(
             order_date: o.order_date || "",
             ship_date: o.ship_date || "",
             age_days: age,
+            ky_da_qua: kyDaQua,
             ship_method: o.ship_method || "",
             sku: o.sku || "",
             product_codes: codes,

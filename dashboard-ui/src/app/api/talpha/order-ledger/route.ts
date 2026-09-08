@@ -110,7 +110,14 @@ export async function GET(req: NextRequest) {
             }
         }
 
-        const { rows, extra } = buildLedger(orders, paid, fees, { asOf });
+        // NGÀY CHỐT của từng kỳ = ngày nhận hàng muộn nhất trong sheet COD của kỳ
+        // đó. Dùng chính dữ liệu của kỳ chứ không dùng ngày tải file lên: tải lên
+        // lúc nào là chuyện của người, còn kỳ chốt tới đâu là chuyện của NAZA.
+        const periodDates = stm.statements
+            .map((st) => st.rows.reduce((mx, r) => (r.paid_date > mx ? r.paid_date : mx), ""))
+            .filter(Boolean);
+
+        const { rows, extra } = buildLedger(orders, paid, fees, { asOf, periodDates });
         const summary = summarise(rows, extra);
 
         // ── BÁO CÁO TỪNG KỲ SAO KÊ ────────────────────────────────────
@@ -131,10 +138,16 @@ export async function GET(req: NextRequest) {
             const phiSai = mine.filter((r) => r.fee_wrong);
             const thua = extra.filter((e) => e.period === st.filename);
             const n = st.naza;
+            // NGÀY CHỐT KỲ = ngày nhận hàng muộn nhất trong sheet COD của kỳ đó.
+            // KHÔNG dùng uploaded_at để sắp thứ tự: tải bảy file lên cùng một lúc
+            // thì thời điểm tải gần như bằng nhau và "kỳ mới nhất" hoá ra chỉ vào
+            // kỳ cũ nhất. Đã dính thật.
+            const periodDate = st.rows.reduce((mx, r) => (r.paid_date > mx ? r.paid_date : mx), "");
             return {
                 id: st.id,
                 filename: st.filename,
                 uploaded_at: st.uploaded_at,
+                period_date: periodDate,
                 orders_paid: mine.length,
                 total_twd: mine.reduce((a, r) => a + (r.paid_twd ?? 0), 0),
                 fee_rmb: mine.reduce((a, r) => a + (r.ship_fee_rmb ?? 0) + (r.op_fee_rmb ?? 0), 0),
@@ -162,7 +175,7 @@ export async function GET(req: NextRequest) {
                     math_note: n.checks.math_note,
                 } : null,
             };
-        }).sort((a, b) => (a.uploaded_at < b.uploaded_at ? 1 : -1));
+        }).sort((a, b) => (a.period_date < b.period_date ? 1 : -1));
 
         // Loại lệch thứ 2 KHÔNG thuộc kỳ nào: đơn đã giao mà chưa kỳ nào trả
         // tiền. Gắn nó vào một kỳ cụ thể là sai — nó là món nợ đang treo.
@@ -170,8 +183,69 @@ export async function GET(req: NextRequest) {
             .filter((r) => (r.light === "vang" || r.light === "do") && r.paid_twd === null)
             .map((r) => ({
                 order_no: r.order_no, tracking: r.tracking, cod_twd: r.cod_twd,
-                age_days: r.age_days, qua_han: r.light === "do",
-            }));
+                age_days: r.age_days, ky_da_qua: r.ky_da_qua, qua_han: r.light === "do",
+                contact_name: r.contact_name, phone: r.phone,
+            }))
+            .sort((a, b) => b.ky_da_qua - a.ky_da_qua || b.cod_twd - a.cod_twd);
+
+        // ── VIỆC PHẢI LÀM HÔM NAY ─────────────────────────────────────
+        //
+        // Đây là thứ ĐẦU TIÊN Sỹ Anh muốn thấy khi mở màn: "hôm nay có việc gì
+        // cần làm không". Không có việc thì phải NÓI RÕ là không có, chứ không
+        // để màn hình trống cho người đọc tự đoán.
+        //
+        // Mọi việc ở đây TỰ HẾT khi tiền về — không có nút "đã làm", vì Sỹ Anh
+        // chốt là máy tự lo, không thêm thao tác tay.
+        const moiNhat = byPeriod[0];
+        const quaHan = chuaVeTien.filter((x) => x.qua_han);
+        const viec: { id: string; muc: "gap" | "soat" | "ghi"; tieu_de: string;
+            so: number; don_vi: string; chi_tiet: string; }[] = [];
+
+        if (quaHan.length) {
+            viec.push({
+                id: "doi-naza", muc: "gap",
+                tieu_de: "Nhắn NAZA đòi tiền",
+                so: quaHan.length, don_vi: "đơn",
+                chi_tiet: `Đã qua từ 2 kỳ sao kê mà vẫn chưa được trả — tổng ` +
+                    `${Math.round(quaHan.reduce((a, x) => a + x.cod_twd, 0)).toLocaleString("vi-VN")} TWD. ` +
+                    "Bấm Xuất file gửi 3PL để lấy danh sách.",
+            });
+        }
+        if (moiNhat?.lech_tien.length) {
+            viec.push({
+                id: "lech-tien", muc: "soat",
+                tieu_de: "Soi đơn 3PL trả khác số",
+                so: moiNhat.lech_tien.length, don_vi: "đơn",
+                chi_tiet: moiNhat.lech_tien.slice(0, 3).map((l) =>
+                    `${l.order_no}: đơn ghi ${l.cod_twd} · họ trả ${l.paid_twd}`).join(" · "),
+            });
+        }
+        if (moiNhat?.thua_sao_ke.length) {
+            viec.push({
+                id: "thua", muc: "soat",
+                tieu_de: "Tra lại đơn NAZA trả mà mình không có",
+                so: moiNhat.thua_sao_ke.length, don_vi: "dòng",
+                chi_tiet: moiNhat.thua_sao_ke.slice(0, 3).map((t) =>
+                    `${t.order_no} · ${t.tracking}`).join(" · "),
+            });
+        }
+        if (moiNhat?.phi_sai.length) {
+            viec.push({
+                id: "phi-sai", muc: "soat",
+                tieu_de: "Hỏi NAZA về phí thu sai bảng giá",
+                so: moiNhat.phi_sai.length, don_vi: "đơn",
+                chi_tiet: moiNhat.phi_sai.slice(0, 3).map((f) => f.order_no).join(" · "),
+            });
+        }
+        if (moiNhat?.settlement?.payable_vnd != null) {
+            viec.push({
+                id: "ghi-so", muc: "ghi",
+                tieu_de: "Ghi sổ kế toán kỳ mới nhất",
+                so: Math.round(moiNhat.settlement.payable_vnd), don_vi: "đ",
+                chi_tiet: `Tiền thực nhận về tài khoản của kỳ ${moiNhat.filename}. ` +
+                    "Đối chiếu với sao kê ngân hàng rồi ghi vào sổ.",
+            });
+        }
 
         // ── Cảnh báo ở mức kỳ ─────────────────────────────────────────
         const notes: string[] = [];
@@ -205,6 +279,7 @@ export async function GET(req: NextRequest) {
             summary,
             extra,
             status_vi: PARTNER_STATUS_VI,
+            viec,
             periods: byPeriod,
             chua_ve_tien: chuaVeTien,
             statements: stm.statements.map((s) => ({ id: s.id, filename: s.filename })),

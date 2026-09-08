@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { format } from "date-fns";
-import { AlertTriangle, Download, Search, RefreshCw, ChevronDown } from "lucide-react";
+import { AlertTriangle, Download, Search, RefreshCw, ChevronDown, CheckCircle2, Copy } from "lucide-react";
 import TabSkeleton, { ErrorState } from "@/components/ui/tab-skeleton";
 import { formatNumber, cn } from "../utils";
 
@@ -12,7 +12,7 @@ type Light = "xanh" | "vang" | "do" | "xam";
 
 type Row = {
     order_no: string; tracking: string; track17_code: string; return_order_no: string;
-    order_date: string; ship_date: string; age_days: number | null;
+    order_date: string; ship_date: string; age_days: number | null; ky_da_qua: number;
     ship_method: string; sku: string; product_codes: string[]; quantity: number;
     contact_name: string; phone: string; marketer: string;
     status: string; status_raw: string; recon_manual: string;
@@ -27,7 +27,7 @@ type Row = {
 };
 
 type Period = {
-    id: string; filename: string; uploaded_at: string;
+    id: string; filename: string; uploaded_at: string; period_date: string;
     orders_paid: number; total_twd: number; fee_rmb: number;
     lech_tien: { order_no: string; tracking: string; cod_twd: number; paid_twd: number | null; diff_twd: number | null }[];
     phi_sai: { order_no: string; tracking: string; ship_fee_rmb: number | null }[];
@@ -40,7 +40,17 @@ type Period = {
     } | null;
 };
 
-type Pending = { order_no: string; tracking: string; cod_twd: number; age_days: number | null; qua_han: boolean };
+type Pending = {
+    order_no: string; tracking: string; cod_twd: number;
+    age_days: number | null; ky_da_qua: number; qua_han: boolean;
+    contact_name: string; phone: string;
+};
+
+/** Một việc phải làm. `muc` quyết định màu và thứ tự: gấp → soát → ghi sổ. */
+type Viec = {
+    id: string; muc: "gap" | "soat" | "ghi";
+    tieu_de: string; so: number; don_vi: string; chi_tiet: string;
+};
 
 type Summary = {
     total: number; by_light: Record<Light, number>;
@@ -112,6 +122,8 @@ export default function TALPHAOrderLedgerTab({ dateRange }: Props) {
     const [rows, setRows] = useState<Row[]>([]);
     const [periods, setPeriods] = useState<Period[]>([]);
     const [pending, setPending] = useState<Pending[]>([]);
+    const [viec, setViec] = useState<Viec[]>([]);
+    const [copied, setCopied] = useState("");
     const [summary, setSummary] = useState<Summary | null>(null);
     const [warnings, setWarnings] = useState<string[]>([]);
     const [periodId, setPeriodId] = useState("");
@@ -129,6 +141,7 @@ export default function TALPHAOrderLedgerTab({ dateRange }: Props) {
             setRows(d.rows || []);
             setPeriods(d.periods || []);
             setPending(d.chua_ve_tien || []);
+            setViec(d.viec || []);
             setSummary(d.summary || null);
             setWarnings(d.warnings || []);
             if (!periodId && d.periods?.length) setPeriodId(d.periods[0].id);
@@ -204,6 +217,82 @@ export default function TALPHAOrderLedgerTab({ dateRange }: Props) {
                 </div>
             ))}
 
+            {/* ═══ VIỆC HÔM NAY ═══
+                Thứ ĐẦU TIÊN Sỹ Anh muốn thấy khi mở màn: "hôm nay có việc gì cần
+                làm không". Không có việc thì phải NÓI RÕ là không có — để trống
+                cho người đọc tự đoán là tệ nhất.
+                Mọi việc ở đây TỰ HẾT khi tiền về; cố ý không có nút "đã làm". */}
+            <section className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+                <header className="flex items-center gap-2 border-b border-border bg-muted/40 px-4 py-2.5">
+                    <span className="text-sm font-semibold">Việc hôm nay</span>
+                    {viec.length > 0 && (
+                        <span className="rounded-full bg-rose-500 px-2 py-0.5 text-[11px] font-bold text-white">
+                            {viec.length}
+                        </span>
+                    )}
+                </header>
+
+                {viec.length === 0 ? (
+                    <div className="flex items-center gap-3 px-4 py-6">
+                        <CheckCircle2 className="h-7 w-7 flex-none text-emerald-500" />
+                        <div>
+                            <div className="font-semibold text-emerald-700 dark:text-emerald-400">
+                                Không có việc gì cần làm
+                            </div>
+                            <div className="text-sm text-muted-foreground">
+                                Sao kê kỳ mới nhất không có đơn nào lệch, không đơn nào quá hạn đòi tiền.
+                            </div>
+                        </div>
+                    </div>
+                ) : (
+                    <ul className="divide-y divide-border">
+                        {viec.map((v) => (
+                            <li key={v.id} className="flex flex-wrap items-start gap-x-4 gap-y-2 px-4 py-3.5">
+                                <span className={cn("mt-1 h-2.5 w-2.5 flex-none rounded-full",
+                                    v.muc === "gap" ? "bg-rose-500"
+                                        : v.muc === "soat" ? "bg-amber-400" : "bg-sky-500")} />
+                                <div className="min-w-0 flex-1">
+                                    <div className="flex flex-wrap items-baseline gap-2">
+                                        <span className="font-semibold">{v.tieu_de}</span>
+                                        <span className={cn("rounded px-1.5 py-0.5 text-[11px] font-bold tabular-nums",
+                                            v.muc === "gap" ? "bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300"
+                                                : v.muc === "soat" ? "bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300"
+                                                    : "bg-sky-100 text-sky-800 dark:bg-sky-500/15 dark:text-sky-300")}>
+                                            {v.don_vi === "đ" ? VND(v.so) : `${formatNumber(v.so)} ${v.don_vi}`}
+                                        </span>
+                                    </div>
+                                    <p className="mt-0.5 text-sm text-muted-foreground">{v.chi_tiet}</p>
+                                </div>
+
+                                {/* Mỗi việc một nút làm được ngay, không phải đi tìm chỗ khác */}
+                                {v.id === "doi-naza" && (
+                                    <button onClick={exportForPartner}
+                                        className="inline-flex flex-none items-center gap-1.5 rounded-lg bg-rose-500 px-3 py-1.5 text-sm font-medium text-white hover:bg-rose-600">
+                                        <Download className="h-3.5 w-3.5" /> Xuất danh sách đòi
+                                    </button>
+                                )}
+                                {(v.id === "lech-tien" || v.id === "thua" || v.id === "phi-sai") && (
+                                    <button onClick={() => { setFilter("all"); setQ(v.chi_tiet.split(":")[0].split(" ")[0]); }}
+                                        className="flex-none rounded-lg border border-border px-3 py-1.5 text-sm hover:bg-muted">
+                                        Xem đơn
+                                    </button>
+                                )}
+                                {v.id === "ghi-so" && (
+                                    <button onClick={() => {
+                                        navigator.clipboard?.writeText(String(v.so));
+                                        setCopied(v.id); setTimeout(() => setCopied(""), 2000);
+                                    }}
+                                        className="inline-flex flex-none items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-sm hover:bg-muted">
+                                        <Copy className="h-3.5 w-3.5" />
+                                        {copied === v.id ? "Đã chép" : "Chép số"}
+                                    </button>
+                                )}
+                            </li>
+                        ))}
+                    </ul>
+                )}
+            </section>
+
             {/* ═══ KHỐI BÁO CÁO MỘT KỲ ═══
                 Việc thật mỗi tuần: 3PL gửi file, cần biết ngay ĐƠN NÀO VỀ và CÓ
                 LỆCH KHÔNG. Bảng đầy đủ bên dưới là kho dữ liệu; khối này là câu
@@ -215,8 +304,10 @@ export default function TALPHAOrderLedgerTab({ dateRange }: Props) {
                         <div className="relative">
                             <select value={period.id} onChange={(e) => setPeriodId(e.target.value)}
                                 className="appearance-none rounded-lg border border-border bg-card py-1.5 pl-3 pr-8 text-sm font-medium">
-                                {periods.map((p) => (
-                                    <option key={p.id} value={p.id}>{p.filename}</option>
+                                {periods.map((p, i) => (
+                                    <option key={p.id} value={p.id}>
+                                        {i === 0 ? "★ " : ""}{p.filename}{p.period_date ? ` — chốt ${p.period_date}` : ""}
+                                    </option>
                                 ))}
                             </select>
                             <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 opacity-60" />

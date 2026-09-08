@@ -144,6 +144,46 @@ t("đơn huỷ → XÁM", () =>
 t("chưa giao xong → XÁM, chưa tới lượt đòi", () =>
     assert.strictEqual(one([ord({ status: "InTransit", order_date: "2026-06-01" })]).rows[0].light, "xam"));
 
+console.log("── Quá hạn: ĐẾM KỲ SAO KÊ, không đếm ngày ──");
+// Luật Sỹ Anh chốt 08/09/2026: "đơn đã giao mà qua hai kỳ sao kê liền vẫn không
+// thấy". Đếm ngày là sai bản chất — NAZA trả theo KỲ chứ không theo ngày, nên
+// đơn giao sát trước kỳ và đơn giao ngay sau kỳ có cùng số ngày chờ nhưng khác
+// hẳn nhau về mức đáng lo. Bản đầu tau đặt 30 ngày, hoàn toàn tự đoán.
+const ky = (...d) => ({ periodDates: d });
+
+t("chưa kỳ nào chốt sau ngày giao → VÀNG, chưa tới lượt đòi", () => {
+    const r = one([ord({ ship_date: "2026-09-05" })], [], [], ky("2026-08-20", "2026-09-01")).rows[0];
+    assert.strictEqual(r.ky_da_qua, 0);
+    assert.strictEqual(r.light, "vang");
+});
+t("mới qua MỘT kỳ → vẫn VÀNG, chỉ theo dõi", () => {
+    const r = one([ord({ ship_date: "2026-08-25" })], [], [], ky("2026-08-20", "2026-09-01")).rows[0];
+    assert.strictEqual(r.ky_da_qua, 1);
+    assert.strictEqual(r.light, "vang");
+    assert.match(r.light_note, /1 kỳ/);
+});
+t("qua HAI kỳ mà chưa có tiền → ĐỎ, phải đòi", () => {
+    const r = one([ord({ ship_date: "2026-08-10" })], [], [], ky("2026-08-20", "2026-09-01")).rows[0];
+    assert.strictEqual(r.ky_da_qua, 2);
+    assert.strictEqual(r.light, "do");
+    assert.match(r.light_note, /2 kỳ/);
+});
+t("BẪY: đơn CŨ nhưng chưa kỳ nào chốt sau nó → KHÔNG phải quá hạn", () => {
+    // Đếm ngày thì đơn này 200 ngày, đỏ chót. Nhưng NAZA chưa chốt kỳ nào sau
+    // ngày giao thì họ chưa có nghĩa vụ trả — báo đỏ là đòi oan.
+    const r = one([ord({ ship_date: "2026-02-01" })], [], [], ky("2026-01-10")).rows[0];
+    assert.strictEqual(r.light, "vang");
+});
+t("chưa tải sao kê nào thì lùi về đếm ngày, và nói rõ là đang đếm ngày", () => {
+    const r = one([ord({ order_date: "2026-07-01", ship_date: "2026-07-01" })]).rows[0];
+    assert.strictEqual(r.light, "do");
+    assert.match(r.light_note, /Chưa có sao kê nào/);
+});
+t("đã có tiền về thì không xét quá hạn nữa", () => {
+    const r = one([ord({ ship_date: "2026-08-01" })], [pay()], [fee()], ky("2026-08-20", "2026-09-01")).rows[0];
+    assert.strictEqual(r.light, "xanh");
+});
+
 console.log("── Soát phí ──");
 t("phí đúng bảng giá → không gắn cờ", () =>
     assert.strictEqual(one([ord()], [pay()], [fee()]).rows[0].fee_wrong, false));
