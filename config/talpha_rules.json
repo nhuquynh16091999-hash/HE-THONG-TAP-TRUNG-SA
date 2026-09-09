@@ -883,7 +883,7 @@
   "report_sheets": {
     "_note": "ID file Google Sheet 'TỔNG TEAM THÁNG n' theo từng tháng. Bot đọc số từ ĐÂY qua /api/talpha/sheet-report để tin nhắn và Sheet không bao giờ lệch. Mỗi đầu tháng CEO tạo file mới thì thêm một dòng. format_all.py hiện vẫn giữ GRAND_KEY riêng trong code — nên cho nó đọc key này để chỉ còn MỘT chỗ khai.",
     "grand_by_month": {
-      "2026-09": "1cGduV47THi-4u43n66oyr1iGxoPc1x0tx5soH3YvpKA"
+      "2026-09": "1Ur-U71lxBvnb0ysRbzYhRPcgyLp3P78o2bvIJ9hIs8s"
     }
   },
   "_todo": [

@@ -1,5 +1,10 @@
 import os, collections, datetime, time, re, json
-KEY='/Users/syanh/talpha_reports/runtime/bigquery_key.json'
+# Key: env thắng → key runtime (máy chạy launchd) → key trong repo (máy dev). Trước đây
+# hardcode /Users/syanh/... nên script chỉ chạy được đúng một máy.
+_KEY_UNGVIEN=[os.environ.get('GOOGLE_APPLICATION_CREDENTIALS'),
+              os.path.expanduser('~/talpha_reports/runtime/bigquery_key.json'),
+              os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),'bigquery_key.json')]
+KEY=next((k for k in _KEY_UNGVIEN if k and os.path.exists(k)), _KEY_UNGVIEN[1])
 os.environ['GOOGLE_APPLICATION_CREDENTIALS']=KEY
 from google.cloud import bigquery
 import gspread
@@ -37,15 +42,14 @@ def parse_camp(cn):
     ci=mi+2
     prod=page_of(p) or (p[ci] if len(p)>ci and p[ci] else "(khác)")
     return mkt,nv,prod
-MARKET_MAP={  # THÁNG 9/2026 — thư mục Drive 1rAXMda0ENOd… (quét 31/08). Mai & Thế đã nghỉ, không còn file.
-("ChuThuy","Saudi"):"1HaSZPN92LAlo3C_DnlGixRVyHME6dStaMgU7uAwGCbE",("ChuThuy","UAE"):"1WAj1XelYabijDPKp0hjRcQtty4-XQ3VZlrzzVX2ncVw",("ChuThuy","Kuwait"):"1sfzGRad8FM1Br8TW9NoxTKbk488ETIlYb9KqpPszRHI",("ChuThuy","Oman"):"1JE51T9o2R4dB-1lme6IkKis93XbI-yIuGB5dZZ8srZY",("ChuThuy","Qatar"):"1apvGBxD6_UTCqNbEKTAWdvRLR3alU7e1sBOmkm-uhG8",("ChuThuy","Bahrain"):"1L31lzTeyHiIABd4KMurTnwMMCs0_jXHJMWXtIp0dTfA",
-("Loc","Saudi"):"1ot_W3Y3VyIs9rEep86nrn1-pcCj54DVUJqZnlZpqNug",("Loc","UAE"):"14QIA14udqlbfP-9iBiAbGCCSpoiJr4ymyNwWCGoPjvU",("Loc","Kuwait"):"1agummCT2AfA7XW3OEuImhcUp3zHxpj5f-cE8Y_0g7vs",("Loc","Oman"):"1A-qd-XBrFhHAdmfUMsvbOK3pZqZPBNpY1Zzl2WIWwrw",("Loc","Qatar"):"1VfjRtBruVuC33e9taLK7BIM99UHQtgpygwa3RjlpC9E",("Loc","Bahrain"):"1i8eX45J00CdS5ajLMOEy_DTATGvDlWJfP7N_HwE0yzY",
-("Nhung","Saudi"):"1ss5ibZDJAoOL-VQXhHDydBWFORTFSWGFXtKfs_Am7LQ",("Nhung","UAE"):"1V47IJU8ehcKQFnazYIDAUw6HLXk7IMSZfTo9LDQc8vo",("Nhung","Kuwait"):"1S2qZOJtY7FZJaHCNGrTTvzwEwSdh-_lvhsurPCTTv3w",("Nhung","Oman"):"1zF-S-7VEM9oLlLg_kpD8wjKkGPE4TRp0gzdtEAD6aSI",("Nhung","Qatar"):"1dFJjdhHOQrvTIbAROpsYQxFMvffkjpZR-Y6ckJOIRI8",("Nhung","Bahrain"):"1GNOtttswM3epOUTf85CTAA7zTDWbq2s-mphKYsu8RBk",
-("Chinh","Saudi"):"1gzXNKVO9S48_y9a5wdAuyKaQYkjsvEbfIbN3rDdc7i8",("Chinh","UAE"):"1URc6kIZa9ZbYW1XngChm431I7tScu5TKsAZX0pfozvw",("Chinh","Kuwait"):"1ORuY7TbhmMSZRS2VLiLqTkhySmJMFDkoTPMnE2bwpIk",("Chinh","Oman"):"16F9fXoitzf6sSo6Lxwi7G4lrvEH8cjuCWDQxuQOigHg",("Chinh","Qatar"):"1lIwvAc9-QSC7rIx0ZTXYyfQ5ZaZtL7XpDwqMsz27Tso",("Chinh","Bahrain"):"1Tnf3UoNRfWPbNvmLcstaLnnzT56mpxIVNeSd87mqtO0",
-("SAnh","Saudi"):"1rIRLrJ_Kl6MxLapsQ5iIaUci-zqmJCBjoffW0UEvZdE",("SAnh","UAE"):"1du-Q_mFE0BZmHP67vYtawpkDaGQCzAZ8prQlA1cyhVk",("SAnh","Kuwait"):"1dyYfTXe-lhNje2Oqf3ZyMy5reOds9-SnpoYPeA9XVfw",("SAnh","Oman"):"1rKdWEt_KU5zlffEE5pGmSP3OzQxWACfQQviweavc9Ec",("SAnh","Qatar"):"1dxsmC-T_4hSs91aWJdiUQv6mLseM-6n9NwKAHF2Cdxk",("SAnh","Bahrain"):"142rGFJU6WR5pl-e8SsQGSqy0FYVlKebrwjZJSF0NbYw",
-}
-TONG_MAP={"ChuThuy":"1PGIqWBVLQiV7xEodxDzTs0JJHdCto0Sx5o3QiqrIc6w","Loc":"1mIR-39Q7iWQ1NwCEFRFAc_5F2WbwQXiG3yvLct_wcRY","Nhung":"1vywu0nfuV-c4s4ilAo0F5_flHG2uxF1T4_3uPMLEC00","Chinh":"1gP3_P0LrvxJGEu8kRUTJo_782kJua9kb3wsB8XrSkBI","SAnh":"1zOjGiL8L7Navcyv0Ll_VdnqS_zLgYX6GLAbop_rl1KM"}
-GRAND_KEY="1cGduV47THi-4u43n66oyr1iGxoPc1x0tx5soH3YvpKA"  # file "TỔNG TEAM THÁNG 9" — gộp tất cả marketer (rỗng="" thì bỏ qua)
+MARKET_MAP={}  # 09/09/2026 — hệ chỉ còn MỘT thị trường (Đài Loan, xem talpha_rules.markets)
+# nên KHÔNG còn file theo thị trường. Bộ 30 file GCC (Saudi/UAE/Kuwait/Oman/Qatar/Bahrain)
+# của team cũ (ChuThuy/Nhung/Chinh) đã bỏ — mỗi marketer giờ chỉ có 1 file TAIWAN.
+TONG_MAP={}  # Không còn file "TỔNG ADS" riêng từng người: file TAIWAN đã là tổng của họ.
+# Vòng lặp TAIWAN + TEST bên dưới duyệt theo TWFILES/TESTMAP, KHÔNG theo TONG_MAP nữa.
+GRAND_KEY="1Ur-U71lxBvnb0ysRbzYhRPcgyLp3P78o2bvIJ9hIs8s"  # "TỔNG TEAM THÁNG 9" — bản Google
+# Sheets trong thư mục Drive "Tháng 9" (1PQBdfGS2n…). Bản .xlsx cùng tên (1P5UfXCOD2…) là file
+# CEO tải lên, job KHÔNG ghi vào được (Sheets API chỉ mở file Google Sheets native).
 # Mỗi tháng CEO tạo file mới; ID tháng 8 là 1B5kzf8uXp3RG1YzKSKMyLUsc5CsLmdDduJRWG2PB4gM
 # — ĐỪNG dùng lại ID tháng cũ, write_file() xoá sạch tab rồi ghi đè.
 DAYS=[datetime.date(_T.year,_T.month,d) for d in range(1,_cal.monthrange(_T.year,_T.month)[1]+1)]  # đủ ngày tháng hiện tại
@@ -254,10 +258,14 @@ for emp,key in TONG_MAP.items():
     write_file(key,tabs,title=f"TỔNG ADS THÁNG {_T.month}"); n+=1; print(f"[{n}] TỔNG {emp}: {len(tabs)} tab"); time.sleep(1.0)
 # File TAIWAN riêng mỗi marketer (Đài MIỄN rule test → camp 'test' vẫn tính thật).
 # ID ở taiwan_files.json (user tạo sheet + share SA rồi thêm ID; thiếu → bỏ qua, không crash).
-TWFILES_PATH='/Users/syanh/talpha_reports/taiwan_files.json'
+_HERE=os.path.dirname(os.path.abspath(__file__))
+def _mapping_path(ten):  # chạy được ở CẢ repo lẫn runtime: file cạnh script thắng
+    canh=os.path.join(_HERE,ten)
+    return canh if os.path.exists(canh) else os.path.join(os.path.expanduser('~/talpha_reports'),ten)
+TWFILES_PATH=_mapping_path('taiwan_files.json')
 try: TWFILES=json.load(open(TWFILES_PATH))
 except Exception: TWFILES={}
-for emp in TONG_MAP:
+for emp in TWFILES:
     key=TWFILES.get(emp)
     if not key: continue
     sub={k:v for k,v in cell.items() if k[0]==emp and k[1]=="Taiwan"}
@@ -273,13 +281,13 @@ if GRAND_KEY and not GRAND_KEY.endswith("placeholder"):
     # là có tab ngay, không cần chờ tạo file Sheet riêng cho họ.
     # 01/09: người ĐÃ NGHỈ vẫn nằm trong roster (để đơn rơi rớt của họ không biến mất
     # vào "(không gán)") nhưng KHÔNG nên chiếm một tab trống trong báo cáo tháng sau.
-    # Quy tắc: hiện tab nếu đang là thành viên chạy số (có bộ file riêng trong TONG_MAP)
+    # Quy tắc: hiện tab nếu đang là thành viên chạy số (có file TAIWAN trong taiwan_files.json)
     # HOẶC tháng này còn phát sinh số. Người nghỉ mà hết đơn thì tab tự biến mất.
     for emp in DISPLAY:
         # Người đã nghỉ (unassign_marketers): KHÔNG tab — số của họ nằm ở "(không gán)".
-        # Chặn tường minh ở đây để dù có ai thêm lại vào TONG_MAP cũng không mọc tab rỗng.
+        # Chặn tường minh ở đây để dù có ai thêm lại vào taiwan_files.json cũng không mọc tab rỗng.
         if emp in UNASSIGN: continue
-        if emp not in TONG_MAP and not any(k[0] == emp for k in cell): continue
+        if emp not in TWFILES and not any(k[0] == emp for k in cell): continue
         tabs.append((safe(emp,used),combined_tab(emp)))
     # Người NGOÀI TEAM: KHÔNG có tab trong báo cáo của team (CEO chốt 10/08).
     # Số của họ vẫn bị loại khỏi tab Tổng nhờ EXT_PREFIX ở grand_tab() — chỉ là
@@ -289,10 +297,10 @@ if GRAND_KEY and not GRAND_KEY.endswith("placeholder"):
     write_file(GRAND_KEY,tabs,title=f"TỔNG TEAM THÁNG {_T.month}"); n+=1; print(f"[{n}] GRAND TỔNG THÁNG: {len(tabs)} tab")
 # ── FILE TEST mỗi marketer (chung mọi thị trường, tab theo sản phẩm) ──
 # ID file lưu ở test_files.json (tạo lần đầu qua service account, share anyone-link editor).
-TESTMAP_PATH='/Users/syanh/talpha_reports/test_files.json'
+TESTMAP_PATH=_mapping_path('test_files.json')
 try: TESTMAP=json.load(open(TESTMAP_PATH))
 except Exception: TESTMAP={}
-for emp in TONG_MAP:
+for emp in TESTMAP:
     sub={k:v for k,v in cell_test.items() if k[0]==emp}
     if not sub: continue
     key=TESTMAP.get(emp)

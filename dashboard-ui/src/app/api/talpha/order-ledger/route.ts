@@ -348,31 +348,126 @@ export async function GET(req: NextRequest) {
             });
         }
 
-        // ── Cảnh báo ở mức kỳ ─────────────────────────────────────────
-        const notes: string[] = [];
+        // ── Cảnh báo — KÈM CHI TIẾT ĐỦ ĐỂ SỬA NGAY ────────────────────
+        //
+        // Bản trước chỉ nói "thiếu 6 mã: 002, 011…" rồi bảo mở file JSON ra sửa.
+        // Đọc xong vẫn phải tự đi tra mã nào là hàng gì, bao nhiêu đơn dính, có
+        // đáng ưu tiên không. Nên mỗi cảnh báo giờ mang theo BẢNG chi tiết —
+        // nhìn là biết sửa cái nào trước.
+        type Note = {
+            id: string; level: "canh_bao" | "nhac";
+            title: string; detail: string;
+            cols?: string[];
+            items?: (string | number)[][];
+            fix?: string;
+        };
+        const notes: Note[] = [];
+
         if (!orders.length) {
-            notes.push("Chưa có đơn nào. Vào tab Theo dõi vận đơn bấm “Đọc bảng đối tác” để nạp.");
+            notes.push({
+                id: "khong-don", level: "canh_bao",
+                title: "Chưa có đơn nào",
+                detail: "Vào tab Theo dõi vận đơn bấm “Đọc bảng đối tác” để nạp đơn từ file 3PL.",
+            });
         }
         if (!stm.statements.length) {
-            notes.push("Chưa tải bản sao kê nào — chưa biết đơn nào đã về tiền.");
+            notes.push({
+                id: "khong-sao-ke", level: "canh_bao",
+                title: "Chưa tải bản sao kê nào",
+                detail: "Chưa biết đơn nào đã về tiền. Vào tab Đối soát COD tải file NAZA lên.",
+            });
         }
+
         if (summary.cogs_missing_orders) {
-            const codes = [...new Set(rows.flatMap((r) => r.cogs_missing))].sort();
-            notes.push(
-                `${summary.cogs_missing_orders}/${summary.total} đơn chưa tính được giá vốn ` +
-                `(thiếu ${codes.length} mã: ${codes.slice(0, 12).join(", ")}${codes.length > 12 ? "…" : ""}). ` +
-                "Khai vào talpha_rules.json → products.<mã>.cost_price_rmb (giá nhập bằng TỆ). " +
-                "Chừng nào chưa khai, cột “Còn lại” mới là số TRƯỚC giá vốn.",
-            );
+            // Gom theo MÃ chứ không theo đơn: một mã khai một lần là sửa xong
+            // hàng chục đơn. Xếp mã nhiều đơn nhất lên trước để biết sửa cái nào
+            // đáng công nhất.
+            const byCode = new Map<string, { orders: number; qty: number; skus: Set<string>; vd: string[] }>();
+            for (const r of rows) {
+                for (const c of r.cogs_missing) {
+                    const e = byCode.get(c) || { orders: 0, qty: 0, skus: new Set<string>(), vd: [] };
+                    e.orders++; e.qty += r.quantity;
+                    if (r.sku) e.skus.add(r.sku);
+                    if (e.vd.length < 3) e.vd.push(r.order_no);
+                    byCode.set(c, e);
+                }
+            }
+            const items = [...byCode.entries()]
+                .sort((a, b) => b[1].orders - a[1].orders)
+                .map(([code, e]) => [
+                    code,
+                    [...e.skus][0] || "(không rõ tên)",
+                    e.orders, e.qty, e.vd.join(", "),
+                ]);
+            notes.push({
+                id: "thieu-gia-von", level: "canh_bao",
+                title: `${summary.cogs_missing_orders}/${summary.total} đơn chưa tính được giá vốn`,
+                detail: `Thiếu giá nhập của ${items.length} mã dưới đây. Chừng nào chưa khai, cột “Còn lại” của những đơn đó là số TRƯỚC giá vốn — cao hơn thật.`,
+                cols: ["Mã", "Tên hàng", "Số đơn", "Số lượng", "Ví dụ đơn"],
+                items,
+                fix: "Cho tau giá nhập MỘT CÁI bằng tệ của từng mã là tau khai vào ngay.",
+            });
         }
-        if (summary.extra_lines) {
-            notes.push(
-                `${summary.extra_lines} dòng sao kê không ghép được vào đơn nào — ` +
-                "3PL trả cho đơn mình không có. Tra lại mã vận đơn.",
-            );
+
+        if (extra.length) {
+            notes.push({
+                id: "thua-sao-ke", level: "canh_bao",
+                title: `${extra.length} dòng sao kê không ghép được vào đơn nào`,
+                detail: "NAZA trả tiền cho những mã vận đơn này, nhưng file đơn của mình không có. Hoặc đơn chưa được nhập, hoặc mã vận đơn ghi sai.",
+                cols: ["Mã đơn NAZA ghi", "Mã vận đơn", "Số tiền", "Kỳ sao kê"],
+                items: extra.map((e) => [
+                    e.order_no || "(trống)", e.tracking,
+                    `${Math.round(e.amount_twd).toLocaleString("vi-VN")} NT$`,
+                    (e.period || "").replace(/ĐỐI SOÁT COD|TAIWAN|\.xlsx/gi, "").trim(),
+                ]),
+                fix: "Tra hai mã vận đơn này trong Google Sheet xem đơn nào của mình.",
+            });
         }
-        const wrongFee = rows.filter((r) => r.fee_wrong).length;
-        if (wrongFee) notes.push(`${wrongFee} đơn bị tính phí sai bảng giá.`);
+
+        const feeBad = rows.filter((r) => r.fee_wrong);
+        if (feeBad.length) {
+            notes.push({
+                id: "phi-sai", level: "canh_bao",
+                title: `${feeBad.length} đơn bị tính phí vận chuyển sai bảng giá`,
+                detail: "Phí NAZA thu khác mức đã ký trong bảng giá.",
+                cols: ["Mã đơn", "Mã vận đơn", "Kênh giao", "Phí đã thu"],
+                items: feeBad.map((r) => [r.order_no, r.tracking, r.ship_method,
+                    `${Math.round(r.ship_fee_rmb ?? 0).toLocaleString("vi-VN")}¥`]),
+                fix: "Gửi danh sách này cho NAZA hỏi lại.",
+            });
+        }
+
+        // Sáu mã trùng mã vận đơn trong file đơn — lỗi dữ liệu của mình.
+        const dupTrk = new Map<string, string[]>();
+        for (const r of rows) {
+            const k = r.tracking.replace(/\D/g, "").replace(/^0+/, "");
+            if (!k) continue;
+            (dupTrk.get(k) || dupTrk.set(k, []).get(k)!).push(r.order_no);
+        }
+        const dups = [...dupTrk.entries()].filter(([, v]) => v.length > 1);
+        if (dups.length) {
+            notes.push({
+                id: "trung-van-don", level: "nhac",
+                title: `${dups.length} mã vận đơn bị gán cho nhiều đơn khác nhau`,
+                detail: "Một mã vận đơn chỉ được thuộc về một đơn. Trùng thì đối soát có thể khớp nhầm đơn.",
+                cols: ["Mã vận đơn", "Các đơn cùng mang mã này"],
+                items: dups.map(([t, os]) => [t, os.join(" · ")]),
+                fix: "Sửa trong Google Sheet đơn hàng.",
+            });
+        }
+
+        const thieuTrk = rows.filter((r) => !r.tracking.trim());
+        if (thieuTrk.length) {
+            notes.push({
+                id: "thieu-van-don", level: "nhac",
+                title: `${thieuTrk.length} đơn không có mã vận đơn`,
+                detail: "Không có mã vận đơn thì chỉ khớp được bằng mã đơn — kém chắc chắn hơn hẳn.",
+                cols: ["Mã đơn", "Trạng thái", "Khách", "COD"],
+                items: thieuTrk.slice(0, 50).map((r) => [r.order_no, r.status_raw,
+                    r.contact_name || "—", `${Math.round(r.cod_twd).toLocaleString("vi-VN")} NT$`]),
+                fix: "Điền mã vận đơn vào Google Sheet đơn hàng.",
+            });
+        }
 
         return NextResponse.json({
             as_of: asOf,

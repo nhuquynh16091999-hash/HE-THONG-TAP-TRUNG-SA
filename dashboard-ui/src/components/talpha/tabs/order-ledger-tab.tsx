@@ -2,12 +2,20 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { format } from "date-fns";
-import { AlertTriangle, Download, Search, RefreshCw } from "lucide-react";
+import { AlertTriangle, Download, Search, RefreshCw, ChevronDown } from "lucide-react";
 import TabSkeleton, { ErrorState } from "@/components/ui/tab-skeleton";
 import { formatNumber, cn } from "../utils";
 import { TWD, VND, RMB, d6, STRIPE, ROWBG, statusCls, mkCls, type Light, type LedgerRowUI } from "./ledger-shared";
 
 interface Props { dateRange?: { from: Date; to: Date }; projectId?: string }
+
+/** Cảnh báo mang theo BẢNG chi tiết — nói "thiếu 6 mã" rồi bảo đi mở file JSON
+ *  thì người đọc vẫn phải tự tra mã nào là hàng gì, dính bao nhiêu đơn. */
+type Note = {
+    id: string; level: "canh_bao" | "nhac";
+    title: string; detail: string;
+    cols?: string[]; items?: (string | number)[][]; fix?: string;
+};
 
 const LIGHTS: { id: Light | "all"; label: string; on: string }[] = [
     { id: "all", label: "Tất cả", on: "border-slate-400 bg-slate-100 text-slate-800 dark:bg-slate-500/15 dark:text-slate-200" },
@@ -44,7 +52,8 @@ export default function TALPHAOrderLedgerTab({ dateRange }: Props) {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
     const [rows, setRows] = useState<LedgerRowUI[]>([]);
-    const [warnings, setWarnings] = useState<string[]>([]);
+    const [notes, setNotes] = useState<Note[]>([]);
+    const [mo, setMo] = useState<Record<string, boolean>>({});
     const [filter, setFilter] = useState<Light | "all">("all");
     const [q, setQ] = useState("");
 
@@ -57,7 +66,7 @@ export default function TALPHAOrderLedgerTab({ dateRange }: Props) {
             const d = await res.json();
             if (!res.ok) throw new Error(d.error || "Không dựng được sổ");
             setRows(d.rows || []);
-            setWarnings(d.warnings || []);
+            setNotes(d.warnings || []);
         } catch (e) {
             setError(e instanceof Error ? e.message : "Lỗi không rõ");
         } finally { setLoading(false); }
@@ -104,12 +113,69 @@ export default function TALPHAOrderLedgerTab({ dateRange }: Props) {
                 Cơ sở dữ liệu chung — mọi đơn, mọi cột. Việc phải làm nằm bên tab <b>Đối soát COD</b>.
             </p>
 
-            {warnings.map((w) => (
-                <div key={w} className="flex gap-3 rounded-xl border-l-4 border-amber-500 bg-amber-50 px-4 py-2.5 text-sm dark:bg-amber-500/10">
-                    <AlertTriangle className="mt-0.5 h-4 w-4 flex-none text-amber-600 dark:text-amber-400" />
-                    <p className="text-amber-900 dark:text-amber-200">{w}</p>
-                </div>
-            ))}
+            {notes.map((n) => {
+                const open = mo[n.id] ?? (n.items ? n.items.length <= 8 : false);
+                return (
+                    <div key={n.id} className={cn("overflow-hidden rounded-xl border-l-4",
+                        n.level === "canh_bao"
+                            ? "border-amber-500 bg-amber-50/70 dark:bg-amber-500/10"
+                            : "border-sky-400 bg-sky-50/70 dark:bg-sky-500/10")}>
+                        <button onClick={() => setMo((m) => ({ ...m, [n.id]: !open }))}
+                            disabled={!n.items?.length}
+                            className="flex w-full items-start gap-3 px-4 py-2.5 text-left">
+                            <AlertTriangle className={cn("mt-0.5 h-4 w-4 flex-none",
+                                n.level === "canh_bao" ? "text-amber-600 dark:text-amber-400" : "text-sky-600 dark:text-sky-400")} />
+                            <div className="min-w-0 flex-1">
+                                <div className={cn("text-sm font-semibold",
+                                    n.level === "canh_bao" ? "text-amber-900 dark:text-amber-200" : "text-sky-900 dark:text-sky-200")}>
+                                    {n.title}
+                                </div>
+                                <p className={cn("text-[12.5px]",
+                                    n.level === "canh_bao" ? "text-amber-800/85 dark:text-amber-200/75" : "text-sky-800/85 dark:text-sky-200/75")}>
+                                    {n.detail}
+                                </p>
+                            </div>
+                            {!!n.items?.length && (
+                                <ChevronDown className={cn("mt-0.5 h-4 w-4 flex-none opacity-60 transition-transform", open && "rotate-180")} />
+                            )}
+                        </button>
+
+                        {open && !!n.items?.length && (
+                            <div className="border-t border-black/5 bg-card/70 dark:border-white/5">
+                                <div className="max-h-72 overflow-auto">
+                                    <table className="w-full text-[12px]">
+                                        <thead className="sticky top-0 bg-muted/80 backdrop-blur">
+                                            <tr className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+                                                {n.cols?.map((c, i) => (
+                                                    <th key={c} className={cn("px-3 py-1.5", i === 0 ? "text-left" : "text-left")}>{c}</th>
+                                                ))}
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-border">
+                                            {n.items.map((it, i) => (
+                                                <tr key={i}>
+                                                    {it.map((v, j) => (
+                                                        <td key={j} className={cn("px-3 py-1",
+                                                            j === 0 && "font-mono font-semibold",
+                                                            typeof v === "number" && "text-right tabular-nums")}>
+                                                            {typeof v === "number" ? formatNumber(v) : v}
+                                                        </td>
+                                                    ))}
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                                {n.fix && (
+                                    <p className="border-t border-border px-3 py-2 text-[12px] font-medium text-muted-foreground">
+                                        → {n.fix}
+                                    </p>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                );
+            })}
 
             <div className="flex flex-wrap items-center gap-1.5">
                 {LIGHTS.map((l) => {
@@ -146,7 +212,7 @@ export default function TALPHAOrderLedgerTab({ dateRange }: Props) {
                 <table className="border-separate border-spacing-0 whitespace-nowrap text-[11.5px]">
                     <thead>
                         <tr className="text-[9.5px] font-bold uppercase tracking-wide text-muted-foreground/70">
-                            <th className="sticky left-0 top-0 z-40 bg-muted px-1.5 py-[5px] text-left"></th>
+                            <th className="sticky left-0 top-0 z-40 bg-muted px-1.5 py-[5px] text-left" colSpan={2}></th>
                             <th className="sticky top-0 z-30 border-l border-border bg-muted px-1.5 py-[5px] text-left" colSpan={3}>Thời gian</th>
                             <th className="sticky top-0 z-30 border-l border-border bg-muted px-1.5 py-[5px] text-left" colSpan={4}>Vận chuyển</th>
                             <th className="sticky top-0 z-30 border-l border-border bg-muted px-1.5 py-[5px] text-left" colSpan={2}>Hàng</th>
@@ -155,7 +221,8 @@ export default function TALPHAOrderLedgerTab({ dateRange }: Props) {
                             <th className="sticky top-0 z-30 border-l border-border bg-muted px-1.5 py-[5px] text-left" colSpan={5}>Tiền ra &amp; kết quả</th>
                         </tr>
                         <tr className="text-[9.5px] font-bold uppercase tracking-wide text-muted-foreground">
-                            <Th pin>Mã đơn · trạng thái</Th>
+                            <Th pin stt>#</Th>
+                            <Th pinAfter>Mã đơn · trạng thái</Th>
                             <Th grp>Lên đơn</Th><Th>Xuất kho</Th>
                             <Th num title="Đã qua bao nhiêu KỲ SAO KÊ kể từ khi giao mà tiền chưa về. Từ 2 kỳ là phải đòi. Đơn đã nhận tiền thì để trống.">Kỳ chờ</Th>
                             <Th grp>PTVC</Th><Th>Vận đơn</Th><Th>Mã hoàn</Th><Th>17TRACK</Th>
@@ -168,14 +235,20 @@ export default function TALPHAOrderLedgerTab({ dateRange }: Props) {
                         </tr>
                     </thead>
                     <tbody>
-                        {shown.map((r) => {
+                        {shown.map((r, i) => {
                             /* "Kỳ chờ" chỉ có nghĩa với đơn ĐÃ GIAO mà TIỀN CHƯA VỀ. Đơn đã
                                nhận tiền thì con số này là nhiễu — để trống. */
                             const cho = r.paid_twd === null && /thành công/i.test(r.status_raw || "");
                             const skuM = (r.sku || "").match(/^(\d{3})(.*)$/);
                             return (
                                 <tr key={r.tracking + r.order_no} className={cn("group", ROWBG[r.light])}>
-                                    <Td pin light={r.light}>
+                                    {/* Số thứ tự theo danh sách ĐANG HIỆN, không phải id đơn —
+                                        lọc hay tìm thì đánh số lại từ 1, để đếm được còn bao
+                                        nhiêu dòng trong nhóm mình đang xem. */}
+                                    <Td pin stt light={r.light} className="text-right tabular-nums text-muted-foreground/60">
+                                        {i + 1}
+                                    </Td>
+                                    <Td pinAfter light={r.light}>
                                         <span className="flex items-center">
                                             <i title={r.light_note} className={cn("mr-1.5 inline-block h-[14px] w-[3px] flex-none rounded-sm", STRIPE[r.light])} />
                                             <b>{r.order_no}</b>
@@ -247,7 +320,7 @@ export default function TALPHAOrderLedgerTab({ dateRange }: Props) {
                             );
                         })}
                         {!shown.length && (
-                            <tr><td colSpan={23} className="px-3 py-12 text-center text-muted-foreground">Không có đơn nào trong nhóm này.</td></tr>
+                            <tr><td colSpan={24} className="px-3 py-12 text-center text-muted-foreground">Không có đơn nào trong nhóm này.</td></tr>
                         )}
                     </tbody>
                 </table>
@@ -267,24 +340,36 @@ export default function TALPHAOrderLedgerTab({ dateRange }: Props) {
     );
 }
 
-function Th({ children, grp, num, pin, title }: {
-    children?: React.ReactNode; grp?: boolean; num?: boolean; pin?: boolean; title?: string;
+/** `stt` là cột số thứ tự ghim sát mép trái; `pinAfter` là cột mã đơn ghim ngay
+ *  sau nó. Hai cột cùng ghim nên phải khai bề rộng cố định cho cột STT, nếu
+ *  không cột thứ hai không biết dịch sang bao nhiêu. */
+const STT_W = 34;
+
+function Th({ children, grp, num, pin, pinAfter, stt, title }: {
+    children?: React.ReactNode; grp?: boolean; num?: boolean;
+    pin?: boolean; pinAfter?: boolean; stt?: boolean; title?: string;
 }) {
     return (
-        <th title={title} className={cn("sticky top-[23px] z-30 bg-muted/95 px-1.5 py-[5px] backdrop-blur",
-            num ? "text-right" : "text-left", grp && "border-l border-border",
-            pin && "left-0 z-40 bg-muted")}>{children}</th>
+        <th title={title}
+            style={stt ? { width: STT_W, minWidth: STT_W } : pinAfter ? { left: STT_W } : undefined}
+            className={cn("sticky top-[23px] z-30 bg-muted/95 px-1.5 py-[5px] backdrop-blur",
+                num || stt ? "text-right" : "text-left", grp && "border-l border-border",
+                (pin || pinAfter) && "z-40 bg-muted", pin && "left-0")}>{children}</th>
     );
 }
 
-function Td({ children, grp, num, pin, light, className }: {
-    children?: React.ReactNode; grp?: boolean; num?: boolean; pin?: boolean;
-    light?: Light; className?: string;
+function Td({ children, grp, num, pin, pinAfter, stt, light, className }: {
+    children?: React.ReactNode; grp?: boolean; num?: boolean;
+    pin?: boolean; pinAfter?: boolean; stt?: boolean; light?: Light; className?: string;
 }) {
+    const ghim = pin || pinAfter || stt;
     return (
-        <td className={cn("border-b border-border px-1.5 py-[3px]",
-            num && "text-right tabular-nums", grp && "border-l border-border",
-            pin && cn("sticky left-0 z-20 bg-card shadow-[1px_0_0_var(--border)]", light && ROWBG[light]),
-            className)}>{children}</td>
+        <td style={stt ? { width: STT_W, minWidth: STT_W } : pinAfter ? { left: STT_W } : undefined}
+            className={cn("border-b border-border px-1.5 py-[3px]",
+                num && "text-right tabular-nums", grp && "border-l border-border",
+                ghim && cn("sticky z-20 bg-card", light && ROWBG[light]),
+                stt && "left-0",
+                pinAfter && "shadow-[1px_0_0_var(--border)]",
+                className)}>{children}</td>
     );
 }
