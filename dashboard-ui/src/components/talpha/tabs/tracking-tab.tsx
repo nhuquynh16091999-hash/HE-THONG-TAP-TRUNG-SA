@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { format } from "date-fns";
-import { RefreshCw, AlertTriangle, Store, PackageX, Clock, Download, Upload, FileSpreadsheet, ShieldAlert } from "lucide-react";
+import { RefreshCw, AlertTriangle, Store, PackageX, Clock, Download, Upload, FileSpreadsheet, ShieldAlert, Copy, Phone } from "lucide-react";
 import TabSkeleton, { ErrorState } from "@/components/ui/tab-skeleton";
 import { formatNumber, cn } from "../utils";
 
@@ -16,13 +16,32 @@ type Shipment = {
     registered: boolean;
     source?: "doi_tac" | "17track" | null;
     raw_status?: string | null;
+    store_name?: string; store_code?: string; ship_method?: string;
 };
 type Alert = {
     level: "gap" | "canh_bao" | "nhac";
     code: string; title: string; detail: string; days: number | null; shipment: Shipment;
 };
 
-const TWD = (n: number) => `${Math.round(n).toLocaleString("vi-VN")} $`;
+const TWD = (n: number) => `${Math.round(n).toLocaleString("vi-VN")} NT$`;
+
+/**
+ * Tin nhắn tiếng Trung báo khách ra lấy hàng.
+ *
+ * Sale không phải tự gõ tiếng Trung — gõ tay mỗi ngày vài chục tin là vừa chậm
+ * vừa sai tên cửa hàng. Chỉ điền được khi có tên cửa hàng; thiếu thì trả null
+ * chứ KHÔNG soạn tin cụt, vì tin thiếu chỗ lấy hàng thì khách đọc xong vẫn
+ * không biết đi đâu.
+ */
+function soanTin(s: Shipment, conLai: number | null): string | null {
+    if (!s.store_name) return null;
+    const ten = s.customer || "客戶";
+    const ma = s.store_code ? `，取貨編號 ${s.store_code}` : "";
+    const han = conLai != null && conLai > 0
+        ? `請於 ${conLai} 天內領取，逾期將退回。`
+        : "請盡快領取，逾期將退回。";
+    return `您好 ${ten}，您的包裹已送達 ${s.store_name}${ma}。${han} 謝謝！`;
+}
 
 const STATUS_VI: Record<string, string> = {
     NotFound: "Chưa có thông tin", InfoReceived: "Đã tạo vận đơn", InTransit: "Đang vận chuyển",
@@ -59,6 +78,8 @@ export default function TALPHATrackingTab({ dateRange }: Props) {
     const [hasKey, setHasKey] = useState(true);
     const [cfg, setCfg] = useState({ pickup_expire_days: 7, warn_before_expire_days: 2, stale_days: 21 });
     const [tab, setTab] = useState<"alerts" | "all">("alerts");
+    const [lv, setLv] = useState<"all" | "gap" | "canh_bao" | "nhac">("all");
+    const [copied, setCopied] = useState("");
     const [importing, setImporting] = useState(false);
     const [importMsg, setImportMsg] = useState("");
     const [unknownStatuses, setUnknownStatuses] = useState<{ value: string; count: number }[]>([]);
@@ -244,42 +265,95 @@ export default function TALPHATrackingTab({ dateRange }: Props) {
             )}
 
             {tab === "alerts" ? (
-                <div className="rounded-xl border border-border bg-card shadow-sm">
-                    {alerts.length === 0 ? (
-                        <p className="px-4 py-12 text-center text-muted-foreground">
-                            Không có vận đơn nào cần xử lý.
-                        </p>
-                    ) : (
-                        <div className="divide-y divide-border">
-                            {alerts.map((a, i) => {
-                                const st = LEVEL_STYLE[a.level];
-                                const s = a.shipment;
-                                return (
-                                    <div key={`${s.tracking}-${i}`} className="grid grid-cols-[4px_1fr] gap-4 p-4">
-                                        <span className={cn("rounded-sm", st.bar)} />
-                                        <div>
-                                            <div className="flex flex-wrap items-center gap-2">
-                                                <span className={cn("rounded-full px-2 py-0.5 text-[11px] font-medium", st.chip)}>{st.label}</span>
-                                                <span className="font-medium">{a.title}</span>
-                                                <span className="font-mono text-xs text-muted-foreground">#{s.order_id}</span>
-                                                {s.cod_local > 0 && (
-                                                    <span className="font-mono text-xs tabular-nums text-muted-foreground">{TWD(s.cod_local)}</span>
+                <>
+                    {/* Lọc theo MỨC — 76 cảnh báo một lượt thì không ai xử nổi;
+                        mở ra làm hết nhóm gấp trước rồi mới tới nhóm sau. */}
+                    <div className="flex flex-wrap items-center gap-1.5">
+                        {([["all", "Tất cả"], ["gap", "Gấp"], ["canh_bao", "Cảnh báo"], ["nhac", "Nhắc"]] as const).map(([k, l]) => {
+                            const n = k === "all" ? alerts.length : alerts.filter((a) => a.level === k).length;
+                            const on = lv === k;
+                            return (
+                                <button key={k} onClick={() => setLv(k)}
+                                    className={cn("inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[12.5px] transition",
+                                        on ? cn("font-semibold",
+                                            k === "gap" ? "border-rose-400 bg-rose-100 text-rose-800 dark:bg-rose-500/15 dark:text-rose-300"
+                                                : k === "canh_bao" ? "border-amber-400 bg-amber-100 text-amber-900 dark:bg-amber-500/15 dark:text-amber-300"
+                                                    : k === "nhac" ? "border-sky-400 bg-sky-100 text-sky-800 dark:bg-sky-500/15 dark:text-sky-300"
+                                                        : "border-slate-400 bg-slate-100 text-slate-800 dark:bg-slate-500/15 dark:text-slate-200")
+                                            : "border-border text-muted-foreground hover:bg-muted")}>
+                                    {l}<span className="font-mono text-[11.5px] opacity-70">{formatNumber(n)}</span>
+                                </button>
+                            );
+                        })}
+                    </div>
+
+                    <div className="rounded-xl border border-border bg-card shadow-sm">
+                        {alerts.filter((a) => lv === "all" || a.level === lv).length === 0 ? (
+                            <p className="px-4 py-12 text-center text-muted-foreground">Không có vận đơn nào cần xử lý.</p>
+                        ) : (
+                            <div className="divide-y divide-border">
+                                {alerts.filter((a) => lv === "all" || a.level === lv).map((a, i) => {
+                                    const st = LEVEL_STYLE[a.level];
+                                    const s = a.shipment;
+                                    // Còn mấy ngày nữa bị trả về — hạn lưu ở cửa hàng là 7 ngày.
+                                    const conLai = a.code === "sap_bi_tra_ve" && a.days != null
+                                        ? cfg.pickup_expire_days - a.days : null;
+                                    const tin = soanTin(s, conLai);
+                                    const key = `${s.tracking}-${i}`;
+                                    return (
+                                        <div key={key} className="grid grid-cols-[4px_1fr] gap-4 p-4">
+                                            <span className={cn("rounded-sm", st.bar)} />
+                                            <div className="min-w-0">
+                                                <div className="flex flex-wrap items-center gap-2">
+                                                    <span className={cn("rounded-full px-2 py-0.5 text-[11px] font-medium", st.chip)}>{st.label}</span>
+                                                    <span className="font-medium">{a.title}</span>
+                                                    <span className="font-mono text-xs text-indigo-700 dark:text-indigo-300">#{s.order_id}</span>
+                                                    {s.cod_local > 0 && (
+                                                        <span className="font-mono text-xs font-bold tabular-nums">{TWD(s.cod_local)}</span>
+                                                    )}
+                                                    {conLai != null && (
+                                                        <span className={cn("rounded px-1.5 font-mono text-[10px] font-bold",
+                                                            conLai <= 0 ? "bg-rose-600 text-white"
+                                                                : "bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-300")}>
+                                                            {conLai <= 0 ? "ĐÃ QUÁ HẠN" : `còn ${conLai} ngày`}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <p className="mt-1 text-sm text-muted-foreground">{a.detail}</p>
+                                                <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                                                    <span className="text-foreground">{s.customer || "(chưa có tên)"}</span>
+                                                    <span className="font-mono text-violet-600/85 dark:text-violet-300/80">{s.phone || "(chưa có SĐT)"}</span>
+                                                    <span className="font-mono text-indigo-600/70 dark:text-indigo-300/60">{s.tracking}</span>
+                                                    {s.store_name && <span className="text-amber-700 dark:text-amber-400">{s.store_name}{s.store_code ? ` · mã ${s.store_code}` : ""}</span>}
+                                                    {s.marketer && <span>mkt {s.marketer}</span>}
+                                                </div>
+
+                                                {/* Tin nhắn soạn sẵn — sale chỉ việc chép và dán */}
+                                                {tin && (
+                                                    <div className="mt-2 flex items-start gap-2">
+                                                        <p className="min-w-0 flex-1 rounded-lg border border-border bg-muted/40 px-3 py-2 text-[12.5px] leading-relaxed">
+                                                            {tin}
+                                                        </p>
+                                                        <button onClick={() => { navigator.clipboard?.writeText(tin); setCopied(key); setTimeout(() => setCopied(""), 2000); }}
+                                                            className="flex-none rounded-lg border border-border px-2.5 py-1.5 text-[12px] hover:bg-muted">
+                                                            <Copy className="mr-1 inline h-3 w-3" />{copied === key ? "Đã chép" : "Chép tin"}
+                                                        </button>
+                                                        {s.phone && (
+                                                            <a href={`tel:${s.phone}`}
+                                                                className="flex-none rounded-lg border border-border px-2.5 py-1.5 text-[12px] hover:bg-muted">
+                                                                <Phone className="mr-1 inline h-3 w-3" />Gọi
+                                                            </a>
+                                                        )}
+                                                    </div>
                                                 )}
                                             </div>
-                                            <p className="mt-1 text-sm text-muted-foreground">{a.detail}</p>
-                                            <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
-                                                <span>{s.customer || "—"}{s.phone ? ` · ${s.phone}` : ""}</span>
-                                                <span className="font-mono">{s.tracking}</span>
-                                                {s.marketer && <span>mkt {s.marketer}</span>}
-                                                {s.sale && <span>sale {s.sale}</span>}
-                                            </div>
                                         </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    )}
-                </div>
+                                    );
+                                })}
+                            </div>
+                        )}
+                    </div>
+                </>
             ) : (
                 <div className="rounded-xl border border-border bg-card shadow-sm">
                     <div className="max-h-[560px] overflow-auto">

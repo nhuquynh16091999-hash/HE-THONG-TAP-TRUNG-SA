@@ -80,7 +80,15 @@ async function loadShipments(from: string, to: string): Promise<Shipment[]> {
             order_uid: null,
             order_id: pm?.order_no || "",
             order_date: pm?.ship_date ?? null,
-            customer: "", phone: "",
+            // Tên và SĐT LẤY TỪ FILE ĐỐI TÁC. Bản trước để trống rồi chờ
+            // BigQuery điền — mà POS mới có vài đơn nên gần như dòng nào cũng
+            // trống, và tab này thành vô dụng cho việc gọi khách.
+            customer: pm?.contact_name || "",
+            phone: pm?.phone || "",
+            // Cần cho việc soạn tin nhắn báo khách ra lấy hàng.
+            store_name: pm?.store_name || "",
+            store_code: pm?.store_code || "",
+            ship_method: pm?.ship_method || "",
             // Tên trong file đối tác phải đi qua luật gán người, không dùng thô:
             // họ ghi "Lâm" mà trong hệ thống là "Lộc" — cùng một người.
             marketer: (() => {

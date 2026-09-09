@@ -10,7 +10,7 @@ const t = (name, fn) => { fn(); pass++; console.log("  ✓", name); };
 
 const ord = (o) => ({
     order_no: "T1", tracking: "17900001", cod_twd: 1000,
-    order_date: "2026-08-20", status: "Delivered", sku: "005 - X", quantity: 1, ...o,
+    order_date: "2026-08-20", status: "Delivered", sku: "040 - X", quantity: 1, ...o,
 });
 const pay = (o) => ({
     tracking: "17900001", order_no: "T1", amount_twd: 1000,
@@ -73,21 +73,28 @@ t("dòng sao kê không ghép được đơn nào → trả về ở `extra`", (
 
 console.log("── Giá vốn ──");
 t("đủ giá vốn → tích Trừ tiền hàng", () => {
-    const { rows } = one([ord({ sku: "005 - X", quantity: 1 })], [pay()], [fee()]);
+    const { rows } = one([ord({ sku: "040 - X", quantity: 1 })], [pay()], [fee()]);
     assert.strictEqual(rows[0].tick.tru_tien_hang, true);
-    assert.strictEqual(rows[0].cogs_vnd, 180000);
+    assert.strictEqual(rows[0].cogs_vnd, 7 * 4000);   // 040 = 7 tệ × tỷ giá kỳ
 });
 t("giá vốn nhân theo số lượng", () => {
-    const { rows } = one([ord({ sku: "005 - X", quantity: 3 })], [pay()], [fee()]);
-    assert.strictEqual(rows[0].cogs_vnd, 540000);
+    const { rows } = one([ord({ sku: "040 - X", quantity: 3 })], [pay()], [fee()]);
+    assert.strictEqual(rows[0].cogs_vnd, 7 * 4000 * 3);
 });
 t("BẪY: đơn ghép mà THIẾU một mã → KHÔNG tính nửa vời", () => {
     // Cộng nửa vời ra giá vốn thấp hơn thật, mà thấp hơn thật thì lãi trông
     // đẹp hơn thật — sai theo đúng hướng nguy hiểm nhất.
-    const { rows } = one([ord({ sku: "005 - X + 999 - CHUAKHAI" })], [pay()], [fee()]);
+    const { rows } = one([ord({ sku: "040 - X + 999 - CHUAKHAI" })], [pay()], [fee()]);
     assert.strictEqual(rows[0].cogs_vnd, null);
     assert.deepStrictEqual(rows[0].cogs_missing, ["999"]);
     assert.strictEqual(rows[0].tick.tru_tien_hang, false);
+});
+t("BẪY THẬT: mã chỉ còn giá VND cũ của hệ thống GCC → coi như CHƯA KHAI", () => {
+    // 011 quy ra ~37,6 tệ cho một vòng cổ, trong khi vòng thật mua 7–9,5 tệ.
+    // Khác thị trường, khác nguồn hàng. Thà báo chưa khai còn hơn số sai.
+    const { rows } = one([ord({ sku: "011 - ATTL" })], [pay()], [fee()]);
+    assert.strictEqual(rows[0].cogs_vnd, null);
+    assert.deepStrictEqual(rows[0].cogs_missing, ["011"]);
 });
 t("SKU không có mã nào → coi như chưa khai giá vốn", () => {
     const { rows } = one([ord({ sku: "SET KIM CUONG" })], [pay()], [fee()]);
@@ -96,11 +103,11 @@ t("SKU không có mã nào → coi như chưa khai giá vốn", () => {
 
 console.log("── Tính tiền còn lại ──");
 t("còn lại = tiền về − phí − giá vốn, theo tỷ giá của kỳ trả", () => {
-    const { rows } = one([ord({ sku: "005 - X", quantity: 1 })], [pay()], [fee()]);
+    const { rows } = one([ord({ sku: "040 - X", quantity: 1 })], [pay()], [fee()]);
     const r = rows[0];
     assert.strictEqual(r.gross_vnd, 1000 * 0.2 * 4000);        // 800.000
     assert.strictEqual(r.fee_vnd, 30 * 4000);                   // 120.000
-    assert.strictEqual(r.net_vnd, 800000 - 120000 - 180000);    // 500.000
+    assert.strictEqual(r.net_vnd, 800000 - 120000 - 28000);
     assert.strictEqual(r.net_before_cogs, false);
 });
 t("thiếu giá vốn → còn lại là số TẠM, có cờ báo", () => {
@@ -205,7 +212,7 @@ t("bỏ trống thì để trống, KHÔNG đoán", () =>
 console.log("── Tổng hợp ──");
 t("đếm đèn và cộng tiền đúng", () => {
     const { rows, extra } = one(
-        [ord({ order_no: "A", tracking: "1", sku: "005 - X" }),
+        [ord({ order_no: "A", tracking: "1", sku: "040 - X" }),
          ord({ order_no: "B", tracking: "2", order_date: "2026-09-01" }),
          ord({ order_no: "C", tracking: "3", order_date: "2026-07-01" })],
         [pay({ order_no: "A", tracking: "1" })],
@@ -221,13 +228,13 @@ t("đếm đèn và cộng tiền đúng", () => {
 });
 t("tiền còn lại tách riêng: đã trừ giá vốn vs chưa", () => {
     const { rows } = one(
-        [ord({ order_no: "A", tracking: "1", sku: "005 - X" }),
+        [ord({ order_no: "A", tracking: "1", sku: "040 - X" }),
          ord({ order_no: "B", tracking: "2", sku: "999 - CHUAKHAI" })],
         [pay({ order_no: "A", tracking: "1" }), pay({ order_no: "B", tracking: "2" })],
         [fee({ order_no: "A", tracking: "1" }), fee({ order_no: "B", tracking: "2" })],
     );
     const s = L.summarise(rows);
-    assert.strictEqual(s.net_total_vnd, 500000);      // đã trừ giá vốn
+    assert.strictEqual(s.net_total_vnd, 800000 - 120000 - 28000);   // đã trừ giá vốn
     assert.strictEqual(s.net_partial_vnd, 680000);    // mới trừ phí
     assert.strictEqual(s.cogs_missing_orders, 1);
 });

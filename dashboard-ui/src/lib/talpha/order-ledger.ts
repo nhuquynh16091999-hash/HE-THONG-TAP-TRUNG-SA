@@ -43,7 +43,11 @@ function unitCostVnd(code: string, rateRmbVnd: number | null): number | null {
     if (typeof p.cost_price_rmb === "number" && p.cost_price_rmb > 0) {
         return p.cost_price_rmb * (rateRmbVnd ?? FALLBACK_RMB_VND);
     }
-    if (typeof p.cost_price_vnd === "number" && p.cost_price_vnd > 0) return p.cost_price_vnd;
+    // CỐ Ý không lùi về cost_price_vnd. Giá VND cũ mang từ hệ thống GCC quy ra
+    // 11–58 tệ, trong khi hàng mua thật ở Đài chỉ 1,3–39 tệ — khác thị trường,
+    // khác nguồn hàng. Dùng nó thì 60 đơn bị tính giá vốn cao gấp mấy lần thật
+    // (riêng mã 011: 145.000đ ≈ 37,6 tệ cho một vòng cổ, trong khi vòng thật
+    // chỉ 7–9,5 tệ). Thà báo "chưa khai giá" còn hơn đưa ra con số sai.
     return null;
 }
 

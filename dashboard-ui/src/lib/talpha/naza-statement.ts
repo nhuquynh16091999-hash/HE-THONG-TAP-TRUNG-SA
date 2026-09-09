@@ -226,6 +226,12 @@ export type NazaStatement = {
         unknown_channel: number;
         overcharge_rmb: number;
         lines: { tracking: string; order_id: string; channel: string; kg: number | null; expected: number; charged: number; diff: number }[];
+        /** Một mã vận đơn bị tính phí HAI LẦN trở lên trong cùng kỳ. */
+        duplicates: { tracking: string; order_ids: string[]; times: number; extra_rmb: number }[];
+        duplicate_extra_rmb: number;
+        /** Phí thao tác khác mức đã khai (3¥/đơn). */
+        op_wrong: { tracking: string; order_id: string; charged: number; expected: number }[];
+        op_expected: number;
     };
 };
 
@@ -423,6 +429,42 @@ export async function parseNazaStatement(buf: Buffer, fileName = ""): Promise<Na
         });
     }
 
+    // ── THU HAI LẦN PHÍ TRÊN MỘT ĐƠN ─────────────────────────────────────
+    //
+    // Một mã vận đơn chỉ được tính phí một lần trong một kỳ. Trùng nghĩa là
+    // trả thừa, và không ai bắt được bằng mắt vì bảng phí dài cả trăm dòng và
+    // hai dòng trùng thường nằm cách xa nhau.
+    //
+    // Cẩn thận với đơn GIAO LẠI: mã vận đơn khác nhau thì là hai lần gửi thật,
+    // có thu phí hai lần cũng đúng. Nên đối chiếu bằng MÃ VẬN ĐƠN, không phải
+    // mã đơn — mã đơn giữ nguyên khi gửi lại.
+    const byTrack = new Map<string, NazaFeeLine[]>();
+    for (const l of fee_lines) {
+        const k = normTracking(l.tracking);
+        if (!k) continue;
+        (byTrack.get(k) || byTrack.set(k, []).get(k)!).push(l);
+    }
+    const duplicates: NazaStatement["fee_audit"]["duplicates"] = [];
+    for (const [tracking, ls] of byTrack) {
+        if (ls.length < 2) continue;
+        const each = ls.map((l) => l.ship_fee + l.op_fee);
+        duplicates.push({
+            tracking,
+            order_ids: [...new Set(ls.map((l) => l.order_id))],
+            times: ls.length,
+            extra_rmb: each.reduce((a, b) => a + b, 0) - each[0],
+        });
+    }
+
+    // ── PHÍ THAO TÁC ─────────────────────────────────────────────────────
+    // Mức đã khai là 3¥/đơn. Khác mức đó thì phải hỏi, dù chỉ lệch 1¥ — trên
+    // vài trăm đơn mỗi kỳ thì 1¥ lệch cũng thành tiền thật.
+    const opExpected = OP_FEE_PER_PARCEL;
+    const opWrong = opExpected > 0
+        ? fee_lines.filter((l) => Math.abs(l.op_fee - opExpected) > 0.01)
+            .map((l) => ({ tracking: l.tracking, order_id: l.order_id, charged: l.op_fee, expected: opExpected }))
+        : [];
+
     return {
         file: fileName,
         sheets: { summary: sSum?.name ?? null, cod: sCod?.name ?? null, fee: sFee?.name ?? null },
@@ -449,6 +491,10 @@ export async function parseNazaStatement(buf: Buffer, fileName = ""): Promise<Na
             unknown_channel: unknown,
             overcharge_rmb: auditLines.reduce((t, l) => t + l.diff, 0),
             lines: auditLines,
+            duplicates,
+            duplicate_extra_rmb: duplicates.reduce((t, d) => t + d.extra_rmb, 0),
+            op_wrong: opWrong,
+            op_expected: opExpected,
         },
     };
 }

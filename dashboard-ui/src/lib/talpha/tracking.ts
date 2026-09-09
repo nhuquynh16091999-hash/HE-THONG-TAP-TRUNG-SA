@@ -95,6 +95,11 @@ export type Shipment = {
     order_id: string;
     order_date: string | null;
     customer: string;
+    /** Cửa hàng tiện lợi khách ra lấy, và mã lấy hàng — cần để soạn tin nhắn
+     *  báo khách. Chỉ file đối tác có, POS không ghi. */
+    store_name?: string;
+    store_code?: string;
+    ship_method?: string;
     phone: string;
     marketer: string | null;
     sale: string | null;

@@ -177,6 +177,26 @@ export async function GET(req: NextRequest) {
             };
         }).sort((a, b) => (a.period_date < b.period_date ? 1 : -1));
 
+        // ── TỶ GIÁ QUA CÁC KỲ ─────────────────────────────────────────
+        //
+        // Tỷ giá là số NAZA TỰ ĐẶT, không phải số thị trường, và họ đổi gần như
+        // mỗi kỳ (đo thật: TWD→RMB 0,1995 → 0,2037, biến động 2,1%). Không ai
+        // soát thì lệch 1% trên 300.000 TWD là ~2,3 triệu đồng bốc hơi lặng lẽ.
+        // Nên so từng kỳ với kỳ LIỀN TRƯỚC và nói rõ lợi hay hại cho mình.
+        const rateTrend = [...byPeriod].reverse().map((p, i, arr) => {
+            const prev = i > 0 ? arr[i - 1] : null;
+            const tw = p.settlement?.rate_twd_rmb ?? null;
+            const rv = p.settlement?.rate_rmb_vnd ?? null;
+            const pct = (a: number | null, b: number | null) =>
+                a == null || b == null || b === 0 ? null : (a / b - 1) * 100;
+            return {
+                filename: p.filename, period_date: p.period_date,
+                rate_twd_rmb: tw, rate_rmb_vnd: rv,
+                d_twd_rmb: pct(tw, prev?.settlement?.rate_twd_rmb ?? null),
+                d_rmb_vnd: pct(rv, prev?.settlement?.rate_rmb_vnd ?? null),
+            };
+        }).reverse();
+
         // Loại lệch thứ 2 KHÔNG thuộc kỳ nào: đơn đã giao mà chưa kỳ nào trả
         // tiền. Gắn nó vào một kỳ cụ thể là sai — nó là món nợ đang treo.
         const chuaVeTien = rows
@@ -197,6 +217,87 @@ export async function GET(req: NextRequest) {
         // Mọi việc ở đây TỰ HẾT khi tiền về — không có nút "đã làm", vì Sỹ Anh
         // chốt là máy tự lo, không thêm thao tác tay.
         const moiNhat = byPeriod[0];
+        const stMoi = stm.statements.find((x) => x.id === moiNhat?.id);
+        const fa = stMoi?.naza?.fee_audit;
+        const rMoi = rateTrend[0];
+
+        // ── 8 MỤC KIỂM TRA ────────────────────────────────────────────
+        // Nhóm A soát chính FILE (tin được số trong đó không), nhóm B soát ĐƠN
+        // (file đúng rồi thì so với đơn của mình). Thứ tự này không đảo được:
+        // file sai mà đem so đơn thì mọi kết luận đều vô nghĩa.
+        const vnd = (n: number) => Math.round(n).toLocaleString("vi-VN");
+        const checks: { nhom: "A" | "B"; ten: string; ok: boolean | null; chi_tiet: string }[] = [];
+        if (moiNhat) {
+            const ck = stMoi?.naza?.checks;
+            checks.push({
+                nhom: "A", ten: "Phép tính trong file",
+                ok: ck?.math_ok ?? null,
+                chi_tiet: ck?.math_note || "Chưa đọc được sheet TỔNG.",
+            });
+            const gap = ck?.cod_gap ?? null;
+            checks.push({
+                nhom: "A", ten: "Chi tiết cộng ra đúng số tổng",
+                ok: gap === null ? null : Math.abs(gap) < 0.5,
+                chi_tiet: gap === null ? "Không đọc được số tổng."
+                    : Math.abs(gap) < 0.5
+                        ? `${moiNhat.orders_paid} dòng COD cộng ra ${vnd(moiNhat.total_twd)} NT$ — khớp sheet TỔNG.`
+                        : `Chi tiết lệch sheet TỔNG ${vnd(gap)} NT$. Hỏi lại NAZA.`,
+            });
+            const dw = rMoi?.d_twd_rmb, dv = rMoi?.d_rmb_vnd;
+            const moTa = (nhan: string, gia: number | null, d: number | null, loiKhiTang: boolean) => {
+                if (gia == null) return `${nhan}: không đọc được.`;
+                if (d == null) return `${nhan} ${gia} — chưa có kỳ trước để so.`;
+                if (Math.abs(d) < 0.05) return `${nhan} ${gia} — giữ nguyên.`;
+                const loi = (d > 0) === loiKhiTang;
+                return `${nhan} ${gia} — ${d > 0 ? "tăng" : "giảm"} ${Math.abs(d).toFixed(2)}% so kỳ trước, ${loi ? "có lợi" : "BẤT LỢI"} cho mình.`;
+            };
+            checks.push({
+                nhom: "A", ten: "Tỷ giá so kỳ trước",
+                ok: (dw == null || Math.abs(dw) < 0.05) && (dv == null || Math.abs(dv) < 0.05) ? true : null,
+                chi_tiet: `${moTa("TWD→RMB", rMoi?.rate_twd_rmb ?? null, dw ?? null, true)} ${moTa("RMB→VND", rMoi?.rate_rmb_vnd ?? null, dv ?? null, true)} Tỷ giá do NAZA đặt, chưa ai đối chiếu thị trường.`,
+            });
+            const dups = fa?.duplicates || [];
+            checks.push({
+                nhom: "A", ten: "Thu hai lần phí trên một đơn",
+                ok: dups.length === 0,
+                chi_tiet: dups.length === 0
+                    ? "Không mã vận đơn nào bị tính phí quá một lần trong kỳ."
+                    : `${dups.length} mã bị tính phí ${dups[0].times} lần — thu dư ${vnd(fa!.duplicate_extra_rmb)} ¥. ` +
+                      dups.slice(0, 3).map((d) => `${d.order_ids.join("/")} · ${d.tracking}`).join(" · "),
+            });
+
+            const quaHanN = rows.filter((r) => r.light === "do" && r.paid_twd === null).length;
+            const choN = rows.filter((r) => r.light === "vang" && r.paid_twd === null).length;
+            checks.push({
+                nhom: "B", ten: "Đơn giao thành công mà sao kê bỏ sót",
+                ok: quaHanN === 0,
+                chi_tiet: `${choN + quaHanN} đơn đã giao chưa thấy trên bất kỳ kỳ nào` +
+                    (quaHanN ? ` — ${quaHanN} đơn đã qua từ 2 kỳ, PHẢI ĐÒI.` : " — đều còn trong nhịp thanh toán."),
+            });
+            checks.push({
+                nhom: "B", ten: "3PL trả khác số trên đơn",
+                ok: moiNhat.lech_tien.length === 0,
+                chi_tiet: moiNhat.lech_tien.length === 0 ? "Mọi đơn trả đúng số."
+                    : moiNhat.lech_tien.slice(0, 3).map((l) =>
+                        `${l.order_no}: đơn ghi ${l.cod_twd} · họ trả ${l.paid_twd}`).join(" · "),
+            });
+            checks.push({
+                nhom: "B", ten: "Phí vận chuyển đúng bảng giá",
+                ok: (fa?.wrong ?? 0) === 0,
+                chi_tiet: (fa?.wrong ?? 0) === 0
+                    ? `${fa?.ok ?? 0} dòng đúng bảng giá — 7-Eleven/FamilyMart 27¥ · HCT 32¥ · Yamato 38¥.`
+                    : `${fa!.wrong} dòng sai, chênh ${vnd(fa!.overcharge_rmb)} ¥.`,
+            });
+            const ow = fa?.op_wrong || [];
+            checks.push({
+                nhom: "B", ten: `Phí thao tác đúng ${fa?.op_expected ?? 3}¥/đơn`,
+                ok: ow.length === 0,
+                chi_tiet: (ow.length === 0
+                    ? `Cả kỳ đều đúng ${fa?.op_expected ?? 3}¥.`
+                    : `${ow.length} đơn thu khác mức: ` + ow.slice(0, 3).map((o) => `${o.order_id} thu ${o.charged}¥`).join(" · "))
+                    + " Lưu ý: bảng giá ghi MIỄN PHÍ, khoản này vẫn nên hỏi NAZA.",
+            });
+        }
         const quaHan = chuaVeTien.filter((x) => x.qua_han);
         const viec: { id: string; muc: "gap" | "soat" | "ghi"; tieu_de: string;
             so: number; don_vi: string; chi_tiet: string; }[] = [];
@@ -280,6 +381,8 @@ export async function GET(req: NextRequest) {
             extra,
             status_vi: PARTNER_STATUS_VI,
             viec,
+            checks,
+            rate_trend: rateTrend,
             periods: byPeriod,
             chua_ve_tien: chuaVeTien,
             statements: stm.statements.map((s) => ({ id: s.id, filename: s.filename })),

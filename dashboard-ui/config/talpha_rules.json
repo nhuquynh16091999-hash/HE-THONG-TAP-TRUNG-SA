@@ -603,35 +603,43 @@
     "_note": "Giá vốn theo mã SKU. NGUỒN CHUẨN là cost_price_rmb — hàng nhập từ Trung Quốc và trả bằng tệ, nên tệ mới là con số thật. VND quy đổi lúc tính, dùng ĐÚNG tỷ giá của kỳ sao kê đang xét: doanh thu và giá vốn cùng một tỷ giá thì biên lãi không bị tỷ giá làm méo. Nguồn: bảng mua hàng của Sỹ Anh, 16/07–08/2026, 197 lần mua, 41 mã. Mỗi mã chỉ có ĐÚNG MỘT giá suốt kỳ — đã kiểm, không mã nào có hai giá.",
     "005": {
       "name": "Diamond Halo Set",
-      "cost_price_vnd": 180000
+      "_gia_cu_gcc_vnd": 180000,
+      "_canh_bao": "Giá cũ mang từ hệ thống GCC (valid_from 2026-02-01), KHÔNG dùng cho Đài Loan. Quy ra ~46.6 tệ, trong khi hàng mua thật ở Đài chỉ 1,3–39 tệ. Cần Sỹ Anh cho giá nhập thật (bằng tệ) thì mới tính được lãi."
     },
     "008": {
       "name": "Necklace Box",
-      "cost_price_vnd": 45000
+      "_gia_cu_gcc_vnd": 45000,
+      "_canh_bao": "Giá cũ mang từ hệ thống GCC (valid_from 2026-02-01), KHÔNG dùng cho Đài Loan. Quy ra ~11.7 tệ, trong khi hàng mua thật ở Đài chỉ 1,3–39 tệ. Cần Sỹ Anh cho giá nhập thật (bằng tệ) thì mới tính được lãi."
     },
     "009": {
       "name": "Eye Oil",
-      "cost_price_vnd": 85000
+      "_gia_cu_gcc_vnd": 85000,
+      "_canh_bao": "Giá cũ mang từ hệ thống GCC (valid_from 2026-02-01), KHÔNG dùng cho Đài Loan. Quy ra ~22.0 tệ, trong khi hàng mua thật ở Đài chỉ 1,3–39 tệ. Cần Sỹ Anh cho giá nhập thật (bằng tệ) thì mới tính được lãi."
     },
     "010": {
       "name": "Birth Stone Set",
-      "cost_price_vnd": 155000
+      "_gia_cu_gcc_vnd": 155000,
+      "_canh_bao": "Giá cũ mang từ hệ thống GCC (valid_from 2026-02-01), KHÔNG dùng cho Đài Loan. Quy ra ~40.2 tệ, trong khi hàng mua thật ở Đài chỉ 1,3–39 tệ. Cần Sỹ Anh cho giá nhập thật (bằng tệ) thì mới tính được lãi."
     },
     "011": {
       "name": "Heart of Ocean Necklace",
-      "cost_price_vnd": 145000
+      "_gia_cu_gcc_vnd": 145000,
+      "_canh_bao": "Giá cũ mang từ hệ thống GCC (valid_from 2026-02-01), KHÔNG dùng cho Đài Loan. Quy ra ~37.6 tệ, trong khi hàng mua thật ở Đài chỉ 1,3–39 tệ. Cần Sỹ Anh cho giá nhập thật (bằng tệ) thì mới tính được lãi."
     },
     "013": {
       "name": "Set Emerald",
-      "cost_price_vnd": 195000
+      "_gia_cu_gcc_vnd": 195000,
+      "_canh_bao": "Giá cũ mang từ hệ thống GCC (valid_from 2026-02-01), KHÔNG dùng cho Đài Loan. Quy ra ~50.5 tệ, trong khi hàng mua thật ở Đài chỉ 1,3–39 tệ. Cần Sỹ Anh cho giá nhập thật (bằng tệ) thì mới tính được lãi."
     },
     "014": {
       "name": "Set 5 Bracelets",
-      "cost_price_vnd": 115000
+      "_gia_cu_gcc_vnd": 115000,
+      "_canh_bao": "Giá cũ mang từ hệ thống GCC (valid_from 2026-02-01), KHÔNG dùng cho Đài Loan. Quy ra ~29.8 tệ, trong khi hàng mua thật ở Đài chỉ 1,3–39 tệ. Cần Sỹ Anh cho giá nhập thật (bằng tệ) thì mới tính được lãi."
     },
     "016": {
       "name": "Green Diamond Set",
-      "cost_price_vnd": 185000
+      "_gia_cu_gcc_vnd": 185000,
+      "_canh_bao": "Giá cũ mang từ hệ thống GCC (valid_from 2026-02-01), KHÔNG dùng cho Đài Loan. Quy ra ~47.9 tệ, trong khi hàng mua thật ở Đài chỉ 1,3–39 tệ. Cần Sỹ Anh cho giá nhập thật (bằng tệ) thì mới tính được lãi."
     },
     "053": {
       "name": "Gold Heart Necklace",
@@ -689,45 +697,55 @@
     },
     "072": {
       "name": "Couple Ring",
-      "cost_price_vnd": 110000
+      "_gia_cu_gcc_vnd": 110000,
+      "_canh_bao": "Giá cũ mang từ hệ thống GCC (valid_from 2026-02-01), KHÔNG dùng cho Đài Loan. Quy ra ~28.5 tệ, trong khi hàng mua thật ở Đài chỉ 1,3–39 tệ. Cần Sỹ Anh cho giá nhập thật (bằng tệ) thì mới tính được lãi."
     },
     "073": {
       "name": "Herbal Eye Cream",
-      "cost_price_vnd": 88000
+      "_gia_cu_gcc_vnd": 88000,
+      "_canh_bao": "Giá cũ mang từ hệ thống GCC (valid_from 2026-02-01), KHÔNG dùng cho Đài Loan. Quy ra ~22.8 tệ, trong khi hàng mua thật ở Đài chỉ 1,3–39 tệ. Cần Sỹ Anh cho giá nhập thật (bằng tệ) thì mới tính được lãi."
     },
     "081": {
       "name": "Glutathione Collagen Glow",
-      "cost_price_vnd": 225000
+      "_gia_cu_gcc_vnd": 225000,
+      "_canh_bao": "Giá cũ mang từ hệ thống GCC (valid_from 2026-02-01), KHÔNG dùng cho Đài Loan. Quy ra ~58.3 tệ, trong khi hàng mua thật ở Đài chỉ 1,3–39 tệ. Cần Sỹ Anh cho giá nhập thật (bằng tệ) thì mới tính được lãi."
     },
     "105": {
       "name": "Neslemy Dentures",
-      "cost_price_vnd": 140000
+      "_gia_cu_gcc_vnd": 140000,
+      "_canh_bao": "Giá cũ mang từ hệ thống GCC (valid_from 2026-02-01), KHÔNG dùng cho Đài Loan. Quy ra ~36.3 tệ, trong khi hàng mua thật ở Đài chỉ 1,3–39 tệ. Cần Sỹ Anh cho giá nhập thật (bằng tệ) thì mới tính được lãi."
     },
     "113": {
       "name": "Turkish Set",
-      "cost_price_vnd": 210000
+      "_gia_cu_gcc_vnd": 210000,
+      "_canh_bao": "Giá cũ mang từ hệ thống GCC (valid_from 2026-02-01), KHÔNG dùng cho Đài Loan. Quy ra ~54.4 tệ, trong khi hàng mua thật ở Đài chỉ 1,3–39 tệ. Cần Sỹ Anh cho giá nhập thật (bằng tệ) thì mới tính được lãi."
     },
     "120": {
       "name": "Golden Bloom Necklace",
-      "cost_price_vnd": 138000
+      "_gia_cu_gcc_vnd": 138000,
+      "_canh_bao": "Giá cũ mang từ hệ thống GCC (valid_from 2026-02-01), KHÔNG dùng cho Đài Loan. Quy ra ~35.8 tệ, trong khi hàng mua thật ở Đài chỉ 1,3–39 tệ. Cần Sỹ Anh cho giá nhập thật (bằng tệ) thì mới tính được lãi."
     },
     "KNK": {
       "name": "Kinoki",
-      "cost_price_vnd": 70000
+      "_gia_cu_gcc_vnd": 70000,
+      "_canh_bao": "Giá cũ mang từ hệ thống GCC (valid_from 2026-02-01), KHÔNG dùng cho Đài Loan. Quy ra ~18.1 tệ, trong khi hàng mua thật ở Đài chỉ 1,3–39 tệ. Cần Sỹ Anh cho giá nhập thật (bằng tệ) thì mới tính được lãi."
     },
     "KSC": {
       "name": "KSA Kasoy Cream",
-      "cost_price_vnd": 70000
+      "_gia_cu_gcc_vnd": 70000,
+      "_canh_bao": "Giá cũ mang từ hệ thống GCC (valid_from 2026-02-01), KHÔNG dùng cho Đài Loan. Quy ra ~18.1 tệ, trong khi hàng mua thật ở Đài chỉ 1,3–39 tệ. Cần Sỹ Anh cho giá nhập thật (bằng tệ) thì mới tính được lãi."
     },
     "BHS": {
       "name": "Bubble Herbal Shampoo",
-      "cost_price_vnd": 70000
+      "_gia_cu_gcc_vnd": 70000,
+      "_canh_bao": "Giá cũ mang từ hệ thống GCC (valid_from 2026-02-01), KHÔNG dùng cho Đài Loan. Quy ra ~18.1 tệ, trong khi hàng mua thật ở Đài chỉ 1,3–39 tệ. Cần Sỹ Anh cho giá nhập thật (bằng tệ) thì mới tính được lãi."
     },
     "BYL": {
       "name": "Baiyaolang Cream",
-      "cost_price_vnd": 70000
+      "_gia_cu_gcc_vnd": 70000,
+      "_canh_bao": "Giá cũ mang từ hệ thống GCC (valid_from 2026-02-01), KHÔNG dùng cho Đài Loan. Quy ra ~18.1 tệ, trong khi hàng mua thật ở Đài chỉ 1,3–39 tệ. Cần Sỹ Anh cho giá nhập thật (bằng tệ) thì mới tính được lãi."
     },
-    "_cost_note": "cost_price_vnd (nếu còn) là số CŨ mang từ hệ thống trước, valid_from 2026-02-01, của thị trường GCC. Khi có cả hai thì DÙNG cost_price_rmb.",
+    "_cost_note": "CHỈ dùng cost_price_rmb. Giá VND cũ từ hệ thống GCC đã bị đổi tên thành _gia_cu_gcc_vnd và KHÔNG còn được dùng: quy ra tệ thì 11–58 tệ, trong khi giá mua thật ở Đài chỉ 1,3–39 tệ — khác thị trường, khác nguồn hàng. Dùng nó là giá vốn cao gấp mấy lần thật, lãi trông thấp hơn thật.",
     "020": {
       "name": "020-ATTL hong",
       "cost_price_rmb": 26.0
@@ -869,7 +887,7 @@
     }
   },
   "_todo": [
-    "Xác nhận 9 mã có giá vốn lệch >5% so với số cũ (xem products.<mã>._canh_bao).",
+    "Cho giá nhập THẬT (bằng tệ) của 18 mã đang dùng giá cũ GCC — nặng nhất là mã 011 (56 đơn). Xem products.<mã>._canh_bao.",
     "Gán mã SKU cho 12 sản phẩm trong bảng mua hàng chỉ ghi tên tiếng Việt (máy lược điện, son, dung dịch vệ sinh, hương trầm, kem đánh răng, gel…).",
     "Tên đầy đủ của giám đốc (director.full).",
     "Tên bạn sale thứ hai (sales.Sale2) khi có người.",
