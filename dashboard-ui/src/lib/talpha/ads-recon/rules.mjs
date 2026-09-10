@@ -390,6 +390,7 @@ export function buildAlerts({ fb, bank, match, cfg, roster = null, history = [] 
 
     const order = { critical: 0, warn: 1, info: 2 };
     const gom = gomCanhBao(alerts);
+    const ket_luan = ketLuan(gom);
     gom.sort((a, b) => order[a.severity] - order[b.severity] || (b.amount || 0) - (a.amount || 0));
 
     return {
@@ -407,9 +408,57 @@ export function buildAlerts({ fb, bank, match, cfg, roster = null, history = [] 
                 info: gom.filter((a) => a.severity === INFO).length,
             },
             so_dong_canh_bao: alerts.length,
+            ket_luan,
             period: { bank_start: bankStart, bank_end: bankEnd, fb_start: fbDates[0], fb_end: fbDates[fbDates.length - 1] },
         },
     };
+}
+
+/**
+ * MỘT DÒNG KẾT LUẬN, ĐẶT TRÊN MỌI CON SỐ.
+ *
+ * Sỹ Anh: "cách check đối soát đang phức tạp, tối ưu cho dễ nhìn ra vấn đề".
+ * Đúng — mở màn ra là sáu con số với một chồng cảnh báo, mà câu hỏi thật sự
+ * chỉ có một: SỐ NÀY CÓ TIN ĐƯỢC KHÔNG, VÀ PHẢI LÀM GÌ.
+ *
+ * Chỗ nguy hiểm là ba loại cảnh báo dưới đây: chúng không nói "mất tiền", mà
+ * nói "dữ liệu chưa đủ hoặc đọc sai". Còn chúng thì MỌI con số bên dưới đều
+ * sai bản chất — kể cả những con số trông rất bình thường. Phải tách hẳn ra,
+ * không để nằm lẫn giữa các cảnh báo mất tiền.
+ */
+const CHAN_DUONG = ["FILE_KHONG_DOC_DUOC", "NGUON_LECH_NHAU", "THIEU_BAN_KE_TKQC", "THIEU_COT"];
+
+function ketLuan(ds) {
+    const chan = ds.filter((a) => CHAN_DUONG.includes(a.code) && a.severity !== INFO);
+    const nang = ds.filter((a) => a.severity === CRIT && !CHAN_DUONG.includes(a.code));
+    const vua = ds.filter((a) => a.severity === WARN && !CHAN_DUONG.includes(a.code));
+
+    if (chan.length) {
+        return {
+            muc: "khong_tin",
+            tieu_de: "Chưa tin được số — dữ liệu đầu vào còn thiếu hoặc đọc sai",
+            giai_thich: "Khi một phía thiếu dữ liệu thì mọi dòng bên kia đều trông như 'không có hoá đơn'. " +
+                        "Xử xong mấy việc dưới đây rồi hãy đọc các con số.",
+            viec: chan.map((a) => ({ code: a.code, title: a.title, hint: a.hint })),
+        };
+    }
+    if (nang.length) {
+        const tien = nang.reduce((s2, a) => s2 + (a.amount || 0), 0);
+        return {
+            muc: "co_van_de",
+            tieu_de: `Số tin được — có ${nang.length} việc phải xử, ${fmtVND(tien)} cần đòi hoặc làm rõ`,
+            giai_thich: "Hai nguồn khớp đủ để kết luận. Danh sách dưới đây là tiền thật đang lệch.",
+            viec: nang.slice(0, 3).map((a) => ({ code: a.code, title: a.title, hint: a.hint })),
+        };
+    }
+    if (vua.length) {
+        return {
+            muc: "can_xem", tieu_de: `Không có gì nghiêm trọng — ${vua.length} mục nên xem qua`,
+            giai_thich: "Không mất tiền, nhưng có vài chỗ nên liếc lại.",
+            viec: vua.slice(0, 3).map((a) => ({ code: a.code, title: a.title, hint: a.hint })),
+        };
+    }
+    return { muc: "sach", tieu_de: "Khớp sạch — không có gì phải làm", giai_thich: "", viec: [] };
 }
 
 /**

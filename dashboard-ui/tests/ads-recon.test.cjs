@@ -228,6 +228,44 @@ const ROSTER = { projects: { talpha: { accounts: [{ id: "act_ok" }] } } };
         ], CFG), /Không đọc được file nào ở phía sao kê|sao-ke-la\.pdf/);
     });
 
+    console.log("── Chặn số vô lý và kết luận một dòng ──");
+    t("số tiền vô lý do đọc dính cột KHÔNG được lọt vào tổng", () => {
+        // Ca thật 11/09/2026: statementFile.pdf đọc ra 2,9 × 10^48 đồng cho một
+        // dòng, và con số đó nhiễm vào tổng, vào chênh lệch, vào cả cảnh báo
+        // "tăng 5,5e+45%". Sai mà vẫn ra dáng số là loại hỏng nguy hiểm nhất.
+        const bank = [bankRow("01/09/2026", 12500000)];
+        for (let i = 0; i < 5; i++) bank.push(bankRow("0" + (i + 2) + "/09/2026", 500000 + i));
+        bank.push(bankRow("08/09/2026", 2.9e48, "FACEBK *X VISA*4281", "FX"));
+        const r = chay([fbRow("T1", "01/09/2026", 12500000)], bank);
+        assert.ok(r.summary.bank_total < 1e9, "dòng vô lý phải bị loại khỏi tổng, không được cộng vào");
+        assert.ok(r.meta.skipped.bank.some((x) => /vô lý/.test(x.reason)), "phải ghi ra là đã loại dòng nào và vì sao");
+    });
+
+    t("cả file toàn số vô lý thì bỏ NGUYÊN file, không nhặt vài dòng", () => {
+        const r = E.reconcile([
+            { sheets: fbSheet([fbRow("T1", "01/09/2026", 12500000)]), name: "tkqc.xlsx" },
+            { sheets: bankSheet([bankRow("01/09/2026", 12500000)]), name: "sao-ke-tot.xlsx" },
+            { sheets: bankSheet([bankRow("02/09/2026", 2.9e48), bankRow("03/09/2026", 3.1e48)]), name: "statementFile.pdf" },
+        ], CFG);
+        const a = r.alerts.find((x) => x.code === "FILE_KHONG_DOC_DUOC");
+        assert.ok(a && a.title.includes("statementFile.pdf"), "phải bỏ cả file và gọi tên nó");
+        assert.strictEqual(r.summary.bank_total, 12500000);
+    });
+
+    t("kết luận tách 'chưa tin được số' khỏi 'mất tiền thật'", () => {
+        // Thiếu dữ liệu đầu vào thì MỌI con số bên dưới đều sai bản chất, kể cả
+        // những con số trông rất bình thường — phải nói trước, không để nằm lẫn.
+        const fb = [fbRow("T1", "05/09/2026", 500000)];
+        const bank = [];
+        for (let i = 0; i < 20; i++) bank.push(bankRow(`0${(i % 9) + 1}/09/2026`, 400000 + i * 1000, `FACEBK *Z${i} VISA*4281`, "FT" + i));
+        const k = chay(fb, bank).summary.ket_luan;
+        assert.strictEqual(k.muc, "khong_tin");
+        assert.ok(k.viec.length > 0, "phải kèm việc cần làm");
+
+        const sach = chay([fbRow("T1", "01/09/2026", 12500000)], [bankRow("01/09/2026", 12500000)]).summary.ket_luan;
+        assert.ok(["sach", "can_xem"].includes(sach.muc), "khớp sạch thì không được doạ người đọc");
+    });
+
     console.log("── Tiền không được biến mất giữa đường ──");
     t("tổng khớp + tổng dư = tổng nguồn, cả hai phía", () => {
         const r = chay([fbRow("T1", "01/09/2026", 12500000), fbRow("T2", "07/09/2026", 5600000)],

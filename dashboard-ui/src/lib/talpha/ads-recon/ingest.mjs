@@ -28,6 +28,35 @@ function doDuocGi(sheets) {
     return `Đọc được ${sh.rows.length} dòng ở "${sh.name}" nhưng không dòng nào giống tiêu đề bảng. Mấy dòng đầu:\n${mau}`;
 }
 
+/**
+ * Chặn số tiền vô lý.
+ *
+ * Dựng lại bảng từ PDF mà dính hai cột số vào nhau là ra con số dài vô tận:
+ * sao kê thật của Sỹ Anh từng đọc ra 2,9 × 10^48 đồng cho một dòng. Con số đó
+ * không dừng ở một dòng — nó nhiễm vào tổng, vào chênh lệch, vào cảnh báo
+ * "tăng 5,5e+45%", và biến cả bản đối soát thành rác mà nhìn vẫn ra dáng số.
+ *
+ * Một dòng vượt trần thì bỏ dòng. Quá nhiều dòng vượt trần thì cả file đọc
+ * sai, bỏ nguyên file — nhặt vài dòng còn lại chỉ đẻ ra kết luận sai.
+ */
+function chanSoVoLy(rows, skipped, cfg, tenFile) {
+    const tran = cfg.sanity?.max_amount_row ?? 1e9;
+    const tyLe = cfg.sanity?.max_bad_ratio ?? 0.3;
+    const xau = rows.filter((r) => Math.abs(r.amount) > tran);
+    if (!xau.length) return rows;
+
+    const tot = rows.filter((r) => Math.abs(r.amount) <= tran);
+    if (xau.length / rows.length > tyLe) {
+        throw new Error(
+            `${xau.length}/${rows.length} dòng có số tiền vô lý (lớn nhất: ${Math.abs(xau[0].amount).toExponential(2)} ₫) ` +
+            `— gần như chắc chắn bảng bị dựng sai cột khi đọc file này, không phải tiền thật. Bỏ cả file.`);
+    }
+    for (const r of xau) {
+        skipped.push({ file: tenFile, line: r.line, reason: `số tiền vô lý (${Math.abs(r.amount).toExponential(2)} ₫) — nhiều khả năng đọc dính hai cột số`, raw: r.raw });
+    }
+    return tot;
+}
+
 const TOTAL_ROW = /^(tong|tong cong|total|grand total|cong|sum|so du dau|so du cuoi|ket chuyen)\b/;
 
 /** Moi số tài khoản quảng cáo từ phần đầu bản kê Facebook. */
@@ -119,7 +148,7 @@ export function ingestFb(sheets, cfg, sourceName = "") {
     }
 
     return {
-        rows,
+        rows: chanSoVoLy(rows, skipped, cfg, sourceName),
         skipped,
         meta: {
             sheet: pick.sheet.name, header_row: pick.headerRow + 1,
@@ -196,7 +225,7 @@ export function ingestBank(sheets, cfg, sourceName = "") {
     }
 
     return {
-        rows: all.filter((r) => r.is_fb),
+        rows: chanSoVoLy(all.filter((r) => r.is_fb), skipped, cfg, sourceName),
         other_ads: all.filter((r) => !r.is_fb && r.is_other_ads),
         other: all.filter((r) => !r.is_fb && !r.is_other_ads),
         skipped,

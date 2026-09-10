@@ -4,7 +4,16 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Upload, Download, Send, Trash2, AlertTriangle, CheckCircle2, FileSpreadsheet, Database } from "lucide-react";
 import TabSkeleton, { ErrorState } from "@/components/ui/tab-skeleton";
 import { cn } from "../utils";
-import { VND, d6 } from "./ledger-shared";
+import { VND as VNDgoc, d6 } from "./ledger-shared";
+
+/**
+ * In tiền, nhưng CHẶN số vô lý.
+ * Đọc dính hai cột số trong PDF là ra 2,9 × 10^48 đồng; in nguyên dãy đó ra
+ * thì vỡ layout mà người đọc vẫn tưởng là tiền. Nói thẳng nó là số đọc sai.
+ */
+const NGUONG_VO_LY = 1e12;
+const VND = (n: number | null | undefined) =>
+    n != null && Math.abs(n) >= NGUONG_VO_LY ? "số đọc sai" : VNDgoc(Number(n || 0));
 
 /* ═══════════════════════════════════════════════════════════════════
    ĐỐI SOÁT CHI PHÍ QUẢNG CÁO — việc của mỗi tuần khi có 2 file.
@@ -28,6 +37,7 @@ type Summary = {
     fb_total: number; bank_total: number; fee_total: number; gap: number; at_risk: number;
     counts: { critical: number; warn: number; info: number };
     so_dong_canh_bao?: number;
+    ket_luan?: KetLuan;
     period: { bank_start?: string; bank_end?: string; fb_start?: string; fb_end?: string };
 };
 type Result = {
@@ -46,6 +56,11 @@ type Result = {
 type FileMeta = { ten: string; sheet?: string; so_dong: number };
 type NguonKho = { ten: string; phia: "fb" | "bank"; so_dong: number; tien: number; tu: string | null; den: string | null; tkqc: string[] };
 type Nap = { fb: { them: number; trung: number }; bank: { them: number; trung: number } };
+type KetLuan = {
+    muc: "khong_tin" | "co_van_de" | "can_xem" | "sach";
+    tieu_de: string; giai_thich: string;
+    viec: { code: string; title: string; hint: string }[];
+};
 type KyMeta = { ky: string; chay_luc: string; summary?: Summary };
 
 const API = "/api/talpha/ads-recon";
@@ -440,8 +455,49 @@ export default function TALPHAAdsReconTab() {
                         </div>
                     </div>
 
+                    {/* ═══ KẾT LUẬN — đứng trên mọi con số ═══
+                        Câu hỏi thật sự mỗi tuần chỉ có một: số này có tin được
+                        không, và phải làm gì. Sáu ô số với một chồng cảnh báo
+                        không trả lời được câu đó, nên nó phải nằm ở đây.   */}
+                    {s.ket_luan && (
+                        <div className={cn("rounded-xl border-l-4 p-4",
+                            s.ket_luan.muc === "khong_tin" ? "border-l-rose-600 bg-rose-50/80 dark:bg-rose-500/[0.09]"
+                            : s.ket_luan.muc === "co_van_de" ? "border-l-amber-500 bg-amber-50/70 dark:bg-amber-500/[0.08]"
+                            : s.ket_luan.muc === "can_xem" ? "border-l-sky-500 bg-sky-50/60 dark:bg-sky-500/[0.07]"
+                            : "border-l-emerald-500 bg-emerald-50/60 dark:bg-emerald-500/[0.07]")}>
+                            <div className="flex items-start gap-2.5">
+                                {s.ket_luan.muc === "sach"
+                                    ? <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                                    : <AlertTriangle className={cn("mt-0.5 h-5 w-5 shrink-0",
+                                        s.ket_luan.muc === "khong_tin" ? "text-rose-600 dark:text-rose-400" : "text-amber-600 dark:text-amber-400")} />}
+                                <div className="min-w-0 flex-1">
+                                    <div className="text-base font-bold">{s.ket_luan.tieu_de}</div>
+                                    {s.ket_luan.giai_thich && (
+                                        <div className="mt-0.5 text-sm text-muted-foreground">{s.ket_luan.giai_thich}</div>
+                                    )}
+                                    {s.ket_luan.viec.length > 0 && (
+                                        <ol className="mt-3 space-y-2">
+                                            {s.ket_luan.viec.map((v, i) => (
+                                                <li key={i} className="flex gap-2.5 text-sm">
+                                                    <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-black/[0.07] text-[11px] font-bold dark:bg-white/15">
+                                                        {i + 1}
+                                                    </span>
+                                                    <span className="min-w-0">
+                                                        <span className="font-semibold">{v.title}</span>
+                                                        {v.hint && <span className="block text-xs text-muted-foreground">{v.hint}</span>}
+                                                    </span>
+                                                </li>
+                                            ))}
+                                        </ol>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
                     {/* ═══ Số tổng ═══ */}
-                    <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
+                    <div className={cn("grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6",
+                        s.ket_luan?.muc === "khong_tin" && "opacity-55")}>
                         {([
                             ["TKQC ghi thu", VND(s.fb_total), ""],
                             ["Thẻ đã bị trừ", VND(s.bank_total), ""],

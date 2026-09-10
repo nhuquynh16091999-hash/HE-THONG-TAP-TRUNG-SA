@@ -415,6 +415,12 @@
       "_ghi_chu_cua_so": "FB cắt tiền trễ 0-3 ngày so với ngày ghi trên TKQC. Nới rộng quá thì ghép bừa, hẹp quá thì báo thiếu oan.",
       "_ghi_chu_dung_sai": "Hai đầu đều là VND nên phải khớp gần như tuyệt đối. Lệch quá 1.000₫ hoặc 0,1% là có chuyện, không phải làm tròn."
     },
+    "sanity": {
+      "_mo_ta": "Chặn số tiền vô lý do đọc nhầm cột. Dựng lại bảng từ PDF mà dính hai cột số vào nhau là ra con số dài vô tận, và nó nhiễm vào mọi phép cộng phía sau.",
+      "max_amount_row": 1000000000,
+      "max_bad_ratio": 0.3,
+      "_ghi_chu": "max_amount_row: một giao dịch quảng cáo 1 tỷ đồng đã là phi lý. max_bad_ratio: quá tỉ lệ này thì coi như đọc sai cả file, bỏ nguyên file chứ không nhặt dòng."
+    },
     "fee": {
       "_mo_ta": "Ngân hàng trừ nhiều hơn FB ghi = phí ẩn (FX, phí giao dịch quốc tế, VAT).",
       "expected_pct": 0,
