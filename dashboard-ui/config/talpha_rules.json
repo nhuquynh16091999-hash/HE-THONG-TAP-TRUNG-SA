@@ -600,285 +600,397 @@
   "pos_timezone": "Asia/Ho_Chi_Minh",
   "page_id_pattern": "^\\d{6,}$",
   "products": {
-    "_note": "Giá vốn theo mã SKU. NGUỒN CHUẨN là cost_price_rmb — hàng nhập từ Trung Quốc và trả bằng tệ, nên tệ mới là con số thật. VND quy đổi lúc tính, dùng ĐÚNG tỷ giá của kỳ sao kê đang xét: doanh thu và giá vốn cùng một tỷ giá thì biên lãi không bị tỷ giá làm méo. Nguồn: bảng mua hàng của Sỹ Anh, 16/07–08/2026, 197 lần mua, 41 mã. Mỗi mã chỉ có ĐÚNG MỘT giá suốt kỳ — đã kiểm, không mã nào có hai giá.",
+    "_note": "Giá vốn theo mã SKU, đơn vị TỆ (RMB) — nguồn DUY NHẤT là bảng \"Giá tới Taiwan\" của Sỹ Anh, nạp 10/09/2026, 73 mã. Giá tệ mới là con số thật vì hàng nhập từ Trung Quốc và trả bằng tệ; VND quy đổi lúc tính, dùng ĐÚNG tỷ giá của kỳ sao kê đang xét để biên lãi không bị tỷ giá làm méo.",
+    "_doc_note": "Ô giá trong bảng có nhiều kiểu ghi, đọc theo luật này, thứ tự KHÔNG đảo: (1) có dòng 'TỔNG: X tệ' thì tin TỔNG — chính người bán đã cộng sẵn; (2) có phí HỘP thì cộng vào vì mọi cái đều đóng hộp; (3) nhiều biến thể size/màu giá khác nhau thì lấy CAO NHẤT — lấy thấp là giá vốn thấp hơn thật, lãi trông đẹp hơn thật, sai theo hướng nguy hiểm nhất; (4) ô quên chữ 'tệ' vẫn đọc được nếu có dấu '/' đơn vị.",
+    "_bien_the_note": "Ba mã 004 · 012 · 017 có nhiều biến thể giá khác nhau, đang lấy giá CAO NHẤT. Sỹ Anh chốt lại nếu bán chủ yếu biến thể rẻ hơn.",
+    "002": {
+      "name": "002-ATTL feng shui bracelet",
+      "cost_price_rmb": 14.1,
+      "_cach_doc": "hàng + hộp",
+      "_ghi_chu": "có 3 size: 10,12 và 14mm"
+    },
+    "003": {
+      "name": "003-ATTL vonghatxanh",
+      "cost_price_rmb": 8.8,
+      "_ghi_chu": "có đa dạng màu để lựa chọn"
+    },
+    "004": {
+      "name": "004-ATTL tramnhieuvong",
+      "cost_price_rmb": 83.5,
+      "_cach_doc": "NHIỀU BIẾN THỂ [76.2, 83.5] — lấy cao nhất"
+    },
     "005": {
       "name": "Diamond Halo Set",
-      "_gia_cu_gcc_vnd": 180000,
-      "_canh_bao": "Giá cũ mang từ hệ thống GCC (valid_from 2026-02-01), KHÔNG dùng cho Đài Loan. Quy ra ~46.6 tệ, trong khi hàng mua thật ở Đài chỉ 1,3–39 tệ. Cần Sỹ Anh cho giá nhập thật (bằng tệ) thì mới tính được lãi."
+      "cost_price_rmb": 7.7,
+      "_nhan_bang_gia": "005-ATTL eye charm"
+    },
+    "006": {
+      "name": "006-ATTL vonghatchu",
+      "cost_price_rmb": 7.0,
+      "_ghi_chu": "11 cm"
+    },
+    "007": {
+      "name": "007-ATTL set4mondo",
+      "cost_price_rmb": 38.0,
+      "_ghi_chu": "NHIỀU MÀU"
     },
     "008": {
       "name": "Necklace Box",
-      "_gia_cu_gcc_vnd": 45000,
-      "_canh_bao": "Giá cũ mang từ hệ thống GCC (valid_from 2026-02-01), KHÔNG dùng cho Đài Loan. Quy ra ~11.7 tệ, trong khi hàng mua thật ở Đài chỉ 1,3–39 tệ. Cần Sỹ Anh cho giá nhập thật (bằng tệ) thì mới tính được lãi."
+      "cost_price_rmb": 26.6,
+      "_ghi_chu": "CHỈ CÓ 1 MÀU",
+      "_nhan_bang_gia": "008-ATTL set3monxanh"
     },
     "009": {
       "name": "Eye Oil",
-      "_gia_cu_gcc_vnd": 85000,
-      "_canh_bao": "Giá cũ mang từ hệ thống GCC (valid_from 2026-02-01), KHÔNG dùng cho Đài Loan. Quy ra ~22.0 tệ, trong khi hàng mua thật ở Đài chỉ 1,3–39 tệ. Cần Sỹ Anh cho giá nhập thật (bằng tệ) thì mới tính được lãi."
+      "cost_price_rmb": 4.1,
+      "_ghi_chu": "có 3 màu  nhẫn 1.8 cm  bông tai 0.9 cm  vòng cổ 45+5 cm",
+      "_nhan_bang_gia": "009 - SET2"
     },
     "010": {
       "name": "Birth Stone Set",
-      "_gia_cu_gcc_vnd": 155000,
-      "_canh_bao": "Giá cũ mang từ hệ thống GCC (valid_from 2026-02-01), KHÔNG dùng cho Đài Loan. Quy ra ~40.2 tệ, trong khi hàng mua thật ở Đài chỉ 1,3–39 tệ. Cần Sỹ Anh cho giá nhập thật (bằng tệ) thì mới tính được lãi."
+      "cost_price_rmb": 5.6,
+      "_nhan_bang_gia": "010-ATTL co4lavang"
     },
     "011": {
       "name": "Heart of Ocean Necklace",
-      "_gia_cu_gcc_vnd": 145000,
-      "_canh_bao": "Giá cũ mang từ hệ thống GCC (valid_from 2026-02-01), KHÔNG dùng cho Đài Loan. Quy ra ~37.6 tệ, trong khi hàng mua thật ở Đài chỉ 1,3–39 tệ. Cần Sỹ Anh cho giá nhập thật (bằng tệ) thì mới tính được lãi."
+      "cost_price_rmb": 5.5,
+      "_ghi_chu": "có 3-4 màu",
+      "_nhan_bang_gia": "011-ATTL birth month set"
+    },
+    "012": {
+      "name": "012-ATTL bongtaihoa",
+      "cost_price_rmb": 7.7,
+      "_cach_doc": "NHIỀU BIẾN THỂ [6.6, 7.7] — lấy cao nhất",
+      "_ghi_chu": "chỉ có hai màu  kích thước 1.1cm"
     },
     "013": {
       "name": "Set Emerald",
-      "_gia_cu_gcc_vnd": 195000,
-      "_canh_bao": "Giá cũ mang từ hệ thống GCC (valid_from 2026-02-01), KHÔNG dùng cho Đài Loan. Quy ra ~50.5 tệ, trong khi hàng mua thật ở Đài chỉ 1,3–39 tệ. Cần Sỹ Anh cho giá nhập thật (bằng tệ) thì mới tính được lãi."
+      "cost_price_rmb": 10.8,
+      "_cach_doc": "ô thiếu chữ 'tệ'",
+      "_ghi_chu": "15.9*16.4 mm",
+      "_nhan_bang_gia": "013-ATTL bongtaitim"
     },
     "014": {
       "name": "Set 5 Bracelets",
-      "_gia_cu_gcc_vnd": 115000,
-      "_canh_bao": "Giá cũ mang từ hệ thống GCC (valid_from 2026-02-01), KHÔNG dùng cho Đài Loan. Quy ra ~29.8 tệ, trong khi hàng mua thật ở Đài chỉ 1,3–39 tệ. Cần Sỹ Anh cho giá nhập thật (bằng tệ) thì mới tính được lãi."
+      "cost_price_rmb": 9.55,
+      "_ghi_chu": "17.6*17.4 mm",
+      "_nhan_bang_gia": "014-ATTL nhantim"
+    },
+    "015": {
+      "name": "015-ATTL vongtaytim",
+      "cost_price_rmb": 17.1,
+      "_ghi_chu": "22.o*21.6 mm"
     },
     "016": {
       "name": "Green Diamond Set",
-      "_gia_cu_gcc_vnd": 185000,
-      "_canh_bao": "Giá cũ mang từ hệ thống GCC (valid_from 2026-02-01), KHÔNG dùng cho Đài Loan. Quy ra ~47.9 tệ, trong khi hàng mua thật ở Đài chỉ 1,3–39 tệ. Cần Sỹ Anh cho giá nhập thật (bằng tệ) thì mới tính được lãi."
+      "cost_price_rmb": 8.2,
+      "_ghi_chu": "có mạ vàng và mạ bạc  15.5*15.3 mm",
+      "_nhan_bang_gia": "016-ATTL daychuyentim"
     },
-    "053": {
-      "name": "Gold Heart Necklace",
-      "cost_price_rmb": 15.0,
-      "_gia_cu_vnd": 135000,
-      "_canh_bao": "Giá cũ 135,000đ vs giá mới 15.0 tệ (~57,900đ) — lệch 57%. Đang DÙNG GIÁ MỚI. Sỹ Anh xác nhận lại mã này."
+    "017": {
+      "name": "017-ATTL set2montim",
+      "cost_price_rmb": 9.3,
+      "_cach_doc": "NHIỀU BIẾN THỂ [8.3, 9.3] — lấy cao nhất",
+      "_ghi_chu": "có mạ vàng và mạ bạc  15.5*15.3 mm"
     },
-    "054": {
-      "name": "Ball Bangles",
-      "cost_price_rmb": 11.0,
-      "_gia_cu_vnd": 125000,
-      "_canh_bao": "Giá cũ 125,000đ vs giá mới 11.0 tệ (~42,460đ) — lệch 66%. Đang DÙNG GIÁ MỚI. Sỹ Anh xác nhận lại mã này."
+    "018": {
+      "name": "018-ATTL tim13te",
+      "cost_price_rmb": 13.0,
+      "_ghi_chu": "18x1x1 cm"
     },
-    "055": {
-      "name": "Antarctic Krill Oil",
-      "cost_price_rmb": 4.0,
-      "_gia_cu_vnd": 285000,
-      "_canh_bao": "Giá cũ 285,000đ vs giá mới 4.0 tệ (~15,440đ) — lệch 95%. Đang DÙNG GIÁ MỚI. Sỹ Anh xác nhận lại mã này."
+    "019": {
+      "name": "019-ATTL tim20te",
+      "cost_price_rmb": 20.5
     },
-    "057": {
-      "name": "Snail Whitening Cream",
-      "cost_price_rmb": 16.5,
-      "_gia_cu_vnd": 95000,
-      "_canh_bao": "Giá cũ 95,000đ vs giá mới 16.5 tệ (~63,690đ) — lệch 33%. Đang DÙNG GIÁ MỚI. Sỹ Anh xác nhận lại mã này."
-    },
-    "058": {
-      "name": "VC Cream",
-      "cost_price_rmb": 16.5,
-      "_gia_cu_vnd": 75000,
-      "_canh_bao": "Giá cũ 75,000đ vs giá mới 16.5 tệ (~63,690đ) — lệch 15%. Đang DÙNG GIÁ MỚI. Sỹ Anh xác nhận lại mã này."
-    },
-    "060": {
-      "name": "Whitening Cleanser",
-      "cost_price_rmb": 9.0,
-      "_gia_cu_vnd": 65000,
-      "_canh_bao": "Giá cũ 65,000đ vs giá mới 9.0 tệ (~34,740đ) — lệch 47%. Đang DÙNG GIÁ MỚI. Sỹ Anh xác nhận lại mã này."
-    },
-    "063": {
-      "name": "Whitening & Cleansing Milk",
-      "cost_price_rmb": 39.0,
-      "_gia_cu_vnd": 70000,
-      "_canh_bao": "Giá cũ 70,000đ vs giá mới 39.0 tệ (~150,540đ) — lệch 115%. Đang DÙNG GIÁ MỚI. Sỹ Anh xác nhận lại mã này."
-    },
-    "065": {
-      "name": "Euphausia Superba Oil",
-      "cost_price_rmb": 22.0,
-      "_gia_cu_vnd": 310000,
-      "_canh_bao": "Giá cũ 310,000đ vs giá mới 22.0 tệ (~84,920đ) — lệch 73%. Đang DÙNG GIÁ MỚI. Sỹ Anh xác nhận lại mã này."
-    },
-    "066": {
-      "name": "Snail Collagen Cream",
-      "cost_price_rmb": 32.0,
-      "_gia_cu_vnd": 98000,
-      "_canh_bao": "Giá cũ 98,000đ vs giá mới 32.0 tệ (~123,520đ) — lệch 26%. Đang DÙNG GIÁ MỚI. Sỹ Anh xác nhận lại mã này."
-    },
-    "072": {
-      "name": "Couple Ring",
-      "_gia_cu_gcc_vnd": 110000,
-      "_canh_bao": "Giá cũ mang từ hệ thống GCC (valid_from 2026-02-01), KHÔNG dùng cho Đài Loan. Quy ra ~28.5 tệ, trong khi hàng mua thật ở Đài chỉ 1,3–39 tệ. Cần Sỹ Anh cho giá nhập thật (bằng tệ) thì mới tính được lãi."
-    },
-    "073": {
-      "name": "Herbal Eye Cream",
-      "_gia_cu_gcc_vnd": 88000,
-      "_canh_bao": "Giá cũ mang từ hệ thống GCC (valid_from 2026-02-01), KHÔNG dùng cho Đài Loan. Quy ra ~22.8 tệ, trong khi hàng mua thật ở Đài chỉ 1,3–39 tệ. Cần Sỹ Anh cho giá nhập thật (bằng tệ) thì mới tính được lãi."
-    },
-    "081": {
-      "name": "Glutathione Collagen Glow",
-      "_gia_cu_gcc_vnd": 225000,
-      "_canh_bao": "Giá cũ mang từ hệ thống GCC (valid_from 2026-02-01), KHÔNG dùng cho Đài Loan. Quy ra ~58.3 tệ, trong khi hàng mua thật ở Đài chỉ 1,3–39 tệ. Cần Sỹ Anh cho giá nhập thật (bằng tệ) thì mới tính được lãi."
-    },
-    "105": {
-      "name": "Neslemy Dentures",
-      "_gia_cu_gcc_vnd": 140000,
-      "_canh_bao": "Giá cũ mang từ hệ thống GCC (valid_from 2026-02-01), KHÔNG dùng cho Đài Loan. Quy ra ~36.3 tệ, trong khi hàng mua thật ở Đài chỉ 1,3–39 tệ. Cần Sỹ Anh cho giá nhập thật (bằng tệ) thì mới tính được lãi."
-    },
-    "113": {
-      "name": "Turkish Set",
-      "_gia_cu_gcc_vnd": 210000,
-      "_canh_bao": "Giá cũ mang từ hệ thống GCC (valid_from 2026-02-01), KHÔNG dùng cho Đài Loan. Quy ra ~54.4 tệ, trong khi hàng mua thật ở Đài chỉ 1,3–39 tệ. Cần Sỹ Anh cho giá nhập thật (bằng tệ) thì mới tính được lãi."
-    },
-    "120": {
-      "name": "Golden Bloom Necklace",
-      "_gia_cu_gcc_vnd": 138000,
-      "_canh_bao": "Giá cũ mang từ hệ thống GCC (valid_from 2026-02-01), KHÔNG dùng cho Đài Loan. Quy ra ~35.8 tệ, trong khi hàng mua thật ở Đài chỉ 1,3–39 tệ. Cần Sỹ Anh cho giá nhập thật (bằng tệ) thì mới tính được lãi."
-    },
-    "KNK": {
-      "name": "Kinoki",
-      "_gia_cu_gcc_vnd": 70000,
-      "_canh_bao": "Giá cũ mang từ hệ thống GCC (valid_from 2026-02-01), KHÔNG dùng cho Đài Loan. Quy ra ~18.1 tệ, trong khi hàng mua thật ở Đài chỉ 1,3–39 tệ. Cần Sỹ Anh cho giá nhập thật (bằng tệ) thì mới tính được lãi."
-    },
-    "KSC": {
-      "name": "KSA Kasoy Cream",
-      "_gia_cu_gcc_vnd": 70000,
-      "_canh_bao": "Giá cũ mang từ hệ thống GCC (valid_from 2026-02-01), KHÔNG dùng cho Đài Loan. Quy ra ~18.1 tệ, trong khi hàng mua thật ở Đài chỉ 1,3–39 tệ. Cần Sỹ Anh cho giá nhập thật (bằng tệ) thì mới tính được lãi."
-    },
-    "BHS": {
-      "name": "Bubble Herbal Shampoo",
-      "_gia_cu_gcc_vnd": 70000,
-      "_canh_bao": "Giá cũ mang từ hệ thống GCC (valid_from 2026-02-01), KHÔNG dùng cho Đài Loan. Quy ra ~18.1 tệ, trong khi hàng mua thật ở Đài chỉ 1,3–39 tệ. Cần Sỹ Anh cho giá nhập thật (bằng tệ) thì mới tính được lãi."
-    },
-    "BYL": {
-      "name": "Baiyaolang Cream",
-      "_gia_cu_gcc_vnd": 70000,
-      "_canh_bao": "Giá cũ mang từ hệ thống GCC (valid_from 2026-02-01), KHÔNG dùng cho Đài Loan. Quy ra ~18.1 tệ, trong khi hàng mua thật ở Đài chỉ 1,3–39 tệ. Cần Sỹ Anh cho giá nhập thật (bằng tệ) thì mới tính được lãi."
-    },
-    "_cost_note": "CHỈ dùng cost_price_rmb. Giá VND cũ từ hệ thống GCC đã bị đổi tên thành _gia_cu_gcc_vnd và KHÔNG còn được dùng: quy ra tệ thì 11–58 tệ, trong khi giá mua thật ở Đài chỉ 1,3–39 tệ — khác thị trường, khác nguồn hàng. Dùng nó là giá vốn cao gấp mấy lần thật, lãi trông thấp hơn thật.",
     "020": {
-      "name": "020-ATTL hong",
-      "cost_price_rmb": 26.0
+      "name": "020-ATTL den （黑色） \n\n 020-ATTL trang （ 白色）\n\n 020-ATTL hong （ 粉色）",
+      "cost_price_rmb": 26.0,
+      "_ghi_chu": "20x4.5x3 cm"
     },
-    "027": {
-      "name": "027 - DDVS",
-      "cost_price_rmb": 6.2
+    "021": {
+      "name": "021-ATTL trangda",
+      "cost_price_rmb": 10.5,
+      "_ghi_chu": "100g"
     },
-    "030": {
-      "name": "030 - COOLING GEL",
-      "cost_price_rmb": 4.5
+    "022": {
+      "name": "022-ATTL serum",
+      "cost_price_rmb": 7.0,
+      "_ghi_chu": "30 ml"
     },
-    "031": {
-      "name": "031 - RANGGIA",
-      "cost_price_rmb": 21.0
+    "023": {
+      "name": "023-ATTL serum",
+      "cost_price_rmb": 5.5,
+      "_ghi_chu": "30 ml"
     },
-    "032": {
-      "name": "032 - THUOCNHOMAT",
-      "cost_price_rmb": 16.0
+    "024": {
+      "name": "024-ATTL serum",
+      "cost_price_rmb": 7.5,
+      "_ghi_chu": "30 ml"
     },
-    "033": {
-      "name": "033 - FITGUM ( BỘT RAU XANH )",
-      "cost_price_rmb": 12.5
-    },
-    "035": {
-      "name": "035 - SOTRON",
-      "cost_price_rmb": 10.2
-    },
-    "036": {
-      "name": "036 - BROWN",
-      "cost_price_rmb": 8.9
-    },
-    "037": {
-      "name": "037 - BLACK",
-      "cost_price_rmb": 8.9
-    },
-    "038": {
-      "name": "038 - KEMSEO1",
-      "cost_price_rmb": 8.65
-    },
-    "040": {
-      "name": "040 - VONGVANG1",
-      "cost_price_rmb": 7.0
-    },
-    "041": {
-      "name": "041 - TRAGUNG",
-      "cost_price_rmb": 18.8
-    },
-    "042": {
-      "name": "042 - BLACK",
-      "cost_price_rmb": 15.5
-    },
-    "043": {
-      "name": "043 - COFFEE",
-      "cost_price_rmb": 15.5
-    },
-    "044": {
-      "name": "044 - BROWN",
-      "cost_price_rmb": 15.5
-    },
-    "045": {
-      "name": "045 - SET3",
-      "cost_price_rmb": 23.5
-    },
-    "046": {
-      "name": "046 - SET4",
-      "cost_price_rmb": 6.5
-    },
-    "047": {
-      "name": "047 - SET5",
-      "cost_price_rmb": 10.0
-    },
-    "048": {
-      "name": "048 - SET6",
-      "cost_price_rmb": 22.0
-    },
-    "049": {
-      "name": "049 - SET7",
-      "cost_price_rmb": 4.5
-    },
-    "050": {
-      "name": "050 - SET8",
-      "cost_price_rmb": 12.5
-    },
-    "051": {
-      "name": "051 - WATCH",
-      "cost_price_rmb": 25.0
-    },
-    "052": {
-      "name": "052 - SET9",
-      "cost_price_rmb": 10.0
-    },
-    "056": {
-      "name": "056 - SET11",
-      "cost_price_rmb": 21.0
-    },
-    "059": {
-      "name": "059 - SET 13",
-      "cost_price_rmb": 14.0
-    },
-    "061": {
-      "name": "061 - DAY CHUYEN VANG",
-      "cost_price_rmb": 9.5
-    },
-    "062": {
-      "name": "062 - LẮC TAY VÀNG",
-      "cost_price_rmb": 9.0
-    },
-    "064": {
-      "name": "064 - TUIDA - DEN",
-      "cost_price_rmb": 39.0
-    },
-    "067": {
-      "name": "067 - TUI KARO - TRANG",
-      "cost_price_rmb": 32.0
-    },
-    "068": {
-      "name": "068 - SET CHIM CONG 1",
-      "cost_price_rmb": 23.0
-    },
-    "070": {
-      "name": "070 - SET15",
-      "cost_price_rmb": 27.5
-    },
-    "071": {
-      "name": "071 - VONGDA",
-      "cost_price_rmb": 8.0
+    "025": {
+      "name": "025-ATTL kemdanhrang",
+      "cost_price_rmb": 4.6,
+      "_ghi_chu": "120G"
     },
     "026": {
       "name": "SON",
       "cost_price_rmb": 6.7,
-      "_nguon": "Bảng mua hàng 20/07/2026 — dòng ghi rõ 'SON, 2 ( MÃ 026), 6.7 tệ/sp'. Đây là mã do CHÍNH bảng chỉ ra, không phải tau đoán."
-    }
+      "_nhan_bang_gia": "026 - ALLT Son"
+    },
+    "027": {
+      "name": "027 - DDVS",
+      "cost_price_rmb": 6.2,
+      "_ghi_chu": "100g"
+    },
+    "028": {
+      "name": "028-HUONGTRAM",
+      "cost_price_rmb": 13.4,
+      "_ghi_chu": "cao 21 cm  10-20g ( khoảng 20 cây hương)"
+    },
+    "029": {
+      "name": "029 - JOINT GEL",
+      "cost_price_rmb": 6.2,
+      "_ghi_chu": "100g"
+    },
+    "030": {
+      "name": "030 - COOLING GEL",
+      "cost_price_rmb": 4.5,
+      "_ghi_chu": "20G"
+    },
+    "031": {
+      "name": "031 - RANGGIA",
+      "cost_price_rmb": 21.0,
+      "_ghi_chu": "60G"
+    },
+    "032": {
+      "name": "032 - THUOCNHOMAT",
+      "cost_price_rmb": 16.0,
+      "_ghi_chu": "30 ML"
+    },
+    "033": {
+      "name": "033 - FITGUM",
+      "cost_price_rmb": 12.5,
+      "_ghi_chu": "50G ( 15 GÓI NHỎ)"
+    },
+    "034": {
+      "name": "034 - NHAN",
+      "cost_price_rmb": 7.3,
+      "_ghi_chu": "50G"
+    },
+    "035": {
+      "name": "035 - SOTRON",
+      "cost_price_rmb": 10.2,
+      "_ghi_chu": "177X112 MM  50张100页 350G"
+    },
+    "036": {
+      "name": "036 - BROWN",
+      "cost_price_rmb": 8.9,
+      "_ghi_chu": "177X112 MM  50张100页 350G"
+    },
+    "037": {
+      "name": "037 - BLACK",
+      "cost_price_rmb": 8.9,
+      "_ghi_chu": "177X112 MM  50张100页 350 G"
+    },
+    "038": {
+      "name": "038 - KEMSEO1",
+      "cost_price_rmb": 8.65,
+      "_ghi_chu": "30G"
+    },
+    "039": {
+      "name": "039 - KEMSEO2",
+      "cost_price_rmb": 13.5,
+      "_ghi_chu": "50G"
+    },
+    "040": {
+      "name": "040 - VONGVANG1",
+      "cost_price_rmb": 7.0,
+      "_ghi_chu": "KO BAO GỒM HỘP  100G"
+    },
+    "041": {
+      "name": "041 - TRAGUNG",
+      "cost_price_rmb": 18.8,
+      "_ghi_chu": "400G"
+    },
+    "042": {
+      "name": "042 - BLACK",
+      "cost_price_rmb": 15.5,
+      "_ghi_chu": "250G"
+    },
+    "043": {
+      "name": "043 - COFFEE",
+      "cost_price_rmb": 15.5,
+      "_ghi_chu": "250G"
+    },
+    "044": {
+      "name": "044 - BROWN",
+      "cost_price_rmb": 15.5,
+      "_ghi_chu": "250G"
+    },
+    "045": {
+      "name": "045 - SET3",
+      "cost_price_rmb": 23.5,
+      "_cach_doc": "theo dòng TỔNG",
+      "_ghi_chu": "200G"
+    },
+    "046": {
+      "name": "046 - SET4",
+      "cost_price_rmb": 6.5,
+      "_ghi_chu": "200G"
+    },
+    "047": {
+      "name": "047 - SET5",
+      "cost_price_rmb": 10.0,
+      "_ghi_chu": "80G"
+    },
+    "048": {
+      "name": "048 - SET6",
+      "cost_price_rmb": 22.0,
+      "_cach_doc": "theo dòng TỔNG",
+      "_ghi_chu": "500G"
+    },
+    "049": {
+      "name": "049 - SET7",
+      "cost_price_rmb": 4.5,
+      "_ghi_chu": "50G"
+    },
+    "050": {
+      "name": "050 - SET8",
+      "cost_price_rmb": 12.5,
+      "_ghi_chu": "50G"
+    },
+    "051": {
+      "name": "051 - WATCH",
+      "cost_price_rmb": 25.0,
+      "_ghi_chu": "120G"
+    },
+    "052": {
+      "name": "052 - SET9",
+      "cost_price_rmb": 10.0,
+      "_ghi_chu": "100G"
+    },
+    "053": {
+      "name": "Gold Heart Necklace",
+      "cost_price_rmb": 15.0,
+      "_ghi_chu": "150G",
+      "_nhan_bang_gia": "053 - SET10"
+    },
+    "054": {
+      "name": "Ball Bangles",
+      "cost_price_rmb": 11.0,
+      "_ghi_chu": "100G",
+      "_nhan_bang_gia": "054 - SET5.1"
+    },
+    "055": {
+      "name": "Antarctic Krill Oil",
+      "cost_price_rmb": 4.0,
+      "_ghi_chu": "80g",
+      "_nhan_bang_gia": "055 - NHANTIEN"
+    },
+    "056": {
+      "name": "056 - SET11",
+      "cost_price_rmb": 21.0,
+      "_ghi_chu": "150G"
+    },
+    "057": {
+      "name": "Snail Whitening Cream",
+      "cost_price_rmb": 16.5,
+      "_ghi_chu": "100G",
+      "_nhan_bang_gia": "057 - SET12"
+    },
+    "058": {
+      "name": "VC Cream",
+      "cost_price_rmb": 16.5,
+      "_ghi_chu": "1 GÓI TO 4G/ 10 GÓI  NHỎ",
+      "_nhan_bang_gia": "058 - ACAI"
+    },
+    "059": {
+      "name": "059 - SET 13",
+      "cost_price_rmb": 14.0,
+      "_ghi_chu": "100G"
+    },
+    "060": {
+      "name": "Whitening Cleanser",
+      "cost_price_rmb": 9.0,
+      "_ghi_chu": "50G",
+      "_nhan_bang_gia": "060 - SET 14"
+    },
+    "061": {
+      "name": "061 - DAY CHUYEN VANG",
+      "cost_price_rmb": 9.5,
+      "_ghi_chu": "100G"
+    },
+    "062": {
+      "name": "062 - LẮC TAY VÀNG",
+      "cost_price_rmb": 9.0,
+      "_ghi_chu": "100G"
+    },
+    "063": {
+      "name": "Whitening & Cleansing Milk",
+      "cost_price_rmb": 39.0,
+      "_ghi_chu": "0.7 KG",
+      "_nhan_bang_gia": "063 - TUIDA - NAU"
+    },
+    "064": {
+      "name": "064 - TUIDA - DEN",
+      "cost_price_rmb": 39.0,
+      "_ghi_chu": "0.7 KG"
+    },
+    "065": {
+      "name": "Euphausia Superba Oil",
+      "cost_price_rmb": 22.0,
+      "_ghi_chu": "0.5 KG  50 X 27X 33 CM",
+      "_nhan_bang_gia": "065 - TUI TRAM - HONG"
+    },
+    "066": {
+      "name": "Snail Collagen Cream",
+      "cost_price_rmb": 32.0,
+      "_ghi_chu": "27X20X12 CM  450G",
+      "_nhan_bang_gia": "066 - DEN"
+    },
+    "067": {
+      "name": "067 - TRANG",
+      "cost_price_rmb": 32.0,
+      "_ghi_chu": "27X20X12 CM  450G"
+    },
+    "068": {
+      "name": "068 - SET CHIM CONG 1",
+      "cost_price_rmb": 23.0,
+      "_ghi_chu": "300G"
+    },
+    "069": {
+      "name": "069 - SET CHIM CONG 2",
+      "cost_price_rmb": 18.5,
+      "_ghi_chu": "300G"
+    },
+    "070": {
+      "name": "070 - SET15",
+      "cost_price_rmb": 27.5,
+      "_ghi_chu": "300G"
+    },
+    "071": {
+      "name": "071 - VONGDA",
+      "cost_price_rmb": 8.0,
+      "_ghi_chu": "200G"
+    },
+    "072": {
+      "name": "Couple Ring",
+      "cost_price_rmb": 5.0,
+      "_ghi_chu": "200G",
+      "_nhan_bang_gia": "072 - DENTAL"
+    },
+    "073": {
+      "name": "Herbal Eye Cream",
+      "cost_price_rmb": 18.0,
+      "_ghi_chu": "200G",
+      "_nhan_bang_gia": "073 - VONG01"
+    },
+    "074": {
+      "name": "074 - VONG02",
+      "cost_price_rmb": 8.5,
+      "_ghi_chu": "200G"
+    },
+    "_note_ten": "Giá lấy từ bảng 'Giá tới Taiwan' của Sỹ Anh (10/09/2026). Bảng đó không có cột tên sản phẩm, chỉ có nhãn kiểu '053 - SET10', nên tên tiếng Anh cũ được giữ lại để màn hình còn đọc được; nhãn gốc trong bảng lưu ở _nhan_bang_gia. Tên là tên, giá là giá — KHÔNG lấy giá cũ của hệ thống GCC."
   },
   "report_sheets": {
     "_note": "ID file Google Sheet 'TỔNG TEAM THÁNG n' theo từng tháng. Bot đọc số từ ĐÂY qua /api/talpha/sheet-report để tin nhắn và Sheet không bao giờ lệch. Mỗi đầu tháng CEO tạo file mới thì thêm một dòng. format_all.py hiện vẫn giữ GRAND_KEY riêng trong code — nên cho nó đọc key này để chỉ còn MỘT chỗ khai.",
@@ -887,7 +999,7 @@
     }
   },
   "_todo": [
-    "Cho giá nhập THẬT (bằng tệ) của 18 mã đang dùng giá cũ GCC — nặng nhất là mã 011 (56 đơn). Xem products.<mã>._canh_bao.",
+    "Chốt giá vốn 3 mã nhiều biến thể (004, 012, 017) — đang lấy giá cao nhất, xem products.<mã>._cach_doc.",
     "Gán mã SKU cho 12 sản phẩm trong bảng mua hàng chỉ ghi tên tiếng Việt (máy lược điện, son, dung dịch vệ sinh, hương trầm, kem đánh răng, gel…).",
     "Tên đầy đủ của giám đốc (director.full).",
     "Tên bạn sale thứ hai (sales.Sale2) khi có người.",

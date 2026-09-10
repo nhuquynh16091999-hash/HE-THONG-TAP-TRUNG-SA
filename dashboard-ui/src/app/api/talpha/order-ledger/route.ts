@@ -378,7 +378,16 @@ export async function GET(req: NextRequest) {
             });
         }
 
-        if (summary.cogs_missing_orders) {
+        // Đơn không ra giá vốn vì HAI lý do khác nhau, và cách sửa cũng khác nhau:
+        // mã chưa khai giá thì Sỹ Anh đọc bảng giá cho một con số, còn ô SKU bỏ
+        // trống thì phải điền vào file 3PL. Gộp chung một cảnh báo là đọc xong
+        // vẫn không biết phải làm gì.
+        const thieuMaGia = rows.filter((r) => r.cogs_missing.length > 0);
+        const trongSku = rows.filter(
+            (r) => r.cogs_vnd === null && r.cogs_missing.length === 0 && r.product_codes.length === 0,
+        );
+
+        if (thieuMaGia.length) {
             // Gom theo MÃ chứ không theo đơn: một mã khai một lần là sửa xong
             // hàng chục đơn. Xếp mã nhiều đơn nhất lên trước để biết sửa cái nào
             // đáng công nhất.
@@ -401,11 +410,26 @@ export async function GET(req: NextRequest) {
                 ]);
             notes.push({
                 id: "thieu-gia-von", level: "canh_bao",
-                title: `${summary.cogs_missing_orders}/${summary.total} đơn chưa tính được giá vốn`,
+                title: `${thieuMaGia.length}/${summary.total} đơn có mã hàng chưa khai giá vốn`,
                 detail: `Thiếu giá nhập của ${items.length} mã dưới đây. Chừng nào chưa khai, cột “Còn lại” của những đơn đó là số TRƯỚC giá vốn — cao hơn thật.`,
                 cols: ["Mã", "Tên hàng", "Số đơn", "Số lượng", "Ví dụ đơn"],
                 items,
                 fix: "Cho tau giá nhập MỘT CÁI bằng tệ của từng mã là tau khai vào ngay.",
+            });
+        }
+
+        if (trongSku.length) {
+            notes.push({
+                id: "trong-o-sku", level: "canh_bao",
+                title: `${trongSku.length}/${summary.total} đơn bỏ trống ô SKU trong file 3PL`,
+                detail: "Những đơn này có tiền COD, có mã vận đơn, nhưng ô SKU trong file để trắng nên không biết bán hàng gì — không tra ra giá vốn được. Cột “Còn lại” của chúng là số TRƯỚC giá vốn, tức cao hơn thật.",
+                cols: ["Mã đơn", "Ngày lên đơn", "Khách", "Tiền COD", "Trạng thái"],
+                items: trongSku.map((r) => [
+                    r.order_no, r.order_date || "(trống)", r.contact_name || "(trống)",
+                    `${Math.round(r.cod_twd).toLocaleString("vi-VN")} NT$`,
+                    r.status || "(chưa có)",
+                ]),
+                fix: "Mở Google Sheet đơn hàng, điền ô SKU cho các mã đơn trên rồi bấm Tải lại — không cần sửa gì trong hệ thống.",
             });
         }
 

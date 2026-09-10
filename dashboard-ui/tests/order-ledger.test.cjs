@@ -89,12 +89,18 @@ t("BẪY: đơn ghép mà THIẾU một mã → KHÔNG tính nửa vời", () =>
     assert.deepStrictEqual(rows[0].cogs_missing, ["999"]);
     assert.strictEqual(rows[0].tick.tru_tien_hang, false);
 });
-t("BẪY THẬT: mã chỉ còn giá VND cũ của hệ thống GCC → coi như CHƯA KHAI", () => {
-    // 011 quy ra ~37,6 tệ cho một vòng cổ, trong khi vòng thật mua 7–9,5 tệ.
-    // Khác thị trường, khác nguồn hàng. Thà báo chưa khai còn hơn số sai.
+t("mã 011 đã có giá thật — không còn dùng giá GCC cũ", () => {
+    // Giá GCC cũ ghi 145.000đ ≈ 37,6 tệ cho một vòng cổ. Bảng "Giá tới Taiwan"
+    // của Sỹ Anh (10/09/2026) nói 5,5 tệ — cao gấp gần 7 lần. Phép thử này giữ
+    // lại để nếu ai đó lỡ nhét giá VND cũ vào, số sẽ vọt lên và test kêu ngay.
     const { rows } = one([ord({ sku: "011 - ATTL" })], [pay()], [fee()]);
+    assert.strictEqual(rows[0].cogs_vnd, 5.5 * 4000);
+    assert.deepStrictEqual(rows[0].cogs_missing, []);
+});
+t("chỉ tin cost_price_rmb — mã lạ thì báo thiếu, KHÔNG lùi về giá VND nào khác", () => {
+    const { rows } = one([ord({ sku: "999 - KHONGCO" })], [pay()], [fee()]);
     assert.strictEqual(rows[0].cogs_vnd, null);
-    assert.deepStrictEqual(rows[0].cogs_missing, ["011"]);
+    assert.deepStrictEqual(rows[0].cogs_missing, ["999"]);
 });
 t("SKU không có mã nào → coi như chưa khai giá vốn", () => {
     const { rows } = one([ord({ sku: "SET KIM CUONG" })], [pay()], [fee()]);
