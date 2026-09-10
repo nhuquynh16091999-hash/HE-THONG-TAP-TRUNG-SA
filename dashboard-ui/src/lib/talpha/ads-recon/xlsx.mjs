@@ -251,6 +251,9 @@ export function readSheets(filePath, buffer = null) {
     const buf = buffer || readFileSync(filePath);
     const lower = String(filePath).toLowerCase();
 
+    if (buf.length >= 5 && buf.subarray(0, 5).toString("latin1") === "%PDF-") {
+        throw new Error("File PDF — phải đọc bằng readAnySheets (bộ đọc PDF nạp riêng vì nặng)");
+    }
     if (buf.length >= 2 && buf[0] === 0xd0 && buf[1] === 0xcf) {
         throw new Error("File .xls đời cũ — mở bằng Excel rồi Save As → .xlsx, hoặc xuất .csv");
     }
@@ -262,4 +265,23 @@ export function readSheets(filePath, buffer = null) {
     const asText = buf.toString("utf8");
     if (/[,;\t]/.test(asText.slice(0, 500))) return [{ name: "csv", rows: parseDelimited(asText) }];
     throw new Error("Không nhận ra định dạng file: " + filePath);
+}
+
+/**
+ * Cửa vào DUY NHẤT cho mọi định dạng, kể cả PDF.
+ *
+ * Bất đồng bộ vì bộ đọc PDF nặng (~10MB) nên chỉ nạp khi thật sự gặp PDF —
+ * tuần nào cũng .xlsx thì không phải trả giá cho nó.
+ *
+ * @param {string} filePath
+ * @param {Buffer|null} [buffer]
+ * @returns {Promise<{name: string, rows: any[][]}[]>}
+ */
+export async function readAnySheets(filePath, buffer = null) {
+    const buf = buffer || readFileSync(filePath);
+    if (buf.length >= 5 && buf.subarray(0, 5).toString("latin1") === "%PDF-") {
+        const { readPdfSheets } = await import("./pdf.mjs");
+        return readPdfSheets(buf);
+    }
+    return readSheets(filePath, buf);
 }

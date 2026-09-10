@@ -27,6 +27,7 @@
         "lucide-react": "^0.344.0",
         "next": "^16.1.6",
         "next-auth": "^5.0.0-beta.30",
+        "pdfjs-dist": "^6.3.289",
         "proper-lockfile": "^4.1.2",
         "react": "^19.0.0",
         "react-dom": "^19.0.0",

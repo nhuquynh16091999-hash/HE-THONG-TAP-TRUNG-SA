@@ -160,10 +160,10 @@ export default function TALPHAAdsReconTab() {
             <div className="grid gap-3 md:grid-cols-2">
                 {([
                     ["fb", "1 · Chi phí thanh toán từ TKQC Facebook",
-                     "Xuất từ Trình quản lý quảng cáo → Thanh toán → Lịch sử thanh toán",
+                     "Xuất từ Trình quản lý quảng cáo → Thanh toán → Lịch sử thanh toán (.xlsx, .csv hoặc .pdf)",
                      fbFile, setFbFile, fbRef],
                     ["bank", "2 · Sao kê thẻ ngân hàng",
-                     "Tải từ ngân hàng — .xlsx hoặc .csv, KHÔNG dùng bản PDF",
+                     "Tải từ ngân hàng — .xlsx, .csv hoặc .pdf (bản PDF phải có lớp chữ, không đọc được ảnh scan)",
                      bankFile, setBankFile, bankRef],
                 ] as const).map(([id, label, hint, file, setFile, ref]) => (
                     <div
@@ -206,7 +206,7 @@ export default function TALPHAAdsReconTab() {
                             </div>
                         ) : (
                             <input
-                                ref={ref} type="file" accept=".xlsx,.csv,.tsv,.txt"
+                                ref={ref} type="file" accept=".xlsx,.csv,.tsv,.txt,.pdf"
                                 onChange={(e) => setFile(e.target.files?.[0] || null)}
                                 className="mt-3 w-full text-xs file:mr-2 file:rounded-md file:border file:border-border file:bg-muted file:px-3 file:py-1.5 file:text-xs"
                             />

@@ -91,7 +91,7 @@ function slim(r) {
         : { ...base, desc: r.desc, ref: r.ref, balance: r.balance };
 }
 
-export { readSheets } from "./xlsx.mjs";
+export { readSheets, readAnySheets } from "./xlsx.mjs";
 export { detectKind } from "./ingest.mjs";
 export { toCsv } from "./csv.mjs";
 export { buildMessage, sendAlerts } from "./notify.mjs";

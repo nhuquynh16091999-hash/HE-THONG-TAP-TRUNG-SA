@@ -5,7 +5,7 @@ import { RULES } from "@/lib/talpha/rules";
 import { readStoreFresh, updateStore } from "@/lib/talpha/store";
 import { MAX_UPLOAD_BYTES, tooBigMessage } from "@/lib/talpha/upload-limit";
 import {
-    reconcile, readSheets, detectKind, toCsv, sendAlerts,
+    reconcile, readAnySheets, detectKind, toCsv, sendAlerts,
 } from "@/lib/talpha/ads-recon/recon.mjs";
 
 export const dynamic = "force-dynamic";
@@ -119,7 +119,7 @@ export async function POST(req: NextRequest) {
         for (const f of files.slice(0, 2)) {
             const buf = Buffer.from(await f.arrayBuffer());
             try {
-                const sheets = readSheets(f.name, buf);
+                const sheets = await readAnySheets(f.name, buf);
                 doc.push({ sheets, kind: detectKind(sheets, c), name: f.name });
             } catch (e) {
                 return NextResponse.json({

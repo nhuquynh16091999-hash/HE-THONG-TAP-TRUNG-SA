@@ -36,6 +36,11 @@ const nextConfig = {
         "/api/talpha/sync-inventory": ["./config/**"],
         "/api/talpha/inventory": ["./config/**"],
     },
+    // pdfjs-dist tự nạp file worker của nó bằng đường dẫn tương đối lúc chạy.
+    // Để Next đóng gói vào bundle thì đường dẫn đó trỏ vào chỗ không tồn tại
+    // (.next/server/chunks/pdf.worker.mjs) và mọi lần đọc PDF đều chết. Giữ nó
+    // ở ngoài để Node nạp thẳng từ node_modules như bình thường.
+    serverExternalPackages: ["pdfjs-dist"],
     webpack: (config) => {
         config.resolve = {
             ...config.resolve,
