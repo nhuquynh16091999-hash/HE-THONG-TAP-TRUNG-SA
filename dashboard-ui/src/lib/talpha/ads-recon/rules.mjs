@@ -286,11 +286,23 @@ export function buildAlerts({ fb, bank, match, cfg, roster = null, history = [] 
             hint: "Không thuộc phạm vi đối soát Facebook. Ghi ra để không ai tưởng đây là chi phí FB." });
     }
 
+    // ── 11b. Dòng trùng nhau giữa các file đã tải lên ────────────────────
+    for (const [phia, side] of [["chi phí TKQC", fb], ["sao kê", bank]]) {
+        const bo = side.trung_file || [];
+        if (!bo.length) continue;
+        const tien = bo.reduce((s2, d) => s2 + (d.bo.amount || 0), 0);
+        A("TRUNG_GIUA_FILE", INFO,
+          `${bo.length} dòng ${phia} có mặt ở hai file, đã bỏ bản trùng — ${fmtVND(tien)}`,
+          bo.slice(0, 4).map((d) => `${d.bo.date} ${fmtVND(d.bo.amount)}: giữ "${d.giu.file}" · bỏ "${d.bo.file}"`).join(" · "),
+          { items: bo.map((d) => ref(d.bo)),
+            hint: "Hai bản xuất chồng ngày nhau là chuyện thường. Không bỏ thì bản thứ hai không ghép được với ai và nổi lên thành báo động giả. Số tổng đã tính đúng một lần." });
+    }
+
     // ── 12. Chất lượng dữ liệu đầu vào ───────────────────────────────────
     const skipped = [...(fb.skipped || []), ...(bank.skipped || [])];
     if (skipped.length) {
         A("DONG_BO_QUA", INFO, `${skipped.length} dòng không đọc được, đã bỏ qua`,
-          skipped.slice(0, 5).map((s) => `dòng ${s.line}: ${s.reason}`).join(" · "),
+          skipped.slice(0, 5).map((s) => `${s.file ? s.file + " " : ""}dòng ${s.line}: ${s.reason}`).join(" · "),
           { hint: "Nếu là dòng dữ liệu thật thì báo tau để thêm bí danh cột hoặc sửa cách đọc." });
     }
     for (const w of [...(fb.meta?.warnings || []), ...(bank.meta?.warnings || [])]) {

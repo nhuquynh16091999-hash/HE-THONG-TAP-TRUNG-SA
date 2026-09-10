@@ -16,37 +16,94 @@ import { buildAlerts } from "./rules.mjs";
 import { isoWeek } from "./normalize.mjs";
 
 /**
- * Xác định file nào là chi phí TKQC, file nào là sao kê — không bắt người dùng
- * nhớ thứ tự tải lên. Nhầm thứ tự là lỗi chắc chắn xảy ra ở tuần bận.
+ * Chia các file đã tải lên làm hai phía. Không bắt người dùng nhớ thứ tự, và
+ * KHÔNG giới hạn mỗi phía một file: công ty có mấy thẻ thì mấy sao kê, TKQC
+ * xuất theo từng tài khoản thì mấy bản chi phí. Bắt gộp tay bằng Excel trước
+ * khi tải lên là trả việc về đúng chỗ mà hệ thống này sinh ra để bỏ đi.
  */
-export function splitSources(a, b, cfg) {
-    const ka = a.kind ?? detectKind(a.sheets, cfg);
-    const kb = b.kind ?? detectKind(b.sheets, cfg);
+export function splitSources(docs, cfg) {
+    const fb = [], bank = [], mo = [];
+    for (const d of docs) {
+        const k = d.kind ?? detectKind(d.sheets, cfg);
+        if (k === "fb") fb.push(d);
+        else if (k === "bank") bank.push(d);
+        else mo.push(d);
+    }
+    // File không nhận ra được thì dồn về phía đang thiếu — một phía trống là
+    // không đối soát được gì cả.
+    for (const d of mo) (fb.length && !bank.length ? bank : fb).push(d);
 
-    if (ka === "fb" && kb !== "fb") return { fb: a, bank: b };
-    if (kb === "fb" && ka !== "fb") return { fb: b, bank: a };
-    if (ka === "bank" && kb !== "bank") return { fb: b, bank: a };
-    if (kb === "bank") return { fb: a, bank: b };
+    if (!fb.length || !bank.length) {
+        throw new Error(
+            `Cần cả hai phía: ${fb.length} file chi phí TKQC và ${bank.length} file sao kê. ` +
+            `Kiểm tra lại nội dung file, hoặc thêm bí danh cột vào ads_settlement.columns.`);
+    }
+    return { fb, bank };
+}
 
-    throw new Error(
-        `Không phân biệt được file nào là chi phí TKQC, file nào là sao kê ` +
-        `(nhận diện: ${a.name || "file 1"}=${ka}, ${b.name || "file 2"}=${kb}). ` +
-        `Kiểm tra lại nội dung file, hoặc thêm bí danh cột vào ads_settlement.columns.`);
+/**
+ * Bỏ dòng trùng nhau GIỮA CÁC FILE.
+ *
+ * Hai bản xuất chồng ngày nhau là chuyện thường: cùng một hoá đơn nằm trong cả
+ * hai file. Để nguyên thì bản thứ hai không tìm được ai để ghép và nổi lên
+ * thành "TKQC thu mà thẻ không trừ" — báo động giả, mà lại là loại báo động
+ * đắt tiền nhất. Giữ bản gặp trước, ghi lại đã bỏ những gì để nói ra.
+ */
+function dedupeAcrossFiles(rows, keyOf) {
+    const seen = new Map();
+    const kept = [], dropped = [];
+    for (const r of rows) {
+        const k = keyOf(r);
+        if (!k) { kept.push(r); continue; }
+        const prev = seen.get(k);
+        if (!prev) { seen.set(k, r); kept.push(r); }
+        // So bằng SỐ THỨ TỰ bản tải lên chứ không bằng tên file: tải nhầm đúng
+        // một file hai lần thì hai bản trùng tên, mà đó lại chính là trường hợp
+        // phải bỏ. So bằng tên là tổng tiền nhân đôi mà không ai biết.
+        else if (prev._doc !== r._doc) dropped.push({ giu: prev, bo: r });
+        else kept.push(r);            // trùng trong CÙNG một bản tải lên là dữ liệu thật
+    }
+    return { kept, dropped };
+}
+
+const keyFb = (r) => (r.txn_id ? `t:${r.txn_id}` : `d:${r.date}|${r.amount}|${r.account_id}`);
+const keyBank = (r) => `d:${r.date}|${r.amount}|${r.ref || r.desc}`;
+
+/** Đọc một phía (có thể nhiều file) rồi gộp thành một danh sách. */
+function ingestSide(docs, cfg, kind) {
+    const parts = docs.map((d) => (kind === "fb" ? ingestFb : ingestBank)(d.sheets, cfg, d.name || ""));
+    const rows = parts.flatMap((p, i) => p.rows.map((r) => ({ ...r, _doc: i })));
+    const { kept, dropped } = dedupeAcrossFiles(rows, kind === "fb" ? keyFb : keyBank);
+
+    return {
+        rows: kept,
+        trung_file: dropped,
+        other_ads: parts.flatMap((p) => p.other_ads || []),
+        skipped: parts.flatMap((p) => p.skipped || []),
+        meta: {
+            files: parts.map((p, i) => ({
+                ten: docs[i].name || "", sheet: p.meta.sheet,
+                dong_tieu_de: p.meta.header_row, so_dong: p.rows.length,
+            })),
+            warnings: [...new Set(parts.flatMap((p) => p.meta.warnings || []))],
+        },
+    };
 }
 
 /**
  * Chạy một lượt đối soát.
- * @param {{sheets:Array, name?:string, kind?:string}} fileA — không cần đúng thứ tự
- * @param {{sheets:Array, name?:string, kind?:string}} fileB
+ * @param {Array<{sheets:Array, name?:string, kind?:string}>} docs — mọi file đã
+ *        tải lên, KHÔNG cần đúng thứ tự và không giới hạn số lượng mỗi phía
  * @param {object} cfg      — khối ads_settlement trong talpha_rules.json
  * @param {object} [roster] — ad_accounts.json, để bắt TKQC lạ
  * @param {Array}  [history]— các kỳ TRƯỚC, để bắt tăng vọt
  */
-export function reconcile(fileA, fileB, cfg, { roster = null, history = [] } = {}) {
-    const { fb: fbSrc, bank: bankSrc } = splitSources(fileA, fileB, cfg);
+export function reconcile(docs, cfg, { roster = null, history = [] } = {}) {
+    const list = Array.isArray(docs) ? docs : [docs];
+    const { fb: fbDocs, bank: bankDocs } = splitSources(list, cfg);
 
-    const fb = ingestFb(fbSrc.sheets, cfg);
-    const bank = ingestBank(bankSrc.sheets, cfg);
+    const fb = ingestSide(fbDocs, cfg, "fb");
+    const bank = ingestSide(bankDocs, cfg, "bank");
     const match = matchTransactions(fb.rows, bank.rows, cfg);
 
     const dates = [...bank.rows.map((r) => r.date), ...fb.rows.map((r) => r.date)].filter(Boolean).sort();
@@ -61,10 +118,7 @@ export function reconcile(fileA, fileB, cfg, { roster = null, history = [] } = {
     return {
         ky,
         chay_luc: new Date().toISOString(),
-        files: {
-            fb: { ten: fbSrc.name || "", sheet: fb.meta.sheet, dong_tieu_de: fb.meta.header_row, so_dong: fb.rows.length },
-            bank: { ten: bankSrc.name || "", sheet: bank.meta.sheet, dong_tieu_de: bank.meta.header_row, so_dong: bank.rows.length },
-        },
+        files: { fb: fb.meta.files, bank: bank.meta.files },
         summary,
         stats: match.stats,
         alerts,
@@ -85,7 +139,8 @@ export function reconcile(fileA, fileB, cfg, { roster = null, history = [] } = {
 /** Bản gọn của một dòng — bỏ mảng `raw` để kết quả lưu xuống không phình. */
 function slim(r) {
     if (!r) return null;
-    const base = { src: r.src, line: r.line, date: r.date, amount: r.amount, card4: r.card4 ?? null };
+    const base = { src: r.src, file: r.file || "", line: r.line, date: r.date, amount: r.amount, card4: r.card4 ?? null };
+    // _doc chỉ dùng lúc chạy để phân biệt hai bản tải lên, không lưu xuống
     return r.src === "fb"
         ? { ...base, txn_id: r.txn_id, account_id: r.account_id, account_name: r.account_name, method: r.method, status: r.status, status_norm: r.status_norm }
         : { ...base, desc: r.desc, ref: r.ref, balance: r.balance };

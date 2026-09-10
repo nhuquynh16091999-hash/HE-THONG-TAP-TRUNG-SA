@@ -34,11 +34,18 @@ type Result = {
     stats: { matched: number; fb_chargeable: number; ambiguous: number };
     alerts: Alert[]; pairs: Pair[];
     fb_unmatched: FbRow[]; bank_unmatched: BankRow[]; fb_failed: FbRow[]; other_ads: BankRow[];
-    files?: { fb?: { ten: string; so_dong: number }; bank?: { ten: string; so_dong: number } };
+    files?: { fb?: FileMeta[]; bank?: FileMeta[] };
 };
+type FileMeta = { ten: string; sheet?: string; so_dong: number };
 type KyMeta = { ky: string; chay_luc: string; summary?: Summary };
 
 const API = "/api/talpha/ads-recon";
+
+/** Thêm file vào ô, bỏ bản trùng ngay tại chỗ — chọn lại lần hai không nhân đôi. */
+function gopFile(cur: File[], them: File[]): File[] {
+    const co = new Set(cur.map((f) => f.name + ":" + f.size));
+    return [...cur, ...them.filter((f) => !co.has(f.name + ":" + f.size))];
+}
 
 const SEV_BOX: Record<Sev, string> = {
     critical: "border-l-rose-500 bg-rose-50/70 dark:bg-rose-500/[0.07]",
@@ -57,8 +64,8 @@ export default function TALPHAAdsReconTab() {
     const [note, setNote] = useState<{ text: string; bad?: boolean } | null>(null);
     const [list, setList] = useState<KyMeta[]>([]);
     const [res, setRes] = useState<Result | null>(null);
-    const [fbFile, setFbFile] = useState<File | null>(null);
-    const [bankFile, setBankFile] = useState<File | null>(null);
+    const [fbFiles, setFbFiles] = useState<File[]>([]);
+    const [bankFiles, setBankFiles] = useState<File[]>([]);
     const [busy, setBusy] = useState(false);
     const [hideInfo, setHideInfo] = useState(false);
     const [tab, setTab] = useState<"pairs" | "fb_unmatched" | "bank_unmatched" | "fb_failed" | "other_ads">("pairs");
@@ -97,22 +104,28 @@ export default function TALPHAAdsReconTab() {
      * không hiểu vì sao số ra lạ.
      */
     const run = async () => {
-        if (!fbFile || !bankFile) return;
+        if (!fbFiles.length || !bankFiles.length) return;
         setBusy(true); setNote({ text: "Đang đọc file và đối soát…" }); setSwapped("");
         try {
             const fd = new FormData();
-            fd.append("file", fbFile, fbFile.name);
-            fd.append("file", bankFile, bankFile.name);
+            for (const f of [...fbFiles, ...bankFiles]) fd.append("file", f, f.name);
             const r = await fetch(API, { method: "POST", body: fd });
             const j = await r.json();
             if (!r.ok) throw new Error(j.error || "Đối soát thất bại");
 
-            if (j.files?.fb?.ten && j.files.fb.ten !== fbFile.name) {
-                setSwapped(`Đã tự đổi chỗ 2 file: "${j.files.fb.ten}" mới là chi phí TKQC, ` +
-                           `"${j.files.bank?.ten}" là sao kê thẻ. Kết quả bên dưới vẫn đúng.`);
+            // Máy phân loại lại theo NỘI DUNG file. Khác với ô người dùng chọn
+            // thì phải nói ra — im lặng sửa hộ là lúc file thật sai định dạng,
+            // người dùng không hiểu vì sao số ra lạ.
+            const daChon = new Set(fbFiles.map((f) => f.name));
+            const mayDoc: string[] = (j.files?.fb || []).map((f: FileMeta) => f.ten);
+            const lech = mayDoc.length !== daChon.size || mayDoc.some((n) => !daChon.has(n));
+            if (lech) {
+                setSwapped(
+                    `Đã phân loại lại theo nội dung file — chi phí TKQC: ${mayDoc.join(", ") || "(không có)"} · ` +
+                    `sao kê: ${(j.files?.bank || []).map((f: FileMeta) => f.ten).join(", ")}. Kết quả bên dưới vẫn đúng.`);
             }
             setRes(j); setNote(null);
-            setFbFile(null); setBankFile(null);
+            setFbFiles([]); setBankFiles([]);
             if (fbRef.current) fbRef.current.value = "";
             if (bankRef.current) bankRef.current.value = "";
             await refresh();
@@ -161,11 +174,11 @@ export default function TALPHAAdsReconTab() {
                 {([
                     ["fb", "1 · Chi phí thanh toán từ TKQC Facebook",
                      "Xuất từ Trình quản lý quảng cáo → Thanh toán → Lịch sử thanh toán (.xlsx, .csv hoặc .pdf)",
-                     fbFile, setFbFile, fbRef],
+                     fbFiles, setFbFiles, fbRef],
                     ["bank", "2 · Sao kê thẻ ngân hàng",
                      "Tải từ ngân hàng — .xlsx, .csv hoặc .pdf (bản PDF phải có lớp chữ, không đọc được ảnh scan)",
-                     bankFile, setBankFile, bankRef],
-                ] as const).map(([id, label, hint, file, setFile, ref]) => (
+                     bankFiles, setBankFiles, bankRef],
+                ] as const).map(([id, label, hint, files, setFiles, ref]) => (
                     <div
                         key={id}
                         onDragOver={(e) => { e.preventDefault(); setOver(id); }}
@@ -173,60 +186,68 @@ export default function TALPHAAdsReconTab() {
                         onDrop={(e) => {
                             e.preventDefault(); setOver(null);
                             const fs = [...e.dataTransfer.files];
-                            if (!fs.length) return;
-                            setFile(fs[0]);
-                            // Thả cả 2 file vào một ô thì file thứ hai rơi sang ô kia,
-                            // khỏi bắt kéo hai lần.
-                            if (fs[1]) (id === "fb" ? setBankFile : setFbFile)(fs[1]);
+                            if (fs.length) setFiles((cur) => gopFile(cur, fs));
                         }}
                         className={cn("rounded-xl border-2 border-dashed p-4 transition-colors",
                             over === id ? "border-orange-400 bg-orange-50/50 dark:bg-orange-500/[0.06]"
-                                        : file ? "border-emerald-300 bg-emerald-50/40 dark:border-emerald-500/30 dark:bg-emerald-500/[0.05]"
+                                        : files.length ? "border-emerald-300 bg-emerald-50/40 dark:border-emerald-500/30 dark:bg-emerald-500/[0.05]"
                                                : "border-border bg-card dark:bg-white/[0.03]")}
                     >
                         <div className="flex items-start gap-2">
-                            {file ? <FileSpreadsheet className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
-                                  : <Upload className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />}
+                            {files.length ? <FileSpreadsheet className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                                          : <Upload className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />}
                             <div className="min-w-0 flex-1">
-                                <div className="text-sm font-semibold">{label}</div>
+                                <div className="text-sm font-semibold">
+                                    {label}
+                                    {files.length > 1 && <span className="ml-1.5 text-xs font-normal text-muted-foreground">({files.length} file)</span>}
+                                </div>
                                 <div className="mt-0.5 text-xs text-muted-foreground">{hint}</div>
                             </div>
                         </div>
 
-                        {file ? (
-                            <div className="mt-3 flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-xs">
-                                <span className="truncate font-medium">{file.name}</span>
-                                <span className="ml-auto shrink-0 text-muted-foreground">{(file.size / 1024).toFixed(0)} KB</span>
-                                <button
-                                    onClick={() => { setFile(null); if (ref.current) ref.current.value = ""; }}
-                                    className="shrink-0 text-muted-foreground hover:text-rose-600" title="Bỏ file này"
-                                >
-                                    <Trash2 className="h-3.5 w-3.5" />
-                                </button>
+                        {/* Nhiều thẻ thì nhiều sao kê, nhiều TKQC thì nhiều bản chi phí —
+                            chọn hết vào một ô, máy gộp lại thành một lượt đối soát. */}
+                        {files.length > 0 && (
+                            <div className="mt-3 space-y-1.5">
+                                {files.map((f, i) => (
+                                    <div key={f.name + i} className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-xs">
+                                        <span className="truncate font-medium">{f.name}</span>
+                                        <span className="ml-auto shrink-0 text-muted-foreground">{(f.size / 1024).toFixed(0)} KB</span>
+                                        <button
+                                            onClick={() => setFiles((cur) => cur.filter((_, j) => j !== i))}
+                                            className="shrink-0 text-muted-foreground hover:text-rose-600" title="Bỏ file này"
+                                        >
+                                            <Trash2 className="h-3.5 w-3.5" />
+                                        </button>
+                                    </div>
+                                ))}
                             </div>
-                        ) : (
-                            <input
-                                ref={ref} type="file" accept=".xlsx,.csv,.tsv,.txt,.pdf"
-                                onChange={(e) => setFile(e.target.files?.[0] || null)}
-                                className="mt-3 w-full text-xs file:mr-2 file:rounded-md file:border file:border-border file:bg-muted file:px-3 file:py-1.5 file:text-xs"
-                            />
                         )}
+
+                        <input
+                            ref={ref} type="file" multiple accept=".xlsx,.csv,.tsv,.txt,.pdf"
+                            onChange={(e) => {
+                                const fs = [...(e.target.files || [])];
+                                if (fs.length) setFiles((cur) => gopFile(cur, fs));
+                            }}
+                            className="mt-3 w-full text-xs file:mr-2 file:rounded-md file:border file:border-border file:bg-muted file:px-3 file:py-1.5 file:text-xs"
+                        />
                     </div>
                 ))}
             </div>
 
             <div className="flex flex-wrap items-center gap-3">
                 <button
-                    onClick={run} disabled={!fbFile || !bankFile || busy}
+                    onClick={run} disabled={!fbFiles.length || !bankFiles.length || busy}
                     className="rounded-lg bg-orange-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-orange-700 disabled:opacity-40"
                 >
                     {busy ? "Đang chạy…" : "Chạy đối soát"}
                 </button>
                 <span className="text-xs text-muted-foreground">
-                    {!fbFile && !bankFile ? "Cần đủ 2 file mới chạy được."
-                        : !fbFile ? "Còn thiếu file chi phí TKQC."
-                        : !bankFile ? "Còn thiếu file sao kê thẻ."
-                        : "Bỏ nhầm ô cũng không sao — máy tự nhận ra và đổi lại."}
+                    {!fbFiles.length && !bankFiles.length ? "Cần ít nhất 2 file mới chạy được. Mỗi ô chọn được nhiều file."
+                        : !fbFiles.length ? "Còn thiếu file chi phí TKQC."
+                        : !bankFiles.length ? "Còn thiếu file sao kê thẻ."
+                        : `Sẽ đối soát ${fbFiles.length + bankFiles.length} file. Bỏ nhầm ô cũng không sao — máy phân loại lại theo nội dung.`}
                 </span>
             </div>
 
@@ -268,8 +289,8 @@ export default function TALPHAAdsReconTab() {
                         <span className="text-xs text-muted-foreground">
                             sao kê {d6(s.period.bank_start)} → {d6(s.period.bank_end)} · chạy lúc{" "}
                             {new Date(res.chay_luc).toLocaleString("vi-VN")}
-                            {res.files?.fb && ` · ${res.files.fb.ten} (${res.files.fb.so_dong} dòng)`}
-                            {res.files?.bank && ` · ${res.files.bank.ten} (${res.files.bank.so_dong} dòng)`}
+                            {[...(res.files?.fb || []), ...(res.files?.bank || [])]
+                                .map((f) => ` · ${f.ten} (${f.so_dong} dòng)`).join("")}
                         </span>
                         <div className="ml-auto flex gap-2">
                             <a href={`${API}?ky=${encodeURIComponent(res.ky)}&csv=1`}

@@ -34,7 +34,7 @@ const ROSTER = { projects: { talpha: { accounts: [{ id: "act_ok" }] } } };
 (async () => {
     const E = await import(ENGINE);
     const chay = (fb, bank, opts = {}) =>
-        E.reconcile({ sheets: fbSheet(fb), name: "fb.xlsx" }, { sheets: bankSheet(bank), name: "bank.xlsx" }, CFG, opts);
+        E.reconcile([{ sheets: fbSheet(fb), name: "fb.xlsx" }, { sheets: bankSheet(bank), name: "bank.xlsx" }], CFG, opts);
     const codes = (r) => r.alerts.map((a) => a.code);
 
     console.log("── Luật nằm trong talpha_rules.json ──");
@@ -48,8 +48,8 @@ const ROSTER = { projects: { talpha: { accounts: [{ id: "act_ok" }] } } };
     t("đảo thứ tự 2 file vẫn ra kết quả y hệt", () => {
         const fb = [fbRow("T1", "01/09/2026", 12500000)];
         const bank = [bankRow("01/09/2026", 12500000)];
-        const xuoi = E.reconcile({ sheets: fbSheet(fb) }, { sheets: bankSheet(bank) }, CFG);
-        const nguoc = E.reconcile({ sheets: bankSheet(bank) }, { sheets: fbSheet(fb) }, CFG);
+        const xuoi = E.reconcile([{ sheets: fbSheet(fb) }, { sheets: bankSheet(bank) }], CFG);
+        const nguoc = E.reconcile([{ sheets: bankSheet(bank) }, { sheets: fbSheet(fb) }], CFG);
         assert.deepStrictEqual(nguoc.summary, xuoi.summary);
     });
 
@@ -129,6 +129,42 @@ const ROSTER = { projects: { talpha: { accounts: [{ id: "act_ok" }] } } };
         assert.ok(a.detail.includes("4281") && a.detail.includes("9911"));
         assert.ok(a.hint.includes('{ "last4": "4281"'), "hint phải dán được thẳng vào config");
         assert.ok(a.hint.includes("ads_settlement.cards.list"), "phải chỉ đúng chỗ trong talpha_rules.json");
+    });
+
+    console.log("── Nhiều file một lượt ──");
+    t("hai sao kê của hai thẻ gộp thành một lượt đối soát", () => {
+        // Công ty có mấy thẻ thì mấy sao kê. Bắt gộp tay bằng Excel trước khi
+        // tải lên là trả việc về đúng chỗ hệ thống này sinh ra để bỏ đi.
+        const fb = [fbRow("T1", "01/09/2026", 12500000, "act_ok", "Paid", "Visa *4281"),
+                    fbRow("T2", "01/09/2026", 6750000, "act_ok", "Paid", "Mastercard *7733")];
+        const r = E.reconcile([
+            { sheets: fbSheet(fb), name: "tkqc.xlsx" },
+            { sheets: bankSheet([bankRow("01/09/2026", 12500000, "FACEBK *A VISA*4281")]), name: "the-4281.xlsx" },
+            { sheets: bankSheet([bankRow("01/09/2026", 6750000, "FACEBK *B MASTER*7733")]), name: "the-7733.xlsx" },
+        ], CFG);
+        assert.strictEqual(r.files.bank.length, 2);
+        assert.strictEqual(r.summary.bank_total, 19250000);
+        assert.strictEqual(r.stats.matched, 2);
+    });
+
+    t("tải trùng một file thì bỏ bản trùng, KHÔNG đếm gấp đôi", () => {
+        // So bằng TÊN file thì hai bản cùng file trùng tên nhau và lọt lưới —
+        // tổng tiền nhân đôi mà không ai biết. Phải so bằng số thứ tự bản tải.
+        const bank = bankSheet([bankRow("01/09/2026", 12500000, "FACEBK *A VISA*4281", "FT1")]);
+        const fb = fbSheet([fbRow("T1", "01/09/2026", 12500000)]);
+        const r = E.reconcile([
+            { sheets: fb, name: "tkqc.xlsx" },
+            { sheets: bank, name: "sao-ke.xlsx" },
+            { sheets: bank, name: "sao-ke.xlsx" },
+        ], CFG);
+        assert.strictEqual(r.summary.bank_total, 12500000, "tổng tiền không được nhân đôi");
+        assert.ok(r.alerts.some((a) => a.code === "TRUNG_GIUA_FILE"), "phải nói ra là đã bỏ dòng trùng");
+    });
+
+    t("thiếu hẳn một phía thì báo rõ thiếu phía nào", () => {
+        assert.throws(
+            () => E.reconcile([{ sheets: fbSheet([fbRow("T1", "01/09/2026", 1000)]), name: "a.xlsx" }], CFG),
+            /Cần cả hai phía/);
     });
 
     console.log("── Tiền không được biến mất giữa đường ──");

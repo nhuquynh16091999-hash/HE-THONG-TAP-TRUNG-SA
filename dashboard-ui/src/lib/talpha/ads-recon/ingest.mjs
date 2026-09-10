@@ -38,7 +38,7 @@ function pickSheet(sheets, aliasGroups) {
 // ─────────────────────────────────────────────────────────────────────────
 // File 1 — chi phí thanh toán từ TKQC Facebook
 // ─────────────────────────────────────────────────────────────────────────
-export function ingestFb(sheets, cfg) {
+export function ingestFb(sheets, cfg, sourceName = "") {
     const A = cfg.columns.fb;
     const need = [A.date, A.amount];
     const pick = pickSheet(sheets, [A.date, A.amount, A.transaction_id, A.account_id, A.status]);
@@ -63,13 +63,14 @@ export function ingestFb(sheets, cfg) {
 
         const date = parseDate(r[col.date]);
         const amount = parseAmount(r[col.amount]);
-        if (!date || amount === null) { skipped.push({ line: i + 1, reason: !date ? "không đọc được ngày" : "không đọc được số tiền", raw: r }); continue; }
-        if (amount === 0) { skipped.push({ line: i + 1, reason: "số tiền bằng 0", raw: r }); continue; }
+        if (!date || amount === null) { skipped.push({ file: sourceName, line: i + 1, reason: !date ? "không đọc được ngày" : "không đọc được số tiền", raw: r }); continue; }
+        if (amount === 0) { skipped.push({ file: sourceName, line: i + 1, reason: "số tiền bằng 0", raw: r }); continue; }
 
         const method = col.method >= 0 ? String(r[col.method] ?? "") : "";
         const status = col.status >= 0 ? String(r[col.status] ?? "") : "";
         rows.push({
             src: "fb",
+            file: sourceName,
             line: i + 1,
             txn_id: col.transaction_id >= 0 ? String(r[col.transaction_id] ?? "").trim() : "",
             date,
@@ -99,7 +100,7 @@ export function ingestFb(sheets, cfg) {
 // ─────────────────────────────────────────────────────────────────────────
 // File 2 — sao kê thẻ ngân hàng
 // ─────────────────────────────────────────────────────────────────────────
-export function ingestBank(sheets, cfg) {
+export function ingestBank(sheets, cfg, sourceName = "") {
     const A = cfg.columns.bank;
     const pick = pickSheet(sheets, [A.date, A.debit, A.desc, A.credit, A.balance, A.amount]);
     if (!pick) throw new Error("Không tìm thấy dòng tiêu đề trong sao kê — kiểm tra lại file");
@@ -137,7 +138,7 @@ export function ingestBank(sheets, cfg) {
         else if (plain !== null && plain !== 0 && (credit === null || credit === 0)) out = plain < 0 ? Math.abs(plain) : plain;
 
         if (!date || out === null || out === 0) {
-            if (!isBlankRow(r) && (date || desc)) skipped.push({ line: i + 1, reason: !date ? "không đọc được ngày" : "không có tiền ghi nợ", raw: r });
+            if (!isBlankRow(r) && (date || desc)) skipped.push({ file: sourceName, line: i + 1, reason: !date ? "không đọc được ngày" : "không có tiền ghi nợ", raw: r });
             continue;
         }
 
@@ -148,6 +149,7 @@ export function ingestBank(sheets, cfg) {
 
         all.push({
             src: "bank",
+            file: sourceName,
             line: i + 1,
             date,
             ref: col.ref >= 0 ? String(r[col.ref] ?? "").trim() : "",

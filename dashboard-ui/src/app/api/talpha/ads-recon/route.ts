@@ -14,8 +14,9 @@ export const runtime = "nodejs";           // engine đọc .xlsx bằng node:zl
 // ═══════════════════════════════════════════════════════════════════
 // ĐỐI SOÁT CHI PHÍ QUẢNG CÁO
 //
-//   POST                 — nhận 2 file (chi phí TKQC + sao kê thẻ), chạy đối
-//                          soát, lưu kỳ, trả kết quả ngay
+//   POST                 — nhận từ 2 file trở lên (chi phí TKQC + sao kê thẻ,
+//                          mỗi phía bao nhiêu file cũng được), chạy đối soát,
+//                          lưu kỳ, trả kết quả ngay
 //   POST ?action=notify  — bắn cảnh báo của một kỳ sang chat
 //   GET                  — danh sách kỳ; ?ky= một kỳ; ?ky=&csv=1 xuất CSV
 //   DELETE ?ky=          — xoá một kỳ
@@ -29,6 +30,7 @@ export const runtime = "nodejs";           // engine đọc .xlsx bằng node:zl
 
 const STORE = "ads_recon";
 const GIU_TOI_DA = 52;                     // một năm; kỳ cũ hơn tự rụng khỏi kho
+const TOI_DA_FILE = 12;                    // đủ cho nhiều thẻ + nhiều TKQC trong một kỳ
 
 type Period = { ky: string; chay_luc: string; summary?: Record<string, unknown> };
 type Store = { periods: Period[] };
@@ -108,7 +110,12 @@ export async function POST(req: NextRequest) {
         const files = form.getAll("file").filter((f): f is File => f instanceof File && f.size > 0);
         if (files.length < 2) {
             return NextResponse.json({
-                error: "Cần đủ 2 file: chi phí thanh toán từ TKQC Facebook và sao kê thẻ ngân hàng.",
+                error: "Cần ít nhất 2 file: chi phí thanh toán từ TKQC Facebook và sao kê thẻ ngân hàng.",
+            }, { status: 400 });
+        }
+        if (files.length > TOI_DA_FILE) {
+            return NextResponse.json({
+                error: `Nhiều nhất ${TOI_DA_FILE} file một lượt — quá số đó thì nhiều khả năng đang gộp nhầm nhiều kỳ vào một.`,
             }, { status: 400 });
         }
         for (const f of files) {
@@ -116,7 +123,7 @@ export async function POST(req: NextRequest) {
         }
 
         const doc = [];
-        for (const f of files.slice(0, 2)) {
+        for (const f of files) {
             const buf = Buffer.from(await f.arrayBuffer());
             try {
                 const sheets = await readAnySheets(f.name, buf);
@@ -131,7 +138,7 @@ export async function POST(req: NextRequest) {
         const truoc = await readStoreFresh<Store>(STORE, EMPTY);
         let result;
         try {
-            result = reconcile(doc[0], doc[1], c, { roster: roster(c), history: truoc.periods });
+            result = reconcile(doc, c, { roster: roster(c), history: truoc.periods });
         } catch (e) {
             // Lỗi ở đây là lỗi ĐỌC HIỂU file (thiếu cột, không phân biệt được
             // nguồn) — nói thẳng thiếu gì để người dùng sửa file, đừng nuốt.
