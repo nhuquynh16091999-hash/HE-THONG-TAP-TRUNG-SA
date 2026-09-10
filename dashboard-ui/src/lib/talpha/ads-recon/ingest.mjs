@@ -30,6 +30,13 @@ function doDuocGi(sheets) {
 
 const TOTAL_ROW = /^(tong|tong cong|total|grand total|cong|sum|so du dau|so du cuoi|ket chuyen)\b/;
 
+/** Moi số tài khoản quảng cáo từ phần đầu bản kê Facebook. */
+function moiSoTaiKhoan(rowsDau) {
+    const blob = rowsDau.flat().map((c) => String(c ?? "")).join(" ");
+    const m = blob.match(/(?:t[aà]i kho[aả]n|account)\s*(?:id)?\s*[:#]?\s*(act_)?(\d{8,})/i);
+    return m ? "act_" + m[2] : "";
+}
+
 function statusNorm(s) {
     const t = normText(s);
     if (!t) return "unknown";
@@ -71,6 +78,14 @@ export function ingestFb(sheets, cfg, sourceName = "") {
     if (col.account_id < 0 && col.account_name < 0) warnings.push("File TKQC không có cột tài khoản quảng cáo — bỏ qua kiểm tra TKQC lạ");
     if (col.method < 0) warnings.push("File TKQC không có cột phương thức thanh toán — bỏ qua kiểm tra thẻ lạ");
 
+    // Bản kê thanh toán của Facebook KHÔNG có cột tài khoản quảng cáo — mỗi
+    // file là bản kê của đúng MỘT tài khoản, và số tài khoản nằm ở phần đầu
+    // trang ("Tài khoản: 2033341657422931"). Không moi ra thì mọi dòng đều
+    // không biết thuộc TKQC nào, và không đời nào phát hiện được là đang thiếu
+    // bản kê của các tài khoản còn lại.
+    const tkTuDauTrang = col.account_id >= 0 ? "" : moiSoTaiKhoan(pick.sheet.rows.slice(0, pick.headerRow + 1));
+    if (tkTuDauTrang) warnings.push(`File không có cột tài khoản quảng cáo — lấy từ đầu trang: ${tkTuDauTrang}`);
+
     const rows = [];
     const skipped = [];
     for (let i = pick.headerRow + 1; i < pick.sheet.rows.length; i++) {
@@ -93,7 +108,7 @@ export function ingestFb(sheets, cfg, sourceName = "") {
             date,
             amount: Math.abs(amount),
             currency: col.currency >= 0 ? String(r[col.currency] ?? "").trim().toUpperCase() : cfg.currency,
-            account_id: col.account_id >= 0 ? String(r[col.account_id] ?? "").trim() : "",
+            account_id: col.account_id >= 0 ? String(r[col.account_id] ?? "").trim() : tkTuDauTrang,
             account_name: col.account_name >= 0 ? String(r[col.account_name] ?? "").trim() : "",
             method,
             card4: cardLast4(method),

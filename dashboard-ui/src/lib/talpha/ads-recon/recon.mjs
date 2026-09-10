@@ -127,8 +127,13 @@ export function reconcile(docs, cfg, { roster = null, history = [] } = {}) {
     const bank = ingestSide(bankDocs, cfg, "bank");
     const match = matchTransactions(fb.rows, bank.rows, cfg);
 
-    const dates = [...bank.rows.map((r) => r.date), ...fb.rows.map((r) => r.date)].filter(Boolean).sort();
-    const ky = dates.length ? isoWeek(dates[0]) : isoWeek(new Date().toISOString().slice(0, 10));
+    // Mã kỳ lấy theo NGÀY ĐẦU CỦA SAO KÊ, không phải ngày sớm nhất của mọi
+    // file: bản kê TKQC có thể trải 9 tháng về trước, lấy ngày đó thì kỳ mang
+    // tên một tuần cách đây gần một năm — vô nghĩa với người đọc.
+    const ngayThe = bank.rows.map((r) => r.date).filter(Boolean).sort();
+    const dates = [...ngayThe, ...fb.rows.map((r) => r.date).filter(Boolean)].sort();
+    const moc = ngayThe[0] || dates[0];
+    const ky = moc ? isoWeek(moc) : isoWeek(new Date().toISOString().slice(0, 10));
 
     // Chỉ so với kỳ CŨ hơn: chạy lại một kỳ cũ mà lấy kỳ mới hơn làm "kỳ trước"
     // thì kết luận tăng/giảm sẽ ngược chiều.

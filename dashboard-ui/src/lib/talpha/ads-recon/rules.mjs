@@ -29,14 +29,27 @@ function cardLabel(cfg, last4) {
 }
 
 /** Roster TKQC hợp lệ, đọc từ file ad_accounts.json của dashboard nếu có. */
+const boActPrefix = (x) => String(x || "").replace(/^act_/i, "");
+
 export function adAccountWhitelist(cfg, rosterJson) {
-    const ids = new Set((cfg.ad_accounts?.extra_allowed || []).map(String));
+    // So bằng phần SỐ: roster ghi "act_2033341657422931", bản kê PDF ghi trần
+    // "2033341657422931" — so nguyên chuỗi là tài khoản nào cũng thành lạ.
+    const ids = new Set((cfg.ad_accounts?.extra_allowed || []).map(boActPrefix));
     if (rosterJson?.projects) {
         for (const p of Object.values(rosterJson.projects)) {
-            for (const a of p.accounts || []) if (a.id) ids.add(String(a.id));
+            for (const a of p.accounts || []) if (a.id) ids.add(boActPrefix(a.id));
         }
     }
     return ids;
+}
+
+/** Tài khoản đang chạy trong roster — dùng để biết còn thiếu bản kê của ai. */
+function tkqcDangChay(rosterJson) {
+    const ra = [];
+    for (const p of Object.values(rosterJson?.projects || {})) {
+        for (const a of p.accounts || []) if (a.id && a.status === "active") ra.push({ id: boActPrefix(a.id), name: a.name || a.id });
+    }
+    return ra;
 }
 
 export function buildAlerts({ fb, bank, match, cfg, roster = null, history = [] }) {
@@ -70,6 +83,29 @@ export function buildAlerts({ fb, bank, match, cfg, roster = null, history = [] 
               { amount: 0,
                 hint: "ĐỌC CẢNH BÁO BÊN DƯỚI CÓ CHỪNG MỰC — khi một phía thiếu dữ liệu thì mọi dòng bên kia đều trông như 'không có hoá đơn'. " +
                       "Việc cần làm trước: xuất lại file cho đủ đúng kỳ (bản kê TKQC nhiều trang nhớ lấy hết trang), rồi chạy lại." });
+        }
+    }
+
+    // ── 0b. Bản kê TKQC mới có của vài tài khoản ─────────────────────────
+    //
+    // Bản kê thanh toán của Facebook là của ĐÚNG MỘT tài khoản quảng cáo, còn
+    // thẻ thì bị trừ cho MỌI tài khoản. Thiếu bản kê của tài khoản nào thì
+    // toàn bộ phần chi của tài khoản đó biến thành "thẻ trừ mà không có hoá
+    // đơn" — đúng luật, sai bản chất, và đủ sức chôn vùi cảnh báo thật.
+    if (roster) {
+        const dangChay = tkqcDangChay(roster);
+        const coTrongFile = new Set(fb.rows.map((r) => boActPrefix(r.account_id)).filter(Boolean));
+        const thieu = dangChay.filter((a) => !coTrongFile.has(a.id));
+        const tienThe = bank.rows.reduce((s2, r) => s2 + r.amount, 0);
+        if (coTrongFile.size && thieu.length && tienThe > spentFbSoBo(fb) * 1.5) {
+            const daCo = dangChay.filter((a) => coTrongFile.has(a.id)).map((a) => a.name);
+            A("THIEU_BAN_KE_TKQC", CRIT,
+              `Mới có bản kê của ${coTrongFile.size}/${dangChay.length} tài khoản quảng cáo đang chạy — thiếu ${thieu.length}`,
+              `Đã có: ${daCo.join(", ") || "(không rõ tên)"}. Chưa có: ${thieu.map((a) => a.name).join(", ")}.`,
+              { amount: 0,
+                hint: "Vào Trình quản lý quảng cáo của TỪNG tài khoản → Thanh toán → Lịch sử thanh toán, tải bản kê rồi thả HẾT vào ô 1 " +
+                      "(ô đó nhận nhiều file). Thẻ bị trừ cho mọi tài khoản, nên chừng nào chưa đủ bản kê thì phần chi của các tài khoản " +
+                      "còn lại vẫn cứ hiện ra thành 'thẻ trừ mà không có hoá đơn'." });
         }
     }
 
@@ -221,7 +257,7 @@ export function buildAlerts({ fb, bank, match, cfg, roster = null, history = [] 
         } else {
             const seen = new Map();
             for (const r of fb.rows) {
-                if (!r.account_id || ok.has(r.account_id)) continue;
+                if (!r.account_id || ok.has(boActPrefix(r.account_id))) continue;
                 if (!seen.has(r.account_id)) seen.set(r.account_id, []);
                 seen.get(r.account_id).push(r);
             }
