@@ -148,9 +148,11 @@ export function findColumn(headers, aliases) {
 /**
  * Tìm dòng tiêu đề trong sheet. Sao kê ngân hàng hay có 5-10 dòng đầu là
  * tên chủ tài khoản, số tài khoản, kỳ sao kê — tiêu đề thật nằm sâu bên dưới.
- * Chấm điểm theo số bí danh khớp được, lấy dòng cao điểm nhất trong 30 dòng đầu.
+ * Bản PDF còn dài hơn nữa: logo, địa chỉ chi nhánh, điều khoản, mỗi thứ một
+ * dòng. Quét 80 dòng đầu cho chắc — quét thừa chỉ tốn vài mili-giây, quét
+ * thiếu là bó tay trước cả file đọc được hoàn toàn bình thường.
  */
-export function findHeaderRow(rows, aliasGroups, maxScan = 30) {
+export function findHeaderRow(rows, aliasGroups, maxScan = 80) {
     let best = { idx: -1, score: 0 };
     const limit = Math.min(rows.length, maxScan);
     for (let i = 0; i < limit; i++) {

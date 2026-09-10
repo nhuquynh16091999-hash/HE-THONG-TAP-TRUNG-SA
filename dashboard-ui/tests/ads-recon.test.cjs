@@ -203,6 +203,31 @@ const ROSTER = { projects: { talpha: { accounts: [{ id: "act_ok" }] } } };
         assert.ok(!r.alerts.some((x) => x.code === "TRU_TRUNG"), "không được kết luận trừ trùng khi chưa có hoá đơn nào khớp");
     });
 
+    t("một file hỏng KHÔNG được giết cả lượt — bỏ file đó, báo đỏ, vẫn chạy", () => {
+        // Sỹ Anh tải 4 file sao kê, một file lạ định dạng là chết cả lượt. Bắt
+        // người dùng ngồi thử bỏ từng file ra để đoán file nào hỏng là việc của
+        // máy, không phải của họ.
+        const r = E.reconcile([
+            { sheets: fbSheet([fbRow("T1", "01/09/2026", 12500000)]), name: "tkqc.xlsx" },
+            { sheets: bankSheet([bankRow("01/09/2026", 12500000)]), name: "sao-ke-tot.xlsx" },
+            { sheets: [{ name: "rác", rows: [["abc", "def"], ["1", "2"]] }], name: "sao-ke-la.pdf" },
+        ], CFG);
+
+        assert.strictEqual(r.summary.bank_total, 12500000, "file đọc được vẫn phải đối soát bình thường");
+        const a = r.alerts.find((x) => x.code === "FILE_KHONG_DOC_DUOC");
+        assert.ok(a, "phải báo đỏ file bị bỏ");
+        assert.strictEqual(a.severity, "critical");
+        assert.ok(a.title.includes("sao-ke-la.pdf"), "phải gọi đúng tên file hỏng");
+        assert.match(a.detail, /Đọc được 2 dòng|không có dòng nào/, "phải kể ra đọc được gì để còn gỡ");
+    });
+
+    t("hỏng HẾT một phía thì mới chịu dừng, và nói rõ từng file vì sao", () => {
+        assert.throws(() => E.reconcile([
+            { sheets: fbSheet([fbRow("T1", "01/09/2026", 1000)]), name: "tkqc.xlsx" },
+            { sheets: [{ name: "rác", rows: [["abc"]] }], name: "sao-ke-la.pdf" },
+        ], CFG), /Không đọc được file nào ở phía sao kê|sao-ke-la\.pdf/);
+    });
+
     console.log("── Tiền không được biến mất giữa đường ──");
     t("tổng khớp + tổng dư = tổng nguồn, cả hai phía", () => {
         const r = chay([fbRow("T1", "01/09/2026", 12500000), fbRow("T2", "07/09/2026", 5600000)],

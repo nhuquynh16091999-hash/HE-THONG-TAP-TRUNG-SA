@@ -317,6 +317,17 @@ export function buildAlerts({ fb, bank, match, cfg, roster = null, history = [] 
             hint: "Không thuộc phạm vi đối soát Facebook. Ghi ra để không ai tưởng đây là chi phí FB." });
     }
 
+    // ── 11a. File tải lên mà không đọc được ──────────────────────────────
+    for (const [phia, side] of [["chi phí TKQC", fb], ["sao kê", bank]]) {
+        for (const h of side.file_hong || []) {
+            A("FILE_KHONG_DOC_DUOC", CRIT,
+              `Không đọc được file ${phia}: ${h.ten}`,
+              h.vi_sao,
+              { hint: "Lượt đối soát này đã chạy KHÔNG có file đó, nên số bên dưới còn thiếu phần của nó. " +
+                      "Xuất lại file dạng .xlsx hoặc .csv rồi chạy lại; nếu là PDF thì gửi tau mấy dòng đầu mà máy đọc được ở trên để tau thêm cách nhận cột." });
+        }
+    }
+
     // ── 11b. Dòng trùng nhau giữa các file đã tải lên ────────────────────
     for (const [phia, side] of [["chi phí TKQC", fb], ["sao kê", bank]]) {
         const bo = side.trung_file || [];

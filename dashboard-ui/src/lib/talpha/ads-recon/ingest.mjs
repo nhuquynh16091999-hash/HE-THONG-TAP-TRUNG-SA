@@ -11,6 +11,23 @@ import {
     findColumn, findHeaderRow, isBlankRow,
 } from "./normalize.mjs";
 
+/**
+ * Kể ra ĐỌC ĐƯỢC GÌ khi không nhận ra dòng tiêu đề.
+ *
+ * Câu "kiểm tra lại file" là câu vô dụng: người dùng mở file thấy vẫn bình
+ * thường, còn người sửa thì không biết máy đã đọc ra cái gì. Với PDF lại càng
+ * mù, vì bảng là do dựng lại từ toạ độ chữ chứ không có sẵn. In vài dòng đầu
+ * ra là đủ để biết nên thêm bí danh cột hay là bộ dựng bảng đang sai.
+ */
+function doDuocGi(sheets) {
+    const sh = sheets.reduce((m, x) => (x.rows.length > (m?.rows.length || 0) ? x : m), null);
+    if (!sh || !sh.rows.length) return "File không có dòng nào đọc được.";
+    const mau = sh.rows.slice(0, 4)
+        .map((r, i) => `  dòng ${i + 1}: ${JSON.stringify(r.slice(0, 8).map((c) => (c instanceof Date ? c.toISOString().slice(0, 10) : c)))}`)
+        .join("\n");
+    return `Đọc được ${sh.rows.length} dòng ở "${sh.name}" nhưng không dòng nào giống tiêu đề bảng. Mấy dòng đầu:\n${mau}`;
+}
+
 const TOTAL_ROW = /^(tong|tong cong|total|grand total|cong|sum|so du dau|so du cuoi|ket chuyen)\b/;
 
 function statusNorm(s) {
@@ -42,7 +59,7 @@ export function ingestFb(sheets, cfg, sourceName = "") {
     const A = cfg.columns.fb;
     const need = [A.date, A.amount];
     const pick = pickSheet(sheets, [A.date, A.amount, A.transaction_id, A.account_id, A.status]);
-    if (!pick) throw new Error("Không tìm thấy dòng tiêu đề trong file TKQC — kiểm tra lại file có đúng bản xuất thanh toán không");
+    if (!pick) throw new Error("Không tìm thấy dòng tiêu đề trong file TKQC. " + doDuocGi(sheets));
 
     const headers = pick.sheet.rows[pick.headerRow] || [];
     const col = {};
@@ -103,7 +120,7 @@ export function ingestFb(sheets, cfg, sourceName = "") {
 export function ingestBank(sheets, cfg, sourceName = "") {
     const A = cfg.columns.bank;
     const pick = pickSheet(sheets, [A.date, A.debit, A.desc, A.credit, A.balance, A.amount]);
-    if (!pick) throw new Error("Không tìm thấy dòng tiêu đề trong sao kê — kiểm tra lại file");
+    if (!pick) throw new Error("Không tìm thấy dòng tiêu đề trong sao kê. " + doDuocGi(sheets));
 
     const headers = pick.sheet.rows[pick.headerRow] || [];
     const col = {};

@@ -69,15 +69,36 @@ function dedupeAcrossFiles(rows, keyOf) {
 const keyFb = (r) => (r.txn_id ? `t:${r.txn_id}` : `d:${r.date}|${r.amount}|${r.account_id}`);
 const keyBank = (r) => `d:${r.date}|${r.amount}|${r.ref || r.desc}`;
 
-/** Đọc một phía (có thể nhiều file) rồi gộp thành một danh sách. */
+/**
+ * Đọc một phía (có thể nhiều file) rồi gộp thành một danh sách.
+ *
+ * MỘT FILE HỎNG KHÔNG ĐƯỢC GIẾT CẢ LƯỢT. Tải 4 file sao kê mà một file lạ
+ * định dạng thì ba file kia vẫn phải đối soát được — bắt người dùng ngồi thử
+ * bỏ từng file ra để đoán file nào hỏng là việc của máy chứ không phải của họ.
+ * File đọc không được thì bỏ qua và báo ĐỎ, nói rõ tên file và vì sao.
+ */
 function ingestSide(docs, cfg, kind) {
-    const parts = docs.map((d) => (kind === "fb" ? ingestFb : ingestBank)(d.sheets, cfg, d.name || ""));
+    const parts = [], hong = [], ok = [];
+    for (const d of docs) {
+        try {
+            parts.push((kind === "fb" ? ingestFb : ingestBank)(d.sheets, cfg, d.name || ""));
+            ok.push(d);
+        } catch (e) {
+            hong.push({ ten: d.name || "(không tên)", vi_sao: (e && e.message) || String(e) });
+        }
+    }
+    if (!parts.length) {
+        const chiTiet = hong.map((h) => `"${h.ten}": ${h.vi_sao}`).join("\n\n");
+        throw new Error(`Không đọc được file nào ở phía ${kind === "fb" ? "chi phí TKQC" : "sao kê"}.\n\n${chiTiet}`);
+    }
+    docs = ok;
     const rows = parts.flatMap((p, i) => p.rows.map((r) => ({ ...r, _doc: i })));
     const { kept, dropped } = dedupeAcrossFiles(rows, kind === "fb" ? keyFb : keyBank);
 
     return {
         rows: kept,
         trung_file: dropped,
+        file_hong: hong,
         other_ads: parts.flatMap((p) => p.other_ads || []),
         skipped: parts.flatMap((p) => p.skipped || []),
         meta: {
