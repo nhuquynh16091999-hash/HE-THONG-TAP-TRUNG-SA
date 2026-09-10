@@ -17,7 +17,7 @@ FROM=_T.replace(day=1).isoformat(); TO=_T.isoformat()  # ngày ĐỘNG: đầu t
 # ── RULE CHUNG: đọc từ talpha_rules.json qua loader (golden-test 29/07 = 100% khớp bản cũ).
 # Sửa rule (marketer/tỷ giá/thị trường/test) → sửa talpha_rules.json, KHÔNG sửa tại đây.
 from talpha_rules import (RATE, LOCALCUR, MONEY_DIV, ALLM, MARKETS, SHOP2MKT, GTC_CAT, POS_TZ,
-                          NUMID, norm_nv, norm_pos_nv, is_test,
+                          NUMID, norm_nv, norm_pos_nv, is_test, PRIMARY_MARKET,
                           DISPLAY, EXTERNAL_DISPLAY, norm_pos_external, norm_nv_external,
                           UNASSIGN, bucket_nv)
 def page_of(p):
@@ -36,11 +36,24 @@ def parse_camp(cn):
     # Tìm ô đầu tiên là tên thị trường (bất kể tiền tố như "Tặng/", "LADI/"...);
     # marketer là ô ngay SAU thị trường, sản phẩm là ô kế tiếp.
     mi=next((i for i,s in enumerate(p) if s.upper() in MARKETS), None)
-    if mi is None: return None,None,None
-    mkt=MARKETS[p[mi].upper()]
-    nv=norm_nv(p[mi+1]) if mi+1<len(p) else None
-    ci=mi+2
-    prod=page_of(p) or (p[ci] if len(p)>ci and p[ci] else "(khác)")
+    if mi is not None:
+        # KIỂU CŨ: .../TW/Marketer/SP/... — marketer là ô ngay SAU thị trường.
+        mkt=MARKETS[p[mi].upper()]
+        nv=norm_nv(p[mi+1]) if mi+1<len(p) else None
+        ci=mi+2
+        prod=page_of(p) or (p[ci] if len(p)>ci and p[ci] else "(khác)")
+    else:
+        # KIỂU MỚI (chuẩn 09/2026, xem talpha_rules._camp_naming_note):
+        #   MARKETER/TỆPKHÁCH/SANPHAM/TRANG/NGAY — KHÔNG ghi thị trường nữa vì chỉ còn một.
+        # Nhánh này TRƯỚC ĐÂY return None: càng đặt tên đúng chuẩn mới thì càng bị vứt.
+        # Ngày 10/09/2026 nó nuốt 17,6tr / 26,8tr tiền ads tháng 9 (66%) mà không ai thấy.
+        # Quét ô đầu và ô hai để chịu được tiền tố lạ ("Tặng/", "LADI/").
+        idx=next((i for i,s in enumerate(p[:2]) if norm_nv(s)), None)
+        if idx is None: return None,None,None
+        nv=norm_nv(p[idx]); mkt=PRIMARY_MARKET; ci=idx+2
+        # Sản phẩm là ô NGAY SAU tệp khách. page_of() chỉ dùng khi thiếu ô đó — ở chuẩn mới
+        # page_id (nếu có) nằm cuối, ô sau nó là ngày chứ không phải tên trang.
+        prod=(p[ci] if len(p)>ci and p[ci] else None) or page_of(p) or "(khác)"
     return mkt,nv,prod
 MARKET_MAP={}  # 09/09/2026 — hệ chỉ còn MỘT thị trường (Đài Loan, xem talpha_rules.markets)
 # nên KHÔNG còn file theo thị trường. Bộ 30 file GCC (Saudi/UAE/Kuwait/Oman/Qatar/Bahrain)

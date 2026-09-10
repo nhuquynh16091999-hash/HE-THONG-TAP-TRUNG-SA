@@ -207,8 +207,10 @@
         "THÁI"
       ],
       "word_tokens": [
-        "THAI"
-      ]
+        "THAI",
+        "THAINX"
+      ],
+      "_note": "'Thainx' là cách Thái tự đặt ở ô marketer (Sỹ Anh xác nhận 10/09/2026) — thiếu dòng này thì campaign của Thái rơi khỏi báo cáo."
     },
     {
       "key": "Thuong",
@@ -254,7 +256,8 @@
     "QUỲNH": "Quynh",
     "QUYNH": "Quynh",
     "THẮNG": "Thang",
-    "THANG": "Thang"
+    "THANG": "Thang",
+    "THAINX": "Thai"
   },
   "unassigned_label": "(không gán)",
   "_sale_note": "POS KHÔNG có trường 'sale'. Đơn gán cho sale theo 3 bậc: (1) bảng gán tay `manual`, khoá là order_uid dạng 'TW-<id>'; (2) page_id → `by_page`; (3) từ khoá trong ô tags → `by_tag`. Trượt hết ⇒ '(chưa gán sale)'. CỐ Ý để trống cả ba: Thương vừa chạy ads vừa chốt đơn, nên KHÔNG thể suy 'đơn do Thương chạy ads = Thương chốt' — làm vậy là gán bừa. Chốt được quy tắc thật (theo page, theo tag, hay gán tay) thì khai vào đây.",

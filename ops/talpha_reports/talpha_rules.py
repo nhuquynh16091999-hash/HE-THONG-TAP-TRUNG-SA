@@ -27,6 +27,9 @@ LOCALCUR = {m: v["currency"] for m, v in RULES["markets"].items()}
 MONEY_DIV      = {m: v["pos_money_divisor"] for m, v in RULES["markets"].items()}
 MONEY_DIV_SHOP = {v["shop_label"]: v["pos_money_divisor"] for m, v in RULES["markets"].items()}
 ALLM     = list(RULES["markets"].keys())
+# Thị trường mặc định khi tên campaign KHÔNG ghi thị trường (chuẩn từ 09/2026:
+# hệ chỉ còn một thị trường nên ô thị trường bị bỏ khỏi tên campaign).
+PRIMARY_MARKET = RULES.get("primary_market") or (ALLM[0] if ALLM else None)
 MARKETS  = {tok: RULES["market_aliases"][tok] for tok in RULES["camp_market_tokens"]}
 SHOP2MKT = {v["shop_label"]: m for m, v in RULES["markets"].items()}
 
