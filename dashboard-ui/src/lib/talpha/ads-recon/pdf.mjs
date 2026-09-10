@@ -100,21 +100,27 @@ export async function readPdfSheets(buffer) {
     const data = new Uint8Array(buffer);
     const doc = await pdfjs.getDocument({ data, isEvalSupported: false, useSystemFonts: true }).promise;
 
-    const sheets = [];
+    // ── Gom chữ của MỌI TRANG trước khi dựng bảng ────────────────────────
+    // Sao kê nhiều trang là chuyện thường (bản kê 9 tháng của Facebook). Xử lý
+    // từng trang riêng rồi để tầng trên chọn MỘT trang là mất sạch phần còn
+    // lại — và mất im lặng, vì các trang sau trông vẫn "đọc được".
+    const items = [];
     for (let p = 1; p <= doc.numPages; p++) {
         const page = await doc.getPage(p);
         const content = await page.getTextContent();
-
-        const items = [];
+        const cao = page.view?.[3] || 800;
         for (const it of content.items) {
             if (!it.str || !it.str.trim()) continue;
             const t = it.transform;
             const w = it.width || 0;
             const h = Math.abs(it.height || t[3] || 10);
-            items.push({ x0: t[4], x1: t[4] + w, y: t[5], h, s: it.str });
+            // Dời y theo số trang để dòng của hai trang không dính vào nhau
+            items.push({ x0: t[4], x1: t[4] + w, y: t[5] - (p - 1) * (cao + 1000), h, s: it.str, trang: p });
         }
-        if (!items.length) { sheets.push({ name: `trang ${p}`, rows: [] }); continue; }
+    }
 
+    const sheets = [];
+    if (items.length) {
         const medH = median(items.map((i) => i.h)) || 10;
 
         // ── 1. Gom theo dòng ─────────────────────────────────────────────
@@ -146,15 +152,15 @@ export async function readPdfSheets(buffer) {
             return cells.map((c) => ({ ...c, text: c.text.trim() })).filter((c) => c.text);
         }).filter((c) => c.length);
 
-        // ── 3. Gom ô cả trang thành cột ──────────────────────────────────
+        // ── 3. Gom ô của CẢ TẬP TIN thành cột ────────────────────────────
         // Chỉ những dòng CÓ DÁNG BẢNG mới được quyền định nghĩa cột. Mấy dòng
         // văn xuôi ở đầu sao kê ("Chủ thẻ: … Số thẻ: … Kỳ: …") trải dài ngang
         // qua nhiều cột; cho chúng tham gia thì hai cột cạnh nhau bị kéo dính
         // làm một, và ngày với mã tham chiếu rơi chung vào một ô.
-        const counts = lines.map((c) => c.length);
-        const widest = Math.max(...counts);
+        const widest = Math.max(...lines.map((c) => c.length));
         const khungBang = lines.filter((c) => c.length >= Math.max(3, Math.ceil(widest * 0.6)));
         const cols = clusterColumns((khungBang.length >= 2 ? khungBang : lines).flat());
+
         const rows = lines.map((cells) => {
             const row = new Array(cols.length).fill(null);
             for (const c of cells) {
@@ -164,7 +170,7 @@ export async function readPdfSheets(buffer) {
             return row;
         });
 
-        sheets.push({ name: `trang ${p}`, rows });
+        sheets.push({ name: doc.numPages > 1 ? `pdf ${doc.numPages} trang` : "pdf", rows });
     }
 
     if (!sheets.some((s) => s.rows.length)) {

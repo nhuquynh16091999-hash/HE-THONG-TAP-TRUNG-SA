@@ -167,6 +167,42 @@ const ROSTER = { projects: { talpha: { accounts: [{ id: "act_ok" }] } } };
             /Cần cả hai phía/);
     });
 
+    console.log("── Đọc được nhiều, nói cho gọn ──");
+    t("một phía thiếu dữ liệu thì BÁO TRƯỚC, đừng để chết chìm trong báo động giả", () => {
+        // Ca thật 10/09/2026: bản kê TKQC là PDF nhiều trang mà chỉ đọc được
+        // trang 1 → 15 hoá đơn so với 156 dòng sao kê, đẻ ra 167 cảnh báo mà
+        // cái nào cũng đúng luật và sai bản chất.
+        const fb = [fbRow("T1", "05/09/2026", 500000)];
+        const bank = [];
+        for (let i = 0; i < 20; i++) bank.push(bankRow(`0${(i % 9) + 1}/09/2026`, 400000 + i * 1000, `FACEBK *Z${i} VISA*4281`, "FT" + i));
+        const r = chay(fb, bank);
+        const a = r.alerts.find((x) => x.code === "NGUON_LECH_NHAU");
+        assert.ok(a, "phải cảnh báo hai nguồn không khớp kỳ");
+        assert.strictEqual(a.severity, "critical");
+        assert.ok(/TẢI LẠI|xuất lại|CHỪNG MỰC/i.test(a.hint));
+    });
+
+    t("cùng một loại quá 3 cái thì gộp lại, không đẻ ra trăm thẻ cảnh báo", () => {
+        const fb = [fbRow("T1", "05/09/2026", 500000)];
+        const bank = [bankRow("05/09/2026", 500000)];
+        for (let i = 0; i < 12; i++) bank.push(bankRow("0" + ((i % 8) + 1) + "/09/2026", 50000 + i, "PHI GIAO DICH QUOC TE FACEBK", "P" + i));
+        const r = chay(fb, bank);
+        const phi = r.alerts.filter((x) => x.code === "PHI_THE_RIENG");
+        assert.strictEqual(phi.length, 1, "12 khoản phí lẻ phải gộp thành MỘT thẻ cảnh báo");
+        assert.strictEqual(phi[0].count, 12);
+        assert.ok(phi[0].title.includes("12 khoản phí thẻ lẻ"));
+        assert.ok(phi[0].amount > 0, "thẻ gộp phải mang tổng tiền");
+    });
+
+    t("hai dòng cùng giá mà CẢ HAI đều không có hoá đơn thì KHÔNG kết luận trừ trùng", () => {
+        // Facebook cắt tiền theo ngưỡng nên cùng số tiền lặp lại là bình thường.
+        // Kết luận trừ trùng ở đây là đẩy người ta đi khiếu nại ngân hàng oan.
+        const r = chay([fbRow("T1", "01/09/2026", 9000000)],
+                       [bankRow("04/09/2026", 466253, "FACEBK *A VISA*4281", "F1"),
+                        bankRow("04/09/2026", 466253, "FACEBK *B VISA*4281", "F2")]);
+        assert.ok(!r.alerts.some((x) => x.code === "TRU_TRUNG"), "không được kết luận trừ trùng khi chưa có hoá đơn nào khớp");
+    });
+
     console.log("── Tiền không được biến mất giữa đường ──");
     t("tổng khớp + tổng dư = tổng nguồn, cả hai phía", () => {
         const r = chay([fbRow("T1", "01/09/2026", 12500000), fbRow("T2", "07/09/2026", 5600000)],

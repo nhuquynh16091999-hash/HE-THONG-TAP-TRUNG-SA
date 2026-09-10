@@ -48,6 +48,31 @@ export function buildAlerts({ fb, bank, match, cfg, roster = null, history = [] 
     const bankStart = bankDates[0], bankEnd = bankDates[bankDates.length - 1];
     const window = cfg.match.date_window_days ?? 3;
 
+    // ── 0. Hai nguồn có vẻ không cùng một kỳ / một file thiếu ────────────
+    //
+    // Phải kiểm TRƯỚC mọi kết luận chi tiết. Nếu một phía thiếu dữ liệu thì
+    // hàng trăm cảnh báo bên dưới đều đúng luật nhưng sai bản chất: dòng thẻ
+    // nào cũng "không có hoá đơn", và người đọc chết chìm trong báo động giả
+    // thay vì biết việc cần làm là TẢI LẠI CHO ĐỦ FILE.
+    const fbChargeable = fb.rows.filter((r) => r.status_norm !== "failed").length;
+    if (fbChargeable && bank.rows.length) {
+        const tyLeKhop = match.pairs.length / Math.max(1, Math.min(fbChargeable, bank.rows.length));
+        const lechNang = bankStart && fbDates.length &&
+            (daysBetween(bankStart, fbDates[0]) > window || daysBetween(fbDates[fbDates.length - 1], bankEnd) > window);
+        if (tyLeKhop < 0.5 || lechNang) {
+            const thieuBenNao = bank.rows.length > fbChargeable * 2 ? "chi phí TKQC"
+                              : fbChargeable > bank.rows.length * 2 ? "sao kê thẻ" : null;
+            A("NGUON_LECH_NHAU", CRIT,
+              `Hai nguồn không khớp kỳ nhau — chỉ ghép được ${match.pairs.length}/${fbChargeable}`,
+              `TKQC: ${fbDates[0]} → ${fbDates[fbDates.length - 1]} (${fbChargeable} hoá đơn, ${fmtVND(spentFbSoBo(fb))}). ` +
+              `Sao kê: ${bankStart} → ${bankEnd} (${bank.rows.length} dòng, ${fmtVND(bank.rows.reduce((s2, r) => s2 + r.amount, 0))}).` +
+              (thieuBenNao ? ` Nhiều khả năng file ${thieuBenNao} còn thiếu.` : ""),
+              { amount: 0,
+                hint: "ĐỌC CẢNH BÁO BÊN DƯỚI CÓ CHỪNG MỰC — khi một phía thiếu dữ liệu thì mọi dòng bên kia đều trông như 'không có hoá đơn'. " +
+                      "Việc cần làm trước: xuất lại file cho đủ đúng kỳ (bản kê TKQC nhiều trang nhớ lấy hết trang), rồi chạy lại." });
+        }
+    }
+
     // ── 1. Lệch số tiền trên cặp đã khớp ─────────────────────────────────
     const feeCfg = cfg.fee || {};
     let feeTotal = 0;
@@ -100,8 +125,14 @@ export function buildAlerts({ fb, bank, match, cfg, roster = null, history = [] 
             continue;
         }
 
-        // Có anh em cùng số tiền trong khung ngày → nghi trừ trùng, xử ở luật 4
-        const sibling = [...match.pairs.map((p) => p.bank), ...match.bank_unmatched]
+        // Nghi trừ trùng CHỈ khi anh em cùng số tiền ĐÃ ghép được một hoá đơn.
+        //
+        // Bản đầu nhận cả anh em chưa ghép, và trên dữ liệu thật nó nổ 40 cảnh
+        // báo giả: Facebook cắt tiền theo ngưỡng nên cùng một số tiền lặp lại
+        // suốt là bình thường. Hai dòng cùng giá mà CẢ HAI đều không có hoá đơn
+        // thì đó là dấu hiệu file TKQC thiếu, không phải bị trừ hai lần —
+        // kết luận sai hướng, lại còn đẩy người ta đi khiếu nại ngân hàng oan.
+        const sibling = match.pairs.map((p) => p.bank)
             .find((o) => o !== r && Math.abs(o.amount - r.amount) <= (cfg.duplicate?.amount_tolerance_abs ?? 0)
                       && Math.abs(daysBetween(o.date, r.date)) <= (cfg.duplicate?.window_days ?? 2));
         if (sibling) { dupSeen.set(r, sibling); continue; }
@@ -311,10 +342,11 @@ export function buildAlerts({ fb, bank, match, cfg, roster = null, history = [] 
     }
 
     const order = { critical: 0, warn: 1, info: 2 };
-    alerts.sort((a, b) => order[a.severity] - order[b.severity] || (b.amount || 0) - (a.amount || 0));
+    const gom = gomCanhBao(alerts);
+    gom.sort((a, b) => order[a.severity] - order[b.severity] || (b.amount || 0) - (a.amount || 0));
 
     return {
-        alerts,
+        alerts: gom,
         summary: {
             fb_total: spentFb,
             bank_total: spentBank,
@@ -323,13 +355,71 @@ export function buildAlerts({ fb, bank, match, cfg, roster = null, history = [] 
             gap: spentBank - spentFb,
             at_risk: alerts.filter((a) => a.severity === CRIT).reduce((s, a) => s + (a.amount || 0), 0),
             counts: {
-                critical: alerts.filter((a) => a.severity === CRIT).length,
-                warn: alerts.filter((a) => a.severity === WARN).length,
-                info: alerts.filter((a) => a.severity === INFO).length,
+                critical: gom.filter((a) => a.severity === CRIT).length,
+                warn: gom.filter((a) => a.severity === WARN).length,
+                info: gom.filter((a) => a.severity === INFO).length,
             },
+            so_dong_canh_bao: alerts.length,
             period: { bank_start: bankStart, bank_end: bankEnd, fb_start: fbDates[0], fb_end: fbDates[fbDates.length - 1] },
         },
     };
+}
+
+/**
+ * GOM CẢNH BÁO CÙNG LOẠI.
+ *
+ * Trên dữ liệu thật, một kỳ đẻ ra 167 cảnh báo — trong đó 68 cái cùng là "phí
+ * thẻ lẻ". Không ai đọc hết 167 thẻ, mà không đọc hết thì cái nghiêm trọng
+ * nằm lẫn ở giữa cũng trôi luôn. Cùng một loại quá 3 cái thì gộp thành MỘT,
+ * mang tổng tiền và vài dòng nặng nhất; chi tiết từng dòng vẫn nằm đủ trong
+ * bảng bên dưới và trong file CSV xuất ra.
+ */
+const NHAN_GOM = {
+    THE_TRU_MA_KHONG_CO_HOA_DON: "khoản thẻ bị trừ mà TKQC không có hoá đơn",
+    TRU_TRUNG: "khoản nghi bị trừ trùng",
+    FB_THU_MA_THE_KHONG_TRU: "hoá đơn TKQC chưa thấy thẻ trừ",
+    FB_LOI_MA_VAN_TRU: "hoá đơn báo lỗi mà thẻ vẫn trừ",
+    PHI_AN: "giao dịch ngân hàng trừ nhiều hơn hoá đơn",
+    TRU_THIEU: "giao dịch ngân hàng trừ ít hơn hoá đơn",
+    PHI_THE_RIENG: "khoản phí thẻ lẻ",
+    LECH_THE: "cặp hoá đơn và sao kê ghi hai thẻ khác nhau",
+    NGAY_DOT_BIEN: "ngày chi đột biến",
+    TRUNG_GIUA_FILE: "nhóm dòng trùng giữa các file",
+};
+const NGUONG_GOM = 3;
+
+function gomCanhBao(alerts) {
+    const theoMa = new Map();
+    for (const a of alerts) {
+        if (!theoMa.has(a.code)) theoMa.set(a.code, []);
+        theoMa.get(a.code).push(a);
+    }
+
+    const ra = [];
+    for (const [code, ds] of theoMa) {
+        if (ds.length <= NGUONG_GOM || !NHAN_GOM[code]) { ra.push(...ds); continue; }
+
+        const rank = { critical: 0, warn: 1, info: 2 };
+        const nangNhat = ds.reduce((m, a) => (rank[a.severity] < rank[m.severity] ? a : m), ds[0]);
+        const tong = ds.reduce((s2, a) => s2 + (a.amount || 0), 0);
+        const top = [...ds].sort((a, b) => (b.amount || 0) - (a.amount || 0)).slice(0, 5);
+
+        ra.push({
+            code, severity: nangNhat.severity,
+            title: `${ds.length} ${NHAN_GOM[code]} — tổng ${fmtVND(tong)}`,
+            detail: "Nặng nhất: " + top.map((a) => a.title.replace(/^\d+ /, "")).join(" · ") +
+                    (ds.length > 5 ? ` … và ${ds.length - 5} khoản nữa.` : ""),
+            hint: nangNhat.hint,
+            amount: tong,
+            count: ds.length,
+            items: ds.flatMap((a) => a.items || []),
+        });
+    }
+    return ra;
+}
+
+function spentFbSoBo(fb) {
+    return fb.rows.filter((r) => r.status_norm !== "failed").reduce((s, r) => s + r.amount, 0);
 }
 
 function ref(r) {

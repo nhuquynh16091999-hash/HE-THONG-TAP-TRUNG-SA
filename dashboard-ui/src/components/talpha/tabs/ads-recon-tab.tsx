@@ -17,7 +17,7 @@ import { VND, d6 } from "./ledger-shared";
    ═══════════════════════════════════════════════════════════════════ */
 
 type Sev = "critical" | "warn" | "info";
-type Alert = { code: string; severity: Sev; title: string; detail: string; hint: string; amount: number };
+type Alert = { code: string; severity: Sev; title: string; detail: string; hint: string; amount: number; count?: number };
 type FbRow = { line: number; date: string; amount: number; card4: string | null; txn_id: string; account_id: string; account_name: string; status: string };
 type BankRow = { line: number; date: string; amount: number; card4: string | null; desc: string; ref: string; balance: number | null };
 type Pair = {
@@ -27,6 +27,7 @@ type Pair = {
 type Summary = {
     fb_total: number; bank_total: number; fee_total: number; gap: number; at_risk: number;
     counts: { critical: number; warn: number; info: number };
+    so_dong_canh_bao?: number;
     period: { bank_start?: string; bank_end?: string; fb_start?: string; fb_end?: string };
 };
 type Result = {
@@ -336,6 +337,8 @@ export default function TALPHAAdsReconTab() {
                             </h3>
                             <span className="text-xs text-muted-foreground">
                                 {s.counts.critical} nghiêm trọng · {s.counts.warn} cần xem · {s.counts.info} ghi nhận
+                                {s.so_dong_canh_bao && s.so_dong_canh_bao > s.counts.critical + s.counts.warn + s.counts.info
+                                    ? ` · gộp từ ${s.so_dong_canh_bao} dòng` : ""}
                             </span>
                             <label className="ml-auto flex items-center gap-1.5 text-xs text-muted-foreground">
                                 <input type="checkbox" checked={hideInfo} onChange={(e) => setHideInfo(e.target.checked)} />
@@ -348,6 +351,11 @@ export default function TALPHAAdsReconTab() {
                                 <div key={i} className={cn("rounded-lg border-l-4 p-3", SEV_BOX[a.severity])}>
                                     <div className="flex items-start gap-2">
                                         <div className="flex-1 text-sm font-semibold">{a.title}</div>
+                                        {a.count && a.count > 1 && (
+                                            <span className="shrink-0 rounded-full bg-black/[0.06] px-2 py-0.5 text-[10px] font-semibold dark:bg-white/10">
+                                                {a.count} khoản
+                                            </span>
+                                        )}
                                         <code className="shrink-0 text-[10px] text-muted-foreground">{a.code}</code>
                                     </div>
                                     {a.detail && <div className="mt-1 text-xs text-muted-foreground">{a.detail}</div>}
