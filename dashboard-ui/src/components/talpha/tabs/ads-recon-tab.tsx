@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Upload, Download, Send, Trash2, AlertTriangle, CheckCircle2, FileSpreadsheet } from "lucide-react";
+import { Upload, Download, Send, Trash2, AlertTriangle, CheckCircle2, FileSpreadsheet, Database } from "lucide-react";
 import TabSkeleton, { ErrorState } from "@/components/ui/tab-skeleton";
 import { cn } from "../utils";
 import { VND, d6 } from "./ledger-shared";
@@ -18,8 +18,8 @@ import { VND, d6 } from "./ledger-shared";
 
 type Sev = "critical" | "warn" | "info";
 type Alert = { code: string; severity: Sev; title: string; detail: string; hint: string; amount: number; count?: number };
-type FbRow = { line: number; date: string; amount: number; card4: string | null; txn_id: string; account_id: string; account_name: string; status: string };
-type BankRow = { line: number; date: string; amount: number; card4: string | null; desc: string; ref: string; balance: number | null };
+type FbRow = { line: number; file?: string; date: string; amount: number; card4: string | null; txn_id: string; account_id: string; account_name: string; status: string };
+type BankRow = { line: number; file?: string; date: string; amount: number; card4: string | null; desc: string; ref: string; balance: number | null };
 type Pair = {
     fb: FbRow; bank: BankRow; date_diff: number; amount_diff: number;
     exact: boolean; ambiguous: boolean; card_ok: boolean; confidence: "cao" | "vua" | "thap";
@@ -36,8 +36,16 @@ type Result = {
     alerts: Alert[]; pairs: Pair[];
     fb_unmatched: FbRow[]; bank_unmatched: BankRow[]; fb_failed: FbRow[]; other_ads: BankRow[];
     files?: { fb?: FileMeta[]; bank?: FileMeta[] };
+    nguon?: NguonKho[];
+    nap?: Nap;
+    kho?: { fb: number; bank: number };
+    tkqc_ten?: Record<string, string>;
+    chua_du?: boolean;
+    thieu?: string;
 };
 type FileMeta = { ten: string; sheet?: string; so_dong: number };
+type NguonKho = { ten: string; phia: "fb" | "bank"; so_dong: number; tien: number; tu: string | null; den: string | null; tkqc: string[] };
+type Nap = { fb: { them: number; trung: number }; bank: { them: number; trung: number } };
 type KyMeta = { ky: string; chay_luc: string; summary?: Summary };
 
 const API = "/api/talpha/ads-recon";
@@ -74,13 +82,27 @@ export default function TALPHAAdsReconTab() {
     const [swapped, setSwapped] = useState("");
     const [matKhau, setMatKhau] = useState("");
     const [canMatKhau, setCanMatKhau] = useState<{ file: string; sai: boolean } | null>(null);
+    const [kho, setKho] = useState<{ kho: { fb: number; bank: number }; nguon: NguonKho[] } | null>(null);
+    const [tenTkqc, setTenTkqc] = useState<Record<string, string>>({});
     const fbRef = useRef<HTMLInputElement>(null);
     const bankRef = useRef<HTMLInputElement>(null);
 
     const openKy = useCallback(async (ky: string) => {
         const r = await fetch(`${API}?ky=${encodeURIComponent(ky)}`);
         const j = await r.json();
-        if (r.ok) setRes(j); else setError(j.error || "Không mở được kỳ");
+        if (!r.ok) { setError(j.error || "Không mở được kỳ"); return; }
+        setRes(j);
+        if (j.tkqc_ten) setTenTkqc(j.tkqc_ten);
+    }, []);
+
+    const napKho = useCallback(async () => {
+        try {
+            const r = await fetch(`${API}?kho=1`);
+            if (!r.ok) return;
+            const j = await r.json();
+            setKho(j);
+            if (j.tkqc_ten) setTenTkqc(j.tkqc_ten);
+        } catch { /* kho hỏng không được chặn phần còn lại */ }
     }, []);
 
     const refresh = useCallback(async (openLatest = false) => {
@@ -97,7 +119,7 @@ export default function TALPHAAdsReconTab() {
         }
     }, [openKy]);
 
-    useEffect(() => { refresh(true); }, [refresh]);
+    useEffect(() => { refresh(true); napKho(); }, [refresh, napKho]);
 
     // ── Chạy đối soát ────────────────────────────────────────────────────
     /**
@@ -107,7 +129,7 @@ export default function TALPHAAdsReconTab() {
      * không hiểu vì sao số ra lạ.
      */
     const run = async () => {
-        if (!fbFiles.length || !bankFiles.length) return;
+        if (!fbFiles.length && !bankFiles.length) return;
         setBusy(true); setNote({ text: "Đang đọc file và đối soát…" }); setSwapped("");
         try {
             const fd = new FormData();
@@ -134,11 +156,20 @@ export default function TALPHAAdsReconTab() {
                     `Đã phân loại lại theo nội dung file — chi phí TKQC: ${mayDoc.join(", ") || "(không có)"} · ` +
                     `sao kê: ${(j.files?.bank || []).map((f: FileMeta) => f.ten).join(", ")}. Kết quả bên dưới vẫn đúng.`);
             }
-            setRes(j); setNote(null);
+            const n = j.nap as Nap | undefined;
+            const themMoi = (n?.fb.them || 0) + (n?.bank.them || 0);
+            const boTrung = (n?.fb.trung || 0) + (n?.bank.trung || 0);
+            setNote({
+                text: `Đã cất ${themMoi} dòng mới vào kho` +
+                      (boTrung ? `, bỏ ${boTrung} dòng đã có sẵn` : "") +
+                      (j.chua_du ? `. Còn thiếu file ${j.thieu} — bổ sung lúc nào cũng đối soát tiếp được.` : "."),
+            });
+            if (j.tkqc_ten) setTenTkqc(j.tkqc_ten);
+            if (!j.chua_du) setRes(j);
             setFbFiles([]); setBankFiles([]);
             if (fbRef.current) fbRef.current.value = "";
             if (bankRef.current) bankRef.current.value = "";
-            await refresh();
+            await Promise.all([refresh(), napKho()]);
         } catch (e) {
             setNote({ text: (e as Error).message, bad: true });
         } finally {
@@ -158,6 +189,14 @@ export default function TALPHAAdsReconTab() {
         } catch (e) {
             setNote({ text: (e as Error).message, bad: true });
         } finally { setBusy(false); }
+    };
+
+    /** Rút một file khỏi kho — tải nhầm thì gỡ ra, không phải xoá sạch làm lại. */
+    const boNguon = async (ten: string) => {
+        if (!confirm(`Rút "${ten}" khỏi kho? Mọi dòng đến từ file này sẽ bị bỏ.`)) return;
+        await fetch(`${API}?nguon=${encodeURIComponent(ten)}`, { method: "DELETE" });
+        await napKho();
+        setNote({ text: `Đã rút "${ten}" khỏi kho. Tải lại file bất kỳ để đối soát lại.` });
     };
 
     const xoaKy = async () => {
@@ -248,16 +287,15 @@ export default function TALPHAAdsReconTab() {
 
             <div className="flex flex-wrap items-center gap-3">
                 <button
-                    onClick={run} disabled={!fbFiles.length || !bankFiles.length || busy}
+                    onClick={run} disabled={(!fbFiles.length && !bankFiles.length) || busy}
                     className="rounded-lg bg-orange-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-orange-700 disabled:opacity-40"
                 >
                     {busy ? "Đang chạy…" : "Chạy đối soát"}
                 </button>
                 <span className="text-xs text-muted-foreground">
-                    {!fbFiles.length && !bankFiles.length ? "Cần ít nhất 2 file mới chạy được. Mỗi ô chọn được nhiều file."
-                        : !fbFiles.length ? "Còn thiếu file chi phí TKQC."
-                        : !bankFiles.length ? "Còn thiếu file sao kê thẻ."
-                        : `Sẽ đối soát ${fbFiles.length + bankFiles.length} file. Bỏ nhầm ô cũng không sao — máy phân loại lại theo nội dung.`}
+                    {!fbFiles.length && !bankFiles.length
+                        ? "Chọn file rồi bấm chạy. Mỗi ô nhiều file, và KHÔNG cần đủ hai phía cùng lúc — dữ liệu được cất vào kho."
+                        : `Sẽ nạp ${fbFiles.length + bankFiles.length} file vào kho rồi đối soát lại toàn bộ. Bỏ nhầm ô cũng không sao — máy phân loại theo nội dung.`}
                 </span>
             </div>
 
@@ -301,6 +339,61 @@ export default function TALPHAAdsReconTab() {
                     note.bad ? "bg-rose-50 text-rose-700 dark:bg-rose-500/10 dark:text-rose-300"
                              : "bg-muted/60 text-muted-foreground")}>
                     {note.text}
+                </div>
+            )}
+
+            {/* ═══ Kho dữ liệu ═══
+                Đây là chỗ trả lời câu "file nào thuộc TKQC nào". Bản kê thanh
+                toán của Facebook là của ĐÚNG MỘT tài khoản, nên nhìn cột TKQC
+                là biết ngay còn thiếu bản kê của ai.                        */}
+            {kho && kho.nguon.length > 0 && (
+                <div className="rounded-xl border border-border bg-card p-4 dark:bg-white/[0.03]">
+                    <div className="mb-3 flex flex-wrap items-center gap-3">
+                        <h3 className="flex items-center gap-2 text-sm font-semibold">
+                            <Database className="h-4 w-4 text-muted-foreground" /> Kho dữ liệu
+                        </h3>
+                        <span className="text-xs text-muted-foreground">
+                            {kho.kho.fb} dòng chi phí TKQC · {kho.kho.bank} dòng sao kê · giữ lại giữa các lần tải
+                        </span>
+                    </div>
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                            <thead className="border-b border-border">
+                                <tr>{["File", "Phía", "Tài khoản quảng cáo", "Số dòng", "Số tiền", "Khoảng ngày", ""]
+                                    .map((h) => <th key={h} className={TH}>{h}</th>)}</tr>
+                            </thead>
+                            <tbody>
+                                {kho.nguon.map((n) => (
+                                    <tr key={n.phia + n.ten} className="border-b border-border/60">
+                                        <td className="px-3 py-2 min-w-[220px] font-medium">{n.ten}</td>
+                                        <td className={TD}>
+                                            <span className={cn("rounded-full px-2 py-0.5 text-[11px] font-semibold",
+                                                n.phia === "fb" ? "bg-sky-100 text-sky-800 dark:bg-sky-500/15 dark:text-sky-300"
+                                                                : "bg-violet-100 text-violet-800 dark:bg-violet-500/15 dark:text-violet-300")}>
+                                                {n.phia === "fb" ? "TKQC" : "Sao kê"}
+                                            </span>
+                                        </td>
+                                        <td className="px-3 py-2 min-w-[160px]">
+                                            {n.tkqc.length
+                                                ? n.tkqc.map((t) => tenTkqc[t.replace(/^act_/, "")] || t).join(", ")
+                                                : <span className="text-muted-foreground">—</span>}
+                                        </td>
+                                        <td className={cn(TD, "text-right tabular-nums")}>{n.so_dong}</td>
+                                        <td className={cn(TD, "text-right tabular-nums")}>{VND(n.tien)}</td>
+                                        <td className={cn(TD, "text-muted-foreground")}>{d6(n.tu)} → {d6(n.den)}</td>
+                                        <td className={TD}>
+                                            <button
+                                                onClick={() => boNguon(n.ten)}
+                                                className="text-muted-foreground hover:text-rose-600" title="Rút file này khỏi kho"
+                                            >
+                                                <Trash2 className="h-3.5 w-3.5" />
+                                            </button>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             )}
 
@@ -456,7 +549,7 @@ function Bang({ tab, res }: { tab: string; res: Result }) {
                         <tr key={i} className={cn("border-b border-border/60", !p.exact && "bg-amber-50/40 dark:bg-amber-500/[0.04]")}>
                             <td className={TD}>{d6(p.fb.date)}</td>
                             <td className={TD}>{p.fb.txn_id}</td>
-                            <td className="px-3 py-2 min-w-[160px]">{p.fb.account_name || p.fb.account_id}</td>
+                            <td className="px-3 py-2 min-w-[160px]">{tenTk(p.fb, res)}</td>
                             <td className={cn(TD, "text-right tabular-nums")}>{VND(p.fb.amount)}</td>
                             <td className={TD}>{d6(p.bank.date)}</td>
                             <td className="px-3 py-2 min-w-[200px] text-muted-foreground">{p.bank.desc}</td>
@@ -494,7 +587,7 @@ function Bang({ tab, res }: { tab: string; res: Result }) {
                         <tr key={i} className="border-b border-border/60">
                             <td className={TD}>{d6(r.date)}</td>
                             <td className={TD}>{r.txn_id}</td>
-                            <td className="px-3 py-2 min-w-[160px]">{r.account_name || r.account_id}</td>
+                            <td className="px-3 py-2 min-w-[160px]">{tenTk(r, res)}</td>
                             <td className={cn(TD, "text-right tabular-nums font-semibold")}>{VND(r.amount)}</td>
                             <td className={TD}>{r.card4 || "·"}</td>
                             <td className={TD}>{r.status}</td>
@@ -534,3 +627,10 @@ function Bang({ tab, res }: { tab: string; res: Result }) {
 }
 
 const Trong = () => <div className="py-8 text-center text-sm text-muted-foreground">Không có dòng nào.</div>;
+
+/** Tên tài khoản quảng cáo cho dễ đọc; không tra được thì trả lại id. */
+function tenTk(r: FbRow, res: Result) {
+    if (r.account_name) return r.account_name;
+    const id = (r.account_id || "").replace(/^act_/, "");
+    return (id && res.tkqc_ten?.[id]) || r.account_id || "—";
+}

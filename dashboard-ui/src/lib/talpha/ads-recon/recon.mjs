@@ -21,7 +21,7 @@ import { isoWeek } from "./normalize.mjs";
  * xuất theo từng tài khoản thì mấy bản chi phí. Bắt gộp tay bằng Excel trước
  * khi tải lên là trả việc về đúng chỗ mà hệ thống này sinh ra để bỏ đi.
  */
-export function splitSources(docs, cfg) {
+export function splitSources(docs, cfg, opts = {}) {
     const fb = [], bank = [], mo = [];
     for (const d of docs) {
         const k = d.kind ?? detectKind(d.sheets, cfg);
@@ -30,10 +30,12 @@ export function splitSources(docs, cfg) {
         else mo.push(d);
     }
     // File không nhận ra được thì dồn về phía đang thiếu — một phía trống là
-    // không đối soát được gì cả.
-    for (const d of mo) (fb.length && !bank.length ? bank : fb).push(d);
+    // không đối soát được gì cả. Nhưng khi chỉ đang NẠP KHO thì không dồn bừa:
+    // lúc đó một phía trống là chuyện bình thường, dồn nhầm mới là tai hoạ.
+    if (!opts.chapNhanMotPhia) for (const d of mo) (fb.length && !bank.length ? bank : fb).push(d);
+    else for (const d of mo) (detectKind(d.sheets, cfg) === "bank" ? bank : fb).push(d);
 
-    if (!fb.length || !bank.length) {
+    if (!opts.chapNhanMotPhia && (!fb.length || !bank.length)) {
         throw new Error(
             `Cần cả hai phía: ${fb.length} file chi phí TKQC và ${bank.length} file sao kê. ` +
             `Kiểm tra lại nội dung file, hoặc thêm bí danh cột vào ads_settlement.columns.`);
@@ -119,12 +121,39 @@ function ingestSide(docs, cfg, kind) {
  * @param {object} [roster] — ad_accounts.json, để bắt TKQC lạ
  * @param {Array}  [history]— các kỳ TRƯỚC, để bắt tăng vọt
  */
-export function reconcile(docs, cfg, { roster = null, history = [] } = {}) {
-    const list = Array.isArray(docs) ? docs : [docs];
-    const { fb: fbDocs, bank: bankDocs } = splitSources(list, cfg);
+export function reconcile(docs, cfg, opts = {}) {
+    const { fb, bank } = ingestDocs(docs, cfg);
+    return reconcileRows(fb, bank, cfg, opts);
+}
 
-    const fb = ingestSide(fbDocs, cfg, "fb");
-    const bank = ingestSide(bankDocs, cfg, "bank");
+/**
+ * Đọc các file thành hai phía, KHÔNG đối soát.
+ * Tách ra để đường "kho dữ liệu" đọc file xong đem cất, rồi mới đối soát trên
+ * toàn bộ kho — chứ không phải chỉ trên mấy file vừa tải lên.
+ *
+ * `chapNhanMotPhia` chỉ đúng cho đường nạp kho: nạp mỗi bản kê TKQC hôm nay,
+ * mai bổ sung sao kê là chuyện thường. Còn gọi thẳng reconcile() mà thiếu một
+ * phía thì phải báo lỗi — không có gì để đối soát cả.
+ */
+export function ingestDocs(docs, cfg, { chapNhanMotPhia = false } = {}) {
+    const list = Array.isArray(docs) ? docs : [docs];
+    const chia = splitSources(list, cfg, { chapNhanMotPhia });
+    return {
+        fb: chia.fb.length ? ingestSide(chia.fb, cfg, "fb") : sideRong(),
+        bank: chia.bank.length ? ingestSide(chia.bank, cfg, "bank") : sideRong(),
+    };
+}
+
+const sideRong = () => ({ rows: [], trung_file: [], file_hong: [], other_ads: [], skipped: [], meta: { files: [], warnings: [] } });
+
+/**
+ * Đối soát trên HAI DANH SÁCH DÒNG đã có sẵn (thường là toàn bộ kho).
+ * @param {object} fb   phía chi phí TKQC — { rows, ... }
+ * @param {object} bank phía sao kê — { rows, ... }
+ * @param {object} cfg
+ * @param {{roster?: object|null, history?: any[]}} [opts]
+ */
+export function reconcileRows(fb, bank, cfg, { roster = null, history = [] } = {}) {
     const match = matchTransactions(fb.rows, bank.rows, cfg);
 
     // Mã kỳ lấy theo NGÀY ĐẦU CỦA SAO KÊ, không phải ngày sớm nhất của mọi
@@ -173,6 +202,7 @@ function slim(r) {
 }
 
 export { readSheets, readAnySheets } from "./xlsx.mjs";
+export { napVaoKho, boNguon, tomTatNguon, khoaFb, khoaBank } from "./kho.mjs";
 export { detectKind } from "./ingest.mjs";
 export { toCsv } from "./csv.mjs";
 export { buildMessage, sendAlerts } from "./notify.mjs";

@@ -5,7 +5,8 @@ import { RULES } from "@/lib/talpha/rules";
 import { readStoreFresh, updateStore } from "@/lib/talpha/store";
 import { MAX_UPLOAD_BYTES, tooBigMessage } from "@/lib/talpha/upload-limit";
 import {
-    reconcile, readAnySheets, detectKind, toCsv, sendAlerts,
+    ingestDocs, reconcileRows, readAnySheets, detectKind, toCsv, sendAlerts,
+    napVaoKho, boNguon, tomTatNguon,
 } from "@/lib/talpha/ads-recon/recon.mjs";
 
 export const dynamic = "force-dynamic";
@@ -29,12 +30,18 @@ export const runtime = "nodejs";           // engine đọc .xlsx bằng node:zl
 // ═══════════════════════════════════════════════════════════════════
 
 const STORE = "ads_recon";
+const KHO = "ads_recon_kho";        // kho dòng giao dịch tích luỹ
 const GIU_TOI_DA = 52;                     // một năm; kỳ cũ hơn tự rụng khỏi kho
 const TOI_DA_FILE = 12;                    // đủ cho nhiều thẻ + nhiều TKQC trong một kỳ
 
-type Period = { ky: string; chay_luc: string; summary?: Record<string, unknown> };
+type Period = { ky: string; chay_luc: string; summary?: Record<string, unknown> } & Record<string, unknown>;
 type Store = { periods: Period[] };
 const EMPTY: Store = { periods: [] };
+
+/** Kho dòng giao dịch — cất lại để lần sau bổ sung file là đối soát tiếp được. */
+type Dong = Record<string, unknown> & { _key: string; file?: string; date?: string; amount?: number };
+type Kho = { fb: Dong[]; bank: Dong[] };
+const KHO_RONG: Kho = { fb: [], bank: [] };
 
 /** Khối luật ads_settlement trong talpha_rules.json. */
 function cfg() {
@@ -55,6 +62,16 @@ function roster(c: ReturnType<typeof cfg>) {
     }
 }
 
+/** act_xxx → tên người đọc được, lấy từ roster. */
+function tenTkqc(rosterJson: unknown) {
+    const ra: Record<string, string> = {};
+    const projects = (rosterJson as { projects?: Record<string, { accounts?: { id?: string; name?: string }[] }> })?.projects || {};
+    for (const p of Object.values(projects)) {
+        for (const a of p.accounts || []) if (a.id) ra[String(a.id).replace(/^act_/i, "")] = a.name || a.id;
+    }
+    return ra;
+}
+
 const sortKy = (a: Period, b: Period) => (a.ky < b.ky ? 1 : a.ky > b.ky ? -1 : 0);   // mới → cũ
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -62,6 +79,15 @@ export async function GET(req: NextRequest) {
     try {
         const ky = req.nextUrl.searchParams.get("ky");
         const store = await readStoreFresh<Store>(STORE, EMPTY);
+
+        if (req.nextUrl.searchParams.get("kho") === "1") {
+            const kho = await readStoreFresh<Kho>(KHO, KHO_RONG);
+            return NextResponse.json({
+                kho: { fb: kho.fb.length, bank: kho.bank.length },
+                nguon: [...tomTatNguon(kho.fb, "fb"), ...tomTatNguon(kho.bank, "bank")],
+                tkqc_ten: tenTkqc(roster(cfg())),
+            });
+        }
 
         if (!ky) {
             // Danh sách gọn cho ô chọn kỳ — không kéo cả nghìn dòng chi tiết về
@@ -108,10 +134,11 @@ export async function POST(req: NextRequest) {
         // ── Nhận 2 file rồi đối soát ─────────────────────────────────────
         const form = await req.formData();
         const files = form.getAll("file").filter((f): f is File => f instanceof File && f.size > 0);
-        if (files.length < 2) {
-            return NextResponse.json({
-                error: "Cần ít nhất 2 file: chi phí thanh toán từ TKQC Facebook và sao kê thẻ ngân hàng.",
-            }, { status: 400 });
+        // MỘT file cũng nhận: dữ liệu được cất vào kho, bổ sung phía kia lúc nào
+        // cũng đối soát tiếp được. Bắt phải gom đủ mọi file rồi tải một lượt là
+        // đặt điều kiện sai với đời thật — file về rải rác chứ không cùng lúc.
+        if (!files.length) {
+            return NextResponse.json({ error: "Chưa chọn file nào." }, { status: 400 });
         }
         if (files.length > TOI_DA_FILE) {
             return NextResponse.json({
@@ -125,6 +152,8 @@ export async function POST(req: NextRequest) {
         // Mật khẩu chỉ dùng cho đúng lượt đọc này — không ghi vào kho, không
         // vào log, không nằm trong kết quả trả về.
         const matKhau = String(form.get("matkhau") || "").trim();
+        // Mặc định CỘNG DỒN vào kho. Muốn làm lại từ đầu thì gửi lam_moi=1.
+        const lamMoi = String(form.get("lam_moi") || "") === "1";
 
         const doc = [];
         for (const f of files) {
@@ -143,15 +172,51 @@ export async function POST(req: NextRequest) {
             }
         }
 
-        const truoc = await readStoreFresh<Store>(STORE, EMPTY);
-        let result;
+        // ── 1. Đọc file thành hai phía (KHÔNG đối soát vội) ──────────────
+        let doc2;
         try {
-            result = reconcile(doc, c, { roster: roster(c), history: truoc.periods });
+            doc2 = ingestDocs(doc, c, { chapNhanMotPhia: true });
         } catch (e) {
-            // Lỗi ở đây là lỗi ĐỌC HIỂU file (thiếu cột, không phân biệt được
-            // nguồn) — nói thẳng thiếu gì để người dùng sửa file, đừng nuốt.
+            // Lỗi ĐỌC HIỂU file (thiếu cột, không nhận ra nguồn) — nói thẳng
+            // thiếu gì để người dùng sửa file, đừng nuốt.
             return NextResponse.json({ error: (e as Error).message }, { status: 422 });
         }
+
+        // ── 2. Nạp vào kho, bỏ dòng đã có ────────────────────────────────
+        const nap = { fb: { them: 0, trung: 0 }, bank: { them: 0, trung: 0 } };
+        const khoMoi = await updateStore<Kho>(KHO, KHO_RONG, (cur) => {
+            const goc = lamMoi ? KHO_RONG : cur;
+            const a = napVaoKho(goc.fb, "fb", doc2.fb.rows);
+            const b = napVaoKho(goc.bank, "bank", doc2.bank.rows);
+            nap.fb = { them: a.them.length, trung: a.trung.length };
+            nap.bank = { them: b.them.length, trung: b.trung.length };
+            return { fb: a.kho, bank: b.kho };
+        });
+
+        // ── 3. Đối soát trên TOÀN BỘ kho ─────────────────────────────────
+        const nguon = [...tomTatNguon(khoMoi.fb, "fb"), ...tomTatNguon(khoMoi.bank, "bank")];
+        if (!khoMoi.fb.length || !khoMoi.bank.length) {
+            // Mới có một phía thì chưa đối soát được, nhưng dữ liệu ĐÃ CẤT rồi —
+            // bổ sung phía kia lúc nào cũng chạy tiếp được.
+            return NextResponse.json({
+                chua_du: true, nap, nguon,
+                kho: { fb: khoMoi.fb.length, bank: khoMoi.bank.length },
+                thieu: !khoMoi.fb.length ? "chi phí TKQC" : "sao kê thẻ",
+                tkqc_ten: tenTkqc(roster(c)),
+            });
+        }
+
+        const truoc = await readStoreFresh<Store>(STORE, EMPTY);
+        const chay = reconcileRows(
+            { ...doc2.fb, rows: khoMoi.fb },
+            { ...doc2.bank, rows: khoMoi.bank },
+            c, { roster: roster(c), history: truoc.periods });
+
+        const result: Period = {
+            ...chay, nap, nguon,
+            kho: { fb: khoMoi.fb.length, bank: khoMoi.bank.length },
+            tkqc_ten: tenTkqc(roster(c)),
+        };
 
         await updateStore<Store>(STORE, EMPTY, (cur) => {
             const rest = (cur.periods || []).filter((p) => p.ky !== result.ky);   // chạy lại thì đè kỳ cũ
@@ -168,8 +233,17 @@ export async function POST(req: NextRequest) {
 // ─────────────────────────────────────────────────────────────────────────
 export async function DELETE(req: NextRequest) {
     try {
+        // Bỏ một file khỏi kho — tải nhầm thì rút ra, không phải xoá sạch làm lại.
+        const nguon = req.nextUrl.searchParams.get("nguon");
+        if (nguon) {
+            const kho = await updateStore<Kho>(KHO, KHO_RONG, (cur) => ({
+                fb: boNguon(cur.fb, nguon), bank: boNguon(cur.bank, nguon),
+            }));
+            return NextResponse.json({ ok: true, kho: { fb: kho.fb.length, bank: kho.bank.length } });
+        }
+
         const ky = req.nextUrl.searchParams.get("ky");
-        if (!ky) return NextResponse.json({ error: "Thiếu tham số ky" }, { status: 400 });
+        if (!ky) return NextResponse.json({ error: "Thiếu tham số ky hoặc nguon" }, { status: 400 });
         const next = await updateStore<Store>(STORE, EMPTY, (cur) => ({
             periods: (cur.periods || []).filter((p) => p.ky !== ky),
         }));

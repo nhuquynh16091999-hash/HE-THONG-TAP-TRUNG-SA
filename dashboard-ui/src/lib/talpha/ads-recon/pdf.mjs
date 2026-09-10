@@ -18,6 +18,67 @@
  * KHÔNG đọc được PDF scan (ảnh chụp) — loại đó không có lớp chữ nào bên trong.
  */
 
+/**
+ * GỘP DÒNG BỊ NGẮT.
+ *
+ * Ô quá dài thì PDF ngắt xuống dòng, và mảnh rơi ra thành một "dòng" riêng chỉ
+ * có đúng một ô. Bản kê Facebook là ví dụ điển hình: mã giao dịch dài 35 ký tự
+ * nằm vắt qua BA dòng — mảnh đầu ở trên, dữ liệu thật ở giữa, mảnh đuôi ở dưới:
+ *
+ *     [null, "28686702447685023-286684348028", null,  null,           null]
+ *     ["10/9/2026", null, "Visa ···· 2368", "738.214 ₫ (VND)", "Đã thanh toán"]
+ *     [null, "45117", null, null, null]
+ *
+ * Không gộp thì cột mã giao dịch trống trơn — mất luôn khoá duy nhất để nhận ra
+ * hai lần tải cùng một giao dịch, và mất cả cách ghép chắc chắn nhất với sao kê.
+ *
+ * Luật: dòng chỉ có MỘT ô là mảnh vỡ, dán vào dòng dữ liệu GẦN NHẤT, đúng cột,
+ * theo thứ tự đọc (mảnh ở trên dán trước, mảnh ở dưới dán sau).
+ */
+function gopDongBiNgat(rows) {
+    const demO = (r) => r.filter((c) => c != null && String(c).trim() !== "").length;
+    const laDuLieu = rows.map((r) => demO(r) >= 2);
+    if (!laDuLieu.some(Boolean)) return rows;
+
+    const trongO = (r, j) => r == null || r[j] == null || String(r[j]).trim() === "";
+
+    const truoc = rows.map(() => []), sau = rows.map(() => []);
+    for (let i = 0; i < rows.length; i++) {
+        if (laDuLieu[i] || demO(rows[i]) !== 1) continue;
+        const cot = rows[i].findIndex((c) => c != null && String(c).trim() !== "");
+
+        // Gần nhất thắng; hoà thì dòng nào ĐANG TRỐNG ô đó thắng. Không có luật
+        // hoà này thì dòng tiêu đề nuốt mất mảnh của giao dịch đầu tiên: nó
+        // cũng cách đúng một dòng, mà ô "ID giao dịch" của nó thì đã có chữ.
+        let gan = -1, diem = -Infinity;
+        for (let d = 1; d <= 2; d++) {
+            for (const j of [i - d, i + d]) {
+                if (!laDuLieu[j]) continue;
+                const d2 = -d * 10 + (trongO(rows[j], cot) ? 5 : 0);
+                if (d2 > diem) { diem = d2; gan = j; }
+            }
+        }
+        if (gan < 0) continue;
+        (gan > i ? truoc[gan] : sau[gan]).push(rows[i]);
+        laDuLieu[i] = null;                       // đã dán đi, không xuất riêng nữa
+    }
+
+    const ra = [];
+    for (let i = 0; i < rows.length; i++) {
+        if (laDuLieu[i] === null) continue;
+        if (!laDuLieu[i]) { ra.push(rows[i]); continue; }
+        const r = [...rows[i]];
+        for (const m of [...truoc[i], ...sau[i]]) {
+            m.forEach((c, j) => {
+                if (c == null || String(c).trim() === "") return;
+                r[j] = r[j] == null || String(r[j]).trim() === "" ? c : String(r[j]) + String(c);
+            });
+        }
+        ra.push(r);
+    }
+    return ra;
+}
+
 /** Gom theo x chồng lấn: ô canh phải (số tiền) lệch đầu nhưng vẫn phủ lên nhau. */
 function clusterColumns(cells) {
     const cols = [];
@@ -190,7 +251,7 @@ export async function readPdfSheets(buffer, opts = {}) {
             return row;
         });
 
-        sheets.push({ name: doc.numPages > 1 ? `pdf ${doc.numPages} trang` : "pdf", rows });
+        sheets.push({ name: doc.numPages > 1 ? `pdf ${doc.numPages} trang` : "pdf", rows: gopDongBiNgat(rows) });
     }
 
     if (!sheets.some((s) => s.rows.length)) {
