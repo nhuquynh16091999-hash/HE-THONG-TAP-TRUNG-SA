@@ -18,25 +18,35 @@ Next.js 16 (App Router) + React 19 + TailwindCSS, chạy **1 dự án duy nhất
 
 ---
 
-## 2. Cấu trúc điều hướng (5 nhóm / 9 tab)
+## 2. Cấu trúc điều hướng (7 nhóm / 14 tab)
 
 | Nhóm sidebar | Tab con | Component | Nguồn số |
 |---|---|---|---|
 | 📋 Báo cáo | Tổng quan | `tabs/ceo-overview-tab.tsx` | `/api/query` (BQ) + `/api/talpha/targets` |
 | | P&L | `tabs/pnl-tab.tsx` | `/api/query` |
 | | P&L theo SP | `tabs/product-pnl-tab.tsx` | `/api/query` + `/api/talpha/product-costs` |
+| 🧾 Đơn hàng & Đối soát | Sổ đơn hàng | `tabs/order-ledger-tab.tsx` | `/api/talpha/order-ledger` |
+| | Đối soát COD | `tabs/cod-recon-tab.tsx` | `/api/talpha/cod-recon` (file 3PL tải lên) |
+| | Theo dõi vận đơn | `tabs/tracking-tab.tsx` | `/api/talpha/tracking` |
 | 📦 Sản phẩm | Sản phẩm & Kho | `tabs/products-tab.tsx` | `/api/talpha/inventory` (POS live, fallback BQ snapshot) |
 | 👤 Marketer | Marketing & Ads | `tabs/marketing-tab.tsx` | `/api/query` + `/api/talpha/marketer-perf` + `targets` |
 | 🎯 Quảng cáo | Ads Command Center | `app/talpha/ads-command-center/page.tsx` (618 dòng) | `/api/talpha/realtime` (Meta + POS **live**) |
 | | Sức khoẻ quảng cáo | `tabs/ad-health-tab.tsx` | `/api/query` |
+| 💳 Đối soát chi phí QC | Đối soát chi phí QC | `tabs/ads-recon-tab.tsx` | `/api/talpha/ads-recon` (2 file tải lên: chi phí TKQC + sao kê thẻ) |
 | 👥 Khách hàng | Khách hàng | `tabs/customer-tab.tsx` | `/api/query` |
 | | Market Intel | `tabs/market-intel-tab.tsx` | `/api/query` |
 
 Ghi chú:
 - `tabs/ads-command-tab.tsx` chỉ là **wrapper 10 dòng** bọc lại page `/talpha/ads-command-center`
   → cùng một màn hình tồn tại ở 2 URL.
-- 2 tab `ads-command` + `ad-health` **bỏ qua bộ chọn ngày** (`IGNORES_DATE_RANGE`) vì
-  view của chúng có cửa sổ thời gian cố định.
+- 3 tab `ads-command` + `ad-health` + `ads-recon` **bỏ qua bộ chọn ngày**
+  (`IGNORES_DATE_RANGE`): hai tab đầu có cửa sổ thời gian cố định trong view, còn
+  Đối soát chi phí QC lấy kỳ từ chính file sao kê tải lên.
+- **Đối soát chi phí QC** là tab DUY NHẤT không đụng BigQuery lẫn POS — nó chỉ đọc 2
+  file người dùng tải lên, nên vẫn chạy được khi POS chết hoặc BQ hết snapshot.
+  Nghiệp vụ nằm ở `lib/talpha/ads-recon/` (ESM thuần, không thư viện ngoài), dùng
+  chung với bản dòng lệnh ở thư mục `Doi-Soat-Chi-Phi-QC/` ngang hàng repo này.
+  Luật ở `config/talpha_rules.json` → `ads_settlement`.
 - Ngoài shell còn có `/admin` (quản lý user + TKQC) và `/login`.
 
 ---

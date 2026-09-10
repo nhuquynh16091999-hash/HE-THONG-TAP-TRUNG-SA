@@ -21,6 +21,7 @@ import TALPHAAdSpendTab from "./tabs/ad-spend-tab";
 import TALPHACodReconTab from "./tabs/cod-recon-tab";
 import TALPHAOrderLedgerTab from "./tabs/order-ledger-tab";
 import TALPHATrackingTab from "./tabs/tracking-tab";
+import TALPHAAdsReconTab from "./tabs/ads-recon-tab";
 
 /**
  * Điều hướng gom về 5 mục theo đúng cấu trúc AUUS1 (Báo cáo · Sản phẩm ·
@@ -73,6 +74,14 @@ const NAV_GROUPS: NavGroup[] = [
             { id: "ad-health", label: "Sức khoẻ quảng cáo" },
         ],
     },
+    // Đối soát chi phí QC đứng RIÊNG một mục, không nhét vào "Quảng cáo".
+    //
+    // Hai thứ trông giống nhau nhưng trả lời hai câu khác hẳn: tab "Chi phí
+    // quảng cáo" trong nhóm Quảng cáo nói TIÊU BAO NHIÊU và hiệu quả ra sao
+    // (số từ Meta API); mục này nói TIỀN CÓ RA ĐÚNG SỐ KHÔNG (file thanh toán
+    // TKQC đối chiếu sao kê thẻ). Gộp chung là sớm muộn có người đem số đối
+    // soát đi tính ROAS, hoặc ngược lại.
+    { id: "doi-soat-ads", emoji: "💳", label: "Đối soát chi phí QC", tabs: [{ id: "ads-recon", label: "Đối soát chi phí QC" }] },
     {
         id: "khach-hang", emoji: "👥", label: "Khách hàng",
         tabs: [
@@ -83,7 +92,7 @@ const NAV_GROUPS: NavGroup[] = [
 ];
 
 /** Hai tab này đọc cửa sổ thời gian cố định trong view — hiện bộ chọn ngày chỉ gây hiểu nhầm là lọc được. */
-const IGNORES_DATE_RANGE = new Set(["ads-command", "ad-health"]);
+const IGNORES_DATE_RANGE = new Set(["ads-command", "ad-health", "ads-recon"]);
 
 export default function TALPHADashboardShell() {
     const [activeGroup, setActiveGroup] = useState("bao-cao");
@@ -201,6 +210,7 @@ export default function TALPHADashboardShell() {
                     {activeTab === "ad-spend" && <TALPHAAdSpendTab dateRange={dateRange} projectId="TALPHA" />}
                     {activeTab === "ads-command" && <TALPHAAdsCommandTab />}
                     {activeTab === "ad-health" && <TALPHAAdHealthTab />}
+                    {activeTab === "ads-recon" && <TALPHAAdsReconTab />}
                     {activeTab === "customers" && <TALPHACustomerTab dateRange={dateRange} projectId="TALPHA" />}
                     {activeTab === "market-intel" && <TALPHAMarketIntelTab dateRange={dateRange} projectId="TALPHA" />}
                 </div>

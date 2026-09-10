@@ -400,6 +400,258 @@
     "pending_alert_days": 30,
     "_pending_note": "Quá 30 ngày kể từ ngày xuất kho mà chưa về tiền thì coi như mất, không phải chờ."
   },
+  "_ads_settlement_note": "Đối soát COD là tiền VỀ; đối soát dưới đây là tiền RA. Hai chiều của cùng một câu hỏi: số có khớp không.",
+  "ads_settlement": {
+    "currency": "VND",
+    "match": {
+      "_mo_ta": "Khoá ghép: SỐ TIỀN + NGÀY (sao kê không ghi mã giao dịch FB).",
+      "date_window_days": 3,
+      "amount_tolerance_abs": 1000,
+      "amount_tolerance_pct": 0.1,
+      "prefer_card_match": true,
+      "_ghi_chu_cua_so": "FB cắt tiền trễ 0-3 ngày so với ngày ghi trên TKQC. Nới rộng quá thì ghép bừa, hẹp quá thì báo thiếu oan.",
+      "_ghi_chu_dung_sai": "Hai đầu đều là VND nên phải khớp gần như tuyệt đối. Lệch quá 1.000₫ hoặc 0,1% là có chuyện, không phải làm tròn."
+    },
+    "fee": {
+      "_mo_ta": "Ngân hàng trừ nhiều hơn FB ghi = phí ẩn (FX, phí giao dịch quốc tế, VAT).",
+      "expected_pct": 0,
+      "warn_over_pct": 1.0,
+      "critical_over_pct": 5.0,
+      "standalone_fee_max_abs": 200000,
+      "_ghi_chu": "standalone_fee_max_abs: dòng sao kê FB nhỏ hơn mức này mà không ghép được coi là phí thẻ, không phải giao dịch mất tích."
+    },
+    "duplicate": {
+      "_mo_ta": "Trừ trùng: hai giao dịch giống hệt số tiền trong vòng N ngày.",
+      "window_days": 2,
+      "amount_tolerance_abs": 0
+    },
+    "budget": {
+      "_mo_ta": "Ngân sách tuần. tran_tuan = null nghĩa là chưa đặt trần, chỉ so với tuần trước.",
+      "weekly_cap": null,
+      "spike_warn_pct": 40,
+      "spike_critical_pct": 80,
+      "daily_spike_warn_pct": 100
+    },
+    "cards": {
+      "_mo_ta": "Thẻ công ty hợp lệ. Giao dịch FB từ thẻ ngoài danh sách này = CẢNH BÁO ĐỎ.",
+      "strict": true,
+      "list": [
+        {
+          "last4": "0000",
+          "ten": "MẪU — sửa lại cho đúng thẻ thật",
+          "chu_the": "",
+          "ngan_hang": "",
+          "ghi_chu": "Xoá dòng này khi khai thẻ thật"
+        }
+      ]
+    },
+    "ad_accounts": {
+      "_mo_ta": "Roster TKQC hợp lệ. Trỏ sang file của dashboard để khỏi khai hai nơi.",
+      "strict": true,
+      "roster_file": "ops/talpha_reports/ad_accounts.json",
+      "extra_allowed": [],
+      "_ghi_chu": "Đường dẫn tính từ gốc repo. Mỗi nơi gọi tự nối gốc của mình."
+    },
+    "bank_filter": {
+      "_mo_ta": "Nhận diện dòng nào trong sao kê là chi cho Facebook.",
+      "fb_keywords": [
+        "facebk",
+        "facebook",
+        "fb.me/ads",
+        "fbads",
+        "meta platform",
+        "meta plat",
+        "facebook ireland",
+        "meta ireland",
+        "facebook ads",
+        "quang cao facebook"
+      ],
+      "other_ads_keywords": [
+        "google ads",
+        "google adwords",
+        "adwords",
+        "tiktok ads",
+        "bytedance",
+        "shopee ads",
+        "lazada ads",
+        "zalo ads"
+      ],
+      "ignore_keywords": [
+        "lai nhap von",
+        "phi thuong nien",
+        "sms banking"
+      ]
+    },
+    "columns": {
+      "_mo_ta": "Tên cột có thể gặp. Bỏ dấu, thường hoá, so khớp gần đúng. Thêm bí danh mới vào đây khi file đổi định dạng.",
+      "fb": {
+        "date": [
+          "transaction date",
+          "ngay giao dich",
+          "date",
+          "ngay",
+          "ngay thanh toan",
+          "payment date",
+          "created time",
+          "thoi gian"
+        ],
+        "amount": [
+          "amount",
+          "so tien",
+          "amount billed",
+          "so tien thanh toan",
+          "total",
+          "tong",
+          "charge",
+          "gia tri",
+          "amount vnd",
+          "so tien vnd"
+        ],
+        "currency": [
+          "currency",
+          "tien te",
+          "loai tien",
+          "don vi"
+        ],
+        "transaction_id": [
+          "transaction id",
+          "ma giao dich",
+          "id giao dich",
+          "reference",
+          "ma tham chieu",
+          "payment id",
+          "invoice id",
+          "so hoa don",
+          "invoice number"
+        ],
+        "account_id": [
+          "account id",
+          "ad account id",
+          "ma tai khoan",
+          "tai khoan quang cao id",
+          "id tkqc",
+          "account"
+        ],
+        "account_name": [
+          "account name",
+          "ad account name",
+          "ten tai khoan",
+          "tai khoan quang cao",
+          "ten tkqc"
+        ],
+        "method": [
+          "payment method",
+          "phuong thuc thanh toan",
+          "hinh thuc thanh toan",
+          "the",
+          "card",
+          "funding source"
+        ],
+        "status": [
+          "status",
+          "trang thai",
+          "payment status",
+          "tinh trang"
+        ],
+        "campaign": [
+          "campaign",
+          "chien dich",
+          "campaign name"
+        ]
+      },
+      "bank": {
+        "date": [
+          "ngay giao dich",
+          "transaction date",
+          "ngay hieu luc",
+          "ngay",
+          "date",
+          "trans date",
+          "posting date",
+          "ngay hach toan",
+          "effective date"
+        ],
+        "debit": [
+          "so tien ghi no",
+          "ghi no",
+          "debit",
+          "debit amount",
+          "so tien rut",
+          "phat sinh no",
+          "no",
+          "withdrawal",
+          "chi"
+        ],
+        "credit": [
+          "so tien ghi co",
+          "ghi co",
+          "credit",
+          "credit amount",
+          "phat sinh co",
+          "co",
+          "deposit",
+          "thu"
+        ],
+        "amount": [
+          "so tien",
+          "amount",
+          "gia tri giao dich",
+          "transaction amount"
+        ],
+        "balance": [
+          "so du",
+          "balance",
+          "so du cuoi",
+          "running balance"
+        ],
+        "desc": [
+          "noi dung",
+          "mo ta",
+          "description",
+          "noi dung giao dich",
+          "dien giai",
+          "chi tiet",
+          "remark",
+          "detail",
+          "transaction description",
+          "noi dung chuyen khoan"
+        ],
+        "ref": [
+          "so tham chieu",
+          "ma tham chieu",
+          "reference",
+          "ref no",
+          "so but toan",
+          "trace",
+          "ma giao dich",
+          "so giao dich"
+        ],
+        "card": [
+          "so the",
+          "the",
+          "card",
+          "card number",
+          "so tai khoan the"
+        ]
+      }
+    },
+    "notify": {
+      "_mo_ta": "Đẩy cảnh báo ra chat. Điền rồi bật enabled = true.",
+      "min_severity": "warn",
+      "telegram": {
+        "enabled": false,
+        "bot_token_env": "DOISOAT_TELEGRAM_TOKEN",
+        "chat_id": ""
+      },
+      "webhook": {
+        "enabled": false,
+        "url": "",
+        "_ghi_chu": "POST JSON — dùng để bắn sang bot WhatsApp của dashboard."
+      },
+      "report_url": "http://localhost:3000/talpha"
+    },
+    "_note": "Đối soát chi phí quảng cáo: file thanh toán TKQC Facebook ↔ sao kê thẻ ngân hàng. Khoá ghép là SỐ TIỀN + NGÀY vì sao kê không mang mã giao dịch của Facebook. Engine dùng chung: dashboard-ui/src/lib/talpha/ads-recon/ (màn dashboard + bản dòng lệnh ở Doi-Soat-Chi-Phi-QC/)."
+  },
   "_tracking_note": "Theo dõi vận đơn qua 17TRACK. TIỀN: đăng ký 1 mã = 1 quota, tính MỘT LẦN; sau khi đăng ký thì hỏi trạng thái bao nhiêu lần cũng miễn phí. Vì vậy sổ đăng ký (data/tracking.json → registered) là thứ PHẢI giữ — mất nó là đăng ký lại từ đầu và đốt quota. Khoá API để ở biến môi trường TRACK17_API_KEY, KHÔNG khai vào file này.",
   "tracking": {
     "provider": "17track",
