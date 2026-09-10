@@ -40,7 +40,7 @@ export function buildMessage(result, cfg, { force = false } = {}) {
         if (worth.length > 8) L.push(`… và ${worth.length - 8} cảnh báo nữa.`);
     }
     L.push("");
-    L.push(`Xem đầy đủ: ${cfg.notify?.report_url || "http://localhost:8899"} → kỳ ${result.ky}`);
+    L.push(`Xem đầy đủ: ${cfg.notify?.report_url || "http://localhost:3000/talpha"} → Đối soát chi phí QC, kỳ ${result.ky}`);
     return L.join("\n");
 }
 

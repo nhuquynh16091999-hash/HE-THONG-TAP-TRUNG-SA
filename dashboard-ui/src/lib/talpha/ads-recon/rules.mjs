@@ -143,9 +143,26 @@ export function buildAlerts({ fb, bank, match, cfg, roster = null, history = [] 
     // ── 6. Thẻ lạ ────────────────────────────────────────────────────────
     const wl = cardWhitelist(cfg);
     if (!wl.size) {
-        A("CHUA_KHAI_THE", INFO, "Chưa khai danh sách thẻ công ty",
-          "Không kiểm tra được thẻ lạ vì config/doisoat_rules.json vẫn để thẻ mẫu.",
-          { hint: 'Mở config/doisoat_rules.json → mục "cards.list", điền 4 số cuối của từng thẻ công ty.' });
+        // Chưa khai thì đừng chỉ nhắc "đi mà khai" — liệt kê luôn thẻ có thật
+        // trong file tuần này kèm mẩu JSON dán thẳng vào config. Bắt người ta
+        // tự mò 4 số cuối trong hai file mấy trăm dòng là cách chắc chắn nhất
+        // để việc này không bao giờ được làm.
+        const thay = new Map();
+        const ghi = (c4) => { if (!thay.has(c4)) thay.set(c4, { bank_n: 0, bank_total: 0, fb_n: 0 }); return thay.get(c4); };
+        for (const r of bank.rows) if (r.card4) { const e = ghi(r.card4); e.bank_n++; e.bank_total += r.amount || 0; }
+        for (const r of fb.rows) if (r.card4) ghi(r.card4).fb_n++;
+        const ds = [...thay.entries()].sort((a, b) => b[1].bank_total - a[1].bank_total);
+
+        A("CHUA_KHAI_THE", INFO,
+          ds.length ? `Chưa khai thẻ công ty — file tuần này có ${ds.length} thẻ` : "Chưa khai danh sách thẻ công ty",
+          ds.length
+            ? ds.map(([c, e]) => `*${c}: ${e.bank_n} dòng sao kê ${fmtVND(e.bank_total)}${e.fb_n ? ` · ${e.fb_n} hoá đơn TKQC` : ""}`).join("  ·  ")
+            : "Không kiểm tra được thẻ lạ vì cards.list vẫn để thẻ mẫu.",
+          { hint: ds.length
+              ? `Dán vào config/talpha_rules.json → ads_settlement.cards.list rồi đặt tên cho từng thẻ: `
+                + ds.map(([c]) => `{ "last4": "${c}", "ten": "?" }`).join(", ")
+                + ` — khai xong thì từ tuần sau, giao dịch từ thẻ ngoài danh sách bị bắt ngay.`
+              : 'Mở config/talpha_rules.json → ads_settlement.cards.list, điền 4 số cuối của từng thẻ công ty.' });
     } else if (cfg.cards?.strict) {
         const seen = new Map();
         for (const r of [...bank.rows, ...fb.rows]) {

@@ -118,6 +118,19 @@ const ROSTER = { projects: { talpha: { accounts: [{ id: "act_ok" }] } } };
         assert.ok(r.alerts.every((a) => a.hint && a.title), "cảnh báo không kèm cách xử lý chỉ làm người đọc lo");
     });
 
+    t("chưa khai thẻ thì liệt kê thẻ có thật trong file, kèm mẩu JSON dán thẳng", () => {
+        // Chỉ nhắc "đi mà khai" là việc này không bao giờ được làm — phải đưa
+        // sẵn 4 số cuối moi từ chính hai file tuần đó.
+        const r = chay([fbRow("T1", "01/09/2026", 5000000, "act_ok", "Paid", "Visa *4281")],
+                       [bankRow("01/09/2026", 5000000, "FACEBK *A VISA*4281"),
+                        bankRow("02/09/2026", 4500000, "FACEBK *B VISA*9911", "FT2")]);
+        const a = r.alerts.find((x) => x.code === "CHUA_KHAI_THE");
+        assert.ok(a.title.includes("2 thẻ"), "phải đếm đúng số thẻ thấy được");
+        assert.ok(a.detail.includes("4281") && a.detail.includes("9911"));
+        assert.ok(a.hint.includes('{ "last4": "4281"'), "hint phải dán được thẳng vào config");
+        assert.ok(a.hint.includes("ads_settlement.cards.list"), "phải chỉ đúng chỗ trong talpha_rules.json");
+    });
+
     console.log("── Tiền không được biến mất giữa đường ──");
     t("tổng khớp + tổng dư = tổng nguồn, cả hai phía", () => {
         const r = chay([fbRow("T1", "01/09/2026", 12500000), fbRow("T2", "07/09/2026", 5600000)],
