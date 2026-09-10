@@ -72,6 +72,8 @@ export default function TALPHAAdsReconTab() {
     const [tab, setTab] = useState<"pairs" | "fb_unmatched" | "bank_unmatched" | "fb_failed" | "other_ads">("pairs");
     const [over, setOver] = useState<"fb" | "bank" | null>(null);
     const [swapped, setSwapped] = useState("");
+    const [matKhau, setMatKhau] = useState("");
+    const [canMatKhau, setCanMatKhau] = useState<{ file: string; sai: boolean } | null>(null);
     const fbRef = useRef<HTMLInputElement>(null);
     const bankRef = useRef<HTMLInputElement>(null);
 
@@ -110,9 +112,16 @@ export default function TALPHAAdsReconTab() {
         try {
             const fd = new FormData();
             for (const f of [...fbFiles, ...bankFiles]) fd.append("file", f, f.name);
+            if (matKhau) fd.append("matkhau", matKhau);
             const r = await fetch(API, { method: "POST", body: fd });
             const j = await r.json();
-            if (!r.ok) throw new Error(j.error || "Đối soát thất bại");
+            if (!r.ok) {
+                // PDF bị khoá thì đừng bắt người dùng tự đoán — bật thẳng ô
+                // nhập mật khẩu và GIỮ NGUYÊN file đã chọn để bấm lại là chạy.
+                if (j.can_mat_khau) setCanMatKhau({ file: j.file || "", sai: !!j.mat_khau_sai });
+                throw new Error(j.error || "Đối soát thất bại");
+            }
+            setCanMatKhau(null); setMatKhau("");
 
             // Máy phân loại lại theo NỘI DUNG file. Khác với ô người dùng chọn
             // thì phải nói ra — im lặng sửa hộ là lúc file thật sai định dạng,
@@ -251,6 +260,35 @@ export default function TALPHAAdsReconTab() {
                         : `Sẽ đối soát ${fbFiles.length + bankFiles.length} file. Bỏ nhầm ô cũng không sao — máy phân loại lại theo nội dung.`}
                 </span>
             </div>
+
+            {canMatKhau && (
+                <div className="rounded-xl border border-amber-300 bg-amber-50/70 p-4 dark:border-amber-500/30 dark:bg-amber-500/[0.07]">
+                    <div className="text-sm font-semibold">
+                        {canMatKhau.sai ? "Mật khẩu chưa đúng" : "File PDF này bị khoá bằng mật khẩu"}
+                        {canMatKhau.file && <span className="ml-1 font-normal text-muted-foreground">— {canMatKhau.file}</span>}
+                    </div>
+                    <div className="mt-1 text-xs text-muted-foreground">
+                        Sao kê ngân hàng gửi qua email gần như luôn bị khoá. Mật khẩu nằm trong chính email đó
+                        (thường là số CCCD, số điện thoại hoặc ngày sinh chủ tài khoản).
+                        Mật khẩu chỉ dùng cho lượt đọc này — không lưu lại ở đâu.
+                    </div>
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                        <input
+                            type="password" value={matKhau} autoComplete="off"
+                            onChange={(e) => setMatKhau(e.target.value)}
+                            onKeyDown={(e) => { if (e.key === "Enter" && matKhau && !busy) run(); }}
+                            placeholder="Mật khẩu mở file"
+                            className="w-56 rounded-lg border border-border bg-card px-3 py-1.5 text-sm"
+                        />
+                        <button
+                            onClick={run} disabled={!matKhau || busy}
+                            className="rounded-lg bg-orange-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-orange-700 disabled:opacity-40"
+                        >
+                            {busy ? "Đang mở…" : "Mở và chạy lại"}
+                        </button>
+                    </div>
+                </div>
+            )}
 
             {swapped && (
                 <div className="rounded-lg bg-amber-50 px-4 py-2.5 text-sm text-amber-800 dark:bg-amber-500/10 dark:text-amber-300">

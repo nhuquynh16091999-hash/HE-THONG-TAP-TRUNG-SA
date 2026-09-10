@@ -83,9 +83,10 @@ const median = (a) => {
 
 /**
  * @param {Buffer|Uint8Array} buffer
- * @returns {Promise<{name: string, rows: any[][]}[]>} mỗi trang một "sheet"
+ * @param {{password?: string}} [opts] mật khẩu mở file, nếu PDF bị khoá
+ * @returns {Promise<{name: string, rows: any[][]}[]>} MỘT bảng gộp mọi trang
  */
-export async function readPdfSheets(buffer) {
+export async function readPdfSheets(buffer, opts = {}) {
     let pdfjs;
     try {
         pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
@@ -98,7 +99,26 @@ export async function readPdfSheets(buffer) {
     // pdfjs từ chối thẳng Buffer của Node (dù Buffer là con của Uint8Array),
     // nên phải sao ra một Uint8Array thuần.
     const data = new Uint8Array(buffer);
-    const doc = await pdfjs.getDocument({ data, isEvalSupported: false, useSystemFonts: true }).promise;
+    let doc;
+    try {
+        doc = await pdfjs.getDocument({
+            data, isEvalSupported: false, useSystemFonts: true,
+            ...(opts.password ? { password: opts.password } : {}),
+        }).promise;
+    } catch (e) {
+        // Sao kê ngân hàng gửi qua email gần như luôn bị khoá mật khẩu. Thông
+        // báo gốc của pdfjs là "No password given" — người dùng đọc xong không
+        // biết phải làm gì. Gắn cờ để màn hình bật ô nhập mật khẩu.
+        if (e?.name === "PasswordException") {
+            const err = new Error(e.code === 2
+                ? "Mật khẩu không đúng — kiểm tra lại rồi thử lần nữa."
+                : "File PDF này bị khoá bằng mật khẩu. Nhập mật khẩu ngân hàng gửi kèm sao kê rồi chạy lại.");
+            err.canMatKhau = true;
+            err.matKhauSai = e.code === 2;
+            throw err;
+        }
+        throw e;
+    }
 
     // ── Gom chữ của MỌI TRANG trước khi dựng bảng ────────────────────────
     // Sao kê nhiều trang là chuyện thường (bản kê 9 tháng của Facebook). Xử lý

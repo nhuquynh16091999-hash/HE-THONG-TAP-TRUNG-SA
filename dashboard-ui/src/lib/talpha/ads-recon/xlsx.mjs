@@ -275,13 +275,14 @@ export function readSheets(filePath, buffer = null) {
  *
  * @param {string} filePath
  * @param {Buffer|null} [buffer]
+ * @param {{password?: string}} [opts] mật khẩu, nếu là PDF bị khoá
  * @returns {Promise<{name: string, rows: any[][]}[]>}
  */
-export async function readAnySheets(filePath, buffer = null) {
+export async function readAnySheets(filePath, buffer = null, opts = {}) {
     const buf = buffer || readFileSync(filePath);
     if (buf.length >= 5 && buf.subarray(0, 5).toString("latin1") === "%PDF-") {
         const { readPdfSheets } = await import("./pdf.mjs");
-        return readPdfSheets(buf);
+        return readPdfSheets(buf, opts);
     }
     return readSheets(filePath, buf);
 }

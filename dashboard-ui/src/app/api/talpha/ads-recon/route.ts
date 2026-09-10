@@ -122,15 +122,23 @@ export async function POST(req: NextRequest) {
             if (f.size > MAX_UPLOAD_BYTES) return NextResponse.json({ error: tooBigMessage() }, { status: 413 });
         }
 
+        // Mật khẩu chỉ dùng cho đúng lượt đọc này — không ghi vào kho, không
+        // vào log, không nằm trong kết quả trả về.
+        const matKhau = String(form.get("matkhau") || "").trim();
+
         const doc = [];
         for (const f of files) {
             const buf = Buffer.from(await f.arrayBuffer());
             try {
-                const sheets = await readAnySheets(f.name, buf);
+                const sheets = await readAnySheets(f.name, buf, matKhau ? { password: matKhau } : {});
                 doc.push({ sheets, kind: detectKind(sheets, c), name: f.name });
             } catch (e) {
+                const err = e as Error & { canMatKhau?: boolean; matKhauSai?: boolean };
                 return NextResponse.json({
-                    error: `Không mở được "${f.name}": ${(e as Error).message}`,
+                    error: `Không mở được "${f.name}": ${err.message}`,
+                    can_mat_khau: err.canMatKhau === true,
+                    mat_khau_sai: err.matKhauSai === true,
+                    file: f.name,
                 }, { status: 422 });
             }
         }
