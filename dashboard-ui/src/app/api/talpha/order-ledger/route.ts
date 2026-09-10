@@ -7,6 +7,11 @@ import {
 import type { StatementRow } from "@/lib/talpha/cod-recon";
 import type { NazaStatement } from "@/lib/talpha/naza-statement";
 import { PARTNER_STATUS_VI } from "@/lib/talpha/partner-file";
+import {
+    bankKey, doneKey, doiLabel, emptyActions, fxLoss, periodState,
+    shouldResurface, STATE_LABEL, BANK_TOLERANCE_VND,
+    type CodActions,
+} from "@/lib/talpha/cod-actions";
 
 export const dynamic = "force-dynamic";
 
@@ -56,6 +61,12 @@ export async function GET(req: NextRequest) {
     try {
         const track = await readStoreFresh<TrackingStore>("tracking", { statuses: {}, partner: {} });
         const stm = await readStoreFresh<{ statements: Statement[] }>("cod_statements", { statements: [] });
+        // Việc do NGƯỜI ghi — tiền về tài khoản, đã đòi, đã bỏ qua. Kho riêng
+        // với kho sao kê: nạp lại file thì số máy đọc phải tính lại, còn việc
+        // người đã làm thì không được mất.
+        const act = await readStoreFresh<CodActions>("cod_actions", emptyActions());
+        const bankOf = (fn: string) => (act.bank || {})[bankKey(fn)];
+        const doneOf = (k: string) => (act.done || {})[k];
 
         // ── Đơn ────────────────────────────────────────────────────────
         const partner = track.partner || {};
@@ -174,8 +185,25 @@ export async function GET(req: NextRequest) {
                     math_ok: n.checks.math_ok,
                     math_note: n.checks.math_note,
                 } : null,
+                // ── KHÂU CUỐI: tiền thật vào tài khoản ────────────────
+                //
+                // Sao kê chỉ nói NAZA PHẢI chuyển bao nhiêu. Họ chuyển thật bao
+                // nhiêu thì chỉ ngân hàng biết, và Sỹ Anh xác nhận chưa ai kiểm
+                // kỹ khoản này. Đây là chỗ tiền chảy ra mà cả hệ thống không
+                // thấy: file soát sạch 8 mục vẫn không nói được gì về nó.
+                bank: bankOf(st.filename) || null,
+                ...(() => {
+                    const { state, lech_vnd } = periodState(
+                        n?.summary.payable_vnd ?? null, bankOf(st.filename),
+                    );
+                    return { trang_thai: state, trang_thai_chu: STATE_LABEL[state], lech_bank_vnd: lech_vnd };
+                })(),
             };
         }).sort((a, b) => (a.period_date < b.period_date ? 1 : -1));
+
+        // Ngày chốt của mọi kỳ, cũ → mới. Dùng để đếm "đã qua mấy kỳ" cho cả
+        // đơn quá hạn lẫn việc đã đòi mà NAZA vẫn im.
+        const periodEnds = byPeriod.map((p) => p.period_date).filter(Boolean).sort();
 
         // ── TỶ GIÁ QUA CÁC KỲ ─────────────────────────────────────────
         //
@@ -197,15 +225,37 @@ export async function GET(req: NextRequest) {
             };
         }).reverse();
 
+        // ── TỶ GIÁ ĐÃ LẤY CỦA MÌNH BAO NHIÊU ──────────────────────────
+        //
+        // Sỹ Anh chốt: tỷ giá NAZA đặt thì phải chịu, không cãi được. Vậy bảng
+        // phần trăm không giúp quyết định gì. Đổi sang câu trả lời được: nó lấy
+        // mất bao nhiêu TIỀN, lấy kỳ tốt nhất chính NAZA từng đặt làm mốc.
+        const fx = fxLoss(byPeriod.map((p) => ({
+            filename: p.filename,
+            period_date: p.period_date,
+            rate_twd_rmb: p.settlement?.rate_twd_rmb ?? null,
+            rate_rmb_vnd: p.settlement?.rate_rmb_vnd ?? null,
+            cod_twd: p.total_twd,
+        })));
+
         // Loại lệch thứ 2 KHÔNG thuộc kỳ nào: đơn đã giao mà chưa kỳ nào trả
         // tiền. Gắn nó vào một kỳ cụ thể là sai — nó là món nợ đang treo.
         const chuaVeTien = rows
             .filter((r) => (r.light === "vang" || r.light === "do") && r.paid_twd === null)
-            .map((r) => ({
-                order_no: r.order_no, tracking: r.tracking, cod_twd: r.cod_twd,
-                age_days: r.age_days, ky_da_qua: r.ky_da_qua, qua_han: r.light === "do",
-                contact_name: r.contact_name, phone: r.phone,
-            }))
+            .map((r) => {
+                const k = doneKey("doi", r.tracking || r.order_no);
+                const d = doneOf(k);
+                const { ky_da_qua: kyTuKhiDoi } = shouldResurface(d, periodEnds);
+                return {
+                    order_no: r.order_no, tracking: r.tracking, cod_twd: r.cod_twd,
+                    age_days: r.age_days, ky_da_qua: r.ky_da_qua, qua_han: r.light === "do",
+                    contact_name: r.contact_name, phone: r.phone,
+                    // Trí nhớ: đã đòi chưa, mấy lần, đòi rồi mà mấy kỳ vẫn im
+                    doi_key: k,
+                    da_doi: d ? { ...d, ky_tu_khi_doi: kyTuKhiDoi } : null,
+                    doi_chu: doiLabel(d, kyTuKhiDoi),
+                };
+            })
             .sort((a, b) => b.ky_da_qua - a.ky_da_qua || b.cod_twd - a.cod_twd);
 
         // ── VIỆC PHẢI LÀM HÔM NAY ─────────────────────────────────────
@@ -226,6 +276,13 @@ export async function GET(req: NextRequest) {
         // (file đúng rồi thì so với đơn của mình). Thứ tự này không đảo được:
         // file sai mà đem so đơn thì mọi kết luận đều vô nghĩa.
         const vnd = (n: number) => Math.round(n).toLocaleString("vi-VN");
+        /** Ngày đọc cho người, không đọc cho máy: 2026-08-25 → 25/08/2026. */
+        const dmy = (s: string) => (s ? `${s.slice(8, 10)}/${s.slice(5, 7)}/${s.slice(0, 4)}` : "—");
+        // MỌI mục ở đây thuộc phạm vi MỘT KỲ — kỳ đang chọn, không phải cộng
+        // dồn. Bản trước để lẫn một mục cộng dồn cả 7 kỳ vào giữa, thành ra
+        // "80 đơn sao kê bỏ sót" trông như NAZA vừa bỏ sót 80 đơn trong một
+        // tuần, trong khi 76 đơn trong đó hoàn toàn bình thường. Mục đó nay
+        // nằm riêng ở khối "tiền còn nằm ở NAZA".
         const checks: { nhom: "A" | "B"; ten: string; ok: boolean | null; chi_tiet: string }[] = [];
         if (moiNhat) {
             const ck = stMoi?.naza?.checks;
@@ -251,10 +308,22 @@ export async function GET(req: NextRequest) {
                 const loi = (d > 0) === loiKhiTang;
                 return `${nhan} ${gia} — ${d > 0 ? "tăng" : "giảm"} ${Math.abs(d).toFixed(2)}% so kỳ trước, ${loi ? "có lợi" : "BẤT LỢI"} cho mình.`;
             };
+            // Nói bằng TIỀN chứ không bằng phần trăm suông: "giảm 0,34%" không
+            // ai hình dung được là mất bao nhiêu, mà tỷ giá thì không cãi được
+            // nên thứ duy nhất còn đáng biết là mất bao nhiêu đồng.
+            const fxMoi = fx.rows.find((x) => x.filename === moiNhat.filename);
+            const thiet = fxMoi?.thiet_vnd ?? null;
             checks.push({
-                nhom: "A", ten: "Tỷ giá so kỳ trước",
-                ok: (dw == null || Math.abs(dw) < 0.05) && (dv == null || Math.abs(dv) < 0.05) ? true : null,
-                chi_tiet: `${moTa("TWD→RMB", rMoi?.rate_twd_rmb ?? null, dw ?? null, true)} ${moTa("RMB→VND", rMoi?.rate_rmb_vnd ?? null, dv ?? null, true)} Tỷ giá do NAZA đặt, chưa ai đối chiếu thị trường.`,
+                nhom: "A", ten: "Tỷ giá kỳ này",
+                // Cố ý để null (dấu "i" xanh) chứ không phải false (dấu "!" đỏ):
+                // Sỹ Anh phải chịu tỷ giá NAZA đặt, nên đây là tin để biết, không
+                // phải việc để xử. Tô đỏ một thứ không xử được thì lần sau người
+                // ta phớt lờ luôn cả dấu đỏ thật.
+                ok: thiet != null && thiet < 1 ? true : null,
+                chi_tiet: `${moTa("TWD→RMB", rMoi?.rate_twd_rmb ?? null, dw ?? null, true)} ${moTa("RMB→VND", rMoi?.rate_rmb_vnd ?? null, dv ?? null, true)}` +
+                    (thiet == null ? " Chưa đọc được tỷ giá."
+                        : fxMoi?.tot_nhat ? " Đây là tỷ giá TỐT NHẤT NAZA từng đặt."
+                            : ` So với kỳ tốt nhất NAZA từng đặt, kỳ này nhận ít đi ${vnd(thiet)}đ.`),
             });
             const dups = fa?.duplicates || [];
             checks.push({
@@ -266,26 +335,19 @@ export async function GET(req: NextRequest) {
                       dups.slice(0, 3).map((d) => `${d.order_ids.join("/")} · ${d.tracking}`).join(" · "),
             });
 
-            const quaHanN = rows.filter((r) => r.light === "do" && r.paid_twd === null).length;
-            const choN = rows.filter((r) => r.light === "vang" && r.paid_twd === null).length;
-            checks.push({
-                nhom: "B", ten: "Đơn giao thành công mà sao kê bỏ sót",
-                ok: quaHanN === 0,
-                chi_tiet: `${choN + quaHanN} đơn đã giao chưa thấy trên bất kỳ kỳ nào` +
-                    (quaHanN ? ` — ${quaHanN} đơn đã qua từ 2 kỳ, PHẢI ĐÒI.` : " — đều còn trong nhịp thanh toán."),
-            });
             checks.push({
                 nhom: "B", ten: "3PL trả khác số trên đơn",
                 ok: moiNhat.lech_tien.length === 0,
                 chi_tiet: moiNhat.lech_tien.length === 0 ? "Mọi đơn trả đúng số."
                     : moiNhat.lech_tien.slice(0, 3).map((l) =>
-                        `${l.order_no}: đơn ghi ${l.cod_twd} · họ trả ${l.paid_twd}`).join(" · "),
+                        `${l.order_no}: đơn ghi ${vnd(l.cod_twd)} · họ trả ${vnd(l.paid_twd ?? 0)} NT$ ` +
+                        `(${(l.diff_twd ?? 0) > 0 ? "dư" : "thiếu"} ${vnd(Math.abs(l.diff_twd ?? 0))})`).join(" · "),
             });
             checks.push({
                 nhom: "B", ten: "Phí vận chuyển đúng bảng giá",
                 ok: (fa?.wrong ?? 0) === 0,
                 chi_tiet: (fa?.wrong ?? 0) === 0
-                    ? `${fa?.ok ?? 0} dòng đúng bảng giá — 7-Eleven/FamilyMart 27¥ · HCT 32¥ · Yamato 38¥.`
+                    ? `${fa?.ok ?? 0}/${(fa?.ok ?? 0) + (fa?.wrong ?? 0) + (fa?.unknown_channel ?? 0)} dòng phí CỦA KỲ NÀY đúng bảng giá — 7-Eleven/FamilyMart 27¥ · HCT 32¥ · Yamato 38¥.`
                     : `${fa!.wrong} dòng sai, chênh ${vnd(fa!.overcharge_rmb)} ¥.`,
             });
             const ow = fa?.op_wrong || [];
@@ -298,53 +360,125 @@ export async function GET(req: NextRequest) {
                     + " Lưu ý: bảng giá ghi MIỄN PHÍ, khoản này vẫn nên hỏi NAZA.",
             });
         }
+        // ── VIỆC HÔM NAY, CÓ TRÍ NHỚ ──────────────────────────────────
+        //
+        // Bản trước không nhớ gì: "Nhắn NAZA đòi tiền 4 đơn" hiện y hệt mỗi
+        // ngày, đòi hôm qua rồi hôm nay vẫn thế. Nay mỗi việc có khoá riêng,
+        // bấm đóng là ghi vào kho `cod_actions` kèm ngày.
+        //
+        // Nhưng đóng KHÔNG phải là quên. NAZA trả tiền theo kỳ, nên phép thử
+        // thật là: sang kỳ sao kê sau, tiền về chưa? Chưa về thì việc nổi lại
+        // và nặng hơn, vì đã đòi một lần mà họ vẫn im (shouldResurface).
         const quaHan = chuaVeTien.filter((x) => x.qua_han);
-        const viec: { id: string; muc: "gap" | "soat" | "ghi"; tieu_de: string;
-            so: number; don_vi: string; chi_tiet: string; }[] = [];
+        type Viec = {
+            id: string; muc: "gap" | "soat" | "ghi"; tieu_de: string;
+            so: number; don_vi: string; chi_tiet: string;
+            /** Khoá để bấm đóng. Rỗng = việc tự hết khi số liệu đổi, không đóng tay. */
+            done_key: string;
+            /** Nút nào hợp với việc này. */
+            nut: ("da_doi" | "da_hoi" | "bo_qua" | "nhap_bank")[];
+            /** Đã đóng lần nào chưa — để màn hình nói "đòi rồi mà vẫn im". */
+            ghi_chu: string;
+        };
+        const viec: Viec[] = [];
 
-        if (quaHan.length) {
+        // Đòi tiền: gộp các đơn CHƯA đòi hoặc đã đòi mà qua kỳ vẫn im.
+        const canDoi = quaHan.filter((x) => shouldResurface(doneOf(x.doi_key), periodEnds).lai);
+        if (canDoi.length) {
+            const daTungDoi = canDoi.filter((x) => x.da_doi).length;
             viec.push({
                 id: "doi-naza", muc: "gap",
                 tieu_de: "Nhắn NAZA đòi tiền",
-                so: quaHan.length, don_vi: "đơn",
-                chi_tiet: `Đã qua từ 2 kỳ sao kê mà vẫn chưa được trả — tổng ` +
-                    `${Math.round(quaHan.reduce((a, x) => a + x.cod_twd, 0)).toLocaleString("vi-VN")} TWD. ` +
-                    "Bấm Xuất file gửi 3PL để lấy danh sách.",
+                so: canDoi.length, don_vi: "đơn",
+                chi_tiet: "Đã qua từ 2 kỳ sao kê mà vẫn chưa được trả — tổng " +
+                    `${Math.round(canDoi.reduce((a, x) => a + x.cod_twd, 0)).toLocaleString("vi-VN")} NT$.` +
+                    (daTungDoi ? ` ${daTungDoi} đơn đã đòi một lần rồi mà NAZA vẫn im.` : ""),
+                done_key: "", nut: ["da_doi"],
+                ghi_chu: daTungDoi ? `${daTungDoi}/${canDoi.length} đơn đã đòi trước đó` : "",
             });
         }
-        if (moiNhat?.lech_tien.length) {
+
+        const lechChuaXu = (moiNhat?.lech_tien || []).filter(
+            (l) => !doneOf(doneKey("lech", l.tracking || l.order_no)),
+        );
+        if (lechChuaXu.length) {
             viec.push({
                 id: "lech-tien", muc: "soat",
-                tieu_de: "Soi đơn 3PL trả khác số",
-                so: moiNhat.lech_tien.length, don_vi: "đơn",
-                chi_tiet: moiNhat.lech_tien.slice(0, 3).map((l) =>
-                    `${l.order_no}: đơn ghi ${l.cod_twd} · họ trả ${l.paid_twd}`).join(" · "),
+                tieu_de: "NAZA trả khác số ghi trên đơn",
+                so: lechChuaXu.length, don_vi: "đơn",
+                chi_tiet: lechChuaXu.slice(0, 3).map((l) =>
+                    `${l.order_no}: đơn ghi ${Math.round(l.cod_twd).toLocaleString("vi-VN")} · họ trả ${Math.round(l.paid_twd ?? 0).toLocaleString("vi-VN")}`).join(" · "),
+                done_key: doneKey("lech", lechChuaXu[0].tracking || lechChuaXu[0].order_no),
+                nut: ["da_hoi", "bo_qua"], ghi_chu: "",
             });
         }
-        if (moiNhat?.thua_sao_ke.length) {
+
+        const thuaChuaXu = (moiNhat?.thua_sao_ke || []).filter(
+            (t) => !doneOf(doneKey("thua", t.tracking || t.order_no)),
+        );
+        if (thuaChuaXu.length) {
             viec.push({
                 id: "thua", muc: "soat",
                 tieu_de: "Tra lại đơn NAZA trả mà mình không có",
-                so: moiNhat.thua_sao_ke.length, don_vi: "dòng",
-                chi_tiet: moiNhat.thua_sao_ke.slice(0, 3).map((t) =>
-                    `${t.order_no} · ${t.tracking}`).join(" · "),
+                so: thuaChuaXu.length, don_vi: "dòng",
+                chi_tiet: thuaChuaXu.slice(0, 3).map((t) => `${t.order_no} · ${t.tracking}`).join(" · "),
+                done_key: doneKey("thua", thuaChuaXu[0].tracking || thuaChuaXu[0].order_no),
+                nut: ["da_hoi", "bo_qua"], ghi_chu: "",
             });
         }
-        if (moiNhat?.phi_sai.length) {
+
+        const phiChuaXu = (moiNhat?.phi_sai || []).filter(
+            (f) => !doneOf(doneKey("phi", f.tracking || f.order_no)),
+        );
+        if (phiChuaXu.length) {
             viec.push({
                 id: "phi-sai", muc: "soat",
                 tieu_de: "Hỏi NAZA về phí thu sai bảng giá",
-                so: moiNhat.phi_sai.length, don_vi: "đơn",
-                chi_tiet: moiNhat.phi_sai.slice(0, 3).map((f) => f.order_no).join(" · "),
+                so: phiChuaXu.length, don_vi: "đơn",
+                chi_tiet: phiChuaXu.slice(0, 3).map((f) => f.order_no).join(" · "),
+                done_key: doneKey("phi", phiChuaXu[0].tracking || phiChuaXu[0].order_no),
+                nut: ["da_hoi", "bo_qua"], ghi_chu: "",
             });
         }
-        if (moiNhat?.settlement?.payable_vnd != null) {
+
+        // KHÂU CUỐI — và là khâu chưa ai canh.
+        //
+        // GỘP thành MỘT việc chứ không tách mỗi kỳ một dòng. Sáu kỳ đang chờ mà
+        // đẻ ra sáu dòng chữ giống hệt nhau thì danh sách việc dài gấp ba lần
+        // phần còn lại, và ba việc thật sự khẩn — đòi tiền, soi lệch — bị đẩy
+        // chìm xuống dưới. Chỗ nhập số của từng kỳ đã có sẵn ngay trong bảng ②.
+        const choNhap = [...byPeriod].reverse().filter((p) => p.trang_thai === "cho_nhap");
+        if (choNhap.length) {
+            const cuNhat = choNhap[0];
+            const tong = choNhap.reduce((a, p) => a + (p.settlement?.payable_vnd ?? 0), 0);
             viec.push({
-                id: "ghi-so", muc: "ghi",
-                tieu_de: "Ghi sổ kế toán kỳ mới nhất",
-                so: Math.round(moiNhat.settlement.payable_vnd), don_vi: "đ",
-                chi_tiet: `Tiền thực nhận về tài khoản của kỳ ${moiNhat.filename}. ` +
-                    "Đối chiếu với sao kê ngân hàng rồi ghi vào sổ.",
+                id: "bank", muc: "ghi",
+                tieu_de: choNhap.length === 1
+                    ? `Nhập tiền thật về của kỳ chốt ${dmy(cuNhat.period_date)}`
+                    : `Đối chiếu ngân hàng ${choNhap.length} kỳ chưa ai kiểm`,
+                so: Math.round(tong), don_vi: "đ",
+                chi_tiet: (choNhap.length === 1
+                    ? "File đã soát xong. "
+                    : `Từ kỳ chốt ${dmy(cuNhat.period_date)} tới nay. File kỳ nào cũng soát xong, nhưng `) +
+                    "mở app ngân hàng gõ số thật vào mới biết NAZA chuyển đủ chưa — đây là khâu duy nhất " +
+                    "hệ thống không tự thấy được. Kỳ để càng lâu càng khó tra lại sao kê ngân hàng.",
+                done_key: cuNhat.filename, nut: ["nhap_bank"], ghi_chu: "",
+            });
+        }
+        // Kỳ đã nhập mà lệch quá ngưỡng thì nặng hơn hẳn: tiền đã chuyển rồi,
+        // thiếu là thiếu thật, không phải chờ nữa.
+        for (const p of byPeriod) {
+            if (p.trang_thai !== "lech") continue;
+            if (doneOf(doneKey("lech", `BANK-${p.filename}`))) continue;
+            viec.push({
+                id: `bank-lech:${p.filename}`, muc: "gap",
+                tieu_de: `Kỳ chốt ${dmy(p.period_date)} — tiền về không khớp`,
+                so: Math.round(p.lech_bank_vnd ?? 0), don_vi: "đ",
+                chi_tiet: `Sao kê tính phải nhận ${vnd(p.settlement?.payable_vnd ?? 0)}đ, ` +
+                    `thực nhận ${vnd(p.bank?.thuc_nhan_vnd ?? 0)}đ ngày ${dmy(p.bank?.ngay_ve || "")}. ` +
+                    `${(p.lech_bank_vnd ?? 0) < 0 ? "Thiếu" : "Dư"} ${vnd(Math.abs(p.lech_bank_vnd ?? 0))}đ.`,
+                done_key: doneKey("lech", `BANK-${p.filename}`),
+                nut: ["da_hoi", "bo_qua"], ghi_chu: "",
             });
         }
 
@@ -502,8 +636,24 @@ export async function GET(req: NextRequest) {
             viec,
             checks,
             rate_trend: rateTrend,
+            fx,
             periods: byPeriod,
             chua_ve_tien: chuaVeTien,
+            // Con số mở đầu màn hình: bao nhiêu tiền đã đi qua chuyển khoản mà
+            // chưa ai đối chiếu với ngân hàng. Đây là lỗ to nhất của cả tab.
+            tong_quan: (() => {
+                const choNhap = byPeriod.filter((p) => p.trang_thai === "cho_nhap");
+                const lech = byPeriod.filter((p) => p.trang_thai === "lech");
+                const khop = byPeriod.filter((p) => p.trang_thai === "khop");
+                return {
+                    ky_cho_nhap: choNhap.length,
+                    tien_cho_nhap_vnd: choNhap.reduce((a, p) => a + (p.settlement?.payable_vnd ?? 0), 0),
+                    ky_lech: lech.length,
+                    tien_lech_vnd: lech.reduce((a, p) => a + (p.lech_bank_vnd ?? 0), 0),
+                    ky_khop: khop.length,
+                    bank_tolerance_vnd: BANK_TOLERANCE_VND,
+                };
+            })(),
             statements: stm.statements.map((s) => ({ id: s.id, filename: s.filename })),
             warnings: notes,
         });
