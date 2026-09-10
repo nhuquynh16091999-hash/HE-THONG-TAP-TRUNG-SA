@@ -57,12 +57,15 @@ export default function TALPHAAdsReconTab() {
     const [note, setNote] = useState<{ text: string; bad?: boolean } | null>(null);
     const [list, setList] = useState<KyMeta[]>([]);
     const [res, setRes] = useState<Result | null>(null);
-    const [picked, setPicked] = useState<File[]>([]);
+    const [fbFile, setFbFile] = useState<File | null>(null);
+    const [bankFile, setBankFile] = useState<File | null>(null);
     const [busy, setBusy] = useState(false);
     const [hideInfo, setHideInfo] = useState(false);
     const [tab, setTab] = useState<"pairs" | "fb_unmatched" | "bank_unmatched" | "fb_failed" | "other_ads">("pairs");
-    const [over, setOver] = useState(false);
-    const fileRef = useRef<HTMLInputElement>(null);
+    const [over, setOver] = useState<"fb" | "bank" | null>(null);
+    const [swapped, setSwapped] = useState("");
+    const fbRef = useRef<HTMLInputElement>(null);
+    const bankRef = useRef<HTMLInputElement>(null);
 
     const openKy = useCallback(async (ky: string) => {
         const r = await fetch(`${API}?ky=${encodeURIComponent(ky)}`);
@@ -87,17 +90,31 @@ export default function TALPHAAdsReconTab() {
     useEffect(() => { refresh(true); }, [refresh]);
 
     // ── Chạy đối soát ────────────────────────────────────────────────────
+    /**
+     * Bỏ file vào ô nào cũng chạy được: máy vẫn tự nhận đâu là chi phí TKQC,
+     * đâu là sao kê. Nhưng nếu nó phải đổi chỗ so với ô người dùng chọn thì
+     * PHẢI nói ra — im lặng sửa hộ là lúc file thật sai định dạng, người dùng
+     * không hiểu vì sao số ra lạ.
+     */
     const run = async () => {
-        if (picked.length < 2) return;
-        setBusy(true); setNote({ text: "Đang đọc file và đối soát…" });
+        if (!fbFile || !bankFile) return;
+        setBusy(true); setNote({ text: "Đang đọc file và đối soát…" }); setSwapped("");
         try {
             const fd = new FormData();
-            picked.slice(0, 2).forEach((f) => fd.append("file", f, f.name));
+            fd.append("file", fbFile, fbFile.name);
+            fd.append("file", bankFile, bankFile.name);
             const r = await fetch(API, { method: "POST", body: fd });
             const j = await r.json();
             if (!r.ok) throw new Error(j.error || "Đối soát thất bại");
-            setRes(j); setPicked([]); setNote(null);
-            if (fileRef.current) fileRef.current.value = "";
+
+            if (j.files?.fb?.ten && j.files.fb.ten !== fbFile.name) {
+                setSwapped(`Đã tự đổi chỗ 2 file: "${j.files.fb.ten}" mới là chi phí TKQC, ` +
+                           `"${j.files.bank?.ten}" là sao kê thẻ. Kết quả bên dưới vẫn đúng.`);
+            }
+            setRes(j); setNote(null);
+            setFbFile(null); setBankFile(null);
+            if (fbRef.current) fbRef.current.value = "";
+            if (bankRef.current) bankRef.current.value = "";
             await refresh();
         } catch (e) {
             setNote({ text: (e as Error).message, bad: true });
@@ -133,48 +150,91 @@ export default function TALPHAAdsReconTab() {
 
     return (
         <div className="space-y-5">
-            {/* ═══ Tải 2 file ═══ */}
-            <div
-                onDragOver={(e) => { e.preventDefault(); setOver(true); }}
-                onDragLeave={() => setOver(false)}
-                onDrop={(e) => { e.preventDefault(); setOver(false); setPicked([...e.dataTransfer.files].slice(0, 2)); }}
-                className={cn("rounded-xl border-2 border-dashed p-5 transition-colors",
-                    over ? "border-orange-400 bg-orange-50/50 dark:bg-orange-500/[0.06]" : "border-border bg-card dark:bg-white/[0.03]")}
-            >
-                <div className="flex flex-wrap items-center gap-4">
-                    <Upload className="h-5 w-5 shrink-0 text-muted-foreground" />
-                    <div className="min-w-[240px] flex-1">
-                        <div className="text-sm font-semibold">Kéo thả 2 file vào đây, hoặc chọn file</div>
-                        <div className="text-xs text-muted-foreground">
-                            Chi phí thanh toán TKQC Facebook · Sao kê thẻ ngân hàng — .xlsx hoặc .csv,
-                            thứ tự nào cũng được, máy tự nhận file nào là file nào.
-                        </div>
-                    </div>
-                    <input
-                        ref={fileRef} type="file" multiple accept=".xlsx,.csv,.tsv,.txt"
-                        onChange={(e) => setPicked([...(e.target.files || [])].slice(0, 2))}
-                        className="max-w-[260px] text-xs file:mr-2 file:rounded-md file:border file:border-border file:bg-muted file:px-3 file:py-1.5 file:text-xs"
-                    />
-                    <button
-                        onClick={run} disabled={picked.length < 2 || busy}
-                        className="rounded-lg bg-orange-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-orange-700 disabled:opacity-40"
-                    >
-                        {busy ? "Đang chạy…" : "Chạy đối soát"}
-                    </button>
-                </div>
+            {/* ═══ Tải 2 file — MỖI NGUỒN MỘT Ô, có nhãn rõ ═══
 
-                {picked.length > 0 && (
-                    <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                        {picked.map((f, i) => (
-                            <div key={i} className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-xs">
-                                <FileSpreadsheet className="h-4 w-4 shrink-0 text-muted-foreground" />
-                                <span className="truncate font-medium">{f.name}</span>
-                                <span className="ml-auto shrink-0 text-muted-foreground">{(f.size / 1024).toFixed(0)} KB</span>
+                Bản đầu là một ô chọn nhiều tệp rồi để máy tự đoán. Gọn về code
+                nhưng người dùng không biết mình đang bỏ cái gì vào đâu, và
+                không thay riêng được một file. Nay hai ô có nhãn, phần tự nhận
+                giữ lại làm lưới an toàn: bỏ nhầm chỗ vẫn ra đúng, và máy nói ra
+                là nó đã đổi chỗ.                                            */}
+            <div className="grid gap-3 md:grid-cols-2">
+                {([
+                    ["fb", "1 · Chi phí thanh toán từ TKQC Facebook",
+                     "Xuất từ Trình quản lý quảng cáo → Thanh toán → Lịch sử thanh toán",
+                     fbFile, setFbFile, fbRef],
+                    ["bank", "2 · Sao kê thẻ ngân hàng",
+                     "Tải từ ngân hàng — .xlsx hoặc .csv, KHÔNG dùng bản PDF",
+                     bankFile, setBankFile, bankRef],
+                ] as const).map(([id, label, hint, file, setFile, ref]) => (
+                    <div
+                        key={id}
+                        onDragOver={(e) => { e.preventDefault(); setOver(id); }}
+                        onDragLeave={() => setOver(null)}
+                        onDrop={(e) => {
+                            e.preventDefault(); setOver(null);
+                            const fs = [...e.dataTransfer.files];
+                            if (!fs.length) return;
+                            setFile(fs[0]);
+                            // Thả cả 2 file vào một ô thì file thứ hai rơi sang ô kia,
+                            // khỏi bắt kéo hai lần.
+                            if (fs[1]) (id === "fb" ? setBankFile : setFbFile)(fs[1]);
+                        }}
+                        className={cn("rounded-xl border-2 border-dashed p-4 transition-colors",
+                            over === id ? "border-orange-400 bg-orange-50/50 dark:bg-orange-500/[0.06]"
+                                        : file ? "border-emerald-300 bg-emerald-50/40 dark:border-emerald-500/30 dark:bg-emerald-500/[0.05]"
+                                               : "border-border bg-card dark:bg-white/[0.03]")}
+                    >
+                        <div className="flex items-start gap-2">
+                            {file ? <FileSpreadsheet className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                                  : <Upload className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />}
+                            <div className="min-w-0 flex-1">
+                                <div className="text-sm font-semibold">{label}</div>
+                                <div className="mt-0.5 text-xs text-muted-foreground">{hint}</div>
                             </div>
-                        ))}
+                        </div>
+
+                        {file ? (
+                            <div className="mt-3 flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-xs">
+                                <span className="truncate font-medium">{file.name}</span>
+                                <span className="ml-auto shrink-0 text-muted-foreground">{(file.size / 1024).toFixed(0)} KB</span>
+                                <button
+                                    onClick={() => { setFile(null); if (ref.current) ref.current.value = ""; }}
+                                    className="shrink-0 text-muted-foreground hover:text-rose-600" title="Bỏ file này"
+                                >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                </button>
+                            </div>
+                        ) : (
+                            <input
+                                ref={ref} type="file" accept=".xlsx,.csv,.tsv,.txt"
+                                onChange={(e) => setFile(e.target.files?.[0] || null)}
+                                className="mt-3 w-full text-xs file:mr-2 file:rounded-md file:border file:border-border file:bg-muted file:px-3 file:py-1.5 file:text-xs"
+                            />
+                        )}
                     </div>
-                )}
+                ))}
             </div>
+
+            <div className="flex flex-wrap items-center gap-3">
+                <button
+                    onClick={run} disabled={!fbFile || !bankFile || busy}
+                    className="rounded-lg bg-orange-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-orange-700 disabled:opacity-40"
+                >
+                    {busy ? "Đang chạy…" : "Chạy đối soát"}
+                </button>
+                <span className="text-xs text-muted-foreground">
+                    {!fbFile && !bankFile ? "Cần đủ 2 file mới chạy được."
+                        : !fbFile ? "Còn thiếu file chi phí TKQC."
+                        : !bankFile ? "Còn thiếu file sao kê thẻ."
+                        : "Bỏ nhầm ô cũng không sao — máy tự nhận ra và đổi lại."}
+                </span>
+            </div>
+
+            {swapped && (
+                <div className="rounded-lg bg-amber-50 px-4 py-2.5 text-sm text-amber-800 dark:bg-amber-500/10 dark:text-amber-300">
+                    {swapped}
+                </div>
+            )}
 
             {note && (
                 <div className={cn("rounded-lg px-4 py-2.5 text-sm",
