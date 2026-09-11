@@ -94,7 +94,8 @@ poscake:
     - name: "Taiwan"
       api_url: "https://pos.pages.fm/api/v1"
       api_key: "${TALPHA_POSCAKE_TW_KEY}"               # ⚠️ Actual value in .env
-      shop_id: "1328343252"
+      shop_id: "408074608"   # đổi 08/09/2026; mã cũ 1328343252 là của hệ thống trước,
+                             # key Poscake thật trả "Cửa hàng không tồn tại" với mã đó
   shop_ids:
     - "132820521"                 # Saudi
     - "1635200759"                # UAE
@@ -102,7 +103,7 @@ poscake:
     - "1942200986"                # Oman
     - "1021271617"                # Qatar
     - "100943483"                 # Bahrain
-    - "1328343252"                # Taiwan
+    - "408074608"                 # Taiwan (đổi 08/09/2026, mã cũ 1328343252 của hệ trước)
 
 # ─── 5. PANCAKE CRM ───
 pancake:

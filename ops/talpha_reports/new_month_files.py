@@ -8,11 +8,13 @@ CHỈ ĐỌC. Không ghi gì lên Drive, không sửa file nào.
 Điều kiện: thư mục (và mọi thư mục con) đã share cho service account
 faos-dashboard@cty-507710.iam.gserviceaccount.com quyền Editor.
 """
-import sys, json, re, collections
+import os, sys, json, re, collections
 from google.oauth2.service_account import Credentials
 from google.auth.transport.requests import AuthorizedSession
 
-KEY = '/Users/syanh/talpha_reports/runtime/bigquery_key.json'
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import talpha_paths
+KEY = talpha_paths.bq_key()
 SCOPES = ['https://www.googleapis.com/auth/drive']
 SHEET_MIME = 'application/vnd.google-apps.spreadsheet'
 FOLDER_MIME = 'application/vnd.google-apps.folder'

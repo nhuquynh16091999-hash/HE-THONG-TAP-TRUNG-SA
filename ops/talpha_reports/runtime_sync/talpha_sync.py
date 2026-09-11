@@ -35,7 +35,13 @@ from sync.order_sync_utils import (
     append_and_rebuild_ads,                            # X2
 )
 
-P = os.getenv('BQ_PROJECT_ID', 'levelup-465304')
+# BẪY (11/09/2026): giá trị lùi ở đây từng là 'levelup-465304' — dự án BigQuery
+# của HỆ THỐNG CŨ. .env.local không khai BQ_PROJECT_ID, nên bản chép runtime này
+# âm thầm ghi số của Đài Loan sang dự án cũ, trong khi bản chính sync/talpha đã
+# trỏ đúng cty-507710 từ lâu. Hai bản lệch nhau mà không ai thấy, vì lỗi chỉ hiện
+# ra dưới dạng 403 'không có quyền' — nghe như hỏng quyền chứ không nghe như
+# 'đang gõ nhầm cửa'. Nguyên tắc cứng của Sỹ Anh: dự án này TÁCH HẲN khỏi hệ cũ.
+P = os.getenv('BQ_PROJECT_ID', 'cty-507710')
 DS = os.getenv('BQ_DATASET', 'TALPHA_Dataset')
 FB_TOKEN = get_access_token('talpha') or os.environ.get('TALPHA_META_ACCESS_TOKEN', '') or os.environ.get('AUUS1_META_ACCESS_TOKEN', '')
 FB_API_VERSION = 'v21.0'
@@ -74,7 +80,10 @@ POS_SHOPS = [
     {"key": os.environ.get("TALPHA_POSCAKE_OM_KEY", ""), "label": "OM", "shop_id": "1942200986", "currency": "OMR"},
     {"key": os.environ.get("TALPHA_POSCAKE_QA_KEY", ""), "label": "QA", "shop_id": "1021271617", "currency": "QAR"},
     {"key": os.environ.get("TALPHA_POSCAKE_BH_KEY", ""), "label": "BH", "shop_id": "100943483",  "currency": "BHD"},
-    {"key": os.environ.get("TALPHA_POSCAKE_TW_KEY", ""), "label": "TW", "shop_id": "1328343252", "currency": "TWD"},
+    {"key": os.environ.get("TALPHA_POSCAKE_TW_KEY", ""), "label": "TW",
+     # Ghi cứng ở đây chứ không đọc yaml — nên sửa yaml thôi là KHÔNG đủ, đã dính
+     # thật 11/09: sửa talpha.yaml xong vòng chạy vẫn gọi mã cũ và ăn 404 ba lần.
+     "shop_id": os.environ.get("TALPHA_POSCAKE_TW_SHOP_ID", "408074608"), "currency": "TWD"},
 ]
 
 # Mapping Poscake status_name → (category, sub)

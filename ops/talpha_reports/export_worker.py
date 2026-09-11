@@ -7,11 +7,16 @@ Lock ghi PID chủ vào .lock/pid — 2 phía tự dọn khi chủ lock chết (
 Chạy dưới launchd com.talpha.export-worker (KeepAlive)."""
 import os, io, sys, time, json, uuid, shutil, subprocess, datetime
 
-os.environ.setdefault('GOOGLE_APPLICATION_CREDENTIALS', '/Users/syanh/talpha_reports/runtime/bigquery_key.json')
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import talpha_paths
+os.environ.setdefault('GOOGLE_APPLICATION_CREDENTIALS', talpha_paths.bq_key())
 from google.cloud import bigquery
 
-DIR = '/Users/syanh/talpha_reports'
-PY = f'{DIR}/runtime/.venv/bin/python'
+DIR = talpha_paths.reports_dir()
+# Python của runtime; không có venv riêng (VPS dùng chung .venv) thì lấy chính
+# trình thông dịch đang chạy file này.
+PY = os.environ.get('TALPHA_PYTHON') or f'{talpha_paths.runtime_dir()}/.venv/bin/python'
+if not os.path.isfile(PY): PY = sys.executable
 SCRIPT = f'{DIR}/format_all.py'
 LOCK = f'{DIR}/.lock'                      # cùng lock với daily_guarded.sh
 LOCK_STALE_SEC = 45 * 60                   # backstop khi lock không có pid (bản cũ)

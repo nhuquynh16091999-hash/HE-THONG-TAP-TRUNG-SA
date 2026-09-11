@@ -1,11 +1,16 @@
 import os, datetime, sys
 # Dùng code REPO khi đọc được (chạy tay); dưới launchd (~/Desktop bị chặn Full Disk Access)
 # import sẽ rơi xuống bản runtime ($PYTHONPATH) — CẢ HAI bản đã vá an toàn 06/07.
-REPO='/Users/syanh/Desktop/Agentic-AI-Levelup'
+# Đường dẫn hỏi talpha_paths chứ KHÔNG ghi cứng nữa (11/09/2026). Bản cũ ghi
+# thẳng /Users/syanh/... nên lên VPS là chết ngay ở os.chdir — mà chết lặng:
+# daily_guarded thấy sync rc=1 nên bỏ qua bước ghi Sheet đúng theo chốt 03/09,
+# vòng chạy vẫn "xong" mỗi giờ trong khi Sheet đứng im.
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import talpha_paths
+REPO = talpha_paths.repo_dir()
 sys.path.insert(0, REPO)
-os.chdir('/Users/syanh/talpha_reports')  # KHÔNG chdir vào Desktop (launchd không đọc được)
 # FIX 29/06: KHÔNG ghi đè cứng key trong ~/Desktop (launchd thiếu Full Disk Access -> PermissionError).
-os.environ.setdefault('GOOGLE_APPLICATION_CREDENTIALS', '/Users/syanh/talpha_reports/runtime/bigquery_key.json')
+talpha_paths.dat_moi_truong()
 # FIX 06/07: BỎ DROP bảng trước fetch. Trước đây DROP xong mới fetch → fetch chết giữa
 # chừng (SA reset page 11 / Tiểu Alpha timeout+rate-limit) = mất trắng dữ liệu → Sheet
 # sai đơn & spend hàng loạt. Giờ sync ghi WRITE_TRUNCATE atomic: chỉ thay bảng KHI fetch

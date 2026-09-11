@@ -1,5 +1,22 @@
 #!/bin/bash
-DIR=/Users/syanh/talpha_reports; RT=$DIR/runtime; PY=$RT/.venv/bin/python
+# Đường dẫn KHÔNG khoá cứng vào máy nào.
+#
+# Bản cũ ghi thẳng /Users/syanh/talpha_reports nên chỉ chạy được trên đúng một
+# máy Mac. Hạ tầng nay nằm ở VPS (/opt/talpha), mà cùng một script phải chạy
+# được cả hai chỗ — chép ra hai bản là sớm muộn hai bản lệch nhau.
+#
+# Thứ tự dò: biến môi trường đặt tay > runtime cũ trên Mac > cây repo hiện tại.
+if [ -n "${TALPHA_REPORTS_DIR:-}" ]; then
+  DIR="$TALPHA_REPORTS_DIR"; RT="${TALPHA_RUNTIME_DIR:-$DIR/runtime}"
+elif [ -d "$HOME/talpha_reports/runtime" ]; then
+  DIR="$HOME/talpha_reports"; RT="$DIR/runtime"
+else
+  # Chạy thẳng trong repo: script nằm ở ops/talpha_reports/, gốc repo lùi hai cấp.
+  DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  RT="$(cd "$DIR/../.." && pwd)"
+fi
+PY="${TALPHA_PYTHON:-$RT/.venv/bin/python}"
+[ -x "$PY" ] || PY=python3
 EPOCH=$DIR/last_run_epoch; LOG=$DIR/daily_$(date +%Y%m%d).log
 # Dọn lock KẸT: 1 lần chạy bị kill giữa chừng để lại .lock → chặn mọi lần sau (bug 08/07,
 # kẹt 4 ngày). Chủ lock ghi PID vào .lock/pid — PID chết là dọn NGAY, không đợi 45'.
@@ -17,7 +34,9 @@ echo $$ > "$DIR/.lock/pid"
 trap 'rm -rf "$DIR/.lock" 2>/dev/null' EXIT
 now=$(date +%s); last=$(cat "$EPOCH" 2>/dev/null || echo 0)
 if [ $((now-last)) -lt 3000 ]; then echo "$(date) skip: <50m" >> "$LOG"; exit 0; fi
-export GOOGLE_APPLICATION_CREDENTIALS=$RT/bigquery_key.json
+for k in "$RT/bigquery_key.json" "$RT/../bigquery_key.json" "$DIR/bigquery_key.json"; do
+  [ -f "$k" ] && { export GOOGLE_APPLICATION_CREDENTIALS="$k"; break; }
+done
 echo "=== START $(date) ===" >> "$LOG"
 PYTHONPATH=$RT $PY $DIR/sync_month.py >> "$LOG" 2>&1; SYNC_RC=$?
 # CHỐT 03/09: sync fail thì KHÔNG ghi Sheet — giữ số cũ ĐÚNG hơn là ghi đè số mới SAI.

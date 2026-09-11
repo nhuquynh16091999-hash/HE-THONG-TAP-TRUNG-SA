@@ -44,7 +44,7 @@ CONFIG_YAML = os.environ.get("TALPHA_CONFIG_YAML") or os.path.join(
 _FALLBACK_SHOPS = [
     ("SA", "1328205216"), ("AE", "1635200759"), ("KW", "1328205226"),
     ("OM", "1942200986"), ("QA", "1021271617"), ("BH", "100943483"),
-    ("TW", "1328343252"),
+    ("TW", "408074608"),  # 408074608: mã thật (08/09/2026). Mã cũ 1328343252 là của hệ thống trước — key Poscake trả 404.
 ]
 
 

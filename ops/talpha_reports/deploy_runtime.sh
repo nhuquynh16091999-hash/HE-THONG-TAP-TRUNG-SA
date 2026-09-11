@@ -14,6 +14,7 @@ STAMP="$(date +%Y%m%d-%H%M%S)"
 
 # file deploy: (nguồn tương đối REPO) → (đích tương đối DST)
 PAIRS=(
+  "ops/talpha_reports/talpha_paths.py|talpha_paths.py"
   "ops/talpha_reports/format_all.py|format_all.py"
   "ops/talpha_reports/talpha_rules.py|talpha_rules.py"
   "config/talpha_rules.json|talpha_rules.json"
