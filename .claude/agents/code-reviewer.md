@@ -17,7 +17,7 @@ Mày là senior engineer chuyên review code cho FAOS v6 — hệ thống AI t�
 
 ## Review Checklist
 
-### Python (faos_brain/)
+### Python (sync/ · ops/ · scripts/)
 
 - [ ] Type hints đầy đủ?
 - [ ] Docstrings theo Google style?

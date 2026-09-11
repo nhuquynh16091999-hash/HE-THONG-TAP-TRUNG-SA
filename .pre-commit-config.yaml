@@ -11,8 +11,8 @@ repos:
       - id: check-added-large-files
         args: ['--maxkb=500']
       - id: detect-private-key
-      - id: no-commit-to-branch
-        args: ['--branch', 'main']     # Không ai được push thẳng lên main
+      # KHÔNG chặn commit vào main: đội này làm thẳng trên main, không dùng PR.
+      # Bật lại nếu chuyển sang quy trình nhánh + PR.
 
   # ─── Python: flake8 (critical errors + undefined names) ──────────────
   - repo: https://github.com/PyCQA/flake8
@@ -23,7 +23,7 @@ repos:
           - --max-line-length=120
           - --select=E9,F63,F7,F82,F401   # syntax errors + undefined + unused import
           - --exclude=venv,.venv,__pycache__,migrations
-        files: ^(faos_brain|sync|api|scripts)/.*\.py$
+        files: ^(sync|ops|scripts|sql|tests)/.*\.py$
 
   # ─── Secrets scanner ─────────────────────────────────────────────────
   - repo: https://github.com/Yelp/detect-secrets
@@ -31,30 +31,24 @@ repos:
     hooks:
       - id: detect-secrets
         args: ['--baseline', '.secrets.baseline']
-        exclude: (\.env\.example|CODEOWNERS|.*_TEMPLATE_.*)
+        exclude: (\.env\.example|.*_TEMPLATE_.*)
 
-  # ─── Custom FAOS checks ───────────────────────────────────────────────
+  # ─── Kiểm tra riêng của dự án ─────────────────────────────────────────
   - repo: local
     hooks:
-      # 1. File length: max 300 dòng Python, max 500 dòng TypeScript
+      # 1. Độ dài file: 300 dòng Python, 500 dòng TypeScript.
+      # Nhiều file cốt lõi đang vượt (talpha_sync.py 786, cod-recon-tab.tsx 836) —
+      # tách chúng là việc riêng. Hook này để chặn file MỚI phình ra.
       - id: check-file-length
-        name: "FAOS: File length limits (300 Python / 500 TS)"
+        name: "Độ dài file (300 Python / 500 TS)"
         language: python
         entry: python scripts/hooks/check_file_length.py
         types_or: [python, ts, tsx]
         pass_filenames: true
 
-      # 2. Architecture boundaries: sync/ không được import faos_brain/
-      - id: check-arch-boundaries
-        name: "FAOS: Architecture boundary violations"
-        language: python
-        entry: python scripts/hooks/check_arch_boundaries.py
-        files: ^(sync|api)/.*\.py$
-        pass_filenames: true
-
-      # 3. Không commit file .env thật
+      # 2. Không commit file .env thật
       - id: block-env-files
-        name: "FAOS: Block .env files"
+        name: "Chặn file .env"
         language: fail
         entry: "Không được commit .env files! Dùng .env.example thay thế."
         files: ^\.env(\.\w+)?$

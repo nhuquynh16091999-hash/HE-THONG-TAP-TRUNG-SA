@@ -1,6 +1,6 @@
 ---
 paths:
-  - "faos_brain/**/*.py"
+  - "sync/**/*.py"
   - "tests/**/*.py"
   - "sync/**/*.py"
   - "scripts/**/*.py"

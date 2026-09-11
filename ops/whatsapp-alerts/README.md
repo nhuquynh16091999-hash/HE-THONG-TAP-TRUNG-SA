@@ -73,7 +73,7 @@ exit 1 kèm log lỗi, thường là phải quét lại QR (`node pair.js`).
 
 Commit đang chạy trên server ghi ở `/opt/talpha/ops/whatsapp-alerts/.deployed_sha`:
 ```bash
-ssh root@169.58.33.8 'cat /opt/talpha/ops/whatsapp-alerts/.deployed_sha'   # so với git rev-parse main
+ssh root@139.180.131.21 'cat /opt/talpha/ops/whatsapp-alerts/.deployed_sha'   # so với git rev-parse main
 ```
 
 ## Tinh chỉnh (`config.json`)

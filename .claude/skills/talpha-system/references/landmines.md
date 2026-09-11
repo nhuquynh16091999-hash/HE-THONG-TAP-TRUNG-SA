@@ -47,7 +47,7 @@
 
 - `realtime/route.ts`: Meta insights cap **10 trang** (5000 ads/account); POS cap **200 trang** — chạm cap không log.
 - `sync/core/pos_client.py`: `POS_PAGE_SIZE=10` → full-month SA ~220 request/shop, chain rất dài (gốc sự cố "chết ở page 11").
-- `lib/gsheets.ts`: cache CSV 300s, `listSheetTabs` 600s → tồn kho Sheet trễ tới 10'.
+- `lib/talpha/sheet-source.ts`: cache CSV — bảng đơn đối tác nạp vào có thể trễ vài phút.
 - UAE stock: fallback gid cứng `29108099` = tab "June 2" — regex tháng fail là đọc tồn kho THÁNG 6.
 - Saudi parser: dựa chuỗi literal "Product SKU"/"Balance in Store" — đổi layout sheet là vỡ im lặng.
 - `format_all.py` `is_test()`: campaign có từ "Test" ngoài ý đồ bị loại khỏi doanh số không cảnh báo.
@@ -58,7 +58,7 @@
 1. Sửa `ops/talpha_reports/*` hoặc `config/talpha_rules.json` trong repo
 2. Chạy `ops/talpha_reports/deploy_runtime.sh --yes` (tự đợi lock, backup, copy atomic)
 Engine sync ĐANG CHẠY đã git-track tại `ops/talpha_reports/runtime_sync/`. Kế hoạch gộp
-2 engine: `docs/proposals/SYNC_CONSOLIDATION_PLAN.md` (cần 1 tuần shadow-run).
+2 engine: ĐÃ GỘP 11/09/2026 — chỉ còn `sync/talpha/talpha_sync.py`.
 Bot deploy: rsync `ops/whatsapp-alerts/` **và `config/talpha_rules.json`** lên `/opt/talpha/`.
 
 ## 4. File quan trọng NGOÀI git (mất máy = mất)
@@ -80,7 +80,7 @@ Bot deploy: rsync `ops/whatsapp-alerts/` **và `config/talpha_rules.json`** lên
   SQL inline thay vì đi qua view.
 - CEO "Hỏi dashboard" = **Gemini** (`@google/genai`, fallback 2.5-flash→2.0-flash, free tier
   ~20 req/ngày/model), KHÔNG phải Claude — và hiện **ĐANG TẮT** (gỡ `GEMINI_API_KEY` 2 máy,
-  mục F2). ARCHITECTURE_2026 §6 đã cập nhật đúng (F4).
+  mục F2).
 - `DATA_CONTRACT.md` + `FRONTEND_RULES.md` (mô tả STRAMARK) đã archive về `docs/_archive/`
   kèm banner cảnh báo — mục F4. Đừng tin nội dung, chỉ để tra lịch sử.
 

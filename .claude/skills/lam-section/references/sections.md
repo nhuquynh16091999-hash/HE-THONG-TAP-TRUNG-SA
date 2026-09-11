@@ -82,7 +82,7 @@
 
 ### C1 — POS live + fallback (P1)
 - **Việc**: parser Sheet UAE/Saudi đọc theo header thay vì chuỗi literal; UI banner "đang dùng dữ liệu dự phòng ngày X" khi rơi xuống fallback.
-- **Phạm vi**: `dashboard-ui/src/app/api/talpha/inventory/route.ts`, `dashboard-ui/src/lib/talpha-inventory.ts`, `talpha-stock-sources.ts`, `components/talpha/data/inventory.ts`.
+- **Phạm vi**: `dashboard-ui/src/app/api/talpha/inventory/route.ts`, `dashboard-ui/src/lib/talpha-inventory.ts`, `talpha-pos-images.ts`, `components/talpha/data/inventory.ts`.
 - **Verify**: tab Kho hiện số POS live khớp POS thật 1-2 SKU; ngắt POS (đổi token tạm) → banner fallback hiện.
 - **Deploy**: như A1.
 
@@ -153,5 +153,5 @@
 - **Verify**: `pm2 status` các app vẫn online sau thay đổi.
 
 ### F4 — Docs (P2)
-- **Việc**: ARCHITECTURE_2026 (CEO-ask = Gemini, 14 TKQC), TALPHA_METRIC_RULES (Taiwan), xoá/archive DATA_CONTRACT.md + FRONTEND_RULES.md lỗi thời.
+- **XONG 11/09/2026**: tài liệu viết lại theo hệ thật (`DASHBOARD_MAP.md` + `docs/TALPHA_METRIC_RULES.md`); 9 tài liệu di sản đã xoá.
 - **Verify**: đọc chéo với code thực tế — không còn câu nào mô tả ngược với code đang chạy.

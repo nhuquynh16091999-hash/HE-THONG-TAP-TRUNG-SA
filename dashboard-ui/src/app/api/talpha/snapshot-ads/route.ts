@@ -39,7 +39,7 @@ async function handler(req: Request) {
         const data = await rt.json();
         const campaigns: any[] = data.campaigns || [];
         // realtime trả warnings[] khi 1 TKQC/shop fetch fail → dòng snapshot ghi ra là số
-        // THIẾU. Bảng ads_command_snapshot không có cột nào để đánh dấu (SCHEMA_FROZEN,
+        // THIẾU. Bảng ads_command_snapshot không có cột nào để đánh dấu (schema đã chốt,
         // không alter) nên trả về đây để snapshot_cron.sh ghi cảnh báo vào log.
         const warnings: string[] = data.warnings || [];
         if (!campaigns.length) {

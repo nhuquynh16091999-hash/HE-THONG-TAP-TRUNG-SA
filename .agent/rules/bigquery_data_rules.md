@@ -1,7 +1,7 @@
 ---
 paths:
   - "sql/**/*.sql"
-  - "faos_brain/**/*.py"
+  - "sync/**/*.py"
   - "sync/**/*.py"
 ---
 # BigQuery Data Quality Rules — STRAMARK_Dataset

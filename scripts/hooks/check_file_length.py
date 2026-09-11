@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 FAOS pre-commit hook: Enforce file length limits.
-- Python files: max 300 lines  (faos_brain, sync, api, scripts)
+- Python files: max 300 lines  (sync, ops, scripts, sql)
 - TypeScript/TSX files: max 500 lines  (dashboard-ui)
 """
 import sys

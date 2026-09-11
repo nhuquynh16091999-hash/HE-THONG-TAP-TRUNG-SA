@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # ═══════════════════════════════════════════════════════════════════
-# TALPHA — deploy bot WhatsApp lên server 169.58.33.8 TỪ GIT.
+# TALPHA — deploy bot WhatsApp lên máy chủ TỪ GIT.
+#
+# ⚠️ Bot đang TẮT và chưa từng chạy trên VPS hiện tại. Xem ops/pm2/README.md.
 # Thay cho "rsync tay từ working tree" (nguồn cũ của lệch bản: server từng chạy
 # code chưa commit, và file rác kiểu rules.js.bak-E3 do copy tay để lại).
 #
@@ -17,7 +19,7 @@
 # ═══════════════════════════════════════════════════════════════════
 set -euo pipefail
 
-SERVER="${TALPHA_SERVER:-root@169.58.33.8}"
+SERVER="${TALPHA_SERVER:-root@139.180.131.21}"
 REPO_URL="${TALPHA_REPO_URL:-git@github.com:syanh12092024-maker/Talpha-New-16-6.git}"
 REMOTE="${TALPHA_GIT_REMOTE:-talpha-new}"
 REF="${1:-main}"

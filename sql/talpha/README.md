@@ -76,4 +76,4 @@ python sql/talpha/deploy_talpha_analytics.py --execute --verify
 ## Chưa bao gồm (theo phạm vi đã chốt: chỉ view phân tích)
 
 - `ai_prediction_log`, `ai_pattern_library` (nền tảng AI tự học) — thêm
-  sau khi TALPHA nối vào `faos_brain` agent.
+  khi có nhu cầu phân tích sâu hơn.

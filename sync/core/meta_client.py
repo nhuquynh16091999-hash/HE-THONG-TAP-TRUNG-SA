@@ -5,7 +5,7 @@ sync/core/meta_client.py — Meta Marketing API client cho TALPHA.
 Token: System User token "talpha-sync" (type SYSTEM_USER, expires_at=0 — KHÔNG hết hạn),
 cấp 20/08/2026. Bản cũ (app "Talpha Post" 1492490978955925) là token NGƯỜI DÙNG, hết hạn
 60 ngày → chết 17/08/2026 làm sync ads đứng 9 ngày. Đổi token phải sửa CẢ 3 nơi:
-repo .env, ~/talpha_reports/runtime/.env, và .env trên server 169.58.33.8.
+repo .env, dashboard-ui/.env.local, và /root/talpha_reports/runtime/.env trên VPS.
 
 Usage:
   from sync.core.meta_client import MetaAdsClient

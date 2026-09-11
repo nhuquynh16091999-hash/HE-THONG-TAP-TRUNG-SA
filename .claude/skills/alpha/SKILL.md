@@ -69,10 +69,9 @@ Bản đồ nghiệp vụ đầy đủ: `DASHBOARD_MAP.md`.
    (b) khi đọc được: đối chiếu SKU sheet ↔ `product_catalog`, cập nhật
    `config/talpha_rules.json → products`, BÁO SỐ user duyệt rồi mới deploy view.
    Giá vốn sai = mọi số lãi sai — không tự đoán đơn vị tiền.
-2. **B1 cutover (sau khi đủ 7 ngày PASS, sớm nhất 12/08)**: theo
-   `docs/proposals/SYNC_CONSOLIDATION_PLAN.md`; sửa cùng đợt: `sync_month.py`
-   REPO path cũ + script tay `~/talpha_reports/sync_oman.py` còn gọi chữ ký cũ
-   (`last_sync_ts`) sẽ crash nếu chạy.
+2. ~~**B1 cutover hai engine sync**~~ — **XONG 11/09/2026**. Chỉ còn
+   `sync/talpha/talpha_sync.py`; `sync_month.py` nạp nó qua `$TALPHA_REPO` và dừng
+   ngay nếu nạp nhầm bản khác.
 3. **X4 — dọn nốt sku bẩn** trong `product_catalog` (14 dòng không đúng dạng mã,
    VD `sku='Necklace box'` tách đôi doanh thu SP 008) — sửa ở
    `sync_product_catalog.py`, chạy lại rồi đo lại X3.
@@ -91,7 +90,7 @@ Bản đồ nghiệp vụ đầy đủ: `DASHBOARD_MAP.md`.
 - **Autodetect khi APPEND làm lệch schema** (X2) — lấy schema từ chính bảng raw.
 - **Hạ tầng validation hỏng thì log vẫn in PASS/FAIL như thường** (B1 ×2 lần) —
   kiểm code clone + bước chạy + cỡ bảng shadow trước khi tin.
-- **Đổi chữ ký hàm sync = grep hết nơi gọi** (sync_month, shadow_month, script tay).
+- **Đổi chữ ký hàm sync = grep hết nơi gọi** (`sync_month.py` và mọi script tay).
 - **Luôn nêu mẫu số khi báo tỷ lệ** (`is_confirmed`? khung ngày nào?) — 2 phiên
   từng lệch 20,7% vs 3,4% chỉ vì mẫu số.
 
@@ -99,7 +98,7 @@ Bản đồ nghiệp vụ đầy đủ: `DASHBOARD_MAP.md`.
 
 - Sơ đồ cây + section: artifact "TALPHA — Sơ đồ hệ thống & Lộ trình tối ưu"
   (https://claude.ai/code/artifact/414e34de-d0f5-44df-a2e9-2ef21014343c)
-- Rule chỉ số: `docs/TALPHA_METRIC_RULES.md` · Kiến trúc: `docs/ARCHITECTURE_2026.md`
+- Rule chỉ số: `docs/TALPHA_METRIC_RULES.md` · Bản đồ nghiệp vụ: `DASHBOARD_MAP.md`
 - Danh mục section: `lam-section/references/sections.md` · Sổ lỗi:
   `xu-ly-p1/references/loi-dang-mo.md` · Vận hành: `talpha-system/references/runbook.md`
 

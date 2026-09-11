@@ -28,7 +28,7 @@ BQ_KEY = ROOT / "bigquery_key.json"
 BQ_PROJECT = "cty-507710"
 BQ_DATASET = "TALPHA_Dataset"
 
-# ─── TALPHA Schema (source of truth — mirror của docs/TALPHA_DETAIL.md) ──────
+# ─── Schema TALPHA (đối chiếu với sql/talpha/views/ và DASHBOARD_MAP.md §6) ──
 #
 # Thay đổi cột ở BQ → cập nhật đây → script tự bắt mọi chỗ dùng sai.
 
