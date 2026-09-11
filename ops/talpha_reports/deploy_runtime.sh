@@ -13,6 +13,11 @@ DST="$HOME/talpha_reports"
 STAMP="$(date +%Y%m%d-%H%M%S)"
 
 # file deploy: (nguồn tương đối REPO) → (đích tương đối DST)
+#
+# KHÔNG deploy engine sync sang runtime nữa (bỏ 11/09/2026). Engine chỉ có một
+# bản, nằm trong repo, và `sync_month.py` import thẳng từ đó qua $TALPHA_REPO.
+# Chép engine sang runtime là tự đẻ ra bản thứ hai — đúng cái đã khiến
+# talpha-report và talpha-sync chạy hai bộ code khác nhau vào cùng một BigQuery.
 PAIRS=(
   "ops/talpha_reports/talpha_paths.py|talpha_paths.py"
   "ops/talpha_reports/format_all.py|format_all.py"
@@ -30,9 +35,6 @@ PAIRS=(
   "ops/talpha_reports/test_files.json|test_files.json"
   "ops/talpha_reports/taiwan_files.json|taiwan_files.json"
   "ops/talpha_reports/ad_accounts.json|runtime/config/ad_accounts.json"
-  "ops/talpha_reports/runtime_sync/talpha_sync.py|runtime/sync/talpha/talpha_sync.py"
-  "ops/talpha_reports/runtime_sync/config_loader.py|runtime/sync/config_loader.py"
-  "ops/talpha_reports/runtime_sync/order_sync_utils.py|runtime/sync/order_sync_utils.py"
 )
 
 echo "── Diff checksum (repo vs runtime):"

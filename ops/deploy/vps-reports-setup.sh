@@ -37,7 +37,10 @@ echo "   $("$VENV/bin/python" -V)"
 
 # ─────────────────────────────────────────────────────────────────────────
 say "2/5 · Dựng runtime phẳng $DST"
-mkdir -p "$RT/config" "$RT/sync/talpha"
+# runtime CHỈ còn giữ config + key + log. Engine sync ở lại repo — xem TALPHA_REPO.
+mkdir -p "$RT/config"
+# Dọn bản sao engine của các lần dựng trước, nếu còn.
+rm -rf "$RT/sync"
 bash "$APP_DIR/ops/talpha_reports/deploy_runtime.sh" --yes || true
 
 # Key BigQuery: cũng là key ghi Sheets (cùng một service account). daily_guarded
@@ -67,6 +70,10 @@ EnvironmentFile=$APP_DIR/dashboard-ui/.env.local
 Environment=TALPHA_REPORTS_DIR=$DST
 Environment=TALPHA_RUNTIME_DIR=$RT
 Environment=TALPHA_PYTHON=$VENV/bin/python
+# Engine sync lấy TỪ REPO, không lấy bản sao trong runtime. Thiếu dòng này là
+# sync_month.py rơi về bản sao cũ dưới \$PYTHONPATH và chạy code khác hẳn với
+# talpha-sync.service — hai engine cùng ghi một bộ bảng BigQuery mỗi giờ.
+Environment=TALPHA_REPO=$APP_DIR
 # Khai THẲNG dự án BigQuery, không để script tự lùi về giá trị mặc định: bản chép
 # runtime từng lùi về dự án của hệ thống cũ và ghi nhầm sang đó.
 Environment=BQ_PROJECT_ID=cty-507710

@@ -1,10 +1,13 @@
 import os, datetime, sys
-# Dùng code REPO khi đọc được (chạy tay); dưới launchd (~/Desktop bị chặn Full Disk Access)
-# import sẽ rơi xuống bản runtime ($PYTHONPATH) — CẢ HAI bản đã vá an toàn 06/07.
-# Đường dẫn hỏi talpha_paths chứ KHÔNG ghi cứng nữa (11/09/2026). Bản cũ ghi
-# thẳng /Users/syanh/... nên lên VPS là chết ngay ở os.chdir — mà chết lặng:
-# daily_guarded thấy sync rc=1 nên bỏ qua bước ghi Sheet đúng theo chốt 03/09,
-# vòng chạy vẫn "xong" mỗi giờ trong khi Sheet đứng im.
+# Engine sync chỉ có MỘT bản: <repo>/sync/talpha/talpha_sync.py.
+#
+# Trước 11/09/2026 file này import "bản nào cũng được": thấy repo thì lấy repo,
+# không thấy thì rơi xuống bản sao dưới $PYTHONPATH. Trên máy chủ nó rơi xuống
+# thật, nên `talpha-report` chạy engine CŨ trong khi `talpha-sync` chạy engine
+# repo — hai bộ code khác nhau cùng ghi một bộ bảng BigQuery mỗi giờ, bản nào
+# chạy sau thì đè bản kia. Không ai thấy vì cả hai đều báo "xong".
+#
+# Nay chỉ còn một đường: repo_dir() phải chỉ ra cây repo, không thì NÉM lỗi.
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import talpha_paths
 REPO = talpha_paths.repo_dir()
@@ -16,7 +19,15 @@ talpha_paths.dat_moi_truong()
 # sai đơn & spend hàng loạt. Giờ sync ghi WRITE_TRUNCATE atomic: chỉ thay bảng KHI fetch
 # đủ; fetch fail → raise → bảng cũ còn nguyên (số cũ nhưng đúng), exit code ≠ 0 để soi log.
 import sync.talpha.talpha_sync as ts
-print("sync code =", ts.__file__)  # soi bản nào được import (repo vs runtime)
+print("sync code =", ts.__file__)
+# Chốt hạ: nạp nhầm bản khác thì DỪNG NGAY, đừng ghi vào BigQuery bằng code lạ.
+_mong_doi = os.path.join(REPO, "sync", "talpha", "talpha_sync.py")
+if os.path.realpath(ts.__file__) != os.path.realpath(_mong_doi):
+    sys.exit(
+        "DỪNG: đang nạp engine sync ở %s, đáng lẽ phải là %s.\n"
+        "Kiểm TALPHA_REPO và PYTHONPATH — chỉ được phép có MỘT bản engine."
+        % (ts.__file__, _mong_doi)
+    )
 today=datetime.date.today(); first=today.replace(day=1)
 # X1 (04/08): cửa sổ theo NGÀY TẠO đơn, không còn Smart Stop theo updated_at.
 # Rộng hơn đầu tháng vì đơn COD tạo tháng trước vẫn đang đổi trạng thái; bảng đích

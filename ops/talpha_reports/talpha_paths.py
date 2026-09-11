@@ -47,16 +47,38 @@ def runtime_dir() -> str:
 
 
 def repo_dir() -> str:
-    """Gốc cây repo — để `import sync.talpha.talpha_sync` lấy được bản mới nhất."""
+    """
+    Gốc cây repo — nơi `import sync.talpha.talpha_sync` lấy ĐÚNG MỘT engine sync.
+
+    Chỉ có MỘT engine sync, nằm ở `<repo>/sync/talpha/talpha_sync.py`. Bản sao
+    thứ hai dưới runtime đã bị xoá 11/09/2026, và hàm này KHÔNG được lặng lẽ
+    lùi về runtime nữa.
+
+    Vì sao gắt thế: trước đây hàm trả về `runtime_dir()` khi không thấy repo, nên
+    trên máy chủ vòng báo cáo nạp bản sao cũ ở `~/talpha_reports/runtime/sync/`
+    (log in `sync code = /root/talpha_reports/runtime/...`) trong khi
+    `talpha-sync.service` chạy bản repo. HAI engine khác code cùng ghi một bộ
+    bảng BigQuery mỗi giờ, bản nào chạy sau thì đè bản kia — và không ai thấy,
+    vì cả hai đều báo "xong".
+
+    Không thấy repo thì DỪNG và nói rõ, chứ không đoán.
+    """
     env = os.environ.get("TALPHA_REPO")
     if env:
+        if not os.path.isdir(os.path.join(env, "sync", "talpha")):
+            raise RuntimeError(
+                "TALPHA_REPO=%s nhưng trong đó không có sync/talpha — "
+                "trỏ lại đúng gốc repo (trên máy chủ là /opt/talpha)." % env
+            )
         return env
     # File này nằm ở <repo>/ops/talpha_reports/ khi chạy thẳng trong cây repo.
     goc = os.path.dirname(os.path.dirname(_HERE))
     if os.path.isdir(os.path.join(goc, "sync", "talpha")):
         return goc
-    # Runtime phẳng: bản sao của sync nằm dưới runtime/.
-    return runtime_dir()
+    raise RuntimeError(
+        "Không tìm thấy cây repo chứa sync/talpha (đã dò %s). "
+        "Đặt TALPHA_REPO trỏ vào gốc repo — trên máy chủ: TALPHA_REPO=/opt/talpha." % goc
+    )
 
 
 def bq_key() -> str:
@@ -69,8 +91,13 @@ def bq_key() -> str:
         os.environ.get("GOOGLE_APPLICATION_CREDENTIALS"),
         os.path.join(runtime_dir(), "bigquery_key.json"),
         os.path.join(reports_dir(), "bigquery_key.json"),
-        os.path.join(repo_dir(), "bigquery_key.json"),
     ]
+    # repo_dir() nay NÉM lỗi khi không thấy cây repo. Tìm key là việc phụ, không
+    # đáng để cả vòng chạy chết chỉ vì repo chưa gắn — thiếu repo thì bỏ ứng viên này.
+    try:
+        ung_vien.append(os.path.join(repo_dir(), "bigquery_key.json"))
+    except RuntimeError:
+        pass
     for k in ung_vien:
         if k and os.path.isfile(k):
             return k
