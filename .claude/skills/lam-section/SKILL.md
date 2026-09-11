@@ -19,8 +19,8 @@ Dự án chạy nhiều phiên Claude song song, mỗi phiên một section. Cá
 thấy nhau — kênh phối hợp duy nhất là git. Đã từng xảy ra: 3 phiên (P0-A3, P0-A4,
 P0-B2) xong việc nhưng không commit → 8 file treo trộn lẫn 3 hạng mục, phiên sau
 không dám sửa gì. Ngoài ra hệ TALPHA có code chạy NGOÀI repo (runtime
-`~/talpha_reports/`, server 169.58.33.8) — push xong chưa chắc hệ thống chạy bản
-mới. Skill này chốt kỷ luật: **1 section = 1 commit = push ngay = deploy nơi đang chạy**.
+`/root/talpha_reports/` trên VPS `139.180.131.21`) — push xong chưa chắc hệ thống
+chạy bản mới; deploy là `bash ops/deploy/from-mac.sh`. Skill này chốt kỷ luật: **1 section = 1 commit = push ngay = deploy nơi đang chạy**.
 
 ## Ủy quyền
 
@@ -82,8 +82,9 @@ nhau. Verify fail → sửa tiếp, không commit code chưa chạy được.
 rồi push lại. Không bao giờ force push.
 
 ### 8. Deploy nơi đang chạy (nếu section có)
-Cột "Deploy" trong `references/sections.md`. Section đụng runtime `~/talpha_reports/`
-hoặc server 169.58.33.8 mà chưa deploy = **CHƯA XONG**, không được báo done.
+Cột "Deploy" trong `references/sections.md`. Section đụng runtime `/root/talpha_reports/`
+hoặc VPS `139.180.131.21` mà chưa chạy `ops/deploy/from-mac.sh` = **CHƯA XONG**,
+không được báo done.
 Thao tác deploy cụ thể theo `talpha-system` → `references/runbook.md`.
 
 ## Báo cáo cuối phiên — theo đúng mẫu

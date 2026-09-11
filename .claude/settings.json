@@ -1,71 +1,23 @@
 {
   "permissions": {
     "allow": [
-      "Bash(pm2 status:*)",
-      "Bash(curl -s -X POST \"http://localhost:3001/api/query\" -H \"Content-Type: application/json\" -d \"{\"\"query\"\": \"\"SELECT campaign_mkter_code AS mkter, ROUND\\(SUM\\(spend_usd\\), 2\\) AS spend_usd FROM \\\\`levelup-465304.ZEN8_Dataset.vw_fact_ads_performance\\\\` WHERE report_date = DATE_SUB\\(CURRENT_DATE\\(\\), INTERVAL 1 DAY\\) GROUP BY 1 ORDER BY 2 DESC\"\"}\")",
-      "Bash(curl -s -X POST \"http://localhost:3001/api/query\" -H \"Content-Type: application/json\" -d \"{\"\"query\"\": \"\"SELECT from_currency, to_currency, rate, effective_date, source FROM \\\\`levelup-465304.ZEN8_Dataset.cost_exchange_rates\\\\` ORDER BY effective_date DESC\"\"}\")",
-      "Bash(grep -h \"CURRENCY_TO_VND\\\\|CURRENCY \" /c/Users/Admin/Desktop/Agentic-AI-Levelup/dashboard-ui/src/components/*/constants.ts)",
-      "Bash(curl -s -X POST \"http://localhost:3001/api/query\" -H \"Content-Type: application/json\" -d \"{\"\"query\"\": \"\"SELECT ''TRENDIFY'' AS ds, from_currency, to_currency, rate, effective_date FROM \\\\`levelup-465304.TRENDIFY_Dataset.cost_exchange_rates\\\\` UNION ALL SELECT ''STRAMARK'', from_currency, to_currency, rate, effective_date FROM \\\\`levelup-465304.STRAMARK_Dataset.cost_exchange_rates\\\\` ORDER BY 1,5 DESC\"\"}\")",
-      "Bash(curl -s -X POST \"http://localhost:3001/api/query\" -H \"Content-Type: application/json\" --data-raw '{\"\"query\"\": \"\"SELECT from_currency, to_currency, rate, effective_date FROM `levelup-465304.TRENDIFY_Dataset.cost_exchange_rates` ORDER BY effective_date DESC LIMIT 5\"\"}')",
-      "Bash(__NEW_LINE_b6f054724c0b4b17__ curl:*)",
-      "Bash(curl -s -X POST \"http://localhost:3001/api/query\" -H \"Content-Type: application/json\" --data-raw '{:*)",
-      "Bash(node -e \":*)",
-      "Bash(curl -s -X POST \"http://localhost:3001/api/query\" -H \"Content-Type: application/json\" --data-raw '{\"\"query\"\": \"\"SELECT MAX\\(DATE\\(inserted_at\\)\\) as last_date FROM `levelup-465304.ZEN8_Dataset.sale_order`\"\"}')",
-      "Bash(1 ls:*)",
-      "Bash(cmd /c \"cd /d C:\\\\Users\\\\Admin\\\\Desktop\\\\Agentic-AI-Levelup && python sync/zen8/zen8_sync.py --test\")",
-      "Bash(1 grep:*)",
-      "Bash(cmd /c \"python -c \"\"import sys; print\\(sys.executable\\)\"\"\")",
-      "Bash(find /c/Users/Admin/Desktop/Agentic-AI-Levelup -name *n8n* -o -name *workflow*)",
-      "Bash(find /c/Users/Admin/Desktop/Agentic-AI-Levelup/docs -name *ARCH* -o -name *system*)",
-      "Bash(python sync/zen8/zen8_sync.py --orders)",
-      "Bash(python -c \"import sys; print\\(sys.executable, sys.version\\)\")",
-      "Bash(node -e ':*)",
-      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3001/zen8)",
-      "Bash(curl -s http://localhost:3001/zen8)",
-      "Bash(curl -s -X POST http://localhost:3001/api/query -H \"Content-Type: application/json\" -d '{\"\"\"\"query\"\"\"\":\"\"\"\"SELECT COUNT\\(*\\) as cnt FROM `levelup-465304.ZEN8_Dataset.fact_order_items_dedup` LIMIT 5\"\"\"\"}')",
-      "Bash(curl -s -X POST http://localhost:3001/api/query -H \"Content-Type: application/json\" -d '{\"\"query\"\":\"\"SELECT column_name FROM `levelup-465304.ZEN8_Dataset.INFORMATION_SCHEMA.COLUMNS` WHERE table_name = ''''fact_order_items_dedup'''' ORDER BY ordinal_position\"\"}')",
-      "Bash(curl -s -X POST http://localhost:3001/api/query -H \"Content-Type: application/json\" -d '{\"\"query\"\":\"\"SELECT COUNT\\(DISTINCT oi.product_name\\) as product_count FROM `levelup-465304.ZEN8_Dataset.fact_order_items_dedup` oi JOIN `levelup-465304.ZEN8_Dataset.sale_order` so ON oi.order_id = so.id WHERE DATE\\(so.create_date\\) BETWEEN ''''2025-01-01'''' AND ''''2026-03-31'''' AND oi.product_name IS NOT NULL AND oi.product_name != ''''''''\"\"}')",
-      "Bash(curl -s http://localhost:3001/hnle)",
-      "Bash(powershell.exe -Command \"& 'C:\\\\Users\\\\Admin\\\\AppData\\\\Local\\\\Programs\\\\Python\\\\Python312\\\\python.exe' sync/zen8/zen8_sync.py --ads --days 1\")",
-      "Bash(powershell.exe -Command \"& 'C:\\\\Users\\\\Admin\\\\AppData\\\\Local\\\\Programs\\\\Python\\\\Python312\\\\python.exe' sync/zen8/zen8_sync.py --orders --ads --days 1\")",
-      "Bash(powershell.exe -Command \"& 'C:\\\\Users\\\\Admin\\\\AppData\\\\Local\\\\Programs\\\\Python\\\\Python312\\\\python.exe' sync/zen8/zen8_sync.py --orders --ads --days 3\")",
-      "Bash(powershell.exe -Command \"schtasks /Delete /TN 'ZEN8_AutoSync' /F\")",
-      "Bash(powershell.exe -Command \"schtasks /Create /TN 'ZEN8_AutoSync' /TR 'C:\\\\Users\\\\Admin\\\\Desktop\\\\Agentic-AI-Levelup\\\\sync\\\\zen8\\\\auto_sync.bat' /SC MINUTE /MO 30 /F\")",
-      "Bash(powershell.exe -Command \"schtasks /Query /TN 'ZEN8_AutoSync' /V /FO LIST\")",
-      "Bash(python sync/hnle/hnle_sync.py --test)",
-      "Bash(pip --version)",
-      "Bash(/c/Users/Admin/AppData/Local/Programs/Python/Python312/python.exe --version)",
-      "Bash(/c/Python312/python.exe --version)",
-      "Bash(ls /c/Users/Admin/AppData/Local/Programs/Python/*/python.exe)",
-      "Bash(/c/Users/Admin/AppData/Local/Programs/Python/Python312/python.exe sync/hnle/hnle_sync.py --test)",
-      "Bash(powershell.exe -Command ':*)",
-      "Bash(powershell.exe -Command \"Start-ScheduledTask -TaskName 'HNLE_AutoSync_30min'\")",
-      "Bash(powershell.exe -Command \"Get-ScheduledTask -TaskName 'HNLE_AutoSync_30min' | Select-Object State, TaskName\")",
-      "Bash(powershell.exe -Command \"Get-ScheduledTask -TaskName 'HNLE_AutoSync_30min' | Select-Object State\")",
-      "Bash(git reset *)",
-      "Bash(git stash *)"
-    ],
-    "defaultMode": "acceptEdits",
-    "allowedRules": [
-      "Bash(python runner.py --dry-run *)",
-      "Bash(python -m pytest *)",
-      "Bash(pytest *)",
-      "Bash(pip install *)",
-      "Bash(pip list)",
+      "Bash(cd dashboard-ui && npm run dev)",
+      "Bash(cd dashboard-ui && npm run build)",
+      "Bash(cd dashboard-ui && npm test)",
+      "Bash(cd dashboard-ui && npx tsc --noEmit*)",
+      "Bash(python3 -m pytest tests/*)",
       "Bash(pm2 status)",
-      "Bash(pm2 logs *)",
-      "Bash(docker-compose -f docker-compose.ai.yml ps)",
-      "Bash(docker-compose -f docker-compose.ai.yml logs *)",
-      "Bash(npm install)",
-      "Bash(npm run dev)",
-      "Bash(npm run build)",
-      "Bash(npm run lint)",
-      "Bash(npm test)"
+      "Bash(pm2 logs talpha-dashboard*)",
+      "Bash(systemctl list-timers*)",
+      "Bash(journalctl -u talpha-*)"
     ],
-    "denyRules": [
-      "Bash(python runner.py --no-dry-run *)",
-      "Bash(python faos_brain/runner.py)"
-    ]
+    "deny": [
+      "Bash(bq rm*)",
+      "Bash(bq query*DELETE*)",
+      "Bash(bq query*DROP*)",
+      "Bash(bq query*TRUNCATE*)"
+    ],
+    "defaultMode": "acceptEdits"
   },
   "hooks": {
     "PostToolUse": [
@@ -74,18 +26,10 @@
         "hooks": [
           {
             "type": "command",
-            "command": "FILE=$(cat | python3 -c \"import sys,json; d=json.load(sys.stdin); print(d.get('tool_input',{}).get('file_path',''))\" 2>/dev/null); if [[ \"$FILE\" =~ \\.py$ ]]; then python -m py_compile \"$FILE\" 2>&1 && echo \"✓ Python syntax OK\"; fi"
+            "command": "FILE=$(cat | python3 -c \"import sys,json; d=json.load(sys.stdin); print(d.get('tool_input',{}).get('file_path',''))\" 2>/dev/null); if [[ \"$FILE\" =~ \\.py$ ]]; then python3 -m py_compile \"$FILE\" 2>&1 && echo \"✓ Python syntax OK\"; fi"
           }
         ]
       }
     ]
-  },
-  "mcpServers": {
-    "codenexus": {
-      "command": "/Users/ngonhat/Desktop/codenexus-mcp/venv/bin/codenexus-mcp",
-      "env": {
-        "CODENEXUS_DB": "/Users/ngonhat/Desktop/Agentic-AI-Levelup/.codenexus/index.db"
-      }
-    }
   }
 }

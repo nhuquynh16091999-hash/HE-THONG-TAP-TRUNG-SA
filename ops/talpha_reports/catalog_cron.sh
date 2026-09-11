@@ -1,6 +1,9 @@
 #!/bin/bash
 # ═══════════════════════════════════════════════════════════════════
-# TALPHA E2 — làm tươi product_catalog mỗi ngày (launchd gọi)
+# TALPHA E2 — làm tươi product_catalog.
+#
+# ⚠️ HIỆN KHÔNG CÓ AI GỌI ĐỊNH KỲ (job launchd cũ ở máy Mac đã bỏ, chưa có timer
+# thay thế trên VPS). Chạy tay khi thêm sản phẩm mới, hoặc dựng systemd timer.
 #
 # product_catalog là bảng dimension variation_id → sku/tên SP; MỌI báo cáo theo
 # sản phẩm (tab "P&L theo SP", view vw_product_pnl, cột cogs_vnd của vw_orders_std)
@@ -8,7 +11,7 @@
 # 04/08 bảng đã cũ ~1,5 tháng ⇒ 38,7% dòng order_items không khớp catalog
 # (419,2tr doanh thu không phân tích được theo SP) và SP mới lên sàn thì vô hình.
 #
-# Chạy từ RUNTIME ~/talpha_reports — launchd KHÔNG đọc được Desktop.
+# Chạy từ RUNTIME /root/talpha_reports trên VPS.
 # Sửa ở repo (sync/talpha/sync_product_catalog.py + ops/talpha_reports/) rồi
 # `./deploy_runtime.sh --yes`.
 #

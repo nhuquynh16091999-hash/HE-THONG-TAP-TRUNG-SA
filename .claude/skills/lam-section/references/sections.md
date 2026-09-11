@@ -11,7 +11,7 @@
 - **Việc**: bỏ SQL inline, chuyển query sang `vw_orders_std`/`vw_fb_ads_std` (sau khi E1 fix xong); nhãn rõ "DS đặt" vs "DS Giao TC".
 - **Phạm vi**: `dashboard-ui/src/components/talpha/tabs/*` (6 tab BQ: CEO, Marketing, P&L, P&L theo SP, Khách hàng, Market Intel).
 - **Verify**: mở từng tab, tổng doanh thu GTC khớp rule `SUM(cod)/100 WHERE GIAO_THANH_CONG` — đối chiếu 1 ngày cụ thể bằng query tay lên BQ.
-- **Deploy**: dashboard Mac = `npm run build` + `pm2 restart talpha-dashboard` (KHÔNG tự reload); server = `bash /opt/talpha/scripts/deploy_server.sh` (làm khi user yêu cầu deploy server).
+- **Deploy**: `bash ops/deploy/from-mac.sh` chạy TỪ MÁY MAC — đây là cách duy nhất. `npm run build` ở Mac chỉ đổi bản localhost.
 - **Phụ thuộc**: E1 xong trước.
 
 ### A2 — P&L theo SP + Market Intel (P0 phần CAST · P2 phần order_items)
@@ -75,7 +75,7 @@
 - **Việc**: mỗi lần sync ghi 1 dòng trạng thái (rows/account, ok/fail); bot WA gửi cảnh báo khi fail.
 - **Phạm vi**: sync (sau B1 hợp nhất), `ops/whatsapp-alerts/`.
 - **Verify**: giả lập 1 account fail → trong 1 chu kỳ, nhóm "BOT AI THÔNG BÁO" nhận tin cảnh báo.
-- **Deploy**: runtime (rsync) + server bot (`scripts/deploy_server.sh`).
+- **Deploy**: `ops/deploy/from-mac.sh`; phần báo cáo Sheets thêm `ops/talpha_reports/deploy_runtime.sh --yes` trên VPS.
 - **Phụ thuộc**: B1 xong trước.
 
 ## C · Tồn kho
@@ -95,7 +95,7 @@
 ## D · Bot WhatsApp
 
 > Mọi section D: code repo `ops/whatsapp-alerts/`, chạy thật tại server
-> 169.58.33.8 `/opt/talpha/`, pm2 `talpha-wa-alerts`. Deploy = rsync + restart
+> VPS 139.180.131.21 `/opt/talpha/`, pm2 `talpha-wa-alerts` (ĐANG TẮT). Deploy = from-mac.sh + restart
 > theo runbook. **Không test bot trên Mac** — localhost:3001 trên Mac là app
 > broadcast khác (404 im lặng).
 
@@ -149,7 +149,7 @@
 - **⚠**: TUYỆT ĐỐI không commit key/token; không in key ra log.
 
 ### F3 — Deploy & pm2 (P0 phần xoá file chết · P2 phần còn lại)
-- **Việc P0**: xoá `ecosystem.config.js` chết ở repo root — XONG cfcb499. P2: 1 ecosystem/máy (`ops/pm2/`) + namespace `talpha` — XONG 04/08; deploy git pull — script `scripts/deploy_server.sh` đã có, còn chờ cutover `/opt/talpha` sang git (cần deploy key GitHub, xem `ops/pm2/README.md`).
+- **XONG 11/09/2026**: còn đúng MỘT file pm2 (`ops/pm2/ecosystem.vps.config.js`), `/opt/talpha` đã là bản git clone, deploy bằng `ops/deploy/from-mac.sh` (máy chủ mượn khoá GitHub của Mac qua `ssh -A`, không cần deploy key riêng).
 - **Verify**: `pm2 status` các app vẫn online sau thay đổi.
 
 ### F4 — Docs (P2)

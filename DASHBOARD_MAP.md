@@ -1,93 +1,179 @@
-# TALPHA Dashboard — Bản đồ hệ thống
+# TALPHA — Bản đồ nghiệp vụ
 
-> Bản hệ thống hoá phần **dashboard** (`dashboard-ui/`) và mọi thứ nuôi số cho nó.
-> Nguồn: đọc trực tiếp code tại commit `edb2b16` (branch `main`).
-> Rule chỉ số & bẫy vận hành: `.claude/skills/talpha-system/SKILL.md` (source of truth).
+Một tài liệu, đọc từ trên xuống là hiểu tiền đi đường nào và số hiện trên màn hình
+đến từ đâu. Viết lại 11/09/2026 theo đúng code đang chạy.
 
----
-
-## 1. Dashboard là cái gì
-
-Next.js 16 (App Router) + React 19 + TailwindCSS, chạy **1 dự án duy nhất: TALPHA**
-(bán trang sức/mỹ phẩm qua Facebook Ads + chat-sale + COD ở GCC + Taiwan).
-
-- Vào `/` → middleware check login → redirect `/talpha`
-- `/talpha` render **1 shell duy nhất**: `components/talpha/dashboard-shell.tsx`
-- Auth: NextAuth v5 (`lib/auth.ts`), user lưu ở `config/users.json` (bcrypt)
-- Data: BigQuery `cty-507710.TALPHA_Dataset` + gọi live Meta API / Poscake POS
+Rule chỉ số (công thức doanh thu, tỷ giá, số chia): `docs/TALPHA_METRIC_RULES.md`.
+Cách vận hành máy chủ: `docs/DEPLOY_VPS.md`.
 
 ---
 
-## 2. Cấu trúc điều hướng (7 nhóm / 14 tab)
+## 1. Việc kinh doanh
 
-| Nhóm sidebar | Tab con | Component | Nguồn số |
-|---|---|---|---|
-| 📋 Báo cáo | Tổng quan | `tabs/ceo-overview-tab.tsx` | `/api/query` (BQ) + `/api/talpha/targets` |
-| | P&L | `tabs/pnl-tab.tsx` | `/api/query` |
-| | P&L theo SP | `tabs/product-pnl-tab.tsx` | `/api/query` + `/api/talpha/product-costs` |
-| 🧾 Đơn hàng & Đối soát | Sổ đơn hàng | `tabs/order-ledger-tab.tsx` | `/api/talpha/order-ledger` |
-| | Đối soát COD | `tabs/cod-recon-tab.tsx` | `/api/talpha/cod-recon` (file 3PL tải lên) |
-| | Theo dõi vận đơn | `tabs/tracking-tab.tsx` | `/api/talpha/tracking` |
-| 📦 Sản phẩm | Sản phẩm & Kho | `tabs/products-tab.tsx` | `/api/talpha/inventory` (POS live, fallback BQ snapshot) |
-| 👤 Marketer | Marketing & Ads | `tabs/marketing-tab.tsx` | `/api/query` + `/api/talpha/marketer-perf` + `targets` |
-| 🎯 Quảng cáo | Ads Command Center | `app/talpha/ads-command-center/page.tsx` (618 dòng) | `/api/talpha/realtime` (Meta + POS **live**) |
-| | Sức khoẻ quảng cáo | `tabs/ad-health-tab.tsx` | `/api/query` |
-| 💳 Đối soát chi phí QC | Đối soát chi phí QC | `tabs/ads-recon-tab.tsx` | `/api/talpha/ads-recon` (2 file tải lên: chi phí TKQC + sao kê thẻ) |
-| 👥 Khách hàng | Khách hàng | `tabs/customer-tab.tsx` | `/api/query` |
-| | Market Intel | `tabs/market-intel-tab.tsx` | `/api/query` |
+Bán trang sức và mỹ phẩm ở **Đài Loan**, qua Facebook Ads → chat-sale Messenger →
+**thu tiền COD**. Hàng đi từ kho Trung Quốc qua 3PL **NAZA供应链**; khách trả tiền
+cho shipper; NAZA gom rồi chuyển về theo kỳ.
 
-Ghi chú:
-- `tabs/ads-command-tab.tsx` chỉ là **wrapper 10 dòng** bọc lại page `/talpha/ads-command-center`
-  → cùng một màn hình tồn tại ở 2 URL.
-- 3 tab `ads-command` + `ad-health` + `ads-recon` **bỏ qua bộ chọn ngày**
-  (`IGNORES_DATE_RANGE`): hai tab đầu có cửa sổ thời gian cố định trong view, còn
-  Đối soát chi phí QC lấy kỳ từ chính file sao kê tải lên.
-- **Đối soát chi phí QC** là tab DUY NHẤT không đụng BigQuery lẫn POS — nó chỉ đọc 2
-  file người dùng tải lên, nên vẫn chạy được khi POS chết hoặc BQ hết snapshot.
-  Nghiệp vụ nằm ở `lib/talpha/ads-recon/` (ESM thuần, không thư viện ngoài), dùng
-  chung với bản dòng lệnh ở thư mục `Doi-Soat-Chi-Phi-QC/` ngang hàng repo này.
-  Luật ở `config/talpha_rules.json` → `ads_settlement`.
-- Ngoài shell còn có `/admin` (quản lý user + TKQC) và `/login`.
+| Vai | Người | Thấy gì |
+|:--|:--|:--|
+| Giám đốc | 1 | Toàn bộ số liệu, quản lý người dùng |
+| Marketer | 6 (Lộc · Sỹ Anh · Thái · Thương · Quỳnh · Thắng) | Báo cáo, chi phí quảng cáo |
+| Sale | 2 (một ghế còn trống) | Đơn hàng, đối soát COD |
+
+Một thị trường · một shop POS Poscake · 10 tài khoản quảng cáo Meta (4 đang chạy).
+Tiền: TWD, tỷ giá cố định **800đ/TWD**.
 
 ---
 
-## 3. Tầng API (Next.js route handlers)
-
-### Cổng SQL chung
-`POST /api/query` — gateway BigQuery của **6/9 tab**.
-- Chỉ cho `SELECT` / `WITH`, chặn `;` và toàn bộ DDL/DML bằng whitelist keyword
-- Auth bằng `DASHBOARD_API_KEY` (nếu không set env → mở, chế độ dev)
-- Dataset lấy từ cookie `activeDataset` (shell set = `TALPHA_Dataset`)
-
-### Route nghiệp vụ TALPHA (`/api/talpha/*`)
-
-| Route | Việc |
-|---|---|
-| `realtime` (625 dòng) | Gọi thẳng Meta API + POS, dựng số cho Ads Command Center & bot WA |
-| `inventory` | Tồn kho POS live; POS chết → rơi về bảng BQ `inventory_snapshot` |
-| `sync-inventory` / `snapshot-ads` | Endpoint cho launchd gọi định kỳ để 2 bảng snapshot không chết đứng |
-| `marketer-perf` | Hiệu suất từng marketer |
-| `product-costs` | Giá vốn theo SP (đọc `config/talpha_rules.json`) |
-| `targets` | Chỉ tiêu (KPI) |
-| `ads-alerts` | Cảnh báo spend cho bot WhatsApp |
-| `billing` | Hạn mức / thanh toán TKQC |
-| `sheet-report` | Đọc báo cáo Google Sheets |
-| `export-report` | Nút "Xuất Sheet" → đẩy job vào BQ `export_jobs`, `export_worker.py` xử lý |
-| `sync-health` | Bot WA đọc để biết sync còn sống hay đã "chết câm" |
-| `ceo-ask` (211 dòng) | Hỏi đáp CEO bằng LLM → sinh SQL (`lib/talpha/ceo-ask-prompt.ts`, `ceo-ask-sql.ts`) |
-
-### Hạ tầng
-`auth/[...nextauth]`, `auth/register`, `auth/validate`, `users`, `ad-accounts`.
-
----
-
-## 4. View BigQuery mà dashboard đụng tới
-
-Đếm theo số lần tham chiếu trong `dashboard-ui/src`:
+## 2. Một đơn hàng đi qua những đâu
 
 ```
-vw_orders_std           29×   ← xương sống đơn hàng
-vw_fb_ads_std           16×   ← xương sống spend
+  Facebook Ads ──► khách nhắn tin ──► sale chốt trên POS Poscake
+                                            │
+                                            ▼
+                                     đơn có mã vận đơn
+                                            │
+                     ┌──────────────────────┼──────────────────────┐
+                     ▼                      ▼                      ▼
+              NAZA nhận hàng          17TRACK theo dõi        POS đổi trạng thái
+                     │                hành trình kiện          GIAO_THANH_CONG
+                     ▼                      │                      │
+            khách trả tiền mặt              │                      │
+                     │                      │                      │
+                     ▼                      ▼                      ▼
+            sao kê NAZA theo kỳ      tab Theo dõi vận đơn    sync giờ → BigQuery
+                     │                                             │
+                     ▼                                             ▼
+            tab Đối soát COD  ◄──── khớp mã vận đơn ────►  6 tab đọc BigQuery
+```
+
+Ba câu hỏi tiền, ba màn hình khác nhau — **đừng trộn**:
+
+| Câu hỏi | Màn hình | Nguồn |
+|:--|:--|:--|
+| Bán được bao nhiêu? | Tổng quan · P&L | BigQuery, đơn **GIAO THÀNH CÔNG** |
+| Đang tiêu bao nhiêu, ngay lúc này? | Ads Command Center | Meta + POS **gọi thẳng**, đơn **ĐÃ ĐẶT** |
+| Tiền có về đủ không? | Đối soát COD · Đối soát chi phí QC | File sao kê người dùng tải lên |
+
+> **Hai định nghĩa doanh thu.** Tab BigQuery đếm đơn đã giao xong; Ads Command Center
+> đếm đơn vừa đặt. ROAS hai nơi **không so trực tiếp được**. Đây là thiết kế, không
+> phải lỗi cần "fix cho khớp".
+
+---
+
+## 3. Số chảy vào bằng hai đường
+
+### Đường chốt số — theo giờ, qua BigQuery
+
+```
+Meta API (10 TKQC) ─┐
+                    ├─► talpha-sync.timer (:00 mỗi giờ) ─► BigQuery cty-507710.TALPHA_Dataset
+POS Poscake (1 shop)┘         sync/talpha/talpha_sync.py
+                                                              │
+                              talpha-report.timer (:20) ──────┤
+                              daily_guarded.sh                │
+                                ├─ sync_month.py  (kéo lại tháng hiện tại)
+                                └─ format_all.py  (ghi Google Sheets của từng marketer)
+                                                              │
+                                            /api/query ◄──────┘──► 6 tab báo cáo
+```
+
+`talpha-report` **không ghi Sheet khi sync hỏng**. Chốt 03/09: một Sheet cũ toàn
+phần đọc được, còn Sheet nửa mới nửa thiếu thì không. Lý do có chốt này: token Meta
+chết 02/09, spend về 0, mà spend nằm ở mẫu số nên Sheet sai theo hướng **đẹp giả**
+(CPO 103.735đ khi thật ~165.000đ) — 46 tiếng không ai nghi.
+
+### Đường phản ứng — gọi thẳng, không qua BigQuery
+
+```
+Meta API + POS ──live──► /api/talpha/realtime   ──► Ads Command Center
+POS            ──live──► /api/talpha/inventory  ──► tab Sản phẩm & Kho
+                            (POS chết → rơi về bảng inventory_snapshot trong BQ)
+```
+
+### Đường thứ ba — file người dùng tải lên
+
+Ba màn hình **không đụng BigQuery lẫn POS**, chạy được cả khi hai thứ kia chết:
+
+| Màn hình | File đầu vào | Kho lưu |
+|:--|:--|:--|
+| Đối soát COD | Sao kê NAZA (CSV/TSV) | `data/cod_statements.json` |
+| Đối soát chi phí QC | Chi phí TKQC + sao kê thẻ | `data/ads_recon.json`, `data/ads_recon_kho.json` |
+| Theo dõi vận đơn | Bảng đơn của đối tác (Google Sheet) | `data/tracking.json` |
+
+`data/` nằm **ngoài git** (có số tiền thật). `ops/deploy/from-mac.sh` chép nó lên
+máy chủ, và **dừng lại báo lỗi** nếu chép trượt.
+
+---
+
+## 4. Màn hình — 7 nhóm, 13 tab
+
+Vào `/` → middleware kiểm đăng nhập → `/talpha` → `components/talpha/dashboard-shell.tsx`.
+
+| Nhóm | Tab | Component | Số từ đâu |
+|:--|:--|:--|:--|
+| 📋 Báo cáo | Tổng quan | `tabs/ceo-overview-tab.tsx` | `/api/query` + `targets` |
+| | P&L | `tabs/pnl-tab.tsx` | `/api/query` |
+| | P&L theo SP | `tabs/product-pnl-tab.tsx` | `/api/query` + `product-costs` |
+| 🧾 Đơn hàng & Đối soát | Sổ đơn hàng | `tabs/order-ledger-tab.tsx` | `/api/talpha/order-ledger` |
+| | Đối soát COD | `tabs/cod-recon-tab.tsx` | `/api/talpha/cod-recon` |
+| | Theo dõi vận đơn | `tabs/tracking-tab.tsx` | `/api/talpha/tracking` |
+| 📦 Sản phẩm | Sản phẩm & Kho | `tabs/products-tab.tsx` | `/api/talpha/inventory` |
+| 👤 Marketer | Marketing & Ads | `tabs/marketing-tab.tsx` | `/api/query` + `marketer-perf` |
+| 🎯 Quảng cáo | Chi phí quảng cáo | `tabs/ad-spend-tab.tsx` | `/api/talpha/ad-spend` |
+| | Ads Command Center | `app/talpha/ads-command-center/page.tsx` | `/api/talpha/realtime` |
+| | Sức khoẻ quảng cáo | `tabs/ad-health-tab.tsx` | `/api/query` |
+| 💳 Đối soát chi phí QC | Đối soát chi phí QC | `tabs/ads-recon-tab.tsx` | `/api/talpha/ads-recon` |
+| 👥 Khách hàng | Khách hàng · Market Intel | `tabs/customer-tab.tsx` · `market-intel-tab.tsx` | `/api/query` |
+
+Ngoài shell còn `/login` và `/admin` (người dùng + TKQC).
+
+Ba tab **bỏ qua bộ chọn ngày** (`IGNORES_DATE_RANGE`): Ads Command Center và Sức khoẻ
+quảng cáo có cửa sổ thời gian cố định trong view; Đối soát chi phí QC lấy kỳ từ chính
+file sao kê.
+
+**Đối soát chi phí QC đứng riêng một nhóm, không nhét vào "Quảng cáo"** — tab "Chi phí
+quảng cáo" trả lời *tiêu bao nhiêu và hiệu quả ra sao*; mục này trả lời *tiền có ra
+đúng số không*. Gộp chung là sớm muộn có người đem số đối soát đi tính ROAS.
+
+---
+
+## 5. Tầng API
+
+### `/api/query` — cổng SQL dùng chung của 6 tab BigQuery
+
+Chỉ nhận `SELECT` / `WITH`; chặn `;` và toàn bộ DDL/DML bằng danh sách từ khoá cấm.
+Xác thực bằng `DASHBOARD_API_KEY` (không đặt env → mở, chế độ dev). Dataset lấy từ
+cookie `activeDataset` (shell đặt `TALPHA_Dataset`).
+
+### `/api/talpha/*`
+
+| Route | Việc | Ai gọi |
+|:--|:--|:--|
+| `realtime` | Meta + POS live, dựng số Ads Command Center | Giao diện, bot WA |
+| `inventory` | Tồn kho POS live; POS chết → snapshot BQ | Giao diện, bot WA |
+| `order-ledger` | Sổ đơn: mỗi đơn một dòng, khách + tiền + vòng đời | Giao diện |
+| `cod-recon` | Khớp sao kê 3PL với đơn đã giao | Giao diện |
+| `tracking` · `tracking/import` | 17TRACK + nạp bảng đơn đối tác | Giao diện |
+| `ads-recon` | Đối soát chi phí TKQC với sao kê thẻ | Giao diện |
+| `cod-actions` | Đánh dấu đã đòi / đã nhận tiền | Giao diện |
+| `ad-spend` · `marketer-perf` · `product-costs` · `targets` | Số phụ trợ cho tab | Giao diện |
+| `ceo-ask` | Hỏi đáp bằng LLM → sinh SQL | Giao diện |
+| `export-report` | Nút "Xuất Sheet" → đẩy job vào BQ `export_jobs` | Giao diện |
+| `sync-inventory` · `snapshot-ads` | Ghi snapshot định kỳ để bảng dự phòng không chết đứng | `snapshot_cron.sh` |
+| `ads-alerts` · `billing` · `sheet-report` · `sync-health` | Cảnh báo spend, hạn mức TKQC, số từ Sheet, sức khoẻ sync | Bot WA (đang tắt) |
+
+Hạ tầng: `auth/[...nextauth]`, `auth/validate`, `users`, `ad-accounts`.
+
+---
+
+## 6. BigQuery — `cty-507710.TALPHA_Dataset`
+
+View mà dashboard đụng tới, đếm theo số lần tham chiếu trong `dashboard-ui/src`:
+
+```
+vw_orders_std           31×   ← xương sống đơn hàng
+vw_fb_ads_std           16×   ← xương sống chi tiêu
 vw_ad_windows            4×
 vw_attribution_quality   2×
 vw_product_pnl · vw_product_catalog_std · vw_marketer_momentum
@@ -95,113 +181,89 @@ vw_fact_daily_pnl · vw_fact_daily_marketer · vw_daily_momentum
 vw_creative_fatigue · vw_campaign_lifecycle
 ```
 
-Đổi `vw_orders_std` hoặc `vw_fb_ads_std` = ảnh hưởng gần như cả dashboard.
+Sửa `vw_orders_std` hoặc `vw_fb_ads_std` là đụng gần như cả dashboard.
+Định nghĩa view: `sql/talpha/views/`, deploy bằng `sql/talpha/deploy_talpha_analytics.py`.
+
+Bảng thô dashboard đọc thẳng: `sale_order`, `order_items`, `fb_ads_data`,
+`fb_adset_data`, `inventory_snapshot`, `ads_command_snapshot`, `sync_health`,
+`export_jobs`.
 
 ---
 
-## 5. Số từ đâu chảy vào
+## 7. Cái gì chạy ở đâu
+
+| Thành phần | Nơi chạy | Khởi động bằng |
+|:--|:--|:--|
+| Dashboard | VPS `139.180.131.21:3000`, `/opt/talpha` | pm2 `talpha-dashboard` — `ops/pm2/ecosystem.vps.config.js` |
+| Kéo số vào BigQuery | VPS, mỗi giờ phút :00 | systemd `talpha-sync.timer` → `sync/talpha/talpha_sync.py` |
+| Ghi Google Sheets | VPS, mỗi giờ phút :20 | systemd `talpha-report.timer` → `/root/talpha_reports/daily_guarded.sh` |
+| Bot cảnh báo WhatsApp | — | **Tắt**. Code ở `ops/whatsapp-alerts/`, cách bật trong `ops/pm2/README.md` |
+| Máy Mac | Máy dev | `cd dashboard-ui && npm run dev`. Không job nền nào. |
+
+**Ba việc CHƯA có lịch chạy** — job launchd cũ trên máy Mac đã bỏ, chưa dựng timer thay
+thế trên VPS:
+
+| Script | Việc bỏ lỡ |
+|:--|:--|
+| `ops/talpha_reports/snapshot_cron.sh` | `inventory_snapshot` và `ads_command_snapshot` đứng yên. Bảng đầu LÀ đường dự phòng của tab Kho khi POS chết — cũ là tab Kho hiện số cũ |
+| `ops/talpha_reports/catalog_cron.sh` | `product_catalog` cũ dần → sản phẩm mới vô hình trong báo cáo theo SP |
+| `ops/talpha_reports/export_worker.py` | Nút "Xuất Sheet" đẩy job vào BigQuery nhưng không ai xử lý |
+
+Dựng timer theo mẫu `ops/deploy/vps-sync-setup.sh`.
+
+Deploy: **`bash ops/deploy/from-mac.sh`** từ máy Mac. Máy chủ không có khoá GitHub —
+nó mượn khoá của máy Mac qua `ssh -A` trong lúc chạy script. `git pull` thẳng trên
+máy chủ **không** chạy được, và tệ hơn là nó vẫn in ra `origin/main` cũ nên trông như
+đã mới nhất.
+
+`npm run build` ở máy Mac **không phải deploy** — nó chỉ đổi bản chạy ở localhost.
+
+---
+
+## 8. Cấu trúc repo
 
 ```
-Meta API (15 TKQC) ─┐
-                    ├─ launchd MỖI GIỜ ─► sync_month.py ─► BigQuery ─► format_all.py ─► ~56 Google Sheets
-Poscake POS (7 shop)┘                          │
-                                               └──► /api/query ──► 6 tab BQ
-Meta API + POS ──── LIVE ────────────────► /api/talpha/realtime ──► Ads Command Center + bot WA
-POS ─────────────── LIVE ────────────────► /api/talpha/inventory ─► tab Kho + digest tồn kho
-BQ fb_ads_data ──────────────────────────► /api/talpha/ads-alerts ► bot WA cảnh báo spend
+dashboard-ui/            Next.js 16 + React 19 — toàn bộ giao diện và API
+  src/app/api/talpha/      route nghiệp vụ
+  src/lib/talpha/          rule gán người, logic đối soát, kho JSON có khoá file
+  src/lib/talpha/config-path.ts   MỘT chỗ biết cấu hình nằm ở đâu
+config/                  talpha_rules.json — NGUỒN RULE DUY NHẤT
+  projects/talpha.yaml     TKQC Meta + shop POS
+sync/                    engine sync POS + Meta → BigQuery (bản DUY NHẤT)
+  core/                    pos_client · meta_client · bq_writer · business_rules
+ops/deploy/              5 script dựng và cập nhật máy chủ
+ops/pm2/                 ecosystem.vps.config.js — file pm2 DUY NHẤT
+ops/talpha_reports/      đường ống báo cáo Google Sheets
+ops/whatsapp-alerts/     bot cảnh báo (đang tắt)
+sql/talpha/views/        12 định nghĩa view BigQuery
+docs/                    TALPHA_METRIC_RULES.md là source of truth về chỉ số
 ```
 
-**Hệ quả cần nhớ:** tab BQ và Ads Command Center **khác bản chất** — tab BQ dùng doanh thu
-GIAO THÀNH CÔNG, Ads Command dùng doanh thu ĐẶT. ROAS 2 nơi không so trực tiếp được.
+---
+
+## 9. Ba rule dễ tính sai nhất
+
+1. **Doanh thu** = `SUM(cod ÷ số chia của shop)`, chỉ đơn `GIAO_THANH_CONG` và `cod > 0`.
+   Shop Đài lưu **nguyên TWD** nên số chia là **1**, không phải 100. Gõ `/100` là tiền
+   tụt đúng 100 lần (AOV ra 8.987đ/đơn). Tra ở `talpha_rules.json → markets.*.pos_money_divisor`,
+   đọc qua `posMoneyDivisor()`.
+2. **Chi phí quảng cáo đã là VND** — không quy đổi lần nào nữa. Cột ngày là `date`,
+   không phải `date_start`.
+3. **Chẩn đoán số sai: không bao giờ so Sheet với BigQuery** — cùng nguồn nên cùng sai.
+   Đối chiếu thẳng Meta API cho chi phí và POS API cho đơn.
 
 ---
 
-## 6. Cái gì chạy ở đâu
+## 10. Còn nợ
 
-| Thành phần | Nơi chạy | Ghi chú |
-|---|---|---|
-| Dashboard (Mac) | pm2 `talpha-dashboard`, port **3000** | `dashboard-ui/ecosystem.config.js` |
-| Dashboard (server) | `169.58.33.8`, port **3001**, `/opt/talpha/` | deploy `scripts/deploy_server.sh` |
-| Sync + Sheets | launchd `com.talpha.dailyreport`, 3600s | chạy bản **runtime** `~/talpha_reports/`, **không phải repo** |
-| Export worker | launchd `com.talpha.export-worker` | poll BQ `export_jobs` mỗi 20s |
-| Snapshot jobs | launchd `com.talpha.snapshot-inventory` (15') / `-ads` (30') | gọi API dashboard |
-| Bot WhatsApp | server, pm2 `talpha-wa-alerts` | code `ops/whatsapp-alerts/` |
-| pm2 config | `ops/pm2/ecosystem.mac.config.js` / `.server.config.js` | namespace `talpha` |
+* **Phí thao tác NAZA 3 RMB/đơn** — bảng giá ghi miễn phí, thực tế thu đều trên 463 đơn
+  (1.389 RMB qua 7 kỳ). Chưa hỏi được NAZA khoản này là gì.
+* **Quy tắc gán sale chưa khai** (`sale_assignment`) → mọi đơn rơi vào "(chưa gán sale)".
+* **Tên đầy đủ của giám đốc và bạn sale thứ hai** chưa có.
+* **KPI tháng đang là số của đội cũ** (`targets`).
+* **6 mã vận đơn bị gán cho hai đơn khác nhau** và **39 dòng trống mã vận đơn** trong
+  file đơn tổng — tab Đối soát đang cảnh báo.
+* Giá vốn 3 mã nhiều biến thể (004, 012, 017) đang lấy giá cao nhất; 12 sản phẩm trong
+  bảng mua hàng chưa có mã SKU.
 
----
-
-## 7. Repo có gì ngoài dashboard
-
-| Thư mục | Nội dung | Trạng thái |
-|---|---|---|
-| `dashboard-ui/` | Next.js dashboard | **Đang chạy** |
-| `ops/talpha_reports/` | Sync tháng, format ~56 Sheets, health check, export worker | **Đang chạy** (bản runtime) |
-| `ops/whatsapp-alerts/` | Bot WA (Node) | **Đang chạy** |
-| `sync/` | Bản modular của engine sync (`sync/talpha/` + `sync/core/`) | Chưa cutover — shadow run |
-| `config/` | `projects/talpha.yaml` (15 TKQC + tz), `talpha_rules.json`, bảng giá vốn CSV | Config sống |
-| `sql/` | `talpha/`, `v6/`, `tables/`, `fixes/` — phần lớn nằm `_legacy/` | Hỗn hợp |
-| `faos_brain/` | Agent AI (analyst, marketing_director, autoscale, ads_spy, FastAPI) | Di sản FAOS v6, dashboard **không gọi** |
-| `docs/` | 30+ file; quan trọng: `TALPHA_METRIC_RULES.md`, `ARCHITECTURE_2026.md`, `RUNBOOK_V6.md` | Hỗn hợp v5/v6 |
-| `.claude/skills/talpha-system/` | Bản đồ + rule + landmines + runbook | **Đọc trước khi sửa số** |
-| `tests/` | 33 file test, hầu hết cho `faos_brain` | Lệch trọng tâm |
-
----
-
-## 8. Điểm cần dọn (đã kiểm chứng trong code)
-
-1. **README.md lỗi thời** — mô tả cây thư mục `faos_brain/analyst.py`, `faos_brain/runner.py`,
-   `_deprecated/`: **không file nào tồn tại**. Thực tế agent nằm ở `faos_brain/agents/`.
-2. **Thư mục `Agentic-AI-Levelup/` rỗng** — tàn dư tên repo cũ.
-3. **`.env.example` gốc vẫn mặc định STRAMARK** (`BQ_DATASET=STRAMARK_Dataset`,
-   `PROJECT_ID=auus1`) trong khi repo đã single-project TALPHA. `dashboard-ui/.env.example`
-   cũng còn STRAMARK. Người mới copy nguyên là trỏ sai dataset.
-4. **Danh sách TKQC nằm ~6 nơi** (`config/projects/talpha.yaml`, `ops/.../ad_accounts.json`,
-   runtime config, `sync/core/meta_client.py`, realtime route, ads-command page).
-   Thêm TKQC thiếu 1 chỗ = undercount spend âm thầm.
-5. **Logic gán marketer nhân bản ~7 chỗ**, regex khác nhau (`Loc` vs `Lộc`).
-6. **Hai bản engine sync lệch kiến trúc** — repo `sync/talpha/` (modular) vs runtime
-   (monolith 656 dòng). Launchd chạy bản runtime.
-7. **Ads Command Center trùng 2 đường vào** (page + tab wrapper).
-8. `package.json` gốc chỉ có `pm2` + `puppeteer` — không phản ánh project thật.
-
----
-
-## 9. Chạy dashboard trên máy này
-
-Máy `/Users/macbook` là máy sạch (chưa có `~/talpha_reports/`, chưa có launchd job nào).
-Node 24.14 · npm 11.9 · pm2 6.0 có sẵn.
-
-**Đã làm rồi:**
-- `npm install` trong `dashboard-ui/` — 639 gói
-- Tạo `dashboard-ui/.env.local` (`AUTH_SECRET` sinh ngẫu nhiên, `chmod 600`, đã gitignore)
-- Chạy thử: server ready 1,7s · `/` → `/login` · `/talpha` chặn đúng khi chưa đăng nhập
-
-**Còn thiếu — phải Sỹ Anh đưa, điền vào chỗ `<<< CẦN ĐIỀN >>>` trong `.env.local`:**
-
-| Khoá | Dùng cho |
-|---|---|
-| `GCP_SA_KEY_JSON` (hoặc file `bigquery_key.json` ở gốc repo) | 6 tab đọc BigQuery |
-| `TALPHA_META_ACCESS_TOKEN` · `TALPHA_META_APP_SECRET` | Ads Command Center |
-| `TALPHA_POSCAKE_{SA,AE,KW,OM,QA,BH,TW}_KEY` · `TALPHA_PANCAKE_API_TOKEN` | Tab Sản phẩm & Kho |
-| `GEMINI_API_KEY` (tuỳ chọn) | Tính năng "CEO hỏi" |
-
-Chưa có khoá thì `/api/query` trả `Could not load the default credentials` và mọi tab số đều trống.
-
-```bash
-cd "/Users/macbook/Desktop/Dashboard Sỹ Anh/Talpha-New-16-6/dashboard-ui" && npm run dev
-```
-
-**Phần Python (sync + Sheets) cố tình CHƯA cài.** Máy này có Python 3.9.6, repo cần 3.12.
-Quan trọng hơn: nhánh `ops/talpha_reports/` **GHI** vào đúng BigQuery và Google Sheets mà hệ
-thống cũ đang chạy thật. Repo đã tách nhưng **dữ liệu vẫn chung** — chạy sync từ máy này là
-đụng vào số liệu production. Cần quyết có tách luôn dataset/Sheets hay không rồi mới cài.
-
-## 10. Ba rule dễ hiểu nhầm nhất
-
-1. **Doanh thu** = `SUM(cod ÷ số chia của shop)` khi `status_category='GIAO_THANH_CONG' AND cod>0`.
-   Số chia **không phải lúc nào cũng 100**: 6 shop GCC ÷100, shop Đài Loan ÷1.
-   Tra ở `config/talpha_rules.json → markets.*.pos_money_divisor`.
-2. **Ads spend đã là VND** — không quy đổi, không ÷100. Cột `date`, không phải `date_start`.
-3. **Sheet lệch Dashboard là cố hữu** (sync theo giờ vs live; tag POS vs `ad_id`; timezone
-   từng TKQC vs ngày VN). Đừng "fix" cho khớp từng ngày — chẩn đoán số sai phải đối chiếu
-   Meta API và POS API trực tiếp, **không bao giờ** so Sheet ↔ BigQuery.
+Danh sách đầy đủ: `config/talpha_rules.json → _todo`.

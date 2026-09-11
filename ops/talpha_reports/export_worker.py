@@ -4,7 +4,9 @@ Vòng lặp: đọc job 'queued' mới nhất trong BQ export_jobs → chạy fo
 append tiến độ ('running' + files_done) → 'done'/'error'. Dùng chung lock với
 daily_guarded.sh để KHÔNG chạy chồng với chain sync hàng giờ.
 Lock ghi PID chủ vào .lock/pid — 2 phía tự dọn khi chủ lock chết (B4), không kẹt 45'.
-Chạy dưới launchd com.talpha.export-worker (KeepAlive)."""
+⚠️ HIỆN KHÔNG CÓ AI CHẠY: job launchd cũ ở máy Mac đã bỏ, chưa dựng dịch vụ thay
+thế trên VPS. Nút "Xuất Sheet" vẫn đẩy job vào BigQuery nhưng không ai xử lý.
+Chạy tay: python3 export_worker.py"""
 import os, io, sys, time, json, uuid, shutil, subprocess, datetime
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))

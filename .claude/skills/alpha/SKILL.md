@@ -14,10 +14,12 @@ description: >-
 ## Hệ thống trong 5 dòng
 
 TALPHA = vận hành + BI cho team bán trang sức/mỹ phẩm qua FB Ads + chat-sale +
-COD tại GCC (6 nước) + Taiwan. Dashboard 8 tab (Mac :3000, server 169.58.33.8:3001)
-+ ~50 Google Sheets (launchd mỗi giờ) + tồn kho POS live + bot WhatsApp cảnh báo.
-Nguồn sự thật: BigQuery `talpha-faos-2026.TALPHA_Dataset`. Repo này = code cho
-tất cả; GitHub `syanh12092024-maker/Talpha-New-16-6`, remote tên `talpha-new`.
+COD tại **Đài Loan** (một thị trường, từ 05/09/2026). Dashboard 13 tab trên VPS
+`139.180.131.21:3000` + báo cáo Google Sheets (systemd timer mỗi giờ) + tồn kho POS
+live + hai màn đối soát tiền. Bot WhatsApp có code nhưng **đang tắt**.
+Nguồn sự thật: BigQuery `cty-507710.TALPHA_Dataset`.
+GitHub `nhuquynh16091999-hash/HE-THONG-TAP-TRUNG-SA`, remote `origin`.
+Bản đồ nghiệp vụ đầy đủ: `DASHBOARD_MAP.md`.
 
 ## Điều phối — việc nào skill nấy
 
@@ -33,12 +35,13 @@ tất cả; GitHub `syanh12092024-maker/Talpha-New-16-6`, remote tên `talpha-ne
 1. **Ground truth** = Meta API (spend) + POS API (đơn). KHÔNG BAO GIỜ so Sheet↔BQ.
 2. **1 section = 1 commit = push ngay**. Commit bằng pathspec `git commit -- <paths>`
    (index dùng chung giữa các phiên song song). CẤM `git reset HEAD~N`.
-3. **Deploy**: Mac = `npm run build` + `pm2 restart talpha-dashboard` (KHÔNG tự
-   reload); server = `ssh talpha-server 'cd /opt/talpha && bash scripts/deploy_server.sh'`
-   (git pull — KHÔNG rsync tay nữa, bẫy đã dính 4 lần). KHÔNG `git clean` trên
+3. **Deploy** = `bash ops/deploy/from-mac.sh` **TỪ MÁY MAC**. Máy chủ không có khoá
+   GitHub, nó mượn khoá của Mac qua `ssh -A`; `git pull` thẳng trên máy chủ không
+   chạy được mà vẫn in `origin/main` cũ nên trông như đã mới nhất. `npm run build`
+   ở Mac chỉ đổi bản localhost, KHÔNG phải deploy. KHÔNG `git clean` trên
    `/opt/talpha` (xoá mất .env.local, key, phiên WhatsApp).
-4. **Sync = 2 bản** (repo `sync/` + runtime `~/talpha_reports/runtime/sync/`) cho
-   tới khi B1 cutover — sửa sync phải vá CẢ HAI.
+4. **Sync chỉ có MỘT bản**: `sync/talpha/talpha_sync.py` (gộp 11/09/2026). Đừng chép
+   bản thứ hai sang runtime — trước đây hai bản cùng ghi một bộ bảng mỗi giờ.
 5. **BigQuery free tier**: cấm DML/DELETE/DROP; ghi = LOAD JOB; sửa bảng =
    query→destination. Mọi bảng đã chuyển raw/rebuild — KHÔNG quay lại WRITE_TRUNCATE.
 6. Cảnh báo kêu nhiều KHÔNG phải lý do nới ngưỡng; số liệu mâu thuẫn với lời giải
@@ -62,7 +65,7 @@ tất cả; GitHub `syanh12092024-maker/Talpha-New-16-6`, remote tên `talpha-ne
 
 1. **X3 — giá vốn SKU (chờ 2 thứ từ user)**: (a) user share Google Sheet giá vốn
    (`1MFV6X_Lppace2F7t8PX0MZwt6otWRmV-gbOdZBIC7Ak`) cho service account
-   `faos-dashboard@talpha-faos-2026.iam.gserviceaccount.com` quyền Viewer;
+   `faos-dashboard@cty-507710.iam.gserviceaccount.com` quyền Viewer;
    (b) khi đọc được: đối chiếu SKU sheet ↔ `product_catalog`, cập nhật
    `config/talpha_rules.json → products`, BÁO SỐ user duyệt rồi mới deploy view.
    Giá vốn sai = mọi số lãi sai — không tự đoán đơn vị tiền.

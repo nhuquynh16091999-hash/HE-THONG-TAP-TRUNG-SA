@@ -72,11 +72,12 @@ Bot deploy: rsync `ops/whatsapp-alerts/` **và `config/talpha_rules.json`** lên
 
 ## 5. Vận hành
 
-- ~~Log pm2 không logrotate~~ → **đã fix 29/07**: flush 3.2GB + cài pm2-logrotate trên Mac
-  (max 20M, giữ 7, nén). SERVER 169.58.33.8 CHƯA cài — làm khi lên server đợt tới.
+- **Log pm2 không logrotate trên VPS `139.180.131.21`** — chưa cài `pm2-logrotate`,
+  `/var/log/talpha/*.log` có thể phình rất lớn. (Đã từng flush 3,2 GB trên máy Mac cũ.)
 - `.lock` dùng chung daily_guarded ↔ export_worker; chỉ daily_guarded dọn stale (>45').
-- 8 view analytics `sql/talpha/views/` đã deploy nhưng dashboard KHÔNG dùng (chỉ faos_brain
-  — đang đóng băng — đọc). 6 tab BQ tự viết SQL inline.
+- `sql/talpha/views/` có 12 view. Dashboard dùng thật `vw_orders_std` (31 lần) và
+  `vw_fb_ads_std` (16 lần); số còn lại chỉ một vài lần. Sáu tab BigQuery vẫn tự viết
+  SQL inline thay vì đi qua view.
 - CEO "Hỏi dashboard" = **Gemini** (`@google/genai`, fallback 2.5-flash→2.0-flash, free tier
   ~20 req/ngày/model), KHÔNG phải Claude — và hiện **ĐANG TẮT** (gỡ `GEMINI_API_KEY` 2 máy,
   mục F2). ARCHITECTURE_2026 §6 đã cập nhật đúng (F4).

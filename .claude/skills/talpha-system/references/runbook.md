@@ -1,6 +1,6 @@
 # TALPHA — Runbook thao tác vận hành
 
-> Làm theo từng bước. Mỗi thao tác ghi rõ máy nào (Mac / server 169.58.33.8).
+> Làm theo từng bước. Mỗi thao tác ghi rõ máy nào (Mac dev / VPS 139.180.131.21).
 
 ## 1. Thêm TKQC mới (Mac)
 
@@ -40,26 +40,34 @@ cd ~/talpha_reports && GOOGLE_APPLICATION_CREDENTIALS=runtime/bigquery_key.json 
 - Kẹt >45' thì daily_guarded tự dọn; muốn dọn tay: kiểm tra không còn process
   (`pgrep -f "sync_month|format_all|daily_guarded"`) rồi `rmdir ~/talpha_reports/.lock`.
 
-## 5. Deploy server 169.58.33.8
+## 5. Deploy máy chủ 139.180.131.21
 
-- Cách chuẩn (F3): `ssh root@169.58.33.8 'bash /opt/talpha/scripts/deploy_server.sh'` — git pull + build + `pm2 restart talpha`. `DRY_RUN=1` để xem trước. Cần `/opt/talpha` đã cutover sang git; chưa cutover thì script báo lỗi, xem `ops/pm2/README.md`.
-- Dashboard: `/opt/talpha/dashboard-ui`, pm2 `talpha-dashboard` port **3001** (3000 bị auus1 chiếm — ĐỪNG kill). Login lỗi → kiểm tra `AUTH_URL` phải trỏ :3001.
-- Bot WA: `/opt/talpha/ops/whatsapp-alerts`, pm2 `talpha-wa-alerts`. Sửa local KHÔNG tự hiệu lực — phải deploy. Restart là bot gửi tin "đã kết nối nhóm" vào nhóm WA, đừng restart vô cớ.
-- pm2: 2 app TALPHA nằm namespace `talpha` → `pm2 restart talpha` chỉ đụng chúng, không đụng `auus1-*`/`pialpha-*`. Config duy nhất: `ops/pm2/ecosystem.server.config.js`.
-- Nếu buộc phải rsync tay: nhớ rsync từng file KHÔNG xoá file đã bỏ khỏi repo (đã dính `daily.sh` P0-B2, `ecosystem.config.js` chết F3).
-- Web chết ERR_CONNECTION_REFUSED trên Mac: thường do node thiếu Full Disk Access → pm2 EPERM crash-loop; resurrect qua LaunchAgent `com.talpha.pm2-resurrect`, KHÔNG dùng `pm2 startup`.
+- **Cách duy nhất**: `bash ops/deploy/from-mac.sh` — chạy TỪ MÁY MAC. Nó chép `.env.local`
+  + `bigquery_key.json` + `data/*.json` lên, rồi cho máy chủ mượn khoá GitHub của Mac qua
+  `ssh -A` để `git fetch`, build, restart. Máy chủ KHÔNG có khoá GitHub riêng.
+- **Đừng `git pull` trên máy chủ**: trả `Permission denied (publickey)` nhưng vẫn in
+  `origin/main` cũ nên trông như đã mới nhất. Đã dính 11/09: VPS kẹt một commit suốt 17 giờ.
+- Dashboard: `/opt/talpha/dashboard-ui`, pm2 `talpha-dashboard` port **3000**.
+  Login lỗi → kiểm `AUTH_URL` trong `.env.local` phải trỏ đúng cổng.
+- Bot WA: `/opt/talpha/ops/whatsapp-alerts`, **đang tắt** (chưa cài, chưa quét QR).
+  Cách bật: `ops/pm2/README.md`.
+- pm2: app TALPHA nằm namespace `talpha` → `pm2 restart talpha`. Config DUY NHẤT:
+  `ops/pm2/ecosystem.vps.config.js`.
+- **Đừng rsync tay**: rsync từng file KHÔNG xoá file đã bỏ khỏi repo, nên máy chủ giữ
+  lại file chết (đã dính `daily.sh`, `ecosystem.config.js`).
 
 ## 6. Bot WhatsApp
 
 - Phiên chết → `pair.js` dựng trang QR port 3099 trên server (mở ufw tạm, xong đóng); nếu treo: `pm2 stop`, `rm -rf .wwebjs_auth .wwebjs_cache`, start lại quét QR.
 - KHÔNG dùng `getChats()` (lỗi "r" cố hữu) — gửi thẳng `sendMessage(groupId, …)`, groupId trong `config.json` (`120363428990065476@g.us`).
-- Test local trên Mac: nhớ 3001 là app broadcast → đổi baseUrl sang `http://localhost:3000` tạm thời, đừng commit.
+- Base URL mặc định của bot đã là `http://localhost:3000` (khớp dashboard trên VPS). Trỏ chỗ khác thì đặt env `TALPHA_DASHBOARD_URL`, ĐỪNG sửa `config.json` rồi commit.
 
-## 7. Vị trí log
+## 7. Vị trí log (đều trên VPS)
 
-- Sync/Sheet: `~/talpha_reports/daily_YYYYMMDD.log`
-- pm2: `~/.pm2/logs/` (chú ý: chưa có logrotate, file có thể rất lớn)
-- launchd: `launchctl list | grep talpha`; plist ở `~/Library/LaunchAgents/com.talpha.*`
+- Vòng ghi Sheet: `/root/talpha_reports/daily_YYYYMMDD.log`
+- Sync vào BigQuery: `journalctl -u talpha-sync -n 60 --no-pager`
+- Dashboard: `/var/log/talpha/dashboard-{out,error}.log`, hoặc `pm2 logs talpha-dashboard`
+- Lịch chạy: `systemctl list-timers 'talpha-*'`
 
 ## 8. Billing TKQC (thêm 30/07)
 

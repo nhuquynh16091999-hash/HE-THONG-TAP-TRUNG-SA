@@ -47,7 +47,7 @@ grep -oE "orders [0-9]+" ~/talpha_reports/daily_$(date +%Y%m%d).log | tail -8
 ```
 ```sql
 SELECT shop_label, COUNT(*) n, MIN(SUBSTR(inserted_at,1,10)) don_cu_nhat
-FROM `talpha-faos-2026.TALPHA_Dataset.sale_order` GROUP BY 1 ORDER BY 1
+FROM `cty-507710.TALPHA_Dataset.sale_order` GROUP BY 1 ORDER BY 1
 ```
 `don_cu_nhat` lùi theo số page (SA 24/07, AE 29/07…) thay vì đứng ở mốc đầu tháng
 = đang bị cắt.
@@ -143,7 +143,7 @@ chạy 01/08). `fb_adset_data` dính y hệt.
 ```sql
 SELECT FORMAT_DATE('%Y-%m', date) thang, COUNT(*) dong,
        MIN(CAST(date AS STRING)) tu, MAX(CAST(date AS STRING)) den
-FROM `talpha-faos-2026.TALPHA_Dataset.fb_ads_data` GROUP BY 1 ORDER BY 1
+FROM `cty-507710.TALPHA_Dataset.fb_ads_data` GROUP BY 1 ORDER BY 1
 ```
 
 **ĐÃ SỬA 05/08 — commit `eca62b2`**, áp cho CẢ repo lẫn runtime. Cùng khuôn X1:
@@ -242,7 +242,7 @@ hai dòng doanh thu và tra giá vốn trượt:
 
 **Đo lại**:
 ```sql
-SELECT sku, COUNT(*) n FROM `talpha-faos-2026.TALPHA_Dataset.product_catalog`
+SELECT sku, COUNT(*) n FROM `cty-507710.TALPHA_Dataset.product_catalog`
 WHERE NOT REGEXP_CONTAINS(sku, r'^[0-9A-Za-z\-_.]{1,12}$') GROUP BY 1 ORDER BY 2 DESC
 ```
 
@@ -288,7 +288,7 @@ Q0 đã làm.
 **Đo lại**:
 ```sql
 SELECT COUNT(*) n_rows, COUNT(DISTINCT id) n_ids, COUNT(*)-COUNT(DISTINCT id) trung
-FROM `talpha-faos-2026.TALPHA_Dataset.sale_order`
+FROM `cty-507710.TALPHA_Dataset.sale_order`
 ```
 
 ---
@@ -325,7 +325,7 @@ curl -s "http://localhost:3000/api/talpha/marketer-perf?from=2026-06-06&to=2026-
 ```sql
 -- tag POS thô: dùng để phát hiện biến thể tên mới
 SELECT marketer_name, COUNTIF(is_confirmed) gtc, COUNT(*) tat_ca
-FROM `talpha-faos-2026.TALPHA_Dataset.vw_orders_std`
+FROM `cty-507710.TALPHA_Dataset.vw_orders_std`
 WHERE order_date BETWEEN '2026-06-06' AND '2026-08-04' GROUP BY 1 ORDER BY 2 DESC
 ```
 
@@ -377,7 +377,7 @@ chất mà tầng raw sinh ra để bảo vệ.
 **Đo lại**:
 ```sql
 SELECT COUNT(*) n, COUNT(DISTINCT order_uid) uid, COUNT(DISTINCT order_id) oid
-FROM `talpha-faos-2026.TALPHA_Dataset.vw_orders_std`
+FROM `cty-507710.TALPHA_Dataset.vw_orders_std`
 ```
 `uid` phải = `n`. Nếu `oid < uid` thì đó là số đơn sẽ bị đếm thiếu nếu ai đó dùng nhầm cột.
 
@@ -435,7 +435,7 @@ Taiwan 154 đơn · DS Giao TC **1.384.048 VND** · ads 46.747.621 VND · biên 
 ```sql
 SELECT market, COUNT(DISTINCT order_uid) orders, ROUND(SUM(revenue_vnd),0) revenue_vnd,
        ROUND(SUM(revenue_vnd)/COUNT(DISTINCT order_uid),0) aov_vnd
-FROM `talpha-faos-2026.TALPHA_Dataset.vw_orders_std`
+FROM `cty-507710.TALPHA_Dataset.vw_orders_std`
 WHERE order_date BETWEEN '2026-06-22' AND '2026-08-20'
   AND is_confirmed AND marketer_group != 'external'
 GROUP BY 1 ORDER BY revenue_vnd DESC

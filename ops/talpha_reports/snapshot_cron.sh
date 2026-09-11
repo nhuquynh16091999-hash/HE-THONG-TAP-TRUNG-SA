@@ -1,6 +1,10 @@
 #!/bin/bash
 # ═══════════════════════════════════════════════════════════════════
-# TALPHA C2 — scheduler hoá snapshot (launchd gọi định kỳ 2 route dashboard)
+# TALPHA C2 — làm tươi hai bảng snapshot bằng cách gọi route của dashboard.
+#
+# ⚠️ HIỆN KHÔNG CÓ AI GỌI ĐỊNH KỲ. Trước đây hai job launchd trên máy Mac gọi nó;
+# hạ tầng đã chuyển sang VPS mà chưa dựng timer thay thế. Muốn bật: viết một
+# systemd timer trên VPS theo mẫu ops/deploy/vps-sync-setup.sh.
 #
 #   inventory → /api/talpha/sync-inventory → BQ inventory_snapshot
 #               Đây là ĐƯỜNG DỰ PHÒNG của tab Kho: POS Poscake chết thì
@@ -10,7 +14,7 @@
 #               Lịch sử spend/ROAS live theo campaign (bảng đứng im từ 18/06).
 #
 # Dùng: snapshot_cron.sh inventory | ads
-# Chạy từ RUNTIME ~/talpha_reports — launchd KHÔNG đọc được Desktop.
+# Chạy từ RUNTIME /root/talpha_reports trên VPS.
 # Sửa ở repo ops/talpha_reports/ rồi `./deploy_runtime.sh --yes`.
 # ═══════════════════════════════════════════════════════════════════
 set -uo pipefail
