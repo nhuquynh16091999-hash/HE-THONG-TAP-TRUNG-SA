@@ -1,20 +1,16 @@
 import { NextResponse } from "next/server";
 import * as fs from "fs";
 import * as yaml from "js-yaml";
-import * as path from "path";
 import { bigquery } from "@/lib/bigquery";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 // ═══ CONFIG ═══
-// Local dev: đọc bản CHUẨN ở repo-root ../config. Trên Vercel, thư mục cha không được
-// đóng gói → dùng bản sao dashboard-ui/config (prebuild tự đồng bộ từ bản chuẩn).
-const YAML_CANDIDATES = [
-    path.join(process.cwd(), "..", "config", "projects", "talpha.yaml"),
-    path.join(process.cwd(), "config", "projects", "talpha.yaml"),
-];
-const YAML_PATH = YAML_CANDIDATES.find((p) => fs.existsSync(p)) || YAML_CANDIDATES[1];
+// Danh sách TKQC Meta + shop POS: config/projects/talpha.yaml ở gốc repo.
+// Đường dẫn do config-path.ts giữ — MỘT chỗ duy nhất biết cấu hình nằm ở đâu.
+import { TALPHA_YAML } from "@/lib/talpha/config-path";
+const YAML_PATH = TALPHA_YAML();
 
 // ═══ RULE CHUNG: import từ src/lib/talpha/rules.ts (data = config/talpha_rules.json).
 // Golden-test 29/07 = 100% khớp bản inline cũ. Sửa rule → sửa JSON, KHÔNG thêm map ở đây.

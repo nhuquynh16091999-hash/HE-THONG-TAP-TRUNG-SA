@@ -26,16 +26,8 @@ loadRootEnv();
 /** @type {import('next').NextConfig} */
 const nextConfig = {
     turbopack: {},
-    // Fix "multiple lockfiles" warning — tell Next.js the workspace root is dashboard-ui/
+    // Gốc workspace là dashboard-ui/ — nơi có package.json và lockfile duy nhất.
     outputFileTracingRoot: __dirname,
-    // Vercel: fs.readFileSync đường dẫn động không được trace tự động → ép đóng gói
-    // bản sao config (sync từ ../config bởi scripts/sync-config.mjs khi build local).
-    outputFileTracingIncludes: {
-        "/api/talpha/realtime": ["./config/**"],
-        "/api/talpha/snapshot-ads": ["./config/**"],
-        "/api/talpha/sync-inventory": ["./config/**"],
-        "/api/talpha/inventory": ["./config/**"],
-    },
     // pdfjs-dist tự nạp file worker của nó bằng đường dẫn tương đối lúc chạy.
     // Để Next đóng gói vào bundle thì đường dẫn đó trỏ vào chỗ không tồn tại
     // (.next/server/chunks/pdf.worker.mjs) và mọi lần đọc PDF đều chết. Giữ nó

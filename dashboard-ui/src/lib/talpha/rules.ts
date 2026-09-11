@@ -1,11 +1,11 @@
 // ═══════════════════════════════════════════════════════════════════
 // TALPHA — loader rule chung phía TypeScript (server-side only).
-// Nguồn data DUY NHẤT: config/talpha_rules.json (repo root; prebuild copy vào
-// dashboard-ui/config/ cho Vercel). Sửa rule = sửa JSON, KHÔNG sửa file này.
+// Nguồn data DUY NHẤT: config/talpha_rules.json ở gốc repo (xem config-path.ts).
+// Sửa rule = sửa JSON, KHÔNG sửa file này.
 // Golden-test 29/07: các hàm này ≡ format_all.py trên 502 campaign + 18 tên POS thật.
 // ═══════════════════════════════════════════════════════════════════
 import fs from "fs";
-import path from "path";
+import { RULES_JSON } from "./config-path";
 
 type MarketInfo = { shop_label: string; rate_vnd: number; currency: string; pos_money_divisor: number };
 type ScanRule = { key: string; substrings?: string[]; word_tokens?: string[]; regex?: string };
@@ -32,13 +32,7 @@ type Rules = {
 };
 type ProductCost = { name: string; cost_price_vnd: number };
 
-const CANDIDATES = [
-    path.join(process.cwd(), "..", "config", "talpha_rules.json"), // chạy local (cwd = dashboard-ui)
-    path.join(process.cwd(), "config", "talpha_rules.json"),       // Vercel (bản prebuild copy)
-];
-const RULES_PATH = CANDIDATES.find((p) => fs.existsSync(p));
-if (!RULES_PATH) throw new Error("talpha_rules.json không tìm thấy — kiểm tra prebuild sync-config");
-export const RULES: Rules = JSON.parse(fs.readFileSync(RULES_PATH, "utf-8"));
+export const RULES: Rules = JSON.parse(fs.readFileSync(RULES_JSON(), "utf-8"));
 
 // ── Tỷ giá & thị trường ──
 export const EXCHANGE_RATES: Record<string, number> = Object.fromEntries(

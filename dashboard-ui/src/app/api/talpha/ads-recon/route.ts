@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import fs from "fs";
 import path from "path";
 import { RULES } from "@/lib/talpha/rules";
+import { REPO_ROOT } from "@/lib/talpha/config-path";
 import { readStoreFresh, updateStore } from "@/lib/talpha/store";
 import { MAX_UPLOAD_BYTES, tooBigMessage } from "@/lib/talpha/upload-limit";
 import {
@@ -55,7 +56,7 @@ function roster(c: ReturnType<typeof cfg>) {
     try {
         const rel = (c.ad_accounts as { roster_file?: string } | undefined)?.roster_file;
         if (!rel) return null;
-        const p = path.join(process.cwd(), "..", rel);
+        const p = path.join(REPO_ROOT, rel);
         return fs.existsSync(p) ? JSON.parse(fs.readFileSync(p, "utf-8")) : null;
     } catch {
         return null;
