@@ -1,5 +1,5 @@
 {
-  "dashboardBaseUrl": "http://localhost:3001",
+  "dashboardBaseUrl": "http://localhost:3000",
   "inventoryUrl": "/api/talpha/inventory",
   "groupId": "120363428990065476@g.us",
   "groupName": "BOT AI THÔNG BÁO",

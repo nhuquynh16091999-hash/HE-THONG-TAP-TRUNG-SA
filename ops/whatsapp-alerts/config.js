@@ -1,13 +1,12 @@
-// Nạp config.json và ghép base URL dashboard — KHÔNG hard-code host trong config nữa.
-// Thứ tự ưu tiên base: env TALPHA_DASHBOARD_URL > config.dashboardBaseUrl > http://localhost:3001
-//   Server 169.58.33.8: dashboard chạy port 3001 → dùng mặc định, không cần env.
-//   Mac: 3001 là app broadcast (project khác) → test bot phải chạy
-//        TALPHA_DASHBOARD_URL=http://localhost:3000 node bot.js  — đừng sửa config.json rồi commit.
+// Nạp config.json và ghép base URL dashboard — KHÔNG hard-code host trong config.
+// Thứ tự ưu tiên base: env TALPHA_DASHBOARD_URL > config.dashboardBaseUrl > http://localhost:3000
+//   VPS 139.180.131.21: dashboard chạy cổng 3000 → dùng mặc định, không cần env.
+//   Trỏ chỗ khác thì đặt env, ĐỪNG sửa config.json rồi commit.
 // Mỗi *Url trong config.json là ĐƯỜNG DẪN ("/api/talpha/..."); để trống/bỏ key = tắt tính năng đó.
 const fs = require("fs");
 const path = require("path");
 
-const DEFAULT_BASE = "http://localhost:3001";
+const DEFAULT_BASE = "http://localhost:3000";
 const URL_KEYS = ["inventoryUrl", "adsAlertsUrl", "syncHealthUrl", "billingUrl"];
 const DAILY_URL_KEYS = ["realtimeUrl", "marketerPerfUrl", "sheetReportUrl"];
 

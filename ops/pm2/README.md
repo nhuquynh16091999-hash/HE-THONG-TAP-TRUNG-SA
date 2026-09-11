@@ -1,116 +1,64 @@
-# PM2 TALPHA — 1 file ecosystem cho mỗi máy
+# PM2 TALPHA — một file ecosystem, một máy chủ
 
-| Máy | File | App | Cổng |
-|---|---|---|---|
-| Mac (dev + dashboard nội bộ) | `ecosystem.mac.config.js` | `talpha-dashboard` | 3000 |
-| Server 169.58.33.8 (`/opt/talpha`) | `ecosystem.server.config.js` | `talpha-dashboard`, `talpha-wa-alerts` | 3001 |
+`ecosystem.vps.config.js` là **file ecosystem DUY NHẤT** của dự án.
 
-Trước F3 mỗi máy có 2–3 file ecosystem rải rác (`dashboard-ui/ecosystem.config.js`,
-`sync/talpha/ecosystem.sync.config.js`, một bản chết ở repo root của dự án AUUS).
-Không ai biết bản nào đang chạy thật. Giờ **mỗi máy đúng 1 file, đều nằm ở đây** —
-thêm file pm2 chỗ khác là quay lại đúng cái bẫy vừa gỡ.
+| App | Cổng | Trạng thái |
+|---|---|---|
+| `talpha-dashboard` | 3000 | Đang chạy trên `139.180.131.21` (`/opt/talpha`) |
+| `talpha-wa-alerts` | — | **Tắt** — chưa cài, chưa quét QR (xem chú thích trong file) |
+
+Trước 11/09/2026 có **bốn** file pm2 cho một dự án: bản Mac (Cloudflare Tunnel +
+caffeinate), bản máy chủ cũ `169.58.33.8` cổng 3001, bản VPS, và một bản nữa ở
+`dashboard-ui/ecosystem.config.js`. Cả bốn khai cùng một tên app `talpha-dashboard`
+với ba cổng khác nhau. Thêm file pm2 ở chỗ khác là quay lại đúng cái bẫy vừa gỡ.
 
 ## Namespace `talpha` — vì sao bắt buộc
 
-Cả 2 máy đều chạy app của dự án khác trên cùng pm2 daemon (Mac: `broadcast-web`;
-server: `auus1-*`, `pialpha-*`). App TALPHA nằm namespace `talpha` để lệnh hàng loạt
-không đụng nhau:
+Máy chủ có thể chạy app của dự án khác trên cùng pm2 daemon. App TALPHA nằm
+namespace `talpha` để lệnh hàng loạt không đụng nhau:
 
 ```bash
 pm2 restart talpha        # CHỈ app TALPHA
 pm2 restart all           # ĐỪNG — đụng cả dự án khác
 ```
 
-## Mac
+## Máy chủ
+
+Dựng lần đầu và mỗi lần cập nhật code: xem `docs/DEPLOY_VPS.md`. Tóm tắt:
 
 ```bash
-pm2 start ops/pm2/ecosystem.mac.config.js && pm2 save
-cd dashboard-ui && npm run build && pm2 restart talpha-dashboard   # sau khi sửa code
+bash ops/deploy/from-mac.sh              # từ máy Mac — dựng/cập nhật toàn bộ
 ```
 
-Dashboard Mac **KHÔNG tự reload** — sửa code xong phải build + restart, không thì
-vẫn chạy bản cũ. Máy khởi động lại thì LaunchAgent `com.talpha.pm2-resurrect` lo
-resurrect; KHÔNG dùng `pm2 startup`. pm2 daemon phải khởi động từ shell có Full
-Disk Access (đọc được `~/Desktop`), không thì EPERM lúc nạp binary next.
-
-Sync/Sheet trên Mac chạy bằng launchd (`com.talpha.dailyreport`,
-`com.talpha.export-worker`, `com.talpha.shadowsync`, 2 job `com.talpha.snapshot-*`)
-trỏ vào runtime `~/talpha_reports`, **không** nằm trong pm2. Thêm app sync vào pm2
-= chạy sync 2 lần.
-
-## Log — vì sao có `merge_logs` + `out_file`
-
-Cả 2 file đều khai `merge_logs: true` và `out_file`/`error_file` tường minh. Không khai
-thì pm2 gắn số id vào tên file (`talpha-dashboard-out-5.log`), nên mỗi lần
-`pm2 delete` + `pm2 start` là log nhảy sang file mới và mọi lệnh `tail` trong runbook
-trỏ vào file chết. Chỉ đặt `out_file` là chưa đủ — còn `instances` thì pm2 vẫn gắn id,
-phải có `merge_logs: true` đi kèm.
-
-## Server — deploy
+Trên chính máy chủ:
 
 ```bash
-ssh root@169.58.33.8 'bash /opt/talpha/scripts/deploy_server.sh'
+pm2 start /opt/talpha/ops/pm2/ecosystem.vps.config.js --only talpha-dashboard
+pm2 save
+pm2 logs talpha-dashboard --lines 40
 ```
 
-Script làm: `git merge --ff-only origin/main` → build nếu `dashboard-ui/` hoặc
-`config/` đổi → `pm2 restart talpha` → curl kiểm tra `:3001/talpha`.
-Xem trước không đổi gì: `DRY_RUN=1 bash scripts/deploy_server.sh`.
+Dashboard **không tự reload** — sửa code xong phải `npm run build` rồi
+`pm2 restart talpha-dashboard`, không thì vẫn chạy bản cũ.
 
-Vì sao git pull chứ không rsync từng file: rsync **không xoá** file đã bỏ khỏi repo.
-Đã dính 2 lần — `daily.sh` nguy hiểm (P0-B2) và `ecosystem.config.js` chết của AUUS
-(F3) nằm lại trên server hàng tuần sau khi xoá ở repo.
+## Máy Mac
 
-File ngoài git (`.env`, `node_modules`, `.next`, `.wwebjs_auth`, `state.json`) đều
-trong `.gitignore` → `git pull` không đụng tới.
+Máy Mac là **máy dev**, không phục vụ ai: chạy `cd dashboard-ui && npm run dev`.
+Không có pm2, không launchd, không cron. Build ở máy Mac **không phải** deploy —
+deploy là `ops/deploy/from-mac.sh`.
 
-## Cutover `/opt/talpha` sang git working copy — làm 1 lần
+## Job theo giờ không nằm trong pm2
 
-`deploy_server.sh` yêu cầu `/opt/talpha` là working copy. Nếu chưa (bản rsync cũ):
+Hai việc chạy nền trên máy chủ là **systemd timer**, không phải pm2:
 
-**Điều kiện trước tiên — deploy key.** Repo là private và server KHÔNG có credential
-GitHub nào (`git ls-remote https://github.com/...` trả `could not read Username`).
-Clone bằng HTTPS sẽ treo/fail. Phải dùng deploy key read-only:
-
-1. ✅ Key đã sinh sẵn trên server: `/root/.ssh/talpha_deploy_key(.pub)` (04/08).
-2. ✅ Host `github-talpha` đã khai trong `/root/.ssh/config` (04/08):
-
-   ```
-   Host github-talpha
-       HostName github.com
-       User git
-       IdentityFile /root/.ssh/talpha_deploy_key
-       IdentitiesOnly yes
-   ```
-
-3. ⏳ **CHỜ USER** — dán nội dung `/root/.ssh/talpha_deploy_key.pub` vào GitHub →
-   repo `Talpha-New-16-6` → Settings → Deploy keys → Add deploy key,
-   **KHÔNG** tick "Allow write access".
-
-Kiểm tra bước 3 xong chưa (chạy trên server) — ra danh sách ref là xong,
-ra `Permission denied (publickey)` là chưa dán:
+| Timer | Làm gì | Xem |
+|---|---|---|
+| `talpha-sync.timer` | Kéo đơn POS + chi tiêu Meta vào BigQuery | `ops/deploy/vps-sync-setup.sh` |
+| `talpha-report.timer` | Đọc BigQuery rồi ghi báo cáo Google Sheets | `ops/deploy/vps-reports-setup.sh` |
 
 ```bash
-git ls-remote git@github-talpha:syanh12092024-maker/Talpha-New-16-6.git HEAD
+systemctl list-timers 'talpha-*'
+journalctl -u talpha-sync -n 40 --no-pager
 ```
 
-Có key rồi mới cutover:
-
-```bash
-ssh root@169.58.33.8
-cp -a /opt/talpha /opt/talpha.bak.$(date +%F)      # phao cứu sinh, xoá sau khi chạy ổn 1 tuần
-cd /opt/talpha
-git init && git remote add origin git@github-talpha:syanh12092024-maker/Talpha-New-16-6.git
-git fetch origin main
-git reset origin/main                               # mixed: chỉ nạp index, KHÔNG ghi đè file
-git status --short                                  # ĐỌC KỸ: file nào server đang lệch repo
-git checkout -f -B main origin/main                 # .env / .next / node_modules an toàn nhờ .gitignore
-ls -la dashboard-ui/.env ops/whatsapp-alerts/.env   # XÁC NHẬN env còn nguyên TRƯỚC khi restart
-pm2 start /opt/talpha/ops/pm2/ecosystem.server.config.js && pm2 save
-```
-
-Bước `git reset` + `git status` là để **nhìn trước** danh sách lệch; `git checkout -f`
-ngay sau đó ghi đè hết. File nào server đang giữ bản vá tay mới hơn repo thì phải đưa
-ngược về repo + commit TRƯỚC, không có đường lùi ngoài bản `.bak`.
-
-Sau cutover, `deploy_server.sh` fail ở bước `--ff-only` nghĩa là có người sửa tay
-trên server → xử lý bằng tay, đừng merge bừa.
+Thêm job sync vào pm2 = chạy sync hai lần.

@@ -5,12 +5,12 @@
     "scripts": {
         "dev": "next dev",
         "validate": "python3 ../scripts/validate-dashboard-queries.py",
-        "prebuild": "node scripts/sync-config.mjs && (npm run validate || echo 'Validation warnings (non-blocking)')",
+        "prebuild": "npm run validate || echo 'Cảnh báo kiểm tra truy vấn (không chặn build)'",
         "build": "next build",
         "start": "next start",
         "lint": "next lint",
         "test": "tsc src/lib/talpha/rules.ts src/lib/talpha/cod-recon.ts src/lib/talpha/tracking.ts src/lib/talpha/partner-file.ts src/lib/talpha/naza-statement.ts src/lib/talpha/order-ledger.ts src/lib/talpha/cod-actions.ts --outDir .test-build --module commonjs --target es2020 --moduleResolution node --skipLibCheck --esModuleInterop && node tests/rules.test.cjs && node tests/cod-recon.test.cjs && node tests/tracking.test.cjs && node tests/partner-file.test.cjs && node tests/naza-statement.test.cjs && node tests/order-ledger.test.cjs && node tests/cod-actions.test.cjs && node tests/ads-recon.test.cjs",
-        "deploy": "npm run build && pm2 restart talpha-dashboard --update-env"
+        "restart-local": "npm run build && pm2 restart talpha-dashboard --update-env"
     },
     "dependencies": {
         "@anthropic-ai/sdk": "^0.55.1",
