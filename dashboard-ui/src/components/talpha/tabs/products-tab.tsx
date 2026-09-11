@@ -28,8 +28,6 @@ interface InventoryPayload {
     keyFindings: string[];
     sources?: {
         pos?: { ok: boolean; shops: number; skus: number; field?: string };
-        saudi?: { ok: boolean; count?: number; total?: number; asOf?: string | null };
-        uae?: { ok: boolean; count?: number; total?: number; asOf?: string | null };
         images?: { configured: boolean; count: number; source?: string };
     };
     fetchedAt?: string;
@@ -73,11 +71,10 @@ const STATUS_STYLE: Record<string, string> = {
 };
 
 type SortKey = "total" | "perDay" | "days";
-const MARKET_COLS: { key: keyof SkuRow; label: string }[] = [
-    { key: "sa", label: "🇸🇦 SA" }, { key: "ae", label: "🇦🇪 AE" }, { key: "om", label: "🇴🇲 OM" },
-    { key: "kw", label: "🇰🇼 KW" }, { key: "bh", label: "🇧🇭 BH" }, { key: "qa", label: "🇶🇦 QA" },
-    { key: "tw", label: "🇹🇼 TW" },
-];
+
+// Cột tồn theo từng kho đã bỏ 11/09/2026. Sáu kho GCC ngừng bán từ 05/09 nên POS
+// không trả gì — mỗi dòng SKU hiện sáu dấu "—", còn cột kho Đài thì y hệt cột
+// "Tổng". Một kho thì "Tổng" CHÍNH LÀ tồn của kho đó.
 
 interface Props { dateRange?: { from: Date; to: Date }; projectId?: string }
 
@@ -98,7 +95,6 @@ function daysColor(d: number | null) {
 
 export default function TALPHAProductsTab(_props: Props) {
     const [statusFilter, setStatusFilter] = useState<string>("all");
-    const [marketFilter, setMarketFilter] = useState<string>("all");
     const [mktFilter, setMktFilter] = useState<string>("all");
     const [search, setSearch] = useState("");
     const [sortKey, setSortKey] = useState<SortKey>("perDay");
@@ -186,7 +182,6 @@ export default function TALPHAProductsTab(_props: Props) {
         const q = search.trim().toLowerCase();
         let rows = SKU_MATRIX.filter(r => {
             if (statusFilter !== "all" && r.status !== statusFilter) return false;
-            if (marketFilter !== "all" && (r[marketFilter as keyof SkuRow] === null || r[marketFilter as keyof SkuRow] === undefined)) return false;
             if (mktFilter !== "all" && !(r.mkt || "").includes(mktFilter)) return false;
             if (q && !(`${r.code} ${r.name} ${r.mkt}`.toLowerCase().includes(q))) return false;
             return true;
@@ -196,7 +191,7 @@ export default function TALPHAProductsTab(_props: Props) {
             return sortDir === "desc" ? (bv as number) - (av as number) : (av as number) - (bv as number);
         });
         return rows;
-    }, [SKU_MATRIX, statusFilter, marketFilter, mktFilter, search, sortKey, sortDir]);
+    }, [SKU_MATRIX, statusFilter, mktFilter, search, sortKey, sortDir]);
 
     // Danh sách marketer có SP đang chạy (để lọc)
     const mktList = useMemo(() => {
@@ -210,11 +205,6 @@ export default function TALPHAProductsTab(_props: Props) {
             .map(r => ({ name: (r.name || r.code).slice(0, 26), perDay: r.perDay })),  // name đã kèm mã, không lặp lại
         [SKU_MATRIX],
     );
-
-    // Chip tồn theo từng kho cho 1 SKU (để mkt biết đổ ads vào thị trường nào còn hàng)
-    const stockChips = (r: SkuRow) => MARKET_COLS
-        .filter(c => { const v = r[c.key] as number | null | undefined; return v != null && v > 0; })
-        .map(c => `${c.label.split(" ")[0]}${r[c.key]}`).join("  ");
 
     const handleSort = (k: SortKey) => {
         if (sortKey === k) setSortDir(d => d === "desc" ? "asc" : "desc");
@@ -378,7 +368,7 @@ export default function TALPHAProductsTab(_props: Props) {
                                 </div>
                                 <div className="mt-0.5 flex items-center justify-between gap-2 text-[10px] text-muted-foreground">
                                     <span>{r.perDay?.toFixed(1)}/ngày · tồn {formatNumber(r.total ?? 0)}</span>
-                                    <span className="font-mono">{stockChips(r)}</span>
+                                    <span className="truncate">{r.mkt || "chưa ai chạy"}</span>
                                 </div>
                             </div>
                         ))}
@@ -400,7 +390,7 @@ export default function TALPHAProductsTab(_props: Props) {
                                 </div>
                                 <div className="mt-0.5 flex items-center justify-between gap-2 text-[10px] text-muted-foreground">
                                     <span>đủ bán {r.days}n · tồn {formatNumber(r.total ?? 0)}</span>
-                                    <span className="font-mono">{stockChips(r)}</span>
+                                    <span className="truncate">{r.mkt || "chưa ai chạy"}</span>
                                 </div>
                             </div>
                         ))}
@@ -420,7 +410,7 @@ export default function TALPHAProductsTab(_props: Props) {
                                     <span className="truncate text-xs font-medium text-foreground">{r.name}</span>
                                     <span className="whitespace-nowrap text-xs font-bold text-amber-600 dark:text-amber-400">tồn {formatNumber(r.total ?? 0)}</span>
                                 </div>
-                                <div className="mt-0.5 text-[10px] font-mono text-muted-foreground">{stockChips(r)}</div>
+                                <div className="mt-0.5 text-[10px] text-muted-foreground">{r.mkt ? `MKT: ${r.mkt}` : "chưa ai chạy mã này"}</div>
                             </div>
                         ))}
                     </div>
@@ -435,11 +425,6 @@ export default function TALPHAProductsTab(_props: Props) {
                         <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Tìm mã / tên / MKT…"
                             className="w-52 rounded-lg border border-border bg-background py-1.5 pl-7 pr-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-amber-500" />
                     </div>
-                    <select value={marketFilter} onChange={e => setMarketFilter(e.target.value)}
-                        className="rounded-lg border border-border bg-background px-2 py-1.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-amber-500">
-                        <option value="all">Tất cả kho</option>
-                        {MARKET_COLS.map(c => <option key={c.key} value={c.key as string}>{c.label}</option>)}
-                    </select>
                     <select value={mktFilter} onChange={e => setMktFilter(e.target.value)}
                         className="rounded-lg border border-border bg-background px-2 py-1.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-amber-500">
                         <option value="all">Tất cả MKT</option>
@@ -466,7 +451,6 @@ export default function TALPHAProductsTab(_props: Props) {
                             <tr className="border-b border-border text-xs text-muted-foreground">
                                 <th className="py-2 pl-2 text-left">Mã</th>
                                 <th className="py-2 px-2 text-left">Sản phẩm</th>
-                                {MARKET_COLS.map(c => <th key={c.key} className="py-2 px-2 text-right whitespace-nowrap">{c.label}</th>)}
                                 <SortTh label="Tổng" sk="total" />
                                 <SortTh label="Bán/ngày" sk="perDay" />
                                 <SortTh label="Đủ bán" sk="days" />
@@ -487,7 +471,6 @@ export default function TALPHAProductsTab(_props: Props) {
                                             </div>
                                         </div>
                                     </td>
-                                    {MARKET_COLS.map(c => <td key={c.key} className="py-2 px-2 text-right font-mono text-xs">{cell(r[c.key] as number | null)}</td>)}
                                     <td className={`py-2 px-2 text-right font-mono font-medium ${r.total < 0 ? "text-rose-500" : "text-foreground"}`}>{r.total < 0 ? `(${Math.abs(r.total)})` : formatNumber(r.total)}</td>
                                     <td className="py-2 px-2 text-right font-mono text-blue-500">{r.perDay !== null ? r.perDay.toFixed(1) : "—"}</td>
                                     <td className={`py-2 px-2 text-right font-mono ${daysColor(r.days)}`}>{r.days !== null ? r.days : "—"}</td>

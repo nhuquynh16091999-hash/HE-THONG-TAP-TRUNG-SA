@@ -1,28 +1,26 @@
 // ═══════════════════════════════════════════════════════════════════
 // TALPHA Inventory — builder dùng chung
 // ───────────────────────────────────────────────────────────────────
-// Đọc + parse Google Sheet "BÁO CÁO TỒN KHO HỢP NHẤT" (+ file gốc Saudi/UAE,
-// + ảnh POS) → 1 payload chuẩn. Dùng bởi:
-//   • /api/talpha/sync-inventory  → ghi snapshot vào BigQuery (mỗi 15')
-//   • /api/talpha/inventory       → fallback khi BQ chưa có dữ liệu
+// Nguồn DUY NHẤT: POS Poscake (actual_remain_quantity). Google Sheet thủ công
+// và hai parser sổ kho Saudi/UAE đã gỡ 11/09/2026 — sáu shop GCC ngừng bán từ
+// 05/09, còn đúng một kho Đài Loan.
+//
+// Dùng bởi:
+//   • /api/talpha/inventory       → nguồn chính của tab Sản phẩm & Kho
+//   • /api/talpha/sync-inventory  → ghi snapshot vào BigQuery làm đường dự phòng
 // ═══════════════════════════════════════════════════════════════════
-import { normCode } from "@/lib/talpha-stock-sources";
-import { fetchPosInventory } from "@/lib/talpha-pos-images";
+import { fetchPosInventory, POS_MARKET_KEY } from "@/lib/talpha-pos-images";
 import { bigquery } from "@/lib/bigquery";
 import type { MarketOverview, StatusSummary, SkuRow } from "@/components/talpha/data/inventory";
 
 const BQ_PROJECT = process.env.NEXT_PUBLIC_BQ_PROJECT || "cty-507710";
 const BQ_DATASET = process.env.DATASET || "TALPHA_Dataset";
 
-// 7 thị trường = 7 shop POS. Thứ tự khớp cột trong bảng Sản phẩm & Kho.
+// MỘT thị trường = MỘT shop POS. Thêm thị trường thì khai ở
+// config/talpha_rules.json → markets và config/projects/talpha.yaml → poscake.shops,
+// rồi mở lại vòng lặp nhiều kho ở đây (git log trước 11/09/2026 có bản 7 kho).
 const MARKETS_META = [
-    { key: "sa", market: "Saudi Arabia", flag: "🇸🇦" },
-    { key: "ae", market: "UAE", flag: "🇦🇪" },
-    { key: "om", market: "OMAN", flag: "🇴🇲" },
-    { key: "kw", market: "Kuwait", flag: "🇰🇼" },
-    { key: "bh", market: "Bahrain", flag: "🇧🇭" },
-    { key: "qa", market: "Qatar", flag: "🇶🇦" },
-    { key: "tw", market: "Taiwan", flag: "🇹🇼" },
+    { key: POS_MARKET_KEY, market: "Taiwan", flag: "🇹🇼" },
 ] as const;
 const MK_KEYS = MARKETS_META.map((m) => m.key);
 
@@ -115,8 +113,8 @@ export interface InventoryPayload {
 }
 
 /**
- * Nguồn CHUẨN = POS Poscake (actual_remain_quantity, 7 shop) — đã BỎ Google Sheet thủ công.
- * Tồn theo kho từ POS; bán/ngày từ đơn thật BigQuery 30 ngày; trạng thái tự tính.
+ * Nguồn CHUẨN = POS Poscake (actual_remain_quantity) — đã BỎ Google Sheet thủ công.
+ * Tồn từ POS; bán/ngày từ đơn thật BigQuery 30 ngày; trạng thái tự tính.
  * Điều chuyển/nhập tay (analyst) không còn nguồn → để rỗng.
  */
 export async function buildInventoryPayload(): Promise<InventoryPayload> {
@@ -125,26 +123,29 @@ export async function buildInventoryPayload(): Promise<InventoryPayload> {
     // cần map variation_id từ POS cho cả tốc độ bán lẫn marketer phụ trách
     const [sold, skuMkt] = await Promise.all([fetchSold30(pos.variationToCode), fetchSkuMarketers(pos.variationToCode)]);
 
-    // Tập mã SKU = hợp mọi mã có trong 7 shop
+    // Tập mã SKU = hợp mọi mã có trong các shop đang bật
     const codes = new Set<string>();
     for (const mk of MK_KEYS) for (const c of Object.keys(pos.stock[mk] || {})) codes.add(c);
 
     const skuMatrix: SkuRow[] = [];
     for (const code of codes) {
         const info = pos.catalog.get(code);
-        const row: any = { code, name: info?.name || code, cat: info?.cat || "", img: info?.img || undefined };
         let total = 0, sold30 = 0;
         for (const mk of MK_KEYS) {
-            const q = pos.stock[mk]?.[code];
-            row[mk] = q === undefined ? null : q;
-            if (q !== undefined) total += q;
+            total += pos.stock[mk]?.[code] ?? 0;
             sold30 += sold[mk]?.[code] || 0;
         }
         const perDay = sold30 > 0 ? Math.round((sold30 / 30) * 10) / 10 : null;
         const days = perDay && total > 0 ? Math.round(total / perDay) : null;
-        row.total = total; row.perDay = perDay; row.days = days;
-        row.status = autoStatus(total, perDay, days); row.mkt = skuMkt[code] || "";
-        skuMatrix.push(row as SkuRow);
+        skuMatrix.push({
+            code,
+            name: info?.name || code,
+            cat: info?.cat || "",
+            img: info?.img || undefined,
+            total, perDay, days,
+            status: autoStatus(total, perDay, days),
+            mkt: skuMkt[code] || "",
+        });
     }
     skuMatrix.sort((a, b) => (b.total ?? 0) - (a.total ?? 0));
 
@@ -173,7 +174,7 @@ export async function buildInventoryPayload(): Promise<InventoryPayload> {
 
     const today = new Date().toLocaleDateString("vi-VN");
     return {
-        asOf: { label: `POS realtime · ${today}`, note: "Tồn kho trực tiếp từ POS Poscake (7 shop) · bán/ngày từ đơn thật 30 ngày" },
+        asOf: { label: `POS realtime · ${today}`, note: "Tồn kho trực tiếp từ POS Poscake · bán/ngày từ đơn thật 30 ngày" },
         marketOverview, statusSummary, skuMatrix,
         transfers: [], restocks: [], keyFindings: [],
         sources: { pos: { ok: true, shops: pos.shops, skus: skuMatrix.length, field: "actual_remain_quantity" } },

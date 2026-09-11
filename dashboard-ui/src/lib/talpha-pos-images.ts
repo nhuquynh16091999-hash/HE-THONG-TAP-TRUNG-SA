@@ -1,22 +1,20 @@
 /**
- * Ảnh sản phẩm lấy từ POS (Pancake/Poscake) — nguồn ảnh chính thức của shop.
- * Mỗi thị trường 1 shop; product.custom_id = mã SKU, ảnh nằm ở
- * product.image hoặc variations[].images[0] (URL content.pancake.vn…).
- * Map theo mã chuẩn hoá để ghép vào ma trận tồn kho.
+ * TALPHA — đọc tồn kho + danh mục sản phẩm THẲNG từ POS (Poscake/Pancake).
+ *
+ * POS là nguồn CHUẨN của tab Sản phẩm & Kho: `product.name`/`custom_id` là mã SKU,
+ * ảnh nằm ở `product.image` hoặc `variations[].images[0]`, tồn vật lý ở
+ * `variations_warehouses[].actual_remain_quantity`.
+ *
+ * Danh sách shop đọc từ config/projects/talpha.yaml → poscake.shops. Một thị
+ * trường = một shop; thêm thị trường thì khai ở đó, KHÔNG thêm map trong file này.
  */
 
 import fs from "fs";
-import path from "path";
 import yaml from "js-yaml";
-import { normCode } from "@/lib/talpha-stock-sources";
+import { TALPHA_YAML } from "@/lib/talpha/config-path";
+import { SHOP2MKT } from "@/lib/talpha/rules";
 
-// Local dev đọc ../config (bản chuẩn repo-root); Vercel không đóng gói thư mục cha
-// → dùng ./config (bản sao prebuild). Giống realtime route.
-const YAML_CANDIDATES = [
-    path.join(process.cwd(), "..", "config", "projects", "talpha.yaml"),
-    path.join(process.cwd(), "config", "projects", "talpha.yaml"),
-];
-const YAML_PATH = YAML_CANDIDATES.find((p) => fs.existsSync(p)) || YAML_CANDIDATES[1];
+const YAML_PATH = TALPHA_YAML();
 
 interface Shop { name: string; api_url: string; api_key: string; shop_id: string }
 
@@ -33,57 +31,40 @@ function loadShops(): Shop[] {
     }
 }
 
-// Ảnh đại diện của 1 product: ưu tiên ảnh product, fallback ảnh biến thể đầu tiên.
-function imageOf(p: any): string | null {
-    if (p?.image) return p.image;
-    for (const v of p?.variations ?? []) {
-        if (Array.isArray(v?.images) && v.images[0]) return v.images[0];
-    }
-    return null;
+/**
+ * Tên shop POS ("Taiwan") → khoá thị trường viết thường ("tw").
+ *
+ * Suy từ config/talpha_rules.json → markets[<tên shop>].shop_label, KHÔNG còn
+ * bảng tên-shop-cứng như trước (bản cũ khai sẵn 7 dòng Saudi/UAE/…; thêm shop mà
+ * quên thêm dòng là kho đó biến mất khỏi dashboard mà chẳng báo gì).
+ * Không khai trong rules thì lấy tên shop viết thường làm khoá.
+ */
+export function posMarketKey(shopName: string): string {
+    const label = Object.entries(SHOP2MKT).find(([, market]) => market === shopName)?.[0];
+    return (label || shopName).toLowerCase();
 }
 
-export interface PosImages {
-    byCode: Map<string, string>; // normCode → URL ảnh
-    count: number;
-    shops: number;
-}
+/** Khoá thị trường của shop đầu tiên — dùng khi hệ chỉ chạy một thị trường. */
+export const POS_MARKET_KEY = posMarketKey(loadShops()[0]?.name ?? "Taiwan");
 
-/** Quét sản phẩm tất cả shop POS → Map mã SKU → URL ảnh (first-wins). */
-export async function fetchPosProductImages(revalidate = 600): Promise<PosImages> {
-    const shops = loadShops();
-    const byCode = new Map<string, string>();
-
-    for (const s of shops) {
-        let page = 1, pages = 1;
-        do {
-            const url = `${s.api_url}/shops/${s.shop_id}/products?api_key=${s.api_key}&page_number=${page}&page_size=100`;
-            let j: any;
-            try {
-                const r = await fetch(url, { signal: AbortSignal.timeout(20000), next: { revalidate } });
-                if (!r.ok) { console.error(`POS products ${s.name}: HTTP ${r.status}`); break; }
-                j = await r.json();
-            } catch (e) {
-                console.error(`POS products ${s.name} lỗi:`, e);
-                break;
-            }
-            pages = j.total_pages || 1;
-            for (const p of j.data ?? []) {
-                const code = normCode(p.custom_id || p.name || "");
-                if (!code) continue;
-                const img = imageOf(p);
-                if (img && !byCode.has(code)) byCode.set(code, img);
-            }
-            page++;
-        } while (page <= pages && page <= 10);
-    }
-
-    return { byCode, count: byCode.size, shops: shops.length };
+/**
+ * Chuẩn hoá mã SKU cho khớp giữa POS, đơn hàng và bảng tồn.
+ * Ưu tiên tiền tố số (bỏ số 0 đầu): "015"→"15", "16-Green"→"16", "0100…"→"100".
+ * Không bắt đầu bằng số thì lấy token đầu, viết hoa ("X-A", "SPTEST").
+ */
+export function normCode(raw: string): string {
+    const s = (raw ?? "").trim();
+    const num = s.match(/^0*(\d+)/);
+    if (num) return num[1];
+    return s.split(/\s+/)[0].toUpperCase();
 }
 
 // remain_quantity có thể là số hoặc object {warehouse_id: qty} → gộp về 1 số.
-function remainQty(rq: any): number {
+function remainQty(rq: unknown): number {
     if (typeof rq === "number") return rq;
-    if (rq && typeof rq === "object") return Object.values(rq).reduce((a: number, b: any) => a + (Number(b) || 0), 0);
+    if (rq && typeof rq === "object") {
+        return Object.values(rq as Record<string, unknown>).reduce<number>((a, b) => a + (Number(b) || 0), 0);
+    }
     return 0;
 }
 
@@ -95,11 +76,6 @@ function actualStock(v: any): number {
     return remainQty(v?.remain_quantity);
 }
 
-// shop POS (theo tên trong talpha.yaml) → market key của dashboard
-const SHOP_MARKET: Record<string, string> = {
-    Saudi: "sa", UAE: "ae", Kuwait: "kw", Oman: "om", Qatar: "qa", Bahrain: "bh", Taiwan: "tw",
-};
-
 export interface PosInvItem { code: string; name: string; cat: string; img: string | null }
 export interface PosInventory {
     stock: Record<string, Record<string, number>>;         // market → code → tồn (actual_remain_quantity)
@@ -110,7 +86,7 @@ export interface PosInventory {
     ok: boolean;
 }
 
-/** Toàn bộ tồn kho + danh mục SP từ 7 shop POS Poscake (nguồn CHUẨN thay Google Sheet). */
+/** Toàn bộ tồn kho + danh mục SP từ các shop POS Poscake đang bật. */
 export async function fetchPosInventory(revalidate = 300): Promise<PosInventory> {
     const shops = loadShops();
     const stock: Record<string, Record<string, number>> = {};
@@ -119,8 +95,7 @@ export async function fetchPosInventory(revalidate = 300): Promise<PosInventory>
     const marketTotals: Record<string, { skus: number; stock: number }> = {};
     let ok = false;
     for (const s of shops) {
-        const mk = SHOP_MARKET[s.name];
-        if (!mk) continue;
+        const mk = posMarketKey(s.name);
         stock[mk] = stock[mk] || {};
         let page = 1, pages = 1;
         do {
@@ -154,49 +129,4 @@ export async function fetchPosInventory(revalidate = 300): Promise<PosInventory>
         marketTotals[mk] = { skus: codes.length, stock: codes.reduce((a, b) => a + b, 0) };
     }
     return { stock, catalog, variationToCode, marketTotals, shops: shops.length, ok };
-}
-
-export interface PosStock {
-    byCode: Map<string, number>; // normCode → tổng tồn (remain_quantity)
-    count: number;               // số SKU
-    total: number;               // tổng tồn (có thể âm nếu bán vượt kho)
-    ok: boolean;
-}
-
-/**
- * Tồn kho 1 thị trường lấy TRỰC TIẾP từ POS Poscake (endpoint products/variations,
- * remain_quantity). Dùng cho thị trường KHÔNG có cột trong sheet tồn thủ công (vd Taiwan).
- * Tồn ÂM = bán vượt kho / chưa nhập kho (giai đoạn test / dropship).
- */
-export async function fetchPosStock(marketName: string, revalidate = 600): Promise<PosStock> {
-    const shops = loadShops().filter((s) => s.name.toLowerCase() === marketName.toLowerCase());
-    const byCode = new Map<string, number>();
-    let ok = false;
-    for (const s of shops) {
-        let page = 1, pages = 1;
-        do {
-            const url = `${s.api_url}/shops/${s.shop_id}/products/variations?api_key=${s.api_key}&page_number=${page}&page_size=100`;
-            let j: any;
-            try {
-                const r = await fetch(url, { signal: AbortSignal.timeout(20000), next: { revalidate } });
-                if (!r.ok) { console.error(`POS stock ${s.name}: HTTP ${r.status}`); break; }
-                j = await r.json();
-                ok = true;
-            } catch (e) {
-                console.error(`POS stock ${s.name} lỗi:`, e);
-                break;
-            }
-            pages = j.total_pages || 1;
-            for (const v of j.data ?? []) {
-                const p = v.product || {};
-                const code = normCode(p.name || v.custom_id || v.display_id || "");
-                if (!code) continue;
-                byCode.set(code, (byCode.get(code) || 0) + remainQty(v.remain_quantity));
-            }
-            page++;
-        } while (page <= pages && page <= 10);
-    }
-    let total = 0;
-    for (const q of byCode.values()) total += q;
-    return { byCode, count: byCode.size, total, ok };
 }

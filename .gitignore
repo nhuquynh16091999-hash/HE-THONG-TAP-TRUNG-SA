@@ -12,10 +12,13 @@ token.json
 *.key
 
 # ═══ Dữ liệu người dùng nhập trên dashboard (sao kê 3PL, số tiền thật) ═══
-data/
+# Gạch chéo đầu = CHỈ thư mục data/ ở gốc repo. Viết "data/" trần thì git bỏ qua
+# mọi thư mục tên data ở mọi tầng — kể cả
+# dashboard-ui/src/components/talpha/data/ vốn là mã nguồn.
+/data/
 
 # ═══ Bảng tra nhập tay (giá vốn, combo, tỷ giá) — có số tiền thật ═══
-config/manual_data/
+/config/manual_data/
 
 # ═══ Node ═══
 node_modules/

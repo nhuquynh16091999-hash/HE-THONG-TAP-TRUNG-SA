@@ -65,45 +65,18 @@ meta_ads:
 # ─── 4. POS / ORDER MANAGEMENT ───
 pos_system: poscake
 
+# MỘT shop, vì MỘT thị trường. Sáu shop GCC (Saudi/UAE/Kuwait/Oman/Qatar/Bahrain)
+# đã gỡ 11/09/2026: chúng ngừng bán từ 05/09, khoá API trong .env đã rỗng, nhưng
+# vẫn nằm ở đây nên mỗi lần mở tab Kho hay Ads Command Center là gọi thêm SÁU
+# lượt POS với api_key trống — chờ timeout rồi vứt kết quả. Danh sách thị trường
+# thật nằm ở config/talpha_rules.json → markets; file này phải khớp với nó.
 poscake:
   shops:
-    - name: "Saudi"
-      api_url: "https://pos.pages.fm/api/v1"
-      api_key: "${TALPHA_POSCAKE_SA_KEY}"               # ⚠️ Actual value in .env
-      shop_id: "1328205216"
-    - name: "UAE"
-      api_url: "https://pos.pages.fm/api/v1"
-      api_key: "${TALPHA_POSCAKE_AE_KEY}"               # ⚠️ Actual value in .env
-      shop_id: "1635200759"
-    - name: "Kuwait"
-      api_url: "https://pos.pages.fm/api/v1"
-      api_key: "${TALPHA_POSCAKE_KW_KEY}"               # ⚠️ Actual value in .env
-      shop_id: "1328205226"
-    - name: "Oman"
-      api_url: "https://pos.pages.fm/api/v1"
-      api_key: "${TALPHA_POSCAKE_OM_KEY}"               # ⚠️ Actual value in .env
-      shop_id: "1942200986"
-    - name: "Qatar"
-      api_url: "https://pos.pages.fm/api/v1"
-      api_key: "${TALPHA_POSCAKE_QA_KEY}"               # ⚠️ Actual value in .env
-      shop_id: "1021271617"
-    - name: "Bahrain"
-      api_url: "https://pos.pages.fm/api/v1"
-      api_key: "${TALPHA_POSCAKE_BH_KEY}"               # ⚠️ Actual value in .env
-      shop_id: "100943483"
     - name: "Taiwan"
       api_url: "https://pos.pages.fm/api/v1"
-      api_key: "${TALPHA_POSCAKE_TW_KEY}"               # ⚠️ Actual value in .env
+      api_key: "${TALPHA_POSCAKE_TW_KEY}"               # ⚠️ Giá trị thật nằm trong .env
       shop_id: "408074608"   # đổi 08/09/2026; mã cũ 1328343252 là của hệ thống trước,
                              # key Poscake thật trả "Cửa hàng không tồn tại" với mã đó
-  shop_ids:
-    - "132820521"                 # Saudi
-    - "1635200759"                # UAE
-    - "1328205226"                # Kuwait
-    - "1942200986"                # Oman
-    - "1021271617"                # Qatar
-    - "100943483"                 # Bahrain
-    - "408074608"                 # Taiwan (đổi 08/09/2026, mã cũ 1328343252 của hệ trước)
 
 # ─── 5. PANCAKE CRM ───
 pancake:

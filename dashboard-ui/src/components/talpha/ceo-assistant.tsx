@@ -38,11 +38,14 @@ export default function CeoAssistant({ dateRange }: Props) {
         } finally { setLoading(false); }
     };
 
+    // Gợi ý phải hỏi được thật. Hệ chỉ còn MỘT thị trường (Đài Loan) nên hai câu
+    // cũ "Market nào đang lỗ?" và "So sánh doanh thu UAE vs Saudi" luôn trả về
+    // một dòng hoặc rỗng — người mới bấm vào tưởng tính năng hỏng.
     const suggestions = [
         "Marketer nào ROAS cao nhất?",
-        "Market nào đang lỗ?",
-        "So sánh doanh thu UAE vs Saudi",
+        "Sản phẩm nào lãi nhất tháng này?",
         "Ngày nào doanh thu cao nhất tháng này?",
+        "Campaign nào tiêu nhiều mà không ra đơn?",
     ];
 
     return (

@@ -71,12 +71,18 @@ export default function CeoSmartInsights({ roas, margin, net, roasTarget = 4.0 }
                 d.sort((x, y) => x.priority - y.priority);
 
                 // ─── D4: Ops checklist (việc trong ngày) ───
-                const saudiOk = (inv.sources?.saudi?.ok) ?? false;
+                // Tồn kho có phải số SỐNG không. Trước đây dòng này đọc
+                // `inv.sources.saudi.ok` — khoá đó không còn ai sinh ra từ khi bỏ
+                // sheet thủ công, nên nó LUÔN false: checklist ngày nào cũng báo
+                // "POS Saudi lỗi 500" và timeline ngày nào cũng có một cảnh báo
+                // vàng, cho một shop đã ngừng bán. Cảnh báo luôn đỏ thì không ai
+                // đọc nữa — và cảnh báo thật cũng chìm theo.
+                const posLive = inv._source === "pos-live" && (inv.sources?.pos?.ok ?? false);
                 const cl: ChecklistItem[] = [
                     { done: urgent.length === 0, label: "Tồn kho: không có SKU cần nhập gấp", note: urgent.length ? `${urgent.length} SKU cần xử lý` : undefined },
                     { done: negative.length === 0, label: "Đối soát SKU tồn âm", note: negative.length ? `${negative.length} SKU` : undefined },
                     { done: roas >= roasTarget, label: `ROAS đạt mục tiêu ≥ ${roasTarget}x`, note: roas > 0 ? `hiện ${roas.toFixed(2)}x` : undefined },
-                    { done: saudiOk, label: "POS Saudi sync OK", note: saudiOk ? undefined : "lỗi 500 — cần kiểm tra" },
+                    { done: posLive, label: "Tồn kho đọc thẳng từ POS", note: posLive ? undefined : "đang dùng snapshot BigQuery dự phòng — số có thể cũ" },
                 ];
 
                 // ─── D5: Timeline (data freshness — mốc thật) ───
@@ -86,7 +92,7 @@ export default function CeoSmartInsights({ roas, margin, net, roasTarget = 4.0 }
                 (inv.marketOverview || []).slice(0, 3).forEach((m: any) => {
                     tl.push({ when: m.market, label: m.source || "—", tone: "ok" });
                 });
-                if (!saudiOk) tl.push({ when: "Saudi POS", label: "Sync lỗi 500 — data SA có thể thiếu", tone: "warn" });
+                if (!posLive) tl.push({ when: "POS Poscake", label: "Không gọi được — tồn kho đang lấy từ snapshot cũ", tone: "warn" });
 
                 setAlerts(a); setDecisions(d); setChecklist(cl); setTimeline(tl);
             } finally {
