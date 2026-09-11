@@ -9,8 +9,36 @@
 # Không in token ra màn hình. Exit 0 = mọi TKQC đọc được; 1 = có vấn đề.
 import json, os, sys, urllib.error, urllib.parse, urllib.request
 
-ENV = os.path.expanduser("~/talpha_reports/runtime/.env")
-ACCOUNTS = os.path.expanduser("~/talpha_reports/runtime/config/ad_accounts.json")
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import talpha_paths
+
+# Đường dẫn hỏi talpha_paths, KHÔNG ghi cứng ~/talpha_reports nữa: bản cũ chỉ
+# chạy được trên đúng một máy Mac, lên máy chủ là không thấy file nào.
+# Token nằm trong .env.local của dashboard trên máy chủ; runtime/.env là bản Mac cũ.
+def _dau_tien(*ung_vien):
+    for c in ung_vien:
+        if c and os.path.isfile(c):
+            return c
+    return ung_vien[0]
+
+
+_RT = talpha_paths.runtime_dir()
+_REPORTS = talpha_paths.reports_dir()
+try:
+    _REPO = talpha_paths.repo_dir()
+except RuntimeError:
+    _REPO = _REPORTS
+
+ENV = _dau_tien(
+    os.environ.get("TALPHA_ENV_FILE"),
+    os.path.join(_REPO, "dashboard-ui", ".env.local"),
+    os.path.join(_RT, ".env"),
+    os.path.join(_REPO, ".env"),
+)
+ACCOUNTS = _dau_tien(
+    os.path.join(_RT, "config", "ad_accounts.json"),
+    os.path.join(_REPO, "ops", "talpha_reports", "ad_accounts.json"),
+)
 API = "https://graph.facebook.com/v21.0"
 
 

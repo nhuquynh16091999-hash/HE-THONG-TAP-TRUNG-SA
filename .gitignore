@@ -1,105 +1,51 @@
+# ═══ Bí mật — KHÔNG BAO GIỜ commit ═══
+.env
+.env.*
+!.env.example
+*.env
+bigquery_key.json
+bigquery_key_*.json
+*-service-account*.json
+credentials.json
+token.json
+*.pem
+*.key
+
+# ═══ Dữ liệu người dùng nhập trên dashboard (sao kê 3PL, số tiền thật) ═══
+data/
+
+# ═══ Bảng tra nhập tay (giá vốn, combo, tỷ giá) — có số tiền thật ═══
+config/manual_data/
+
+# ═══ Node ═══
+node_modules/
+.next/
+.test-build/
+*.tsbuildinfo
+
 # ═══ Python ═══
 __pycache__/
 *.pyc
 *.pyo
-*.egg-info/
-dist/
-build/
-
-# ═══ Virtual Environments ═══
 .venv/
-.venv_*/
-venv/
+.venv-test/
 
-# ═══ Secrets & Credentials ═══
-.env
-.env.*
-!.env.example
-.env.project
-credentials.json
-token.json
-gmail_credentials.json
-gmail_token.json
-bigquery_key.json
-bigquery_key.json.*
-bigquery_key_*.json
-levelup-*.json
-*-service-account*.json
-*.pem
-*.key
-.env.ffm
-# F2: chặn mọi biến thể <tên>.env (VD: prod.env) — template được phép track
-*.env
-!config/LEADER_ENV_TEMPLATE.env
-sync_logs/
-
-# ═══ Node.js ═══
-node_modules/
-.next/
-
-# ═══ IDE ═══
-.vscode/
-.idea/
-*.swp
-*.swo
-
-# ═══ Temp / System ═══
-.tmp/
-*.lock
+# ═══ Log & tạm ═══
 *.log
 logs/
+.tmp/
+*.bak_*
 .DS_Store
 Thumbs.db
 
-# ═══ Data (don't commit large data) ═══
-agents/memory/chroma_db/
-memory/data/*.jsonl
-memory/data/chroma_store/
-
-# ═══ Project Input ═══
-project_input/bigquery_key.json
-project_input/EXAMPLE_*/bigquery_key.json
-
-# ═══ Gemini / Vercel ═══
-.gemini/
+# ═══ IDE / công cụ ═══
+.vscode/
+.idea/
+*.swp
 .vercel/
-
-# ═══ FAOS AI Brain Data ═══
-data/inbox/
-data/processed/
-data/openfang/
-data/openfang.db
-data/stramark/
-
-# ═══ Manual data dumps (PDFs, Excel exports, customer protocols) ═══
-# Contains real customer/financial data — never commit
-config/manual_data/
-
-# ═══ V5.1 Cognitive Consultant - KEEP (AI can doc) ═══
-# memory-bank/     <- KEEP (AI memory)
-# .agents/         <- KEEP (V5.1 rules + workflows)
-# .context/        <- KEEP (task context)
-# AGENTS.md        <- KEEP (engine overview)
-# REPO_GRAPH.md    <- KEEP (dependency graph)
-# .cursorrules     <- KEEP (AI personality)
-# docs/            <- KEEP (documentation)
-
-# ═══ Per-Leader Local Files (personal, not shared) ═══
-*.local.md
-!*.local.md.example
-
-# ═══ Auto Memory (AI-generated learnings) ═══
-.auto-memory/*.md
-!.auto-memory/INDEX.md.codenexus/
 .worktrees
 
-# File kế hoạch cá nhân — không đưa lên git
-KH_*.xlsx
+# ═══ File cá nhân, không chia sẻ ═══
+*.local.md
+!*.local.md.example
 *.xlsx
-
-# Bản sao lưu tự sinh khi deploy/sửa tay — không đưa vào git
-*.bak_*
-.venv-test/
-
-# Dữ liệu do người dùng nhập trên dashboard (sao kê 3PL) — chứa số tiền thật
-data/
