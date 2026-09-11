@@ -82,8 +82,21 @@ say "4/5 · Nạp dữ liệu đối tác đã có sẵn ở máy Mac"
 # để máy chủ có số ngay, khỏi phải nạp lại tay.
 if [ -d "$REPO_ROOT/data" ]; then
     "${SSH[@]}" "mkdir -p $APP_DIR/data"
-    "${SCP[@]}" "$REPO_ROOT"/data/*.json "root@$HOST:$APP_DIR/data/" 2>/dev/null || true
-    "${SSH[@]}" "ls -1 $APP_DIR/data/ | sed 's/^/   /'"
+    # KHÔNG nuốt lỗi ở đây nữa.
+    #
+    # Bản cũ viết `2>/dev/null || true`, và bước sau chỉ `ls` thư mục đích — nên
+    # khi chép trượt, màn hình vẫn in ra đúng danh sách tên file trông như thành
+    # công, trong khi máy chủ giữ nguyên bản cũ. Dính thật 11/09: kỳ đối soát chi
+    # phí QC làm hôm 10/09 không lên server, tab hiện "Chưa có kỳ nào", và mất một
+    # vòng hỏi đi hỏi lại mới lần ra.
+    #
+    # Deploy trượt mà báo xong là kiểu hỏng đắt nhất: không ai đi kiểm cái đã báo
+    # là xong.
+    if ! "${SCP[@]}" "$REPO_ROOT"/data/*.json "root@$HOST:$APP_DIR/data/"; then
+        die "Chép kho dữ liệu lên máy chủ THẤT BẠI — máy chủ đang giữ số cũ."
+    fi
+    # So kích thước hai bên: scp trả 0 vẫn có thể chép thiếu file nếu glob hụt.
+    "${SSH[@]}" "ls -l $APP_DIR/data/*.json | awk '{printf \"   %-28s %s byte\\n\", \$9, \$5}'"
 fi
 
 # ─────────────────────────────────────────────────────────────────────────
