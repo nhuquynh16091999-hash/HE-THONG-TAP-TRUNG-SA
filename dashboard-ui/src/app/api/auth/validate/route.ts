@@ -1,18 +1,6 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
-import fs from "fs";
-import path from "path";
-
-// ─── Types ───
-interface UserRecord {
-    id: string;
-    email: string;
-    name: string;
-    password: string;
-    role: "admin" | "director" | "marketer" | "sale";
-    projects: string[];
-    status?: "active" | "pending";
-}
+import { loadUsers } from "@/lib/users";
 
 // ─── Project mà deployment này phục vụ (TALPHA-only) ───
 // Map route mode → project ID; mặc định TALPHA cho repo single-project.
@@ -35,30 +23,12 @@ export async function POST(req: Request) {
             return NextResponse.json(null, { status: 400 });
         }
 
-        // Vercel/Render mode: parse từ env USERS_JSON (1 dòng).
-        // Local dev: fallback đọc file ../config/users.json.
-        let users: UserRecord[] = [];
-        if (process.env.USERS_JSON) {
-            try {
-                users = JSON.parse(process.env.USERS_JSON);
-            } catch {
-                console.error("USERS_JSON parse failed");
-                return NextResponse.json(null, { status: 500 });
-            }
-        } else {
-            const usersPath = path.join(
-                process.cwd(),
-                "..",
-                "config",
-                "users.json"
-            );
-            try {
-                const data = fs.readFileSync(usersPath, "utf-8");
-                users = JSON.parse(data);
-            } catch {
-                console.error("Failed to load users.json from:", usersPath);
-                return NextResponse.json(null, { status: 500 });
-            }
+        // Nguồn danh sách: lib/users.ts (biến USERS_JSON trên máy chủ, hoặc
+        // config/users.json khi chạy trong repo). Không đọc file ở đây nữa.
+        const users = loadUsers();
+        if (!users.length) {
+            console.error("Không đọc được danh sách người dùng — kiểm USERS_JSON / config/users.json");
+            return NextResponse.json(null, { status: 500 });
         }
 
         const user = users.find((u) => u.email.toLowerCase() === email.toLowerCase());

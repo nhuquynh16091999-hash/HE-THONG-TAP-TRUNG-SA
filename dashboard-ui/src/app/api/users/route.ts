@@ -1,20 +1,11 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import bcrypt from "bcryptjs";
-import fs from "fs";
-import path from "path";
+import { loadUsers, withUsersLock, isEnvMode, type UserRecord } from "@/lib/users";
 
-// ─── Types (duplicated to avoid Edge Runtime issues from importing auth.ts) ───
-interface UserRecord {
-    id: string;
-    email: string;
-    name: string;
-    password: string;
-    role: "admin" | "director" | "marketer" | "sale";
-    projects: string[];
-}
-
-const USERS_FILE = path.join(process.cwd(), "..", "config", "users.json");
+// Đọc/ghi users.json đi qua lib/users.ts — nơi duy nhất giữ KHOÁ FILE.
+// Bản trước tự đọc tự ghi ở đây, không khoá, và ghi thụt lề 2 trong khi bản kia
+// ghi thụt lề 4: hai người sửa cùng lúc là mất một bản ghi.
 
 // Quản lý người dùng: admin kỹ thuật HOẶC giám đốc. Marketer và sale không đụng vào.
 function canManageUsers(session: unknown): boolean {
@@ -22,163 +13,114 @@ function canManageUsers(session: unknown): boolean {
     return role === "admin" || role === "director";
 }
 
-function isEnvMode(): boolean {
-    return !!process.env.USERS_JSON;
-}
-
-function loadUsers(): UserRecord[] {
+/** Chặn chung cho mọi thao tác GHI: phải có quyền, và phải ghi được. */
+async function guardWrite() {
+    const session = await auth();
+    if (!session || !canManageUsers(session)) {
+        return { session: null, res: NextResponse.json({ error: "Unauthorized" }, { status: 403 }) };
+    }
     if (isEnvMode()) {
-        try {
-            return JSON.parse(process.env.USERS_JSON!);
-        } catch {
-            return [];
-        }
+        return {
+            session,
+            res: NextResponse.json(
+                { error: "Máy chủ đang chạy chế độ chỉ đọc (USERS_JSON) — sửa biến môi trường rồi khởi động lại" },
+                { status: 503 },
+            ),
+        };
     }
-    try {
-        return JSON.parse(fs.readFileSync(USERS_FILE, "utf-8"));
-    } catch {
-        return [];
-    }
+    return { session, res: null };
 }
 
-function saveUsers(users: UserRecord[]): void {
-    if (isEnvMode()) {
-        // Vercel filesystem read-only — write không hỗ trợ. Caller cần check trước.
-        throw new Error("User write disabled on hosted env (USERS_JSON mode). Edit users.json local rồi update env var.");
-    }
-    fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2));
-}
-
-// ─── GET: List all users (hide passwords) ───
+// ─── GET: danh sách người dùng (ẩn mật khẩu) ───
 export async function GET() {
     const session = await auth();
     if (!session || !canManageUsers(session)) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
-
-    const users = loadUsers().map(({ password, ...rest }) => rest);
-    return NextResponse.json(users);
+    return NextResponse.json(loadUsers().map(({ password: _bo, ...rest }) => rest));
 }
 
-// ─── POST: Create a new user ───
+// ─── POST: thêm người dùng ───
 export async function POST(req: Request) {
-    const session = await auth();
-    if (!session || !canManageUsers(session)) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
-    }
-    if (isEnvMode()) {
-        return NextResponse.json({ error: "User write disabled on hosted deployment (read-only mode)" }, { status: 503 });
-    }
+    const { res } = await guardWrite();
+    if (res) return res;
 
-    const body = await req.json();
-    const { email, name, password, role, projects } = body;
-
+    const { email, name, password, role, projects } = await req.json();
     if (!email || !name || !password || !role) {
-        return NextResponse.json(
-            { error: "Missing required fields" },
-            { status: 400 }
-        );
-    }
-
-    const users = loadUsers();
-    if (users.some((u) => u.email === email)) {
-        return NextResponse.json(
-            { error: "Email already exists" },
-            { status: 409 }
-        );
+        return NextResponse.json({ error: "Thiếu trường bắt buộc" }, { status: 400 });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
     const newUser: UserRecord = {
         id: String(Date.now()),
-        email,
-        name,
-        password: hashedPassword,
-        role,
+        email, name, password: hashedPassword, role,
         projects: projects || [],
     };
 
-    users.push(newUser);
-    saveUsers(users);
+    // Kiểm trùng email NẰM TRONG khoá — kiểm ngoài khoá thì hai lần thêm cùng lúc
+    // đều thấy "chưa trùng" rồi cùng ghi.
+    let trung = false;
+    await withUsersLock((users) => {
+        if (users.some((u) => u.email === email)) { trung = true; return users; }
+        return [...users, newUser];
+    });
+    if (trung) return NextResponse.json({ error: "Email đã tồn tại" }, { status: 409 });
 
-    const { password: _, ...userWithoutPassword } = newUser;
+    const { password: _bo, ...userWithoutPassword } = newUser;
     return NextResponse.json(userWithoutPassword, { status: 201 });
 }
 
-// ─── PUT: Update a user ───
+// ─── PUT: sửa người dùng ───
 export async function PUT(req: Request) {
-    const session = await auth();
-    if (!session || !canManageUsers(session)) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
-    }
-    if (isEnvMode()) {
-        return NextResponse.json({ error: "User write disabled on hosted deployment (read-only mode)" }, { status: 503 });
-    }
+    const { res } = await guardWrite();
+    if (res) return res;
 
-    const body = await req.json();
-    const { id, email, name, password, role, projects } = body;
+    const { id, email, name, password, role, projects } = await req.json();
+    if (!id) return NextResponse.json({ error: "Thiếu ID người dùng" }, { status: 400 });
 
-    if (!id) {
-        return NextResponse.json({ error: "Missing user ID" }, { status: 400 });
-    }
+    const hashedPassword = password ? await bcrypt.hash(password, 10) : null;
 
-    const users = loadUsers();
-    const idx = users.findIndex((u) => u.id === id);
-    if (idx === -1) {
-        return NextResponse.json({ error: "User not found" }, { status: 404 });
-    }
+    // Kết quả lấy ra khỏi callback qua một hộp — TypeScript không theo dõi được
+    // biến bị gán bên trong closure nên gán thẳng vào `let` sẽ bị thu hẹp về never.
+    const ket: { loi?: { error: string; status: number }; daSua?: UserRecord } = {};
+    await withUsersLock((users) => {
+        const idx = users.findIndex((u) => u.id === id);
+        if (idx === -1) { ket.loi = { error: "Không tìm thấy người dùng", status: 404 }; return users; }
+        if (email && email !== users[idx].email && users.some((u) => u.email === email)) {
+            ket.loi = { error: "Email đã tồn tại", status: 409 }; return users;
+        }
+        if (email) users[idx].email = email;
+        if (name) users[idx].name = name;
+        if (role) users[idx].role = role;
+        if (projects) users[idx].projects = projects;
+        if (hashedPassword) users[idx].password = hashedPassword;
+        ket.daSua = users[idx];
+        return users;
+    });
+    if (ket.loi) return NextResponse.json({ error: ket.loi.error }, { status: ket.loi.status });
 
-    // Check email uniqueness (if changed)
-    if (email && email !== users[idx].email && users.some((u) => u.email === email)) {
-        return NextResponse.json({ error: "Email already exists" }, { status: 409 });
-    }
-
-    if (email) users[idx].email = email;
-    if (name) users[idx].name = name;
-    if (role) users[idx].role = role;
-    if (projects) users[idx].projects = projects;
-    if (password) {
-        users[idx].password = await bcrypt.hash(password, 10);
-    }
-
-    saveUsers(users);
-
-    const { password: _, ...userWithoutPassword } = users[idx];
+    const { password: _bo, ...userWithoutPassword } = ket.daSua!;
     return NextResponse.json(userWithoutPassword);
 }
 
-// ─── DELETE: Remove a user ───
+// ─── DELETE: xoá người dùng ───
 export async function DELETE(req: Request) {
-    const session = await auth();
-    if (!session || !canManageUsers(session)) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
-    }
-    if (isEnvMode()) {
-        return NextResponse.json({ error: "User write disabled on hosted deployment (read-only mode)" }, { status: 503 });
-    }
+    const { session, res } = await guardWrite();
+    if (res) return res;
 
-    const { searchParams } = new URL(req.url);
-    const id = searchParams.get("id");
-
-    if (!id) {
-        return NextResponse.json({ error: "Missing user ID" }, { status: 400 });
+    const id = new URL(req.url).searchParams.get("id");
+    if (!id) return NextResponse.json({ error: "Thiếu ID người dùng" }, { status: 400 });
+    if ((session!.user as { id?: string } | undefined)?.id === id) {
+        return NextResponse.json({ error: "Không thể tự xoá chính mình" }, { status: 400 });
     }
 
-    // Prevent self-deletion
-    if ((session.user as any)?.id === id) {
-        return NextResponse.json(
-            { error: "Cannot delete yourself" },
-            { status: 400 }
-        );
-    }
+    let thay = false;
+    await withUsersLock((users) => {
+        const con = users.filter((u) => u.id !== id);
+        thay = con.length !== users.length;
+        return thay ? con : users;
+    });
+    if (!thay) return NextResponse.json({ error: "Không tìm thấy người dùng" }, { status: 404 });
 
-    const users = loadUsers();
-    const filtered = users.filter((u) => u.id !== id);
-
-    if (filtered.length === users.length) {
-        return NextResponse.json({ error: "User not found" }, { status: 404 });
-    }
-
-    saveUsers(filtered);
     return NextResponse.json({ success: true });
 }
