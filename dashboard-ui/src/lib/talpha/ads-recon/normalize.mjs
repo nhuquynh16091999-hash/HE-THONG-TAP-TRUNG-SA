@@ -57,8 +57,6 @@ export function parseAmount(v) {
     return neg ? -n : n;
 }
 
-const MONTH_FIRST_HINT = /^(0?[1-9]|1[0-2])[\/\-.]/;
-
 /**
  * Đọc ngày → chuỗi "YYYY-MM-DD" (không giờ, vì đối soát chỉ cần tới ngày).
  * Ưu tiên dd/mm/yyyy — chuẩn Việt Nam. Ô ngày thật từ Excel thì đọc thẳng.

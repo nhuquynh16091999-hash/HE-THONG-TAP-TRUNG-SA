@@ -6,7 +6,7 @@ import {
 } from "@/lib/talpha/rules";
 import {
     parseStatement, reconcile, trackingFromLink,
-    MATCH_KEY, TOLERANCE, type PosOrder, type StatementRow,
+    MATCH_KEY, type PosOrder, type StatementRow,
 } from "@/lib/talpha/cod-recon";
 import {
     parseNazaStatement, type NazaStatement,

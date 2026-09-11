@@ -170,9 +170,9 @@ export default function TALPHAAdHealthTab() {
                     </h3>
                     <p className="text-xs text-muted-foreground">
                         Chiếm {attr.pct_ad_khong_tra_ve}% số đơn đã gán. Những đơn này nằm ngoài mọi phép tính
-                        CPO/ROAS theo quảng cáo — con số "tiêu không ra đơn" ở trên vì thế là <b>trần trên</b>,
+                        CPO/ROAS theo quảng cáo — con số &ldquo;tiêu không ra đơn&rdquo; ở trên vì thế là <b>trần trên</b>,
                         không phải lãng phí đã xác nhận. Nguyên nhân: quảng cáo bị xoá rồi tạo lại giữ id cũ,
-                        hoặc TKQC nằm ngoài roster 14 tài khoản (lỗi X9).
+                        hoặc TKQC nằm ngoài danh sách khai trong talpha.yaml (lỗi X9).
                     </p>
                 </div>
             )}

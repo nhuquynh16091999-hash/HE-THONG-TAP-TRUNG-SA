@@ -7,7 +7,7 @@ import {
 import { trackingFromLink } from "@/lib/talpha/cod-recon";
 import {
     buildAlerts, countByStatus, mergeStatus, TRACK_CFG,
-    type Shipment, type MainStatus,
+    type Shipment,
 } from "@/lib/talpha/tracking";
 import { register, getTrackInfo, hasApiKey, Track17Error } from "@/lib/talpha/track17";
 import { readStoreFresh, updateStore } from "@/lib/talpha/store";

@@ -78,12 +78,19 @@ type SortKey = "total" | "perDay" | "days";
 
 interface Props { dateRange?: { from: Date; to: Date }; projectId?: string }
 
-// Tồn theo kho: null = không nhập, 0 = "·" (hết), số âm = lỗi sổ
-function cell(v: number | null) {
-    if (v === null) return <span className="text-muted-foreground/30">—</span>;
-    if (v === 0) return <span className="text-muted-foreground/60">·</span>;
-    if (v < 0) return <span className="text-rose-500 font-medium">({Math.abs(v)})</span>;
-    return <span className="text-foreground">{formatNumber(v)}</span>;
+// Ô tiêu đề bấm được để đổi cột sắp xếp.
+// Định nghĩa Ở NGOÀI component: khai bên trong thì mỗi lần render React thấy một
+// kiểu component MỚI và tháo rồi dựng lại toàn bộ hàng tiêu đề.
+function SortTh({ label, sk, sortKey, sortDir, onSort }: {
+    label: string; sk: SortKey; sortKey: SortKey; sortDir: "asc" | "desc";
+    onSort: (k: SortKey) => void;
+}) {
+    return (
+        <th className="text-right py-2 px-2 cursor-pointer select-none hover:text-foreground whitespace-nowrap"
+            onClick={() => onSort(sk)}>
+            {label} {sortKey === sk ? (sortDir === "desc" ? "↓" : "↑") : ""}
+        </th>
+    );
 }
 
 function daysColor(d: number | null) {
@@ -142,8 +149,6 @@ export default function TALPHAProductsTab(_props: Props) {
         marketOverview: MARKET_OVERVIEW,
         statusSummary: STATUS_SUMMARY,
         skuMatrix: SKU_MATRIX,
-        transfers: TRANSFERS,
-        restocks: RESTOCKS,
         keyFindings: KEY_FINDINGS,
     } = data ?? {
         asOf: { label: "", note: "" },
@@ -210,11 +215,6 @@ export default function TALPHAProductsTab(_props: Props) {
         if (sortKey === k) setSortDir(d => d === "desc" ? "asc" : "desc");
         else { setSortKey(k); setSortDir("desc"); }
     };
-    const SortTh = ({ label, sk }: { label: string; sk: SortKey }) => (
-        <th className="text-right py-2 px-2 cursor-pointer select-none hover:text-foreground whitespace-nowrap" onClick={() => handleSort(sk)}>
-            {label} {sortKey === sk ? (sortDir === "desc" ? "↓" : "↑") : ""}
-        </th>
-    );
 
     // Tải lần đầu: skeleton, KHÔNG hiện số nào (trước đây hiện snapshot tĩnh 19/06 trong lúc chờ)
     if (loading && !data) return <TabSkeleton cards={4} showChart={true} rows={8} />;
@@ -292,7 +292,7 @@ export default function TALPHAProductsTab(_props: Props) {
             <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
                 <KPICard title="📦 Tổng SKU" value={formatNumber(SKU_MATRIX.length)} icon={Package} subValue={`${MARKET_OVERVIEW.length} kho POS`} />
                 <KPICard title="🏬 Tổng tồn (pcs)" value={formatNumber(kpi.totalStock)} icon={Boxes} subValue="toàn hệ thống" />
-                <KPICard title="⚡ Bán/ngày" value={`${kpi.perDay.toFixed(0)}`} icon={Package} status="success" subValue="đơn thật 30 ngày" tooltip="Tốc độ bán thật tính từ đơn hàng 30 ngày, đủ cả 7 kho." />
+                <KPICard title="⚡ Bán/ngày" value={`${kpi.perDay.toFixed(0)}`} icon={Package} status="success" subValue="đơn thật 30 ngày" tooltip="Tốc độ bán thật tính từ đơn hàng 30 ngày." />
                 <KPICard title="🔴 Sắp hết — giảm ads" value={formatNumber(kpi.soonOut)} icon={AlertTriangle} status="danger" subValue={`SKU còn <${SOON_DAYS} ngày hàng`} tooltip="SKU đang bán tốt nhưng tồn sắp hết → cân nhắc GIẢM/DỪNG ads để tránh cháy hàng + RTO." />
                 <KPICard title="🔥 Đẩy ads được" value={formatNumber(kpi.hot)} icon={TrendingUp} status="success" subValue="bán tốt · đủ hàng" tooltip="SKU bán chạy và còn ≥20 ngày hàng → an toàn đổ mạnh ads." />
                 <KPICard title="🐌 Tồn đọng — cần xả" value={`${kpi.deadPct}%`} icon={TrendingDown} status="warning" subValue={`${formatNumber(kpi.deadCount)} SKU · ${formatNumber(kpi.deadPcs)} pcs`} tooltip="Tồn nhiều nhưng 30 ngày không bán → nên chạy ads/khuyến mãi để xả." />
@@ -451,9 +451,9 @@ export default function TALPHAProductsTab(_props: Props) {
                             <tr className="border-b border-border text-xs text-muted-foreground">
                                 <th className="py-2 pl-2 text-left">Mã</th>
                                 <th className="py-2 px-2 text-left">Sản phẩm</th>
-                                <SortTh label="Tổng" sk="total" />
-                                <SortTh label="Bán/ngày" sk="perDay" />
-                                <SortTh label="Đủ bán" sk="days" />
+                                <SortTh label="Tổng" sk="total" sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
+                                <SortTh label="Bán/ngày" sk="perDay" sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
+                                <SortTh label="Đủ bán" sk="days" sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
                                 <th className="py-2 px-2 text-left">Trạng thái</th>
                                 <th className="py-2 px-2 text-left">MKT</th>
                             </tr>

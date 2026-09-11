@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import {
     Plus, RefreshCw, AlertTriangle, CheckCircle2,
-    XCircle, Pause, Trash2, Edit, Key, ChevronDown, ChevronUp, Loader2,
+    XCircle, Pause, Trash2, Key, ChevronDown, ChevronUp, Loader2,
 } from "lucide-react";
 
 // ═══ Types ═══

@@ -440,7 +440,10 @@ export function summarise(rows: LedgerRow[], extra: PaidLine[] = []): LedgerSumm
         if (r.light === "do" && r.paid_twd === null) { pending += r.cod_twd; over += r.cod_twd; }
         fee += (r.ship_fee_rmb ?? 0) + (r.op_fee_rmb ?? 0);
         if (r.cogs_vnd !== null) cogsKnown++; else cogsMiss++;
-        if (r.net_vnd !== null) (r.net_before_cogs ? (netPartial += r.net_vnd) : (net += r.net_vnd));
+        if (r.net_vnd !== null) {
+            if (r.net_before_cogs) netPartial += r.net_vnd;
+            else net += r.net_vnd;
+        }
     }
 
     return {

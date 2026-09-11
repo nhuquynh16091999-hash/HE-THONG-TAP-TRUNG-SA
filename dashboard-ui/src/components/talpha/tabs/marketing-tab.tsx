@@ -6,7 +6,7 @@ import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
     ResponsiveContainer,
 } from "recharts";
-import { Megaphone, TrendingUp, DollarSign, Users, MessageCircle } from "lucide-react";
+import { TrendingUp, DollarSign, Users, MessageCircle } from "lucide-react";
 import TabSkeleton from "@/components/ui/tab-skeleton";
 import { BQ_PROJECT, DATASET } from "../constants";
 import { formatVNDCompact } from "../utils";

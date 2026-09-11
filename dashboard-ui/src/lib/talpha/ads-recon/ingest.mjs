@@ -93,7 +93,6 @@ function pickSheet(sheets, aliasGroups) {
 // ─────────────────────────────────────────────────────────────────────────
 export function ingestFb(sheets, cfg, sourceName = "") {
     const A = cfg.columns.fb;
-    const need = [A.date, A.amount];
     const pick = pickSheet(sheets, [A.date, A.amount, A.transaction_id, A.account_id, A.status]);
     if (!pick) throw new Error("Không tìm thấy dòng tiêu đề trong file TKQC. " + doDuocGi(sheets));
 

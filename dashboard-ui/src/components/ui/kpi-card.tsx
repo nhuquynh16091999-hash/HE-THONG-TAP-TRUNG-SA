@@ -25,12 +25,15 @@ export function KPICard({
     status = "neutral",
     tooltip,
 }: KPICardProps) {
+    // Prop `status` trước đây được nhận vào rồi bỏ đó — bảng màu dựng xong
+    // không gắn vào đâu cả. Mọi thẻ "🔴 Sắp hết" hay "🔥 Đẩy ads được" đều hiện
+    // icon xám y hệt nhau, trong khi nơi gọi tưởng mình đã tô màu cảnh báo.
     const statusColor = {
         success: "text-emerald-500 dark:text-emerald-400",
         warning: "text-amber-500 dark:text-amber-400",
         danger: "text-rose-500 dark:text-rose-400",
-        neutral: "text-slate-400 dark:text-slate-500",
-    };
+        neutral: "text-muted-foreground",
+    }[status];
 
     return (
         <div className={cn(
@@ -45,7 +48,7 @@ export function KPICard({
                         <Info className="h-3 w-3 text-muted-foreground/60 cursor-help" aria-label={tooltip} />
                     )}
                 </span>
-                {Icon && <Icon className="h-4 w-4 text-muted-foreground" />}
+                {Icon && <Icon className={cn("h-4 w-4", statusColor)} />}
             </div>
             {tooltip && (
                 <div className="pointer-events-none absolute left-1/2 top-full z-50 mt-2 w-64 -translate-x-1/2 rounded-md border border-border bg-popover p-2.5 text-xs leading-relaxed text-popover-foreground opacity-0 shadow-lg transition-opacity duration-150 group-hover/kpi:opacity-100">

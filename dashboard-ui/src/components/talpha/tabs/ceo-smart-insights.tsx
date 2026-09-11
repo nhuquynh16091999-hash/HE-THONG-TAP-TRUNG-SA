@@ -44,7 +44,6 @@ export default function CeoSmartInsights({ roas, margin, net, roasTarget = 4.0 }
                 const urgent = skus.filter(s => s.status === "CẦN NHẬP GẤP" || (s.days != null && s.days >= 0 && s.days < 7));
                 const negative = skus.filter(s => (s.total ?? 0) < 0);
                 const lowStock = skus.filter(s => s.days != null && s.days >= 7 && s.days < 30);
-                const outOfStock = skus.filter(s => s.status === "Hết hàng toàn hệ thống");
 
                 // ─── D2: Smart alerts ───
                 const a: Alert[] = [];

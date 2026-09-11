@@ -9,7 +9,7 @@
  *      warn     = cần người nhìn lại, có thể có lý do chính đáng.
  *      info     = ghi nhận để biết, không phải làm gì.
  */
-import { daysBetween, fmtVND, normText, addDays } from "./normalize.mjs";
+import { daysBetween, fmtVND } from "./normalize.mjs";
 import { tolerance } from "./match.mjs";
 
 const CRIT = "critical", WARN = "warn", INFO = "info";
@@ -21,11 +21,6 @@ function mk(code, severity, title, detail, opts = {}) {
 /** Danh sách 4 số cuối thẻ hợp lệ; bỏ qua dòng mẫu "0000". */
 function cardWhitelist(cfg) {
     return new Set((cfg.cards?.list || []).map((c) => String(c.last4 || "").trim()).filter((c) => c && c !== "0000"));
-}
-
-function cardLabel(cfg, last4) {
-    const c = (cfg.cards?.list || []).find((x) => String(x.last4) === String(last4));
-    return c ? `${c.ten}${c.ngan_hang ? " · " + c.ngan_hang : ""}` : `thẻ *${last4}`;
 }
 
 /** Roster TKQC hợp lệ, đọc từ file ad_accounts.json của dashboard nếu có. */

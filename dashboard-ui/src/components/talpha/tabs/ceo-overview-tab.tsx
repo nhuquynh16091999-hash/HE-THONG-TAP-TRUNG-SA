@@ -25,16 +25,11 @@ interface MarketerRow {
 interface MarketRow {
     shop_name: string; orders: number; revenue: number; ads_spend: number; shipping: number; margin: number;
 }
-interface ProductRow {
-    product_name: string; quantity: number; revenue: number;
-}
-
 export default function TALPHACeoOverviewTab({ dateRange }: Props) {
     const [loading, setLoading] = useState(true);
     const [monthly, setMonthly] = useState<MonthlyRow[]>([]);
     const [marketers, setMarketers] = useState<MarketerRow[]>([]);
     const [markets, setMarkets] = useState<MarketRow[]>([]);
-    const [products, setProducts] = useState<ProductRow[]>([]);
     const [totals, setTotals] = useState({ orders: 0, revenue: 0, ads: 0, shipping: 0, net: 0, markets: 0 });
     // KPI doanh số/tháng (VND) từ talpha_rules.json — tháng nào không khai thì không có khoá.
     const [targets, setTargets] = useState<Record<string, number>>({});
@@ -229,9 +224,6 @@ export default function TALPHACeoOverviewTab({ dateRange }: Props) {
                     };
                 });
                 setMarkets(marketsArr);
-
-                // Products — order_items currently empty (sync pending); will populate when available
-                setProducts([]);
 
                 // Global totals
                 const totalRev = monthlyArr.reduce((s, m) => s + m.revenue, 0);
