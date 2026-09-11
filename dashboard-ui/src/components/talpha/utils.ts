@@ -1,14 +1,9 @@
 /**
- * TALPHA-specific formatting utils.
- * Revenue is in local currency (SAR/AED/KWD/OMR) → convert to VND.
- * Ads spend is already in VND → no conversion.
+ * Định dạng tiền/số và quy đổi tỷ giá cho các tab TALPHA.
+ * Doanh thu là tiền địa phương (TWD) → quy về VND.
+ * Chi phí quảng cáo ĐÃ là VND → không quy đổi.
  */
-import { type ClassValue, clsx } from "clsx";
-import { twMerge } from "tailwind-merge";
-
-export function cn(...inputs: ClassValue[]) {
-    return twMerge(clsx(inputs));
-}
+export { cn } from "@/lib/utils";
 
 // ═══ Exchange rates: local currency → VND ═══
 // ═══ MỘT thị trường: Đài Loan (từ 05/09/2026) ═══
@@ -19,33 +14,17 @@ export const EXCHANGE_RATES: Record<string, number> = {
     TW: 800, Taiwan: 800,     // TWD → VND
 };
 
-export const MARKET_NAMES: Record<string, string> = {
+const MARKET_NAMES: Record<string, string> = {
     TW: "Taiwan",
 };
 
-// ═══ X13: số chia đưa tiền thô của POS về ĐƠN VỊ TIỀN THẬT của shop ═══
-// Shop Đài lưu NGUYÊN TWD (cod=950 ⇒ 950 TWD, verify bằng POS API 20/08) → chia 1.
-// Gõ /100 ở bất kỳ đâu là doanh thu tụt đúng 100 lần (AOV ra 8.987đ/đơn).
-export const MONEY_DIVISORS: Record<string, number> = {
-    TW: 1, Taiwan: 1,
-};
-
 const DEFAULT_RATE = 800;             // chỉ còn một thị trường
-const DEFAULT_MONEY_DIVISOR = 1;      // Đài lưu nguyên TWD
 
-/** Số chia tiền POS theo market code (shop_label) hoặc tên market. */
-export function moneyDivisor(marketCodeOrName?: string): number {
-    return MONEY_DIVISORS[marketCodeOrName || ""] || DEFAULT_MONEY_DIVISOR;
-}
-
-/**
- * Quy tiền địa phương (TWD) về VND. Chi phí quảng cáo ĐÃ là VND — KHÔNG dùng
- * hàm này cho spend, dùng là thổi chi phí lên 800 lần.
- */
-export function toVND(amount: number, marketCodeOrName?: string): number {
-    const rate = EXCHANGE_RATES[marketCodeOrName || ""] || DEFAULT_RATE;
-    return amount * rate;
-}
+// Số chia tiền POS (X13) nay chỉ khai một chỗ: config/talpha_rules.json →
+// markets.*.pos_money_divisor, đọc qua `posMoneyDivisor()` trong lib/talpha/rules.ts.
+// Bản sao ở file này (MONEY_DIVISORS · moneyDivisor · toVND) đã gỡ 11/09/2026 —
+// không ai gọi, và hai bảng số chia song song là cách chắc chắn nhất để một ngày
+// nào đó chúng lệch nhau rồi tiền Đài tụt đúng 100 lần.
 
 /** Tên thị trường hiển thị từ shop_label. */
 export function marketName(code?: string): string {
@@ -63,16 +42,11 @@ export function marketName(code?: string): string {
 export const SHIPPING_FEES: Record<string, { packing: number; delivery: number; codPct: number; codFlat: number }> = {};
 
 /** Phí vận chuyển ước tính (VND) từ số đơn giao và doanh thu tiền địa phương. */
-export function shippingVND(code: string, orders: number, revenueLocal: number): number {
+function shippingVND(code: string, orders: number, revenueLocal: number): number {
     const f = SHIPPING_FEES[code || ""];
     if (!f || orders <= 0) return 0;
     const local = orders * (f.packing + f.delivery + f.codFlat) + revenueLocal * f.codPct;
     return local * (EXCHANGE_RATES[code] || DEFAULT_RATE);
-}
-
-/** Đã khai phí 3PL cho thị trường này chưa — UI dùng để nói rõ "thiếu" thay vì hiện 0. */
-export function hasShippingFees(code = "TW"): boolean {
-    return !!SHIPPING_FEES[code];
 }
 
 /** Như shippingVND nhưng nhận doanh thu đã ở VND (vw_orders_std.revenue_vnd). */

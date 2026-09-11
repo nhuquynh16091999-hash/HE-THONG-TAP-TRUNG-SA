@@ -1,8 +1,11 @@
 "use client";
 
 /**
- * Reusable loading skeleton components for dashboard tabs.
- * Usage: <TabSkeleton /> or <TabSkeleton rows={6} cards={3} />
+ * Khung xương chờ tải cho các tab dashboard.
+ * Dùng: <TabSkeleton /> hoặc <TabSkeleton rows={6} cards={3} />
+ *
+ * Ba khối con (KPI · biểu đồ · bảng) chỉ dùng trong file này — trước đây chúng
+ * được export ra ngoài suốt mà không tab nào import.
  */
 
 interface TabSkeletonProps {
@@ -17,7 +20,7 @@ function SkeletonPulse({ className, style }: { className?: string; style?: React
     );
 }
 
-export function KPISkeleton({ count = 4 }: { count?: number }) {
+function KPISkeleton({ count = 4 }: { count?: number }) {
     return (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
             {Array.from({ length: count }).map((_, i) => (
@@ -34,7 +37,7 @@ export function KPISkeleton({ count = 4 }: { count?: number }) {
     );
 }
 
-export function ChartSkeleton() {
+function ChartSkeleton() {
     return (
         <div className="rounded-xl border border-border bg-card dark:bg-white/[0.03] p-6 mb-6">
             <SkeletonPulse className="h-5 w-40 mb-4" />
@@ -55,7 +58,7 @@ export function ChartSkeleton() {
     );
 }
 
-export function TableSkeleton({ rows = 5 }: { rows?: number }) {
+function TableSkeleton({ rows = 5 }: { rows?: number }) {
     return (
         <div className="rounded-xl border border-border bg-card dark:bg-white/[0.03] overflow-hidden">
             {/* Header */}
