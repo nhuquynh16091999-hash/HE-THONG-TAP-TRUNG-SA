@@ -25,7 +25,6 @@ PAIRS=(
   "config/talpha_rules.json|talpha_rules.json"
   "ops/talpha_reports/sync_month.py|sync_month.py"
   "ops/talpha_reports/daily_guarded.sh|daily_guarded.sh"
-  "ops/talpha_reports/export_worker.py|export_worker.py"
   "ops/talpha_reports/snapshot_cron.sh|snapshot_cron.sh"
   "ops/talpha_reports/catalog_cron.sh|catalog_cron.sh"
   "sync/talpha/sync_product_catalog.py|sync_product_catalog.py"

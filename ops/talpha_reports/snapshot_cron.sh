@@ -10,10 +10,8 @@
 #               Đây là ĐƯỜNG DỰ PHÒNG của tab Kho: POS Poscake chết thì
 #               /api/talpha/inventory đọc snapshot mới nhất. Không ai gọi định kỳ
 #               → 03/08 snapshot mới nhất là 10/07, tức dự phòng lệch 24 ngày.
-#   ads       → /api/talpha/snapshot-ads   → BQ ads_command_snapshot
-#               Lịch sử spend/ROAS live theo campaign (bảng đứng im từ 18/06).
 #
-# Dùng: snapshot_cron.sh inventory | ads
+# Dùng: snapshot_cron.sh inventory
 # Chạy từ RUNTIME /root/talpha_reports trên VPS.
 # Sửa ở repo ops/talpha_reports/ rồi `./deploy_runtime.sh --yes`.
 # ═══════════════════════════════════════════════════════════════════
@@ -22,8 +20,7 @@ set -uo pipefail
 JOB="${1:-}"
 case "$JOB" in
     inventory) ROUTE="sync-inventory"; TIMEOUT=90 ;;
-    ads)       ROUTE="snapshot-ads";   TIMEOUT=120 ;;
-    *) echo "dùng: $0 inventory|ads" >&2; exit 2 ;;
+    *) echo "dùng: $0 inventory" >&2; exit 2 ;;
 esac
 
 DIR="$HOME/talpha_reports"

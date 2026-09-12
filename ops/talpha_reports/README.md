@@ -39,11 +39,10 @@ khác nhau cùng ghi một bộ bảng mỗi giờ, bản nào chạy sau thì �
 | `report_health.py` | Chống sync "chết câm" (từng kẹt số cũ cả tuần 22–29/06) |
 | `report_account_health.py` | Health theo TỪNG TKQC/shop — bắt lỗi âm thầm khi một mục rơi khỏi sync mà vòng vẫn rc=0 |
 | `check_meta_token.py` | Kiểm token Meta TRƯỚC khi tin vào Sheet. Exit 0 = mọi TKQC đọc được |
-| `export_worker.py` | Poll BigQuery `export_jobs` — nút "Xuất Sheet" trên web đẩy job vào |
 | `team_report.py` | Báo cáo ADS gộp TEAM + từng marketer (chạy tay) |
 | `new_month_files.py` | Quét thư mục Drive tháng mới → sinh sẵn map cho `format_all.py`. CHỈ ĐỌC |
 | `deploy_runtime.sh` | Deploy MỘT CHIỀU repo → runtime (checksum diff, backup, giữ lock) |
-| `snapshot_cron.sh` | Gọi `/api/talpha/sync-inventory` và `/api/talpha/snapshot-ads` để hai bảng snapshot không chết đứng |
+| `snapshot_cron.sh` | Gọi `/api/talpha/sync-inventory` để làm tươi `inventory_snapshot` — dự phòng cho tab Kho. **Chưa hẹn giờ** |
 | `catalog_cron.sh` | Đồng bộ danh mục sản phẩm từ POS |
 | `ad_accounts.json` · `taiwan_files.json` · `test_files.json` | Bảng tra, đã version-control |
 

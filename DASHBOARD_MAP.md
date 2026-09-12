@@ -159,8 +159,8 @@ cookie `activeDataset` (shell đặt `TALPHA_Dataset`).
 | `cod-actions` | Đánh dấu đã đòi / đã nhận tiền | Giao diện |
 | `ad-spend` · `marketer-perf` · `product-costs` · `targets` | Số phụ trợ cho tab | Giao diện |
 | `ceo-ask` | Hỏi đáp bằng LLM → sinh SQL | Giao diện |
-| `export-report` | Nút "Xuất Sheet" → đẩy job vào BQ `export_jobs` | Giao diện |
-| `sync-inventory` · `snapshot-ads` | Ghi snapshot định kỳ để bảng dự phòng không chết đứng | `snapshot_cron.sh` |
+| `export-report` | Nút "Xuất Sheet" → chạy thẳng `format_all.py` (**đang hỏng**, xem mục 7) | Giao diện |
+| `sync-inventory` | Ghi snapshot tồn kho làm dự phòng cho tab Kho | `snapshot_cron.sh` (chưa hẹn giờ) |
 | `ads-alerts` · `billing` · `sheet-report` · `sync-health` | Cảnh báo spend, hạn mức TKQC, số từ Sheet, sức khoẻ sync | Bot WA (đang tắt) |
 
 Hạ tầng: `auth/[...nextauth]`, `auth/validate`, `users`, `ad-accounts`.
@@ -185,8 +185,7 @@ Sửa `vw_orders_std` hoặc `vw_fb_ads_std` là đụng gần như cả dashboa
 Định nghĩa view: `sql/talpha/views/`, deploy bằng `sql/talpha/deploy_talpha_analytics.py`.
 
 Bảng thô dashboard đọc thẳng: `sale_order`, `order_items`, `fb_ads_data`,
-`fb_adset_data`, `inventory_snapshot`, `ads_command_snapshot`, `sync_health`,
-`export_jobs`.
+`fb_adset_data`, `inventory_snapshot`, `sync_health`.
 
 ---
 
@@ -200,14 +199,14 @@ Bảng thô dashboard đọc thẳng: `sale_order`, `order_items`, `fb_ads_data`
 | Bot cảnh báo WhatsApp | — | **Tắt**. Code ở `ops/whatsapp-alerts/`, cách bật trong `ops/pm2/README.md` |
 | Máy Mac | Máy dev | `cd dashboard-ui && npm run dev`. Không job nền nào. |
 
-**Ba việc CHƯA có lịch chạy** — job launchd cũ trên máy Mac đã bỏ, chưa dựng timer thay
-thế trên VPS:
+**Việc nền đang hỏng hoặc chưa có lịch chạy** — soát 13/09/2026, để lại xử lý sau.
+Chúng chưa từng chạy lần nào trong dự án mới:
 
-| Script | Việc bỏ lỡ |
+| Thứ | Tình trạng thật |
 |:--|:--|
-| `ops/talpha_reports/snapshot_cron.sh` | `inventory_snapshot` và `ads_command_snapshot` đứng yên. Bảng đầu LÀ đường dự phòng của tab Kho khi POS chết — cũ là tab Kho hiện số cũ |
-| `ops/talpha_reports/catalog_cron.sh` | `product_catalog` cũ dần → sản phẩm mới vô hình trong báo cáo theo SP |
-| `ops/talpha_reports/export_worker.py` | Nút "Xuất Sheet" đẩy job vào BigQuery nhưng không ai xử lý |
+| `ops/talpha_reports/snapshot_cron.sh` | `inventory_snapshot` không được làm tươi — đó là đường dự phòng của tab Kho khi POS chết |
+| `ops/talpha_reports/catalog_cron.sh` | `product_catalog` **0 dòng từ ngày dựng dự án** → tab P&L theo SP và giá vốn trong `vw_orders_std` trống. Script ghi cứng Python ở `runtime/.venv`, trên VPS là `/opt/talpha/.venv` nên chết ngay |
+| Nút "Xuất Sheet" (`api/talpha/export-report`) | Đường dẫn script ghi cứng `/Users/syanh/talpha_reports/format_all.py` — máy Mac của chủ cũ, bấm trên máy chủ là báo "Không thấy script". Và format_all.py không tự giữ khoá |
 
 Dựng timer theo mẫu `ops/deploy/vps-sync-setup.sh`.
 

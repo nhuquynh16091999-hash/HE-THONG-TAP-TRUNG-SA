@@ -62,7 +62,7 @@ async function handler(req: Request) {
                         ],
                     },
                     // Payload là JSON tồn kho đầy đủ, ghi 96 lần/ngày → phải có hạn xoá,
-                    // nếu không bảng phình vô hạn. 60 ngày, cùng mức với ads_command_snapshot.
+                    // nếu không bảng phình vô hạn. Giữ 60 ngày.
                     timePartitioning: { type: "DAY", field: "snapshot_time", expirationMs: "5184000000" },
                 });
             ws.on("error", reject);

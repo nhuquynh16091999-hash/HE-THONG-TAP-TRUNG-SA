@@ -52,14 +52,14 @@ def base_tables() -> dict:
     }
 
 
-# Năm bảng vận hành dưới đây TỰ SINH khi bên ghi chạy lần đầu (route dashboard và
+# Ba bảng vận hành dưới đây TỰ SINH khi bên ghi chạy lần đầu (route dashboard và
 # ops đều khai schema trong chính load job của nó), nên script này không tạo:
-#   inventory_snapshot · ads_command_snapshot  ← route snapshot của dashboard
-#   export_jobs                                ← nút "Xuất Sheet"
-#   sync_health · sync_health_accounts         ← ops/talpha_reports
+#   inventory_snapshot                  ← route sync-inventory của dashboard
+#   sync_health · sync_health_accounts  ← ops/talpha_reports
+# (ads_command_snapshot và export_jobs đã bỏ 13/09/2026 — không ai đọc / chỉ dùng
+#  cho bản chạy trên Vercel.)
 SELF_CREATING = [
-    "inventory_snapshot", "ads_command_snapshot",
-    "export_jobs", "sync_health", "sync_health_accounts",
+    "inventory_snapshot", "sync_health", "sync_health_accounts",
 ]
 
 

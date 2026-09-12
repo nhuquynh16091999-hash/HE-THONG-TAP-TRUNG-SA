@@ -36,7 +36,7 @@ cd ~/talpha_reports && GOOGLE_APPLICATION_CREDENTIALS=runtime/bigquery_key.json 
 
 ## 4. Lock kẹt (sheet không cập nhật, export không chạy)
 
-- Lock = thư mục `~/talpha_reports/.lock` (mkdir), dùng chung daily_guarded ↔ export_worker.
+- Lock = thư mục `~/talpha_reports/.lock` (mkdir + file pid) của daily_guarded.
 - Kẹt >45' thì daily_guarded tự dọn; muốn dọn tay: kiểm tra không còn process
   (`pgrep -f "sync_month|format_all|daily_guarded"`) rồi `rmdir ~/talpha_reports/.lock`.
 

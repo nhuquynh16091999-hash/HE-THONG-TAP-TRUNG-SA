@@ -74,7 +74,7 @@ Bot deploy: rsync `ops/whatsapp-alerts/` **và `config/talpha_rules.json`** lên
 
 - **Log pm2 không logrotate trên VPS `139.180.131.21`** — chưa cài `pm2-logrotate`,
   `/var/log/talpha/*.log` có thể phình rất lớn. (Đã từng flush 3,2 GB trên máy Mac cũ.)
-- `.lock` dùng chung daily_guarded ↔ export_worker; chỉ daily_guarded dọn stale (>45').
+- `.lock` là khoá của daily_guarded (dọn khi chủ khoá chết hoặc quá 45'). Nút "Xuất Sheet" chạy format_all.py mà KHÔNG giữ khoá này — bấm đúng lúc vòng mỗi giờ đang chạy là hai tiến trình cùng ghi Sheet.
 - `sql/talpha/views/` có 12 view. Dashboard dùng thật `vw_orders_std` (31 lần) và
   `vw_fb_ads_std` (16 lần); số còn lại chỉ một vài lần. Sáu tab BigQuery vẫn tự viết
   SQL inline thay vì đi qua view.
