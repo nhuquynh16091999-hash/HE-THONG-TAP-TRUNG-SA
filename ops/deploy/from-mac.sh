@@ -10,6 +10,17 @@
 # Kịch bản này chỉ ĐIỀU KHIỂN. Việc nặng do vps-setup.sh làm trên máy chủ.
 set -euo pipefail
 
+# --push-data : ghi đè kho dữ liệu của MÁY CHỦ bằng bản trên máy Mac.
+#   Chỉ dùng khi thật sự muốn thế (dựng lại máy chủ, hoặc phục hồi từ bản lưu).
+#   Mặc định script HẠ bản của máy chủ về chứ không đẩy lên — xem bước 4/5.
+PUSH_DATA=0
+for arg in "$@"; do
+    case "$arg" in
+        --push-data) PUSH_DATA=1 ;;
+        *) printf 'Tham số không hiểu: %s\n' "$arg" >&2; exit 2 ;;
+    esac
+done
+
 HOST="${HOST:-139.180.131.21}"
 KEY="${KEY:-$HOME/.ssh/id_ed25519_talpha_vps}"
 APP_DIR="${APP_DIR:-/opt/talpha}"
@@ -77,27 +88,50 @@ say "3/5 · Dựng máy chủ (Node · pm2 · code · build · tường lửa)"
 "${SSH[@]}" 'bash /root/vps-setup.sh'
 
 # ─────────────────────────────────────────────────────────────────────────
-say "4/5 · Nạp dữ liệu đối tác đã có sẵn ở máy Mac"
-# Kho JSON (đơn từ file đối tác, sao kê COD đã tải) nằm ngoài git. Chép lên
-# để máy chủ có số ngay, khỏi phải nạp lại tay.
-if [ -d "$REPO_ROOT/data" ]; then
-    "${SSH[@]}" "mkdir -p $APP_DIR/data"
-    # KHÔNG nuốt lỗi ở đây nữa.
-    #
-    # Bản cũ viết `2>/dev/null || true`, và bước sau chỉ `ls` thư mục đích — nên
-    # khi chép trượt, màn hình vẫn in ra đúng danh sách tên file trông như thành
-    # công, trong khi máy chủ giữ nguyên bản cũ. Dính thật 11/09: kỳ đối soát chi
-    # phí QC làm hôm 10/09 không lên server, tab hiện "Chưa có kỳ nào", và mất một
-    # vòng hỏi đi hỏi lại mới lần ra.
-    #
-    # Deploy trượt mà báo xong là kiểu hỏng đắt nhất: không ai đi kiểm cái đã báo
-    # là xong.
-    if ! "${SCP[@]}" "$REPO_ROOT"/data/*.json "root@$HOST:$APP_DIR/data/"; then
-        die "Chép kho dữ liệu lên máy chủ THẤT BẠI — máy chủ đang giữ số cũ."
+say "4/5 · Kho dữ liệu người dùng nhập trên dashboard"
+#
+# ĐÂY LÀ DỮ LIỆU CỦA MÁY CHỦ, KHÔNG PHẢI CỦA MÁY MAC.
+#
+# `data/*.json` là thứ người dùng tải lên qua dashboard: sao kê COD, bản kê chi
+# phí TKQC, bảng đơn đối tác. Nơi sinh ra chúng là MÁY CHỦ.
+#
+# Bản trước của script này chép Mac → máy chủ mỗi lần deploy, nên mọi file người
+# dùng tải lên sau lần deploy gần nhất đều bị xoá sạch và thay bằng bản cũ trên
+# máy Mac. Suýt mất thật 12/09/2026: sao kê "ĐỐI SOÁT COD 2026.9.11" (60 dòng)
+# được tải lên lúc 17:08, lần deploy trước đó xong lúc 17:01 — thoát trong sáu
+# phút. Deploy thêm một lần nữa là bản sao kê đó bốc hơi, và không ai biết cho
+# tới lúc mở tab Đối soát ra thấy thiếu một kỳ.
+#
+# Nay mặc định là HẠ VỀ: lấy bản của máy chủ xuống làm bản lưu, KHÔNG đẩy lên.
+# Chỉ đẩy lên khi máy chủ chưa có gì (dựng mới), hoặc khi gọi tay --push-data.
+LUU="$REPO_ROOT/data-backup-$(date +%Y%m%d-%H%M%S)"
+CO_TREN_MAY_CHU=$("${SSH[@]}" "ls $APP_DIR/data/*.json 2>/dev/null | wc -l" | tr -d ' \r')
+
+if [ "${PUSH_DATA:-0}" = "1" ]; then
+    [ -d "$REPO_ROOT/data" ] || die "--push-data nhưng máy Mac không có thư mục data/"
+    if [ "$CO_TREN_MAY_CHU" -gt 0 ]; then
+        echo "   máy chủ đang có $CO_TREN_MAY_CHU file — lưu lại trước khi ghi đè"
+        mkdir -p "$LUU" && "${SCP[@]}" "root@$HOST:$APP_DIR/data/*.json" "$LUU/" \
+            || die "Không lưu được bản của máy chủ — DỪNG, không ghi đè."
+        echo "   đã lưu vào $LUU"
     fi
-    # So kích thước hai bên: scp trả 0 vẫn có thể chép thiếu file nếu glob hụt.
-    "${SSH[@]}" "ls -l $APP_DIR/data/*.json | awk '{printf \"   %-28s %s byte\\n\", \$9, \$5}'"
+    echo "   ĐẨY LÊN (bạn đã yêu cầu --push-data)"
+    "${SSH[@]}" "mkdir -p $APP_DIR/data"
+    # KHÔNG nuốt lỗi: deploy trượt mà báo xong là kiểu hỏng đắt nhất.
+    "${SCP[@]}" "$REPO_ROOT"/data/*.json "root@$HOST:$APP_DIR/data/" \
+        || die "Chép kho dữ liệu lên máy chủ THẤT BẠI — máy chủ đang giữ số cũ."
+elif [ "$CO_TREN_MAY_CHU" -eq 0 ] && [ -d "$REPO_ROOT/data" ]; then
+    echo "   máy chủ chưa có kho nào — nạp lần đầu từ máy Mac"
+    "${SSH[@]}" "mkdir -p $APP_DIR/data"
+    "${SCP[@]}" "$REPO_ROOT"/data/*.json "root@$HOST:$APP_DIR/data/" \
+        || die "Nạp kho dữ liệu lần đầu THẤT BẠI."
+else
+    echo "   giữ nguyên kho của máy chủ ($CO_TREN_MAY_CHU file) — không ghi đè"
+    mkdir -p "$LUU" && "${SCP[@]}" "root@$HOST:$APP_DIR/data/*.json" "$LUU/" \
+        && echo "   đã hạ về bản lưu: $LUU" \
+        || echo "   ⚠️  không hạ được bản lưu (kho máy chủ vẫn nguyên)"
 fi
+"${SSH[@]}" "ls -l $APP_DIR/data/*.json 2>/dev/null | awk '{printf \"   %-28s %s byte\\n\", \$9, \$5}'"
 
 # ─────────────────────────────────────────────────────────────────────────
 say "5/5 · Kiểm tra"

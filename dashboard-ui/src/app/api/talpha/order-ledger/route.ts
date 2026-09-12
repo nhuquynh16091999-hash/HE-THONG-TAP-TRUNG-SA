@@ -143,6 +143,38 @@ export async function GET(req: NextRequest) {
         //
         // Tính theo TỪNG KỲ chứ không gộp: một tuần một file, và câu hỏi luôn là
         // "kỳ NÀY có vấn đề gì", không phải "từ đầu tới giờ".
+        // ── ĐƠN GIAO LẠI: vì sao một đơn trông như bị trả thiếu ──────
+        //
+        // Đơn hoàn rồi gửi lại cho khách khác thì NAZA cấp MÃ VẬN ĐƠN MỚI, và
+        // đặt mã đơn = mã vận đơn CŨ + "-Z" (转寄 = chuyển tiếp). Sổ đơn của
+        // mình làm ngược: giữ mã vận đơn CŨ ở cột mã vận đơn, rồi nhét mã cũ
+        // vào ngoặc ở cột mã đơn — "T1467 (7564042426-z)".
+        //
+        // Hệ quả: dashboard ghép theo mã vận đơn nên lấy ra dòng sao kê của một
+        // đơn KHÁC đang dùng lại mã đó, rồi kết luận "trả thiếu 650". Trong khi
+        // tiền thật đã về đủ, nằm ở nhóm "3PL trả cho đơn mình không có" ngay
+        // bên dưới, dưới mã vận đơn mới.
+        //
+        // Đã dính 3 đơn trong kỳ 2026.9.11: T1467 · T1468 · T1471, tổng 4.097 NT$
+        // bị đếm hai lần theo hai chiều ngược nhau.
+        //
+        // Hàm này KHÔNG sửa một con số nào — chỉ tìm ra khoản tiền tương ứng để
+        // nói đúng bản chất: lỗi gán mã vận đơn trong sổ, không phải mất tiền.
+        const maTrongNgoac = (s?: string | null): string | null =>
+            String(s ?? "").match(/\((\d+)\s*-\s*z\)/i)?.[1] ?? null;
+
+        function giaiThichGiaoLai(
+            r: { order_no: string; cod_twd: number },
+            thuaKy: { order_no: string; tracking: string; amount_twd: number }[],
+        ): { tracking: string; amount_twd: number } | null {
+            const maCu = maTrongNgoac(r.order_no);
+            if (!maCu) return null;
+            const hit = thuaKy.find((e) =>
+                String(e.order_no).replace(/[-\s]*z$/i, "").trim() === maCu
+                && e.amount_twd === r.cod_twd);
+            return hit ? { tracking: hit.tracking, amount_twd: hit.amount_twd } : null;
+        }
+
         const byPeriod = stm.statements.map((st) => {
             const mine = rows.filter((r) => r.paid_period === st.filename);
             const lech = mine.filter((r) => r.diff_twd !== null && Math.abs(r.diff_twd) > 1);
@@ -166,6 +198,8 @@ export async function GET(req: NextRequest) {
                 lech_tien: lech.map((r) => ({
                     order_no: r.order_no, tracking: r.tracking,
                     cod_twd: r.cod_twd, paid_twd: r.paid_twd, diff_twd: r.diff_twd,
+                    // Đơn GIAO LẠI bị gán sai mã vận đơn — tiền KHÔNG thiếu.
+                    da_tra_o_ma_khac: giaiThichGiaoLai(r, thua),
                 })),
                 phi_sai: phiSai.map((r) => ({
                     order_no: r.order_no, tracking: r.tracking, ship_fee_rmb: r.ship_fee_rmb,
@@ -335,13 +369,25 @@ export async function GET(req: NextRequest) {
                       dups.slice(0, 3).map((d) => `${d.order_ids.join("/")} · ${d.tracking}`).join(" · "),
             });
 
+            // Tách hai loại: MẤT TIỀN THẬT, và GÁN SAI MÃ VẬN ĐƠN (tiền đã về
+            // đủ, chỉ nằm dưới mã khác). Gộp chung là người đọc đi đòi NAZA một
+            // khoản họ đã trả rồi.
+            const lechThat = moiNhat.lech_tien.filter((l) => !l.da_tra_o_ma_khac);
+            const lechDoMa = moiNhat.lech_tien.filter((l) => l.da_tra_o_ma_khac);
             checks.push({
                 nhom: "B", ten: "3PL trả khác số trên đơn",
                 ok: moiNhat.lech_tien.length === 0,
                 chi_tiet: moiNhat.lech_tien.length === 0 ? "Mọi đơn trả đúng số."
-                    : moiNhat.lech_tien.slice(0, 3).map((l) =>
-                        `${l.order_no}: đơn ghi ${vnd(l.cod_twd)} · họ trả ${vnd(l.paid_twd ?? 0)} NT$ ` +
-                        `(${(l.diff_twd ?? 0) > 0 ? "dư" : "thiếu"} ${vnd(Math.abs(l.diff_twd ?? 0))})`).join(" · "),
+                    : [
+                        ...lechThat.slice(0, 3).map((l) =>
+                            `${l.order_no}: đơn ghi ${vnd(l.cod_twd)} · họ trả ${vnd(l.paid_twd ?? 0)} NT$ ` +
+                            `(${(l.diff_twd ?? 0) > 0 ? "dư" : "thiếu"} ${vnd(Math.abs(l.diff_twd ?? 0))})`),
+                        ...lechDoMa.slice(0, 3).map((l) =>
+                            `${l.order_no}: KHÔNG thiếu tiền — NAZA đã trả đủ ` +
+                            `${vnd(l.da_tra_o_ma_khac!.amount_twd)} NT$ dưới mã vận đơn ` +
+                            `${l.da_tra_o_ma_khac!.tracking}. Đơn giao lại được cấp mã vận đơn MỚI, ` +
+                            `sổ đơn còn ghi mã cũ ${l.tracking} — sửa mã vận đơn trong Google Sheet đối tác`),
+                    ].join(" · "),
             });
             checks.push({
                 nhom: "B", ten: "Phí vận chuyển đúng bảng giá",

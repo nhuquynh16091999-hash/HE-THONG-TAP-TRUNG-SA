@@ -17,6 +17,9 @@ token.json
 # dashboard-ui/src/components/talpha/data/ vốn là mã nguồn.
 /data/
 
+# Bản lưu kho dữ liệu hạ từ máy chủ về (ops/deploy/from-mac.sh) — cũng là số thật
+/data-backup-*/
+
 # ═══ Bảng tra nhập tay (giá vốn, combo, tỷ giá) — có số tiền thật ═══
 /config/manual_data/
 
