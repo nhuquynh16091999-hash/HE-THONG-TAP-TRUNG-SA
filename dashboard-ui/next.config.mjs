@@ -1,5 +1,6 @@
 import path from "path";
 import fs from "fs";
+import { execSync } from "child_process";
 import { fileURLToPath } from "url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -23,9 +24,39 @@ function loadRootEnv() {
 }
 loadRootEnv();
 
+// ─── Mã bản deploy: chống lệch phiên bản giữa tab đang mở và máy chủ ───
+//
+// Mỗi lần build, Next.js đặt tên mới cho file chunk và sinh mã mới cho Server
+// Action. Tab nào đang mở từ trước vẫn giữ mã cũ, nên bấm vào là máy chủ trả
+// "Failed to find Server Action ... might be from an older or newer deployment"
+// rồi phía máy khách ném lỗi. Không có error boundary thì người dùng thấy TRANG
+// TRẮNG với đúng một câu "đã xảy ra lỗi ngoại lệ phía máy khách" — không nói
+// trang nào, không nói vì sao. Dính thật 11/09/2026 ngay sau một lần deploy:
+// log máy chủ đếm được 92 lượt, còn yêu cầu tải file thì chưa kịp gửi đi nên
+// không có dấu vết nào để lần.
+//
+// Khai deploymentId thì Next.js tự NHẬN RA lệch phiên bản và tải lại trang thay
+// vì ném lỗi. Lấy theo commit hiện tại: cùng một commit thì cùng một mã, nên
+// restart máy chủ không làm mất cache của trình duyệt.
+function docMaDeploy() {
+    if (process.env.NEXT_DEPLOYMENT_ID) return process.env.NEXT_DEPLOYMENT_ID;
+    try {
+        return execSync("git rev-parse --short HEAD", {
+            cwd: path.join(__dirname, ".."),
+            stdio: ["ignore", "pipe", "ignore"],
+        }).toString().trim() || undefined;
+    } catch {
+        // Không có git (vd chạy từ bản chép tay) → tắt tính năng, đừng lấy mốc
+        // thời gian làm mã: mỗi lần khởi động lại là một mã khác, trình duyệt
+        // phải tải lại toàn bộ asset.
+        return undefined;
+    }
+}
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
     turbopack: {},
+    deploymentId: docMaDeploy(),
     // Gốc workspace là dashboard-ui/ — nơi có package.json và lockfile duy nhất.
     outputFileTracingRoot: __dirname,
     // pdfjs-dist tự nạp file worker của nó bằng đường dẫn tương đối lúc chạy.

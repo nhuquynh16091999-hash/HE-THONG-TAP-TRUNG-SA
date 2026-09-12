@@ -12,8 +12,10 @@ const plusJakarta = Plus_Jakarta_Sans({
 });
 
 export const metadata: Metadata = {
-    title: process.env.NEXT_PUBLIC_APP_NAME ? `${process.env.NEXT_PUBLIC_APP_NAME} Dashboard` : "STRAMARK Dashboard",
-    description: "Next.js Dashboard for Marketing Analytics",
+    // Tên mặc định trước đây là "STRAMARK Dashboard" — dự án khác. Chưa đặt
+    // NEXT_PUBLIC_APP_NAME là tab trình duyệt hiện tên một hệ thống không liên quan.
+    title: `${process.env.NEXT_PUBLIC_APP_NAME || "TALPHA"} Dashboard`,
+    description: "Dashboard vận hành TALPHA — quảng cáo, đơn hàng, tồn kho, đối soát",
 };
 
 export default function RootLayout({
