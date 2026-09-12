@@ -39,6 +39,23 @@ function laBanCu(e: Error & { digest?: string }): boolean {
     return /ChunkLoadError|Loading chunk|Loading CSS chunk|dynamically imported module|Importing a module script failed|Failed to find Server Action|older or newer deployment|unexpected response was received from the server/i.test(s);
 }
 
+/**
+ * Lỗi do một tiện ích SỬA NỘI DUNG trang — gần như luôn là Google Dịch.
+ *
+ * Nó thay text node bằng thẻ <font> của nó; React vẫn giữ tham chiếu tới node
+ * gốc nên lần render lại kế tiếp gọi removeChild/insertBefore trên một node đã
+ * không còn là con của cha, và cả màn hình sập.
+ *
+ * Từ 12/09/2026 trang khai lang="vi" + translate="no" nên Chrome không tự dịch
+ * nữa. Còn thấy lỗi này nghĩa là người dùng ĐÃ TỰ bật dịch cho trang — phải nói
+ * ra, chứ tải lại trang bao nhiêu lần cũng vậy.
+ */
+function laDoDichTrang(e: Error): boolean {
+    const s = `${e?.name || ""} ${e?.message || ""}`;
+    return /NotFoundError/i.test(s)
+        && /removeChild|insertBefore|The node to be removed|không phải là con/i.test(s);
+}
+
 function docKhoa(): number {
     try { return Number(sessionStorage.getItem(KHOA) || 0); } catch { return 0; }
 }
@@ -52,7 +69,9 @@ export default function ErrorRecovery({ error, reset }: { error: Error & { diges
 
     useEffect(() => {
         console.error("[TALPHA] lỗi phía máy khách:", error);
-        if (!laBanCu(error)) return;
+        // Lỗi do dịch trang thì KHÔNG tự tải lại: tiện ích sẽ dịch lại và lỗi
+        // tiếp: quay vòng vô ích. Phải hiện hướng dẫn tắt dịch.
+        if (laDoDichTrang(error) || !laBanCu(error)) return;
         const now = Date.now();
         if (now - docKhoa() < CACH_NHAU_MS) return;   // vừa thử rồi, đừng quay vòng
         ghiKhoa(now);
@@ -70,18 +89,23 @@ export default function ErrorRecovery({ error, reset }: { error: Error & { diges
     }
 
     const banCu = laBanCu(error);
+    const doDich = laDoDichTrang(error);
+
+    const tieuDe = doDich ? "Trang đang bị dịch tự động"
+        : banCu ? "Trang đang chạy bản cũ"
+        : "Màn hình này gặp lỗi";
+
+    const loiKhuyen = doDich
+        ? "Google Dịch (hoặc một tiện ích tương tự) đang sửa chữ trên trang, và việc đó làm màn hình sập. Bấm chuột phải trong trang → bỏ chọn Dịch sang tiếng Việt; hoặc bấm biểu tượng dịch trên thanh địa chỉ → Không bao giờ dịch trang này. Dashboard đã là tiếng Việt nên không cần dịch."
+        : banCu
+        ? "Dashboard đã được cập nhật trong lúc tab này đang mở. Tải lại trang là xong — dữ liệu không mất gì."
+        : "Phần còn lại của dashboard vẫn dùng được. Thử lại màn hình này, hoặc tải lại trang.";
 
     return (
         <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 p-8">
             <div className="w-full max-w-xl rounded-xl border border-rose-300 bg-rose-50/60 p-5 dark:border-rose-500/30 dark:bg-rose-500/5">
-                <h2 className="mb-1 text-base font-semibold text-rose-700 dark:text-rose-400">
-                    {banCu ? "Trang đang chạy bản cũ" : "Màn hình này gặp lỗi"}
-                </h2>
-                <p className="mb-3 text-sm text-muted-foreground">
-                    {banCu
-                        ? "Dashboard đã được cập nhật trong lúc tab này đang mở. Tải lại trang là xong — dữ liệu không mất gì."
-                        : "Phần còn lại của dashboard vẫn dùng được. Thử lại màn hình này, hoặc tải lại trang."}
-                </p>
+                <h2 className="mb-1 text-base font-semibold text-rose-700 dark:text-rose-400">{tieuDe}</h2>
+                <p className="mb-3 text-sm text-muted-foreground">{loiKhuyen}</p>
 
                 {/* Nội dung lỗi để dán vào tin nhắn báo lỗi — không bắt người dùng đi mở
                     bảng điều khiển trình duyệt mới biết chuyện gì xảy ra. */}

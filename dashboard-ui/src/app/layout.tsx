@@ -24,8 +24,31 @@ export default function RootLayout({
     children: React.ReactNode;
 }>) {
     return (
-        <html lang="en" suppressHydrationWarning>
-            <body className={cn(plusJakarta.className, "bg-background text-foreground antialiased")} suppressHydrationWarning>
+        // lang="vi" — KHÔNG phải "en".
+        //
+        // Toàn bộ dashboard là tiếng Việt, nhưng trang khai lang="en" nên Chrome
+        // kết luận đây là trang tiếng nước ngoài rồi TỰ DỊCH sang tiếng Việt.
+        // Google Dịch làm việc đó bằng cách thay các text node bằng thẻ <font>
+        // của nó. React vẫn giữ tham chiếu tới node gốc, nên lần render lại kế
+        // tiếp nó gọi removeChild trên một node đã không còn là con của cha:
+        //
+        //     NotFoundError: Failed to execute 'removeChild' on 'Node'
+        //
+        // Cả màn hình sập. Dính thật 12/09/2026 ở tab Đối soát chi phí QC —
+        // nhận ra vì chữ trên màn hình đã bị đổi so với chữ trong code
+        // ("dashboard" thành "bảng điều khiển").
+        //
+        // translate="no" + thẻ meta là lớp chặn thứ hai, cho trường hợp người
+        // dùng tự bấm dịch: nội dung đã là tiếng Việt nên dịch chỉ có hại.
+        <html lang="vi" translate="no" suppressHydrationWarning>
+            <head>
+                <meta name="google" content="notranslate" />
+            </head>
+            <body
+                className={cn(plusJakarta.className, "notranslate bg-background text-foreground antialiased")}
+                translate="no"
+                suppressHydrationWarning
+            >
                 <AuthProvider>
                     <ThemeProvider>
                         {children}
