@@ -209,5 +209,27 @@ const FEE_OK = [
         assert.strictEqual(st.checks.cod_gap, -4000);
     });
 
+    console.log("── Cột phí: 快递运费 đổi nghĩa giữa các file ──");
+    // Kỳ 2026.9.11 NAZA đổi tên cột phí ship 速递运费 → 快递运费. Bộ đọc cũ coi 快递运费
+    // là phí thao tác nên bỏ qua cả 83 dòng phí, mục soát giá chạy 0/0 mà vẫn xanh.
+    await t("file mới (9.11): 操作费 + 快递运费 → 快递运费 là phí SHIP", () => {
+        const cols = ["序号", "出货日期", "原单号", "转单号", "运输方式", "计费重", "操作费", "快递运费"];
+        const { iFee, iOp } = N.cotPhi(cols);
+        assert.strictEqual(cols[iFee], "快递运费");
+        assert.strictEqual(cols[iOp], "操作费");
+    });
+    await t("file cũ ghi nhầm: 速递运费 + 快递运费 (không có 操作费) → 快递运费 là phí THAO TÁC", () => {
+        const cols = ["原单号", "转单号", "速递运费", "快递运费"];
+        const { iFee, iOp } = N.cotPhi(cols);
+        assert.strictEqual(cols[iFee], "速递运费");
+        assert.strictEqual(cols[iOp], "快递运费");
+    });
+    await t("file chuẩn: 速递运费 + 操作费", () => {
+        const cols = ["原单号", "转单号", "操作费", "速递运费"];
+        const { iFee, iOp } = N.cotPhi(cols);
+        assert.strictEqual(cols[iFee], "速递运费");
+        assert.strictEqual(cols[iOp], "操作费");
+    });
+
     console.log(`\n${pass} phép thử — tất cả đạt.`);
 })().catch((e) => { console.error("\n✗ HỎNG:", e.message); process.exit(1); });

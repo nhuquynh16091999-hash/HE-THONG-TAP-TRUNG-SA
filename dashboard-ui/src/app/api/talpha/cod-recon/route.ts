@@ -362,10 +362,15 @@ export async function GET(req: NextRequest) {
  * và một khoản lệch 14 TWD hoá thành 28. Đã dính thật khi thử.
  *
  * Mà tải lại là chuyện thường: 3PL gửi bản sửa, hoặc người dùng bấm nhầm.
+ *
+ * So tên theo dạng Unicode NFC. Máy Mac có lúc gửi tên file tách dấu (NFD):
+ * "ĐỐI SOÁT COD 2026.9.11.xlsx" lưu 30 ký tự, tải lại gửi 27 ký tự — nhìn y
+ * hệt mà so chuỗi thì khác, thành hai bản cùng một kỳ. Đã dính thật 13/09/2026.
  */
+const tenFile = (name: string) => name.normalize("NFC").trim();
 function replaceSameFile(list: Statement[], filename: string): Statement[] {
-    const key = filename.trim().toLowerCase();
-    return list.filter((s) => s.filename.trim().toLowerCase() !== key);
+    const key = tenFile(filename).toLowerCase();
+    return list.filter((s) => tenFile(s.filename).toLowerCase() !== key);
 }
 
 export async function POST(req: NextRequest) {
@@ -412,7 +417,7 @@ export async function POST(req: NextRequest) {
 
             const statement: Statement = {
                 id: mkId(),
-                filename: file.name,
+                filename: tenFile(file.name),
                 uploaded_at: new Date().toISOString(),
                 row_count: rows.length,
                 detected_columns: ["tracking", "order_id", "amount", "paid_date"],
@@ -469,7 +474,7 @@ export async function POST(req: NextRequest) {
         const detected = Object.keys(mapping);
         const statement: Statement = {
             id: mkId(),
-            filename: file.name,
+            filename: tenFile(file.name),
             uploaded_at: new Date().toISOString(),
             row_count: rows.length,
             detected_columns: detected,

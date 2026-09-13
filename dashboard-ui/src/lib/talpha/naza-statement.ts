@@ -151,6 +151,37 @@ function findHeader(grid: Grid, anchors: string[]): { row: number; cols: string[
     return null;
 }
 
+/**
+ * Chọn cột PHÍ SHIP và PHÍ THAO TÁC trong sheet phí.
+ *
+ * Chữ 快递运费 mang HAI nghĩa tuỳ file, nên không neo được bằng một từ:
+ *   • file cũ ghi nhầm cột phí thao tác thành 快递运费, bên cạnh cột 速递运费;
+ *   • từ kỳ 2026.9.11 NAZA đổi tên cột phí ship từ 速递运费 thành 快递运费, và
+ *     cột phí thao tác ghi đúng là 操作费.
+ * Bộ đọc cũ luôn coi 快递运费 là phí thao tác, nên kỳ 9.11 không thấy cột phí ship
+ * nào, bỏ qua cả 85 dòng, và mục "phí đúng bảng giá" soát 0/0 dòng mà vẫn hiện xanh.
+ *
+ * Luật: có cột 操作费 thì đó là phí thao tác, và phí ship là 速递运费 hoặc (nếu
+ * không có) 快递运费. Không có 操作费 thì theo kiểu file cũ: 快递运费 là phí thao tác.
+ */
+export function cotPhi(cols: string[]): { iFee: number; iOp: number } {
+    const tim = (tok: string) => cols.findIndex((c) => c.includes(tok));
+    const iThaoTac = tim("操作费");
+    const iSuDi = tim("速递运费");
+    const iKuaiDi = tim("快递运费");
+    let iFee: number, iOp: number;
+    if (iThaoTac >= 0) {
+        iOp = iThaoTac;
+        iFee = iSuDi >= 0 ? iSuDi : iKuaiDi;
+    } else {
+        iFee = iSuDi >= 0 ? iSuDi : iKuaiDi;
+        iOp = iSuDi >= 0 && iKuaiDi >= 0 ? iKuaiDi : -1;
+    }
+    // Vẫn không thấy cột phí thao tác thì lấy cột ngay sau cột phí ship (như cũ).
+    if (iOp < 0 || iOp === iFee) iOp = iFee >= 0 ? iFee + 1 : -1;
+    return { iFee, iOp };
+}
+
 function colIndex(cols: string[], anchorKey: string): number {
     const toks = ANCHORS[anchorKey] || [];
     for (const tok of toks) {
@@ -368,12 +399,8 @@ export async function parseNazaStatement(buf: Buffer, fileName = ""): Promise<Na
             const iTrk = colIndex(h.cols, "tracking");
             const iShp = colIndex(h.cols, "ship_date");
             const iKg = colIndex(h.cols, "chargeable_kg");
-            const iFee = colIndex(h.cols, "ship_fee");
             const iCh = h.cols.findIndex((c) => c.includes("运输方式"));
-            // Cột 操作费 có file ghi nhầm thành 快递运费 — bắt cả hai, và nếu
-            // vẫn không thấy thì lấy cột ngay sau cột phí vận chuyển.
-            let iOp = colIndex(h.cols, "op_fee");
-            if (iOp < 0 || iOp === iFee) iOp = iFee >= 0 ? iFee + 1 : -1;
+            const { iFee, iOp } = cotPhi(h.cols);
             for (let r = h.row + 1; r < sFee.grid.length; r++) {
                 const row = sFee.grid[r] || [];
                 const ord = iOrd >= 0 ? cellText(row[iOrd]) : "";

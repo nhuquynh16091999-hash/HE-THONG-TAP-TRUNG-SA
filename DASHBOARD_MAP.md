@@ -97,7 +97,7 @@ Ba màn hình **không đụng BigQuery lẫn POS**, chạy được cả khi ha
 
 | Màn hình | File đầu vào | Kho lưu |
 |:--|:--|:--|
-| Đối soát COD | Sao kê NAZA (CSV/TSV) | `data/cod_statements.json` |
+| Đối soát COD | Sao kê NAZA (xlsx) + Google Sheet tiền hàng (chỉ đọc) | `data/cod_statements.json` |
 | Đối soát chi phí QC | Chi phí TKQC + sao kê thẻ | `data/ads_recon.json`, `data/ads_recon_kho.json` |
 | Theo dõi vận đơn | Bảng đơn của đối tác (Google Sheet) | `data/tracking.json` |
 
@@ -116,7 +116,7 @@ Vào `/` → middleware kiểm đăng nhập → `/talpha` → `components/talph
 | | P&L | `tabs/pnl-tab.tsx` | `/api/query` |
 | | P&L theo SP | `tabs/product-pnl-tab.tsx` | `/api/query` + `product-costs` |
 | 🧾 Đơn hàng & Đối soát | Sổ đơn hàng | `tabs/order-ledger-tab.tsx` | `/api/talpha/order-ledger` |
-| | Đối soát COD | `tabs/cod-recon-tab.tsx` | `/api/talpha/cod-recon` |
+| | Đối soát COD | `tabs/cod-recon-tab.tsx` | `/api/talpha/order-ledger` + `cod-recon` |
 | | Theo dõi vận đơn | `tabs/tracking-tab.tsx` | `/api/talpha/tracking` |
 | 📦 Sản phẩm | Sản phẩm & Kho | `tabs/products-tab.tsx` | `/api/talpha/inventory` |
 | 👤 Marketer | Marketing & Ads | `tabs/marketing-tab.tsx` | `/api/query` + `marketer-perf` |

@@ -9,7 +9,7 @@
         "build": "next build",
         "start": "next start",
         "lint": "eslint .",
-        "test": "tsc src/lib/talpha/rules.ts src/lib/talpha/cod-recon.ts src/lib/talpha/tracking.ts src/lib/talpha/partner-file.ts src/lib/talpha/naza-statement.ts src/lib/talpha/order-ledger.ts src/lib/talpha/cod-actions.ts --outDir .test-build --module commonjs --target es2020 --moduleResolution node --skipLibCheck --esModuleInterop && node tests/rules.test.cjs && node tests/cod-recon.test.cjs && node tests/tracking.test.cjs && node tests/partner-file.test.cjs && node tests/naza-statement.test.cjs && node tests/order-ledger.test.cjs && node tests/cod-actions.test.cjs && node tests/ads-recon.test.cjs",
+        "test": "tsc src/lib/talpha/rules.ts src/lib/talpha/cod-recon.ts src/lib/talpha/tracking.ts src/lib/talpha/partner-file.ts src/lib/talpha/naza-statement.ts src/lib/talpha/order-ledger.ts src/lib/talpha/cod-actions.ts src/lib/talpha/purchase-sheet.ts --outDir .test-build --module commonjs --target es2020 --moduleResolution node --skipLibCheck --esModuleInterop && node tests/rules.test.cjs && node tests/cod-recon.test.cjs && node tests/tracking.test.cjs && node tests/partner-file.test.cjs && node tests/naza-statement.test.cjs && node tests/order-ledger.test.cjs && node tests/cod-actions.test.cjs && node tests/purchase-sheet.test.cjs && node tests/ads-recon.test.cjs",
         "restart-local": "npm run build && pm2 restart talpha-dashboard --update-env"
     },
     "dependencies": {

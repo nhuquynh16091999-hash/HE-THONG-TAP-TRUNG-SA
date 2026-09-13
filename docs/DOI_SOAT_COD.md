@@ -40,6 +40,11 @@ Mỗi file `.xlsx` có **đúng ba sheet**, và cả ba đều cần:
 | `COD账单` | từng đơn **đã thu được tiền** | khớp với đơn của mình |
 | `速递运费RMB` | từng đơn **đã xuất kho** + phí | soát phí với bảng giá |
 
+⚠️ **Tên cột phí đổi nghĩa giữa các file.** File cũ: `速递运费` = phí ship,
+`快递运费` = phí thao tác (NAZA đặt nhầm tên). Từ kỳ 11/09: `快递运费` = phí ship,
+`操作费` = phí thao tác. Bộ đọc (`cotPhi` trong `naza-statement.ts`) ưu tiên
+`操作费` nếu có — đọc theo tên cũ thì kỳ 11/09 ra 0 dòng phí.
+
 ⚠️ **Sheet COD và sheet PHÍ là hai tập đơn khác nhau**, không phải hai cột của
 cùng một bảng. Đơn xuất kho tuần này thường tuần sau mới thu được tiền. Chính
 chỗ lệch giữa hai tập đó là tiền đang treo.
@@ -157,11 +162,51 @@ NAZA tính phí vận chuyển sòng phẳng.
 Bảng giá ghi *"Phí thao tác chuyển hàng: Miễn phí"*. Có thể là hai khoản khác
 nhau, nhưng đáng hỏi NAZA cho rõ.
 
-### Phí mua hàng (采购费)
+### Phí mua hàng (采购费) — soát với file tiền hàng
 
-Bị trừ thẳng vào tiền chuyển về, **không nằm trong bảng giá vận chuyển**. Kỳ
-04/09 trừ 5.832.938 VND, kỳ 28/08 trừ 8.715.781 VND. Dashboard cảnh báo mỗi kỳ
-có khoản này để đối chiếu với đơn mua hàng.
+Tiền hàng Trung Quốc mỗi đợt ghi ở Google Sheet **"FILE TIỀN HÀNG TAU PHẢI
+THANH TOÁN MỖI KÌ ĐỐI SOÁT"** (id ở `cod_settlement.purchase_sheet` trong
+`config/talpha_rules.json`, đọc bằng service account, chỉ đọc). Mỗi đợt một khối:
+`THANH TOÁN NGÀY d/m` · `TỔNG: x VNĐ` · có thể kèm `a + b` (b là nợ kỳ trước) ·
+`ĐÃ THANH TOÁN` · `CÒN THIẾU`.
+
+Đợt được ghép vào kỳ sao kê **gần ngày nhất trong ±4 ngày**, mỗi đợt một kỳ
+(đợt 27/07 ← sao kê 24/07). Ngày kỳ lấy từ tên file sao kê.
+
+Có hai cách trả, và dashboard phân biệt bằng việc sheet TỔNG của NAZA có dòng
+phí mua hàng hay không:
+
+| Cách trả | Kỳ | Tính "phải nhận" |
+|---|---|---|
+| **NAZA trừ vào COD** | từ 21/08 | VND − tiền hàng **theo file** ± điều chỉnh kỳ trước |
+| **Tự chuyển khoản riêng** | 24/07, 31/07, 07/08, 14/08 | không trừ; hiện đã trả / còn nợ của đợt |
+
+NAZA trừ khác file thì **tin file**: phải nhận tính lại theo số của file, mục
+soát B báo NAZA trừ dư / thiếu bao nhiêu. Đo thật: 4 kỳ NAZA trừ đều khớp file
+tới từng đồng; đợt 14/08 còn nợ 1.405.597 VND.
+
+Đọc file hỏng hay không ghép được đợt nào thì màn hình **nói rõ**, vẫn chạy phần
+còn lại — không lặng lẽ coi tiền hàng là 0.
+
+---
+
+## Tiền về — đã gửi bao nhiêu, còn phải gửi bao nhiêu
+
+Khối **Σ Tiền về** trên tab:
+
+* **NAZA đã gửi về** = cộng số *phải trả* NAZA ghi trên từng sao kê (kỳ âm đã
+  được NAZA trừ vào kỳ sau nên cộng là đủ). Chưa đối chiếu ngân hàng thì đây vẫn
+  là số NAZA cam kết. Nếu NAZA trừ tiền hàng lệch file, dòng này ghi thêm số lẽ
+  ra phải nhận.
+* **Còn phải gửi — đơn đã giao thành công**: đơn trạng thái Delivered chưa có
+  trên sao kê nào.
+* **Còn phải gửi — tất cả đơn còn lại**: mọi đơn chưa được trả, **trừ** đơn hoàn
+  và đơn huỷ (không bao giờ về tiền).
+
+Hai số dự tính đi đúng luồng NAZA với tỷ giá của kỳ mới nhất:
+`(COD × tỷ giá TWD→RMB − phí) × tỷ giá RMB→VND`. Đơn đã bị NAZA trừ phí ship ở
+một kỳ trước thì không trừ lại; đơn chưa bị trừ thì trừ phí ship kg đầu theo kênh
+giao + 3 RMB thao tác. **Chưa trừ tiền hàng các kỳ tới** — chưa biết trước được.
 
 ---
 

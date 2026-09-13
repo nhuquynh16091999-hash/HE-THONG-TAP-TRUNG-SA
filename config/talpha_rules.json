@@ -382,11 +382,11 @@
         "计费重"
       ],
       "ship_fee": [
-        "速递运费"
+        "速递运费",
+        "快递运费"
       ],
       "op_fee": [
-        "操作费",
-        "快递运费"
+        "操作费"
       ]
     },
     "_anchor_note": "Neo vào mã tiếng Trung vì phần tiếng Việt đổi liên tục. Dòng tiêu đề nằm ở r1/r3/r5 tuỳ file.",
@@ -401,7 +401,14 @@
     "_strip_note": "Mã đơn thật có tiền tố TAIWAN-, hậu tố -Z (转寄 = chuyển tiếp) và -1 (lần giao lại).",
     "amount_tolerance_local": 1,
     "pending_alert_days": 30,
-    "_pending_note": "Quá 30 ngày kể từ ngày xuất kho mà chưa về tiền thì coi như mất, không phải chờ."
+    "_pending_note": "Quá 30 ngày kể từ ngày xuất kho mà chưa về tiền thì coi như mất, không phải chờ.",
+    "purchase_sheet": {
+      "_note": "File TIỀN HÀNG — mỗi kỳ đối soát COD có một đợt thanh toán tiền mua hàng, ghi trong ô kiểu 'THANH TOÁN NGÀY 14/8 TỔNG : 8.393.597 VND'. Đó là dòng 'phí mua hàng' trong luồng NAZA: COD × tỷ giá → RMB − phí → × tỷ giá → VND − phí mua hàng = phải nhận. Sỹ Anh chốt 13/09/2026: (1) kỳ NAZA có ghi phí mua hàng thì NAZA trừ vào COD, nhưng TIN SỐ TRONG FILE NÀY nếu hai bên lệch; (2) 4 kỳ trước 21/08 NAZA không ghi phí mua hàng — Sỹ Anh tự chuyển khoản riêng, không trừ vào tiền NAZA; (3) theo dõi đã trả / còn nợ từng đợt.",
+      "sheet_id": "1J1NJtZw4YW0k3BB0qIeAEHRn9W1X4RXSUQR0AZzmYSc",
+      "sheet_gid": "0",
+      "match_window_days": 4,
+      "_match_note": "Ghép đợt thanh toán vào kỳ sao kê theo ngày: ngày đợt gần ngày trên tên file sao kê nhất, trong 4 ngày. Kỳ 24/07 ghép với đợt 27/07."
+    }
   },
   "_ads_settlement_note": "Đối soát COD là tiền VỀ; đối soát dưới đây là tiền RA. Hai chiều của cùng một câu hỏi: số có khớp không.",
   "ads_settlement": {

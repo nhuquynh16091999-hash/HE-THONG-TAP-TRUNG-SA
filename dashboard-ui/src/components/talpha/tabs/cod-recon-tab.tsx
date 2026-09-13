@@ -7,7 +7,7 @@ import {
 } from "lucide-react";
 import TabSkeleton, { ErrorState } from "@/components/ui/tab-skeleton";
 import { formatNumber, cn } from "../utils";
-import { TWD, VND, RMB } from "./ledger-shared";
+import { TWD, VND } from "./ledger-shared";
 
 interface Props { dateRange?: { from: Date; to: Date }; projectId?: string }
 
@@ -45,8 +45,35 @@ type Viec = {
 type Check = { nhom: "A" | "B"; ten: string; ok: boolean | null; chi_tiet: string };
 type Bank = { thuc_nhan_vnd: number; ngay_ve: string; ghi_chu?: string; luc: string };
 type PeriodState = "thieu_file" | "cho_nhap" | "khop" | "lech";
+/** Luồng tiền một kỳ, đi đúng từng bước sheet TỔNG của NAZA. */
+type Luong = {
+    so_dong_sao_ke: number;
+    cod_twd: number | null; ty_gia_twd_rmb: number | null; rmb: number | null;
+    phi_thao_tac_rmb: number; phi_ship_rmb: number; phi_gop: boolean;
+    rmb_rong: number | null; ty_gia_rmb_vnd: number | null; vnd: number | null;
+    tien_hang: {
+        cach_tra: "naza_tru" | "tu_chuyen";
+        naza_tru_vnd: number | null;
+        file: { ngay: string; tong_vnd: number; moi_vnd: number; no_ky_truoc_vnd: number; da_ghi_thanh_toan: boolean; dong: number } | null;
+        trong_luong_vnd: number;
+        lech_naza_vnd: number | null;
+        da_tra_vnd: number | null;
+        con_no_vnd: number | null;
+    };
+    phai_nhan_vnd: number | null;
+};
+type UocTinh = { so_don: number; cod_twd: number; don_chua_tru_phi: number; phi_uoc_rmb: number; vnd_uoc: number | null };
+type TienVe = {
+    da_gui_ve_vnd: number; phai_nhan_theo_file_vnd: number;
+    so_ky: number; ky_da_doi_chieu_bank: number; thuc_nhan_vnd: number;
+    ty_gia: { twd_rmb: number | null; rmb_vnd: number | null; ngay_sao_ke: string | null };
+    con_lai_da_giao: UocTinh; con_lai_tat_ca: UocTinh;
+    khong_tinh: { hoan: number; huy: number; cod_twd: number };
+    tien_hang: { loi: string | null; so_dot: number; doc_luc: string };
+};
 type Period = {
     id: string; filename: string; period_date: string;
+    ngay_sao_ke: string | null; luong: Luong | null;
     orders_paid: number; total_twd: number; fee_rmb: number;
     lech_tien: { order_no: string; tracking: string; cod_twd: number; paid_twd: number | null; diff_twd: number | null }[];
     phi_sai: { order_no: string; tracking: string; ship_fee_rmb: number | null }[];
@@ -125,6 +152,7 @@ export default function TALPHACodReconTab({ dateRange }: Props) {
     const [pending, setPending] = useState<Pending[]>([]);
     const [fx, setFx] = useState<Fx | null>(null);
     const [tq, setTq] = useState<TongQuan | null>(null);
+    const [tienVe, setTienVe] = useState<TienVe | null>(null);
     const [stms, setStms] = useState<StatementMeta[]>([]);
     const [pid, setPid] = useState("");
     const [copied, setCopied] = useState("");
@@ -145,7 +173,7 @@ export default function TALPHACodReconTab({ dateRange }: Props) {
             if (a.error) throw new Error(a.error);
             setViec(a.viec || []); setChecks(a.checks || []);
             setPeriods(a.periods || []); setPending(a.chua_ve_tien || []);
-            setFx(a.fx || null); setTq(a.tong_quan || null);
+            setFx(a.fx || null); setTq(a.tong_quan || null); setTienVe(a.tien_ve || null);
             setStms(b.statements || []);
             if (a.periods?.length) setPid((p) => p || a.periods[0].id);
         } catch (e) {
@@ -380,6 +408,9 @@ export default function TALPHACodReconTab({ dateRange }: Props) {
                 )}
             </Khoi>
 
+            {/* ═══ Σ TIỀN VỀ — NAZA đã gửi bao nhiêu, còn phải gửi bao nhiêu ═══ */}
+            {tienVe && <KhoiTienVe t={tienVe} />}
+
             {/* ═══ ② BẢNG CÁC KỲ — xương sống của tab ═══ */}
             {periods.length > 0 && (
                 <Khoi so="②" ten={`${periods.length} kỳ sao kê`} phamVi="all"
@@ -392,6 +423,7 @@ export default function TALPHACodReconTab({ dateRange }: Props) {
                                     <th className="px-3 py-1.5 text-left">File</th>
                                     <th className="px-3 py-1.5 text-right">Đơn</th>
                                     <th className="px-3 py-1.5 text-right">Tiền COD</th>
+                                    <th className="px-3 py-1.5 text-right">Tiền hàng</th>
                                     <th className="px-3 py-1.5 text-right">Phải nhận</th>
                                     <th className="px-3 py-1.5 text-right">Thực nhận</th>
                                     <th className="px-3 py-1.5 text-right">Lệch</th>
@@ -406,11 +438,21 @@ export default function TALPHACodReconTab({ dateRange }: Props) {
                                         onClick={() => setPid(p.id)}>
                                         <td className="px-3 py-1.5 font-mono tabular-nums">{dmy(p.period_date)}</td>
                                         <td className="px-3 py-1.5 text-[11.5px] text-muted-foreground">{shortFile(p.filename)}</td>
-                                        <td className="px-3 py-1.5 text-right font-mono tabular-nums">{p.orders_paid}</td>
-                                        <td className="px-3 py-1.5 text-right font-mono tabular-nums">{TWD(p.total_twd)}</td>
+                                        <td className="px-3 py-1.5 text-right font-mono tabular-nums">{p.luong?.so_dong_sao_ke ?? p.orders_paid}</td>
+                                        <td className="px-3 py-1.5 text-right font-mono tabular-nums">{TWD(p.luong?.cod_twd ?? p.total_twd)}</td>
                                         <td className="px-3 py-1.5 text-right font-mono tabular-nums">
-                                            {p.settlement?.payable_vnd != null ? VND(p.settlement.payable_vnd)
-                                                : <span className="text-muted-foreground">không tính được</span>}
+                                            {p.luong?.tien_hang.file ? (
+                                                <span title={p.luong.tien_hang.cach_tra === "naza_tru" ? "NAZA trừ vào COD" : "tự chuyển khoản riêng"}>
+                                                    {VND(p.luong.tien_hang.file.tong_vnd)}
+                                                    {p.luong.tien_hang.cach_tra === "tu_chuyen" && <span className="ml-1 text-[10px] text-muted-foreground">riêng</span>}
+                                                </span>
+                                            ) : <span className="text-muted-foreground">—</span>}
+                                        </td>
+                                        <td className="px-3 py-1.5 text-right font-mono tabular-nums">
+                                            {p.luong?.phai_nhan_vnd != null ? VND(p.luong.phai_nhan_vnd)
+                                                : (p.luong?.rmb_rong ?? 0) < 0
+                                                    ? <span className="text-amber-600 dark:text-amber-400" title="NAZA mang số âm sang trừ vào kỳ sau">âm {RMB2(p.luong!.rmb_rong!)} → kỳ sau</span>
+                                                    : <span className="text-muted-foreground">không tính được</span>}
                                         </td>
                                         <td className="px-3 py-1.5 text-right" onClick={(e) => e.stopPropagation()}>
                                             {nhapBank === p.filename ? (
@@ -476,14 +518,34 @@ export default function TALPHACodReconTab({ dateRange }: Props) {
                             </Nut>
                         </>
                     }>
-                    <div className="grid gap-px bg-border sm:grid-cols-2 lg:grid-cols-4">
-                        <Kpi label="Đơn được trả" value={formatNumber(period.orders_paid)} sub="trong kỳ này" />
-                        <Kpi label="Tiền COD" value={TWD(period.total_twd)} sub="khách đã trả" />
-                        <Kpi label="Phí NAZA thu" value={RMB(period.fee_rmb)} sub="ship + thao tác" />
-                        <Kpi label="Phải nhận"
-                            value={period.settlement?.payable_vnd != null ? VND(period.settlement.payable_vnd) : "—"}
-                            sub="sau khi trừ hết" tone="green" />
-                    </div>
+                    {period.luong ? (() => {
+                        const l = period.luong;
+                        const th = l.tien_hang;
+                        return (
+                            <>
+                                <div className="grid gap-px bg-border sm:grid-cols-2 lg:grid-cols-5">
+                                    <Kpi label="Đơn trong sao kê" value={formatNumber(l.so_dong_sao_ke)}
+                                        sub={`${period.orders_paid} đơn khớp sổ đơn`} />
+                                    <Kpi label="Tiền COD" value={l.cod_twd != null ? TWD(l.cod_twd) : "—"} sub="NAZA thu trong kỳ" />
+                                    <Kpi label="Phí NAZA trừ" value={RMB2(l.phi_thao_tac_rmb + l.phi_ship_rmb)}
+                                        sub={l.phi_gop ? "ship + thao tác (gộp)" : `thao tác ${RMB2(l.phi_thao_tac_rmb)} · ship ${RMB2(l.phi_ship_rmb)}`} />
+                                    <Kpi label="Tiền hàng" value={th.file ? VND(th.file.tong_vnd) : th.naza_tru_vnd != null ? VND(th.naza_tru_vnd) : "—"}
+                                        sub={th.cach_tra === "naza_tru" ? "NAZA trừ vào COD"
+                                            : (th.con_no_vnd ?? 0) > 0 ? `tự chuyển · còn nợ ${VND(th.con_no_vnd!)}` : "tự chuyển khoản riêng"}
+                                        tone={(th.con_no_vnd ?? 0) > 0 ? "red" : undefined} />
+                                    {l.phai_nhan_vnd == null && (l.rmb_rong ?? 0) < 0
+                                        ? <Kpi label="Phải nhận" value={RMB2(l.rmb_rong!)} sub="âm → NAZA trừ vào kỳ sau" tone="red" />
+                                        : <Kpi label="Phải nhận" value={l.phai_nhan_vnd != null ? VND(l.phai_nhan_vnd) : "—"}
+                                            sub="sau khi trừ hết" tone="green" />}
+                                </div>
+                                <LuongTien l={l} />
+                            </>
+                        );
+                    })() : (
+                        <div className="px-4 py-3 text-[12.5px] text-muted-foreground">
+                            Kỳ này không có sheet TỔNG của NAZA nên không dựng được luồng tiền.
+                        </div>
+                    )}
                     <MucSoat title="A · Soát bên trong file — tin được số trong đó không"
                         checks={checks.filter((c) => c.nhom === "A")} />
                     <MucSoat title="B · Soát file với đơn của mình — họ trả đủ và đúng chưa"
@@ -725,6 +787,141 @@ function Nut({ children, onClick, kieu, busy }: {
                         : "border border-border hover:bg-muted")}>
             {busy ? "Đang ghi…" : children}
         </button>
+    );
+}
+
+const RMB2 = (n: number) => `${n.toLocaleString("vi-VN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}¥`;
+
+/**
+ * Thang luồng tiền — chép đúng thứ tự sheet TỔNG của NAZA, để người đọc đặt cạnh
+ * file NAZA gửi mà dò từng dòng. Mỗi dòng một phép tính, cộng trừ ra đúng số ở
+ * dòng cuối.
+ */
+function LuongTien({ l }: { l: Luong }) {
+    const th = l.tien_hang;
+    const buoc: { nhan: string; so: string; cham?: boolean; dam?: boolean; ghi?: string }[] = [
+        { nhan: "Tổng COD thu về", so: l.cod_twd != null ? TWD(l.cod_twd) : "—" },
+        { nhan: `× tỷ giá ${l.ty_gia_twd_rmb ?? "—"}`, so: l.rmb != null ? RMB2(l.rmb) : "—", cham: true },
+        { nhan: "− phí thao tác", so: l.phi_gop ? "(gộp vào phí ship)" : RMB2(-l.phi_thao_tac_rmb), cham: true },
+        { nhan: "− phí vận chuyển", so: RMB2(-l.phi_ship_rmb), cham: true },
+        { nhan: "= COD còn lại", so: l.rmb_rong != null ? RMB2(l.rmb_rong) : "—", dam: true },
+        l.vnd == null && (l.rmb_rong ?? 0) < 0
+            ? { nhan: "× tỷ giá RMB→VND", so: "không quy đổi", cham: true, ghi: "số âm — NAZA mang sang trừ kỳ sau" }
+            : { nhan: `× tỷ giá ${l.ty_gia_rmb_vnd != null ? l.ty_gia_rmb_vnd.toLocaleString("vi-VN") : "—"}`,
+                so: l.vnd != null ? VND(l.vnd) : "—", cham: true },
+        th.cach_tra === "naza_tru"
+            ? { nhan: "− phí mua hàng", so: VND(-th.trong_luong_vnd), cham: true,
+                ghi: th.lech_naza_vnd && Math.abs(th.lech_naza_vnd) >= 1
+                    ? `theo file tiền hàng · NAZA ghi ${VND(th.naza_tru_vnd!)}` : th.file ? `đợt ${th.file.ngay.slice(8, 10)}/${th.file.ngay.slice(5, 7)}` : "theo sao kê NAZA" }
+            : { nhan: "− phí mua hàng", so: "không trừ", cham: true,
+                ghi: th.file ? `tự chuyển khoản riêng ${VND(th.file.tong_vnd)}` : "kỳ này NAZA không trừ" },
+    ];
+    const chenhChuyenKy = l.vnd != null && l.phai_nhan_vnd != null
+        ? l.phai_nhan_vnd - (l.vnd - (th.cach_tra === "naza_tru" ? th.trong_luong_vnd : 0)) : 0;
+    if (Math.abs(chenhChuyenKy) >= 1) {
+        buoc.push({ nhan: "± điều chỉnh kỳ trước", so: VND(chenhChuyenKy), cham: true, ghi: "NAZA mang số âm kỳ trước sang" });
+    }
+    return (
+        <div className="border-t border-border px-4 py-3">
+            <div className="mb-1.5 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+                Luồng tiền kỳ này — theo sheet TỔNG của NAZA
+            </div>
+            <table className="w-full max-w-xl text-[12.5px]">
+                <tbody>
+                    {buoc.map((b, i) => (
+                        <tr key={i} className={cn(b.dam && "border-t border-border/60")}>
+                            <td className={cn("py-0.5 pr-4", b.cham && "pl-4 text-muted-foreground", b.dam && "font-semibold")}>{b.nhan}</td>
+                            <td className={cn("py-0.5 text-right font-mono tabular-nums", b.dam && "font-semibold")}>{b.so}</td>
+                            <td className="py-0.5 pl-3 text-[11px] text-muted-foreground">{b.ghi}</td>
+                        </tr>
+                    ))}
+                    <tr className="border-t-2 border-foreground/30">
+                        <td className="py-1 pr-4 font-bold">= Phải nhận</td>
+                        <td className={cn("py-1 text-right font-mono font-bold tabular-nums",
+                            l.phai_nhan_vnd != null ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400")}>
+                            {l.phai_nhan_vnd != null ? VND(l.phai_nhan_vnd) : (l.rmb_rong ?? 0) < 0 ? "0đ — trừ kỳ sau" : "—"}
+                        </td>
+                        <td />
+                    </tr>
+                </tbody>
+            </table>
+            {th.file && th.cach_tra === "tu_chuyen" && (
+                <div className="mt-2 text-[11.5px] text-muted-foreground">
+                    Tiền hàng đợt {th.file.ngay.slice(8, 10)}/{th.file.ngay.slice(5, 7)}: {VND(th.file.tong_vnd)} · đã trả {VND(th.da_tra_vnd ?? 0)}
+                    {(th.con_no_vnd ?? 0) > 0 && <span className="font-semibold text-rose-600 dark:text-rose-400"> · còn nợ {VND(th.con_no_vnd!)}</span>}
+                    {th.file.no_ky_truoc_vnd > 0 && <> · gồm {VND(th.file.no_ky_truoc_vnd)} nợ kỳ trước</>}
+                </div>
+            )}
+        </div>
+    );
+}
+
+/**
+ * Tiền về — con số Sỹ Anh xin 13/09/2026: NAZA đã gửi bao nhiêu, và còn phải gửi
+ * bao nhiêu theo hai cách đếm đơn còn lại.
+ */
+function KhoiTienVe({ t }: { t: TienVe }) {
+    const gia = t.ty_gia.twd_rmb != null && t.ty_gia.rmb_vnd != null
+        ? `tỷ giá kỳ ${t.ty_gia.ngay_sao_ke ? t.ty_gia.ngay_sao_ke.slice(8, 10) + "/" + t.ty_gia.ngay_sao_ke.slice(5, 7) : "mới nhất"}: ${t.ty_gia.twd_rmb} × ${t.ty_gia.rmb_vnd.toLocaleString("vi-VN")}`
+        : "chưa có tỷ giá";
+    const dong: { nhan: string; phu: string; don: string; cod: string; vnd: string; tone?: "green" | "amber" }[] = [
+        {
+            nhan: "NAZA đã gửi về",
+            phu: `theo số phải trả trên ${t.so_ky} kỳ sao kê` + (t.ky_da_doi_chieu_bank === 0 ? " · chưa kỳ nào đối chiếu ngân hàng" : ` · ${t.ky_da_doi_chieu_bank} kỳ đã đối chiếu ngân hàng`)
+                + (Math.abs(t.phai_nhan_theo_file_vnd - t.da_gui_ve_vnd) >= 1
+                    ? ` · theo file tiền hàng lẽ ra ${VND(t.phai_nhan_theo_file_vnd)} (NAZA ${t.phai_nhan_theo_file_vnd > t.da_gui_ve_vnd ? "trừ dư" : "trừ thiếu"} ${VND(Math.abs(t.phai_nhan_theo_file_vnd - t.da_gui_ve_vnd))})`
+                    : ""),
+            don: "—", cod: "—", vnd: VND(t.da_gui_ve_vnd), tone: "green",
+        },
+        {
+            nhan: "Còn phải gửi — đơn đã giao thành công",
+            phu: `${t.con_lai_da_giao.don_chua_tru_phi} đơn chưa bị trừ phí ship`,
+            don: formatNumber(t.con_lai_da_giao.so_don), cod: TWD(t.con_lai_da_giao.cod_twd),
+            vnd: t.con_lai_da_giao.vnd_uoc != null ? `≈ ${VND(t.con_lai_da_giao.vnd_uoc)}` : "—", tone: "amber",
+        },
+        {
+            nhan: "Còn phải gửi — tất cả đơn còn lại",
+            phu: `trừ ${t.khong_tinh.hoan} đơn hoàn + ${t.khong_tinh.huy} đơn huỷ (${TWD(t.khong_tinh.cod_twd)}) vì không bao giờ trả tiền`,
+            don: formatNumber(t.con_lai_tat_ca.so_don), cod: TWD(t.con_lai_tat_ca.cod_twd),
+            vnd: t.con_lai_tat_ca.vnd_uoc != null ? `≈ ${VND(t.con_lai_tat_ca.vnd_uoc)}` : "—", tone: "amber",
+        },
+    ];
+    return (
+        <Khoi so="Σ" ten="Tiền về" phamVi="all" phu="NAZA đã gửi bao nhiêu, còn phải gửi bao nhiêu">
+            <div className="overflow-x-auto">
+                <table className="w-full min-w-[640px] text-[12.5px]">
+                    <thead className="border-b border-border text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+                        <tr>
+                            <th className="px-4 py-1.5 text-left">Khoản</th>
+                            <th className="px-3 py-1.5 text-right">Đơn</th>
+                            <th className="px-3 py-1.5 text-right">COD</th>
+                            <th className="px-4 py-1.5 text-right">Tiền về (VND)</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border">
+                        {dong.map((d) => (
+                            <tr key={d.nhan}>
+                                <td className="px-4 py-2">
+                                    <div className="font-medium">{d.nhan}</div>
+                                    <div className="text-[11px] text-muted-foreground">{d.phu}</div>
+                                </td>
+                                <td className="px-3 py-2 text-right font-mono tabular-nums">{d.don}</td>
+                                <td className="px-3 py-2 text-right font-mono tabular-nums">{d.cod}</td>
+                                <td className={cn("px-4 py-2 text-right font-mono text-[14px] font-semibold tabular-nums",
+                                    d.tone === "green" && "text-emerald-600 dark:text-emerald-400",
+                                    d.tone === "amber" && "text-amber-600 dark:text-amber-400")}>{d.vnd}</td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+            <div className="border-t border-border px-4 py-2 text-[11px] leading-relaxed text-muted-foreground">
+                Số dự tính đi đúng luồng NAZA: COD × {gia} − phí. Đơn đã bị NAZA trừ phí ship ở kỳ trước thì không trừ lại;
+                đơn chưa bị trừ thì trừ phí ship theo bảng giá kênh giao (kg đầu) + phí thao tác.
+                <b className="text-foreground"> Chưa trừ tiền hàng các kỳ tới</b> — chưa biết trước được.
+                {t.tien_hang.loi && <span className="text-rose-600 dark:text-rose-400"> {t.tien_hang.loi}</span>}
+            </div>
+        </Khoi>
     );
 }
 

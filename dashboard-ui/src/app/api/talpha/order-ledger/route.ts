@@ -5,7 +5,12 @@ import {
     type OrderSource, type PaidLine, type FeeLine,
 } from "@/lib/talpha/order-ledger";
 import type { StatementRow } from "@/lib/talpha/cod-recon";
-import type { NazaStatement } from "@/lib/talpha/naza-statement";
+import {
+    expectedShipFee, matchChannel, OP_FEE_PER_PARCEL, type NazaStatement,
+} from "@/lib/talpha/naza-statement";
+import {
+    docTienHang, ghepDotVaoKy, ngaySaoKe, type DotTienHang,
+} from "@/lib/talpha/purchase-sheet";
 import { PARTNER_STATUS_VI } from "@/lib/talpha/partner-file";
 import {
     bankKey, doneKey, doiLabel, emptyActions, fxLoss, periodState,
@@ -51,6 +56,76 @@ type Statement = {
         fee_audit: NazaStatement["fee_audit"];
     };
 };
+
+// ═══════════════════════════════════════════════════════════════════
+// LUỒNG TIỀN MỘT KỲ — đi đúng từng bước của sheet TỔNG NAZA
+// ───────────────────────────────────────────────────────────────────
+//     Tổng COD (TWD) × tỷ giá → RMB − phí thao tác − phí ship → RMB ròng
+//     × tỷ giá → VND − PHÍ MUA HÀNG → PHẢI NHẬN
+//
+// Trước 13/09/2026 thẻ kỳ lấy "Tiền COD" bằng cách cộng CHỈ những đơn tìm thấy
+// trong sổ đơn: kỳ 9.11 hiện 57.946 NT$ trong khi sao kê là 64.740, và "Phí NAZA
+// thu" hiện 1.035¥ trong khi NAZA trừ 2.573¥. Bốn con số trên cùng một thẻ không
+// cộng trừ ra được "Phải nhận". Nay mọi số trên thẻ lấy từ chính luồng NAZA; phần
+// đơn khớp sổ đơn hiện riêng.
+//
+// Tiền hàng (Sỹ Anh chốt 13/09/2026):
+//   • kỳ NAZA ghi phí mua hàng → NAZA trừ vào COD, nhưng TIN SỐ TRONG FILE TIỀN
+//     HÀNG nếu hai bên lệch — "phải nhận" tính lại theo file;
+//   • kỳ NAZA không ghi (24/07 → 14/08) → Sỹ Anh tự chuyển khoản riêng, tiền hàng
+//     là khoản chi riêng, KHÔNG trừ vào tiền NAZA trả.
+// ═══════════════════════════════════════════════════════════════════
+type SummaryNaza = NazaStatement["summary"];
+
+function luongTien(sm: SummaryNaza | null, dot: DotTienHang | null, soDongSaoKe: number) {
+    if (!sm) return null;
+    const cod = sm.cod_twd ?? null;
+    const tw = sm.rate_twd_rmb ?? null;
+    const rv = sm.rate_rmb_vnd ?? null;
+    const rmb = cod != null && tw != null ? cod * tw : null;
+    const phiThaoTac = Math.abs(sm.op_fee_rmb ?? 0);
+    const phiShip = Math.abs(sm.ship_fee_rmb ?? 0);
+    const rmbRong = sm.net_rmb ?? (rmb != null ? rmb - phiThaoTac - phiShip : null);
+    const vnd = rmbRong != null && rv != null ? rmbRong * rv : null;
+
+    const nazaTru = sm.purchase_vnd ?? null;
+    const cachTra: "naza_tru" | "tu_chuyen" = nazaTru != null ? "naza_tru" : "tu_chuyen";
+    // Số tiền hàng đem trừ trong luồng: kỳ NAZA trừ thì theo FILE (không có file
+    // thì đành theo NAZA); kỳ tự chuyển khoản thì luồng NAZA không trừ gì.
+    const tienHangTrongLuong = cachTra === "naza_tru" ? (dot ? dot.tong_vnd : nazaTru!) : 0;
+    const phaiNhan = sm.payable_vnd == null ? null
+        // Giữ nguyên phần điều chỉnh kỳ trước NAZA đã tính: payable = VND − tiền hàng NAZA ± chuyển kỳ.
+        : cachTra === "naza_tru" ? sm.payable_vnd + nazaTru! - tienHangTrongLuong
+        : sm.payable_vnd;
+
+    let daTra: number | null = null, conNo: number | null = null;
+    if (dot && cachTra === "naza_tru") { daTra = dot.tong_vnd; conNo = 0; }   // NAZA trừ rồi = đã trả
+    else if (dot) {
+        daTra = dot.da_tra_vnd ?? 0;
+        conNo = dot.con_thieu_vnd ?? Math.max(0, dot.tong_vnd - (dot.da_tra_vnd ?? 0));
+    }
+
+    return {
+        so_dong_sao_ke: soDongSaoKe,
+        cod_twd: cod, ty_gia_twd_rmb: tw, rmb,
+        phi_thao_tac_rmb: phiThaoTac, phi_ship_rmb: phiShip, phi_gop: !!sm.fees_combined,
+        rmb_rong: rmbRong, ty_gia_rmb_vnd: rv, vnd,
+        tien_hang: {
+            cach_tra: cachTra,
+            naza_tru_vnd: nazaTru,
+            file: dot ? {
+                ngay: dot.ngay, tong_vnd: dot.tong_vnd, moi_vnd: dot.moi_vnd,
+                no_ky_truoc_vnd: dot.no_ky_truoc_vnd, da_ghi_thanh_toan: dot.da_ghi_thanh_toan,
+                dong: dot.dong,
+            } : null,
+            trong_luong_vnd: tienHangTrongLuong,
+            lech_naza_vnd: cachTra === "naza_tru" && dot ? nazaTru! - dot.tong_vnd : null,
+            da_tra_vnd: daTra,
+            con_no_vnd: conNo,
+        },
+        phai_nhan_vnd: phaiNhan,
+    };
+}
 
 export async function GET(req: NextRequest) {
     const q = req.nextUrl.searchParams;
@@ -175,6 +250,13 @@ export async function GET(req: NextRequest) {
             return hit ? { tracking: hit.tracking, amount_twd: hit.amount_twd } : null;
         }
 
+        // File tiền hàng: đọc một lần mỗi 5 phút, lỗi không làm sập màn.
+        const tienHang = await docTienHang();
+        const dotCuaKy = ghepDotVaoKy(
+            tienHang.dot,
+            stm.statements.map((x) => ({ id: x.id, ngay: ngaySaoKe(x.filename) })),
+        );
+
         const byPeriod = stm.statements.map((st) => {
             const mine = rows.filter((r) => r.paid_period === st.filename);
             const lech = mine.filter((r) => r.diff_twd !== null && Math.abs(r.diff_twd) > 1);
@@ -191,9 +273,12 @@ export async function GET(req: NextRequest) {
                 filename: st.filename,
                 uploaded_at: st.uploaded_at,
                 period_date: periodDate,
+                // Phần đơn KHỚP SỔ ĐƠN — không phải tổng của kỳ. Tổng kỳ ở `luong`.
                 orders_paid: mine.length,
                 total_twd: mine.reduce((a, r) => a + (r.paid_twd ?? 0), 0),
                 fee_rmb: mine.reduce((a, r) => a + (r.ship_fee_rmb ?? 0) + (r.op_fee_rmb ?? 0), 0),
+                ngay_sao_ke: ngaySaoKe(st.filename),
+                luong: luongTien(n?.summary ?? null, dotCuaKy.get(st.id) ?? null, st.rows.length),
                 // Bốn loại lệch
                 lech_tien: lech.map((r) => ({
                     order_no: r.order_no, tracking: r.tracking,
@@ -325,14 +410,33 @@ export async function GET(req: NextRequest) {
                 ok: ck?.math_ok ?? null,
                 chi_tiet: ck?.math_note || "Chưa đọc được sheet TỔNG.",
             });
+            // Câu cũ in `orders_paid` và `total_twd` — số đơn KHỚP SỔ ĐƠN — trong khi
+            // phép so thật là giữa chi tiết FILE và sheet TỔNG. Kỳ 9.11 màn hình ghi
+            // "54 dòng COD cộng ra 57.946 NT$ — khớp sheet TỔNG" trong khi sheet TỔNG
+            // là 60 dòng 64.740: một câu sai nằm dưới dấu tích xanh.
+            //
+            // Và phí chưa từng được soát: kỳ 9.11 bộ đọc bỏ sót cả sheet phí (NAZA đổi
+            // tên cột), chi tiết ra 0¥ trong khi TỔNG trừ 2.573¥, mà không mục nào kêu.
             const gap = ck?.cod_gap ?? null;
+            const smMoi = stMoi?.naza?.summary;
+            const phiChiTiet = (ck?.ship_fee_detail_total ?? 0) + (smMoi?.fees_combined ? 0 : (ck?.op_fee_detail_total ?? 0));
+            const phiTong = Math.abs(smMoi?.ship_fee_rmb ?? 0) + Math.abs(smMoi?.op_fee_rmb ?? 0);
+            const lechPhi = smMoi ? phiChiTiet - phiTong : null;
+            const codOk = gap !== null && Math.abs(gap) < 0.5;
+            const phiOk = lechPhi === null || Math.abs(lechPhi) < 0.5;
             checks.push({
                 nhom: "A", ten: "Chi tiết cộng ra đúng số tổng",
-                ok: gap === null ? null : Math.abs(gap) < 0.5,
+                ok: gap === null ? null : codOk && phiOk,
                 chi_tiet: gap === null ? "Không đọc được số tổng."
-                    : Math.abs(gap) < 0.5
-                        ? `${moiNhat.orders_paid} dòng COD cộng ra ${vnd(moiNhat.total_twd)} NT$ — khớp sheet TỔNG.`
-                        : `Chi tiết lệch sheet TỔNG ${vnd(gap)} NT$. Hỏi lại NAZA.`,
+                    : !codOk
+                        ? `Chi tiết COD lệch sheet TỔNG ${vnd(gap)} NT$. Hỏi lại NAZA.`
+                        : !phiOk
+                            ? (phiChiTiet === 0
+                                ? `Không đọc được dòng phí nào trong sheet phí, trong khi sheet TỔNG trừ ${vnd(phiTong)}¥ — ` +
+                                  "mục soát phí phía dưới đang không soát gì. Tải lại file sao kê kỳ này."
+                                : `Sheet phí chi tiết cộng ra ${vnd(phiChiTiet)}¥ nhưng sheet TỔNG trừ ${vnd(phiTong)}¥ — lệch ${vnd(lechPhi!)}¥.`)
+                            : `${stMoi?.rows.length ?? 0} dòng COD cộng ra ${vnd(ck?.cod_detail_total ?? 0)} NT$, ` +
+                              `phí cộng ra ${vnd(phiChiTiet)}¥ — khớp sheet TỔNG.`,
             });
             const dw = rMoi?.d_twd_rmb, dv = rMoi?.d_rmb_vnd;
             const moTa = (nhan: string, gia: number | null, d: number | null, loiKhiTang: boolean) => {
@@ -389,18 +493,54 @@ export async function GET(req: NextRequest) {
                             `sổ đơn còn ghi mã cũ ${l.tracking} — sửa mã vận đơn trong Google Sheet đối tác`),
                     ].join(" · "),
             });
+            // Soát 0 dòng thì KHÔNG phải "đúng": kỳ 9.11 hiện "0/0 dòng đúng bảng giá"
+            // với dấu tích xanh, trong khi NAZA trừ 2.573¥ mà bộ đọc không thấy dòng nào.
+            const soDongPhi = (fa?.ok ?? 0) + (fa?.wrong ?? 0) + (fa?.unknown_channel ?? 0);
             checks.push({
                 nhom: "B", ten: "Phí vận chuyển đúng bảng giá",
-                ok: (fa?.wrong ?? 0) === 0,
-                chi_tiet: (fa?.wrong ?? 0) === 0
-                    ? `${fa?.ok ?? 0}/${(fa?.ok ?? 0) + (fa?.wrong ?? 0) + (fa?.unknown_channel ?? 0)} dòng phí CỦA KỲ NÀY đúng bảng giá — 7-Eleven/FamilyMart 27¥ · HCT 32¥ · Yamato 38¥.`
-                    : `${fa!.wrong} dòng sai, chênh ${vnd(fa!.overcharge_rmb)} ¥.`,
+                ok: soDongPhi === 0 && phiTong > 0 ? false : (fa?.wrong ?? 0) === 0,
+                chi_tiet: soDongPhi === 0 && phiTong > 0
+                    ? `Không có dòng phí nào để soát, trong khi NAZA trừ ${vnd(phiTong)}¥ — xem mục A, tải lại file sao kê kỳ này.`
+                    : (fa?.wrong ?? 0) === 0
+                        ? `${fa?.ok ?? 0}/${soDongPhi} dòng phí CỦA KỲ NÀY đúng bảng giá — 7-Eleven/FamilyMart 27¥ · HCT 32¥ · Yamato 38¥.`
+                        : `${fa!.wrong} dòng sai, chênh ${vnd(fa!.overcharge_rmb)} ¥.`,
             });
+            // Tiền hàng — so số NAZA trừ với file tiền hàng của Sỹ Anh.
+            {
+                const th = moiNhat.luong?.tien_hang;
+                const f = th?.file;
+                const dmyIso = (x?: string | null) => (x ? `${x.slice(8, 10)}/${x.slice(5, 7)}` : "—");
+                let ok: boolean | null, chi: string;
+                if (!th) { ok = null; chi = "Kỳ này không có sheet TỔNG để biết NAZA trừ tiền hàng hay không."; }
+                else if (tienHang.loi && !f) { ok = false; chi = tienHang.loi; }
+                else if (!f) {
+                    ok = false;
+                    chi = `File tiền hàng không có đợt thanh toán nào trong 4 ngày quanh ngày sao kê ${dmyIso(moiNhat.ngay_sao_ke)}.`;
+                } else if (th.cach_tra === "naza_tru") {
+                    const lech = th.lech_naza_vnd ?? 0;
+                    ok = Math.abs(lech) < 1;
+                    chi = ok
+                        ? `NAZA trừ tiền hàng ${vnd(th.naza_tru_vnd!)}đ — khớp file tiền hàng (đợt ${dmyIso(f.ngay)}, dòng ${f.dong}).`
+                        : `NAZA trừ ${vnd(th.naza_tru_vnd!)}đ nhưng file tiền hàng ghi ${vnd(f.tong_vnd)}đ — ` +
+                          `NAZA trừ ${lech > 0 ? "DƯ" : "THIẾU"} ${vnd(Math.abs(lech))}đ. Phải nhận đã tính lại theo file: ` +
+                          `${vnd(moiNhat.luong!.phai_nhan_vnd ?? 0)}đ.`;
+                    if (!f.da_ghi_thanh_toan) chi += " File chưa ghi “đã thanh toán” cho đợt này, dù NAZA đã trừ.";
+                } else {
+                    // Còn nợ tiền hàng không phải lỗi đối soát, nhưng cũng không được tích xanh cho qua.
+                    ok = (th.con_no_vnd ?? 0) > 0 ? null : true;
+                    chi = `Kỳ này NAZA không trừ tiền hàng — đợt ${dmyIso(f.ngay)} ${vnd(f.tong_vnd)}đ tự chuyển khoản riêng. ` +
+                        `Đã trả ${vnd(th.da_tra_vnd ?? 0)}đ` + ((th.con_no_vnd ?? 0) > 0 ? `, còn nợ ${vnd(th.con_no_vnd!)}đ.` : ".");
+                }
+                if (f && f.no_ky_truoc_vnd > 0) chi += ` Đợt này gồm ${vnd(f.no_ky_truoc_vnd)}đ nợ kỳ trước.`;
+                checks.push({ nhom: "B", ten: "Tiền hàng khớp file tiền hàng", ok, chi_tiet: chi });
+            }
             const ow = fa?.op_wrong || [];
             checks.push({
                 nhom: "B", ten: `Phí thao tác đúng ${fa?.op_expected ?? 3}¥/đơn`,
-                ok: ow.length === 0,
-                chi_tiet: (ow.length === 0
+                ok: soDongPhi === 0 && phiTong > 0 ? false : ow.length === 0,
+                chi_tiet: (soDongPhi === 0 && phiTong > 0
+                    ? "Không có dòng phí nào để soát — xem mục A."
+                    : ow.length === 0
                     ? `Cả kỳ đều đúng ${fa?.op_expected ?? 3}¥.`
                     : `${ow.length} đơn thu khác mức: ` + ow.slice(0, 3).map((o) => `${o.order_id} thu ${o.charged}¥`).join(" · "))
                     + " Lưu ý: bảng giá ghi MIỄN PHÍ, khoản này vẫn nên hỏi NAZA.",
@@ -685,6 +825,58 @@ export async function GET(req: NextRequest) {
             fx,
             periods: byPeriod,
             chua_ve_tien: chuaVeTien,
+            tien_ve: (() => {
+                // ── TIỀN VỀ: NAZA đã gửi bao nhiêu, còn phải gửi bao nhiêu ──
+                //
+                // "Đã gửi về" = cộng số "phải trả" NAZA ghi trên sao kê từng kỳ — đó là
+                // tiền họ thật sự chuyển. "Phải nhận" tính lại theo file tiền hàng; hai
+                // số chỉ khác nhau khi NAZA trừ tiền hàng lệch file. Kỳ âm không có
+                // số phải trả: NAZA đã trừ nó vào kỳ sau nên cộng là đủ, không sót.
+                // Chưa kỳ nào đối chiếu ngân hàng thì đó vẫn là số NAZA CAM KẾT.
+                const kyCoSo = byPeriod.filter((p) => p.settlement?.payable_vnd != null);
+                const daGuiVe = kyCoSo.reduce((a, p) => a + (p.settlement?.payable_vnd ?? 0), 0);
+                const phaiNhanTheoFile = byPeriod.reduce((a, p) => a + (p.luong?.phai_nhan_vnd ?? 0), 0);
+                const kyDaDoiChieu = byPeriod.filter((p) => p.bank?.thuc_nhan_vnd != null);
+
+                // Dự tính theo đúng luồng NAZA, dùng tỷ giá của kỳ mới nhất có đủ hai
+                // tỷ giá. Phí: đơn đã bị NAZA trừ phí ship ở một kỳ trước thì không trừ
+                // lại; đơn chưa bị trừ thì trừ phí ship theo bảng giá kênh giao (kg đầu)
+                // cộng phí thao tác. Tiền hàng các kỳ tới chưa biết nên CHƯA trừ.
+                const kyGia = byPeriod.find((p) => p.luong?.ty_gia_twd_rmb && p.luong?.ty_gia_rmb_vnd);
+                const tw = kyGia?.luong?.ty_gia_twd_rmb ?? null;
+                const rv = kyGia?.luong?.ty_gia_rmb_vnd ?? null;
+                const chuaTra = rows.filter((r) => r.paid_twd === null);
+                const KHONG_BAO_GIO_TRA = new Set(["Returned", "Cancelled"]);
+                const uocTinh = (ds: typeof rows) => {
+                    let cod = 0, phi = 0, chuaTruPhi = 0;
+                    for (const r of ds) {
+                        cod += r.cod_twd;
+                        if (r.ship_fee_rmb == null) {
+                            chuaTruPhi++;
+                            phi += (expectedShipFee(matchChannel(r.ship_method || ""), null) ?? 0) + OP_FEE_PER_PARCEL;
+                        }
+                    }
+                    const vndUoc = tw != null && rv != null ? (cod * tw - phi) * rv : null;
+                    return { so_don: ds.length, cod_twd: cod, don_chua_tru_phi: chuaTruPhi, phi_uoc_rmb: phi, vnd_uoc: vndUoc };
+                };
+                const hoan = chuaTra.filter((r) => r.status === "Returned");
+                const huy = chuaTra.filter((r) => r.status === "Cancelled");
+                return {
+                    da_gui_ve_vnd: daGuiVe,
+                    phai_nhan_theo_file_vnd: phaiNhanTheoFile,
+                    so_ky: kyCoSo.length,
+                    ky_da_doi_chieu_bank: kyDaDoiChieu.length,
+                    thuc_nhan_vnd: kyDaDoiChieu.reduce((a, p) => a + (p.bank?.thuc_nhan_vnd ?? 0), 0),
+                    ty_gia: { twd_rmb: tw, rmb_vnd: rv, ngay_sao_ke: kyGia?.ngay_sao_ke ?? null },
+                    con_lai_da_giao: uocTinh(chuaTra.filter((r) => r.status === "Delivered")),
+                    con_lai_tat_ca: uocTinh(chuaTra.filter((r) => !KHONG_BAO_GIO_TRA.has(r.status || ""))),
+                    khong_tinh: {
+                        hoan: hoan.length, huy: huy.length,
+                        cod_twd: [...hoan, ...huy].reduce((a, r) => a + r.cod_twd, 0),
+                    },
+                    tien_hang: { loi: tienHang.loi, so_dot: tienHang.dot.length, doc_luc: tienHang.doc_luc },
+                };
+            })(),
             // Con số mở đầu màn hình: bao nhiêu tiền đã đi qua chuyển khoản mà
             // chưa ai đối chiếu với ngân hàng. Đây là lỗ to nhất của cả tab.
             tong_quan: (() => {
