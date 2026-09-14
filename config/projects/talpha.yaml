@@ -20,14 +20,20 @@ bigquery:
 meta_ads:
   app_id: "1010162072048699"                            # App "Dashboard Sỹ Anh Ngoài"
   access_token: "${TALPHA_META_ACCESS_TOKEN}"           # Token System User, giá trị ở .env.local
-  # ─── 10 TÀI KHOẢN QUẢNG CÁO ───
+  # ─── TÀI KHOẢN QUẢNG CÁO ───
   # Lấy THẲNG từ Meta API ngày 07/09/2026 bằng chính token đang dùng, không chép tay.
   # Cấu hình cũ khai 15 tài khoản GCC của hệ thống cũ — không cái nào còn đúng.
   # Thêm tài khoản mới: khai đủ ở CẢ BA mục dưới, thiếu một chỗ là spend bị đếm
   # thiếu mà không có cảnh báo nào.
+  #
+  # TẠM NGƯNG 14/09/2026 — hai tài khoản dưới đây ĐÃ BỎ khỏi danh sách:
+  #   act_2316553302504985  TK CÁ NHÂN NEW 1 (đã tắt)
+  #   act_1025294735296964  NEW3 (chưa duyệt)
+  # Token không có quyền đọc cả hai (Meta #200 "has NOT grant ads_read"), và chưa từng
+  # có một dòng spend nào. Để trong danh sách thì mỗi vòng sync báo hỏng, và luật
+  # "sync hỏng thì không ghi Sheet" làm báo cáo TỔNG TEAM đứng im từ 00:20 ngày 12/09.
+  # Muốn dùng lại: cấp quyền cho System User của token trước, rồi mới thêm id vào đây.
   ad_account_ids:
-    - "act_2316553302504985"  # TK CÁ NHÂN NEW 1 — đã tắt
-    - "act_1025294735296964"  # NEW3 — chưa duyệt
     - "act_256210853826298"   # Sỹ Anh Taiwan 4 — đang chạy
     - "act_620354173588998"   # Sỹ Anh Taiwan 6 — chưa duyệt
     - "act_355509637365145"   # Sỹ Anh Taiwan 5 — đang chạy
