@@ -104,6 +104,51 @@ def revenue_vnd(cod_raw: float, shop_label: str) -> float:
     return to_vnd(calc_revenue_local(cod_raw, shop_label), shop_label)
 
 
+# ─── R2b: Đơn ghi bằng VND nằm trong shop TWD ───────────────────────────────
+# Shop POS "TAIWAN SỸ ANH" (1022091930) giữ 340 đơn lịch sử ghi bằng VND bên cạnh đơn
+# TWD — cả đơn đầu tháng 9. Mọi nơi đọc bảng đơn đều nhân `cod` với tỷ giá shop (800)
+# vì tin đó là TWD. Để nguyên thì đơn 730.000đ hoá 584 TRIỆU doanh thu; bỏ đi thì mất
+# luôn số đơn cả tuần đầu tháng. Nên quy về tiền của shop NGAY Ở CỬA VÀO: chia cho
+# tỷ giá, để phép nhân phía sau trả lại đúng số VND ban đầu.
+ORDER_MONEY_FIELDS = (
+    "total_price", "shipping_fee", "cod", "total_discount", "partner_fee",
+    "return_fee", "surcharge", "money_to_collect",
+)
+# Tiền BÁN trên từng dòng hàng, cùng loại tiền với đơn. Giá nhập (avg_imported_price)
+# là dữ liệu sản phẩm của shop, không theo loại tiền của đơn — không đụng tới.
+ITEM_MONEY_FIELDS = ("retail_price", "discount_each_product", "total_discount", "same_price_discount")
+
+
+def quy_doi_don_ngoai_te(order: dict, items: list[dict], shop_currency: str,
+                         rate_vnd: Optional[float]) -> Optional[tuple[dict, list[dict]]]:
+    """Đưa một đơn về loại tiền của shop. Trả (đơn, items) đã quy đổi, hoặc None nếu phải bỏ.
+
+    - Đơn cùng loại tiền với shop (hoặc không ghi loại tiền): trả nguyên.
+    - Đơn VND trong shop có tỷ giá VND: chia mọi khoản tiền cho tỷ giá, đổi nhãn sang
+      tiền của shop. `cod × tỷ giá` phía sau ra lại đúng số VND gốc.
+    - Loại tiền khác, hoặc shop không có tỷ giá VND: None — không đoán tỷ giá.
+    """
+    want = (shop_currency or "").upper()
+    cur = (order.get("order_currency") or want).upper()
+    if not want or cur == want:
+        return order, items
+    if cur != "VND" or not rate_vnd or rate_vnd <= 0:
+        return None
+    moi = dict(order)
+    for k in ORDER_MONEY_FIELDS:
+        if moi.get(k) is not None:
+            moi[k] = round(float(moi[k] or 0) / rate_vnd, 4)
+    moi["order_currency"] = want
+    moi_items = []
+    for it in items:
+        x = dict(it)
+        for k in ITEM_MONEY_FIELDS:
+            if x.get(k) is not None:
+                x[k] = round(float(x[k] or 0) / rate_vnd, 4)
+        moi_items.append(x)
+    return moi, moi_items
+
+
 # ─── R3: Market ─────────────────────────────────────────────────────────────
 
 def get_market_display(shop_label: str) -> str:

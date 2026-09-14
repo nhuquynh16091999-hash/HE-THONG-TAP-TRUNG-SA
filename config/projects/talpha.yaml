@@ -81,8 +81,9 @@ poscake:
     - name: "Taiwan"
       api_url: "https://pos.pages.fm/api/v1"
       api_key: "${TALPHA_POSCAKE_TW_KEY}"               # ⚠️ Giá trị thật nằm trong .env
-      shop_id: "408074608"   # đổi 08/09/2026; mã cũ 1328343252 là của hệ thống trước,
-                             # key Poscake thật trả "Cửa hàng không tồn tại" với mã đó
+      shop_id: "1022091930"  # "TAIWAN SỸ ANH" — đổi 14/09/2026 từ shop cũ 408074608.
+                             # Mỗi shop một key: đổi shop phải đổi TALPHA_POSCAKE_TW_KEY,
+                             # key cũ gọi shop mới trả "Cửa hàng không tồn tại"
 
 # ─── 5. PANCAKE CRM ───
 pancake:

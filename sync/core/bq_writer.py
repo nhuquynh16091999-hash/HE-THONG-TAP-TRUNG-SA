@@ -168,11 +168,44 @@ def get_existing_versions(
         return {}
 
 
+def _loc_shop(shop_ids, cot: str) -> str:
+    """Mệnh đề WHERE giữ đúng các shop đang khai. Rỗng/thiếu mã shop → không lọc.
+
+    Mã shop POS là dãy số; nhận thứ khác là từ chối luôn, vì chuỗi này ghép thẳng vào SQL.
+    """
+    ids = [str(s).strip() for s in (shop_ids or [])]
+    if not ids or any(not s for s in ids):
+        return ""
+    for s in ids:
+        if not s.isdigit():
+            raise ValueError(f"shop_id phải là dãy số, nhận {s!r}")
+    return f"WHERE {cot} IN (" + ", ".join(f"'{s}'" for s in ids) + ")"
+
+
+def sql_rebuild_orders(project: str, dataset: str, order_table: str, shop_ids=None) -> str:
+    """SQL dựng bảng đơn sạch từ raw: mỗi (shop_id, id) giữ bản mới nhất.
+
+    KHOÁ LÀ shop_id, không phải shop_label: 14/09/2026 đổi shop Đài 408074608 →
+    1022091930, hai shop cùng nhãn "TW" và dùng chung 41 mã đơn (1…281). Khoá theo
+    nhãn là nhập đơn của hai shop khác nhau làm một.
+    """
+    return f"""
+        SELECT * EXCEPT(_rn) FROM (
+            SELECT t.*, ROW_NUMBER() OVER (
+                PARTITION BY shop_id, id ORDER BY updated_at DESC, sync_time DESC
+            ) AS _rn
+            FROM `{project}.{dataset}.{order_table}_raw` t
+            {_loc_shop(shop_ids, "t.shop_id")}
+        ) WHERE _rn = 1
+    """
+
+
 def append_and_rebuild_orders(
     client, project: str, dataset: str,
     orders: list[dict], items: list[dict],
     order_schema, item_schema,
     order_table: str = "sale_order", item_table: str = "order_items",
+    shop_ids=None,
 ) -> tuple[int, int]:
     """Ghi đơn + item theo cơ chế raw/rebuild. Trả (số dòng bảng đơn, bảng item).
 
@@ -185,10 +218,10 @@ def append_and_rebuild_orders(
     seed_raw_from_table(client, project, dataset, order_table)
     seed_raw_from_table(client, project, dataset, item_table)
 
-    known = get_existing_versions(client, project, dataset, order_table)
+    known = get_existing_versions(client, project, dataset, order_table, key_cols=("shop_id", "id"))
     changed = [
         o for o in orders
-        if str(o.get("updated_at", "")) > known.get(f"{o.get('shop_label','')}|{o.get('id','')}", "")
+        if str(o.get("updated_at", "")) > known.get(f"{o.get('shop_id','')}|{o.get('id','')}", "")
     ]
     changed_keys = {(str(o.get("shop_id", "")), str(o.get("id", ""))) for o in changed}
     changed_items = [
@@ -208,14 +241,8 @@ def append_and_rebuild_orders(
     # KHOÁ ĐƠN = (shop, id), KHÔNG phải id. POS đánh số đơn riêng từng shop nên id=18
     # tồn tại ở cả 7 shop (05/08: 20.257 id dùng chung). Gom theo mình id là nhập các
     # đơn khác nhau làm một — lần đầu bật backfill toàn lịch sử đã ăn mất 24.791 đơn.
-    n_orders = _query_into(client, f"""
-        SELECT * EXCEPT(_rn) FROM (
-            SELECT t.*, ROW_NUMBER() OVER (
-                PARTITION BY shop_label, id ORDER BY updated_at DESC, sync_time DESC
-            ) AS _rn
-            FROM `{project}.{dataset}.{order_table}_raw` t
-        ) WHERE _rn = 1
-    """, f"{project}.{dataset}.{order_table}")
+    n_orders = _query_into(client, sql_rebuild_orders(project, dataset, order_table, shop_ids),
+                           f"{project}.{dataset}.{order_table}")
 
     n_items = 0
     if _table_exists(client, f"{project}.{dataset}.{item_table}_raw"):
@@ -232,6 +259,7 @@ def append_and_rebuild_orders(
                 FROM `{project}.{dataset}.{item_table}_raw` r
                 JOIN latest l ON r.shop_id = l.shop_id
                              AND r.order_id = l.order_id AND r.sync_time = l.mx
+                {_loc_shop(shop_ids, "r.shop_id")}
             ) WHERE _rn = 1
         """, f"{project}.{dataset}.{item_table}")
 

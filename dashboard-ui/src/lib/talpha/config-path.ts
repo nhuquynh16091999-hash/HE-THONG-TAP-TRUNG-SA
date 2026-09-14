@@ -6,9 +6,9 @@
 // Trước 11/09/2026 có bản sao thứ hai ở `dashboard-ui/config/`, sinh ra bởi
 // `scripts/sync-config.mjs` lúc prebuild để Vercel đóng gói được. Ba file khác
 // nhau tự dò hai ứng viên, mỗi file một kiểu. Bản sao đã LỆCH thật: nó còn giữ
-// shop_id Đài Loan cũ `1328343252` trong khi bản chuẩn là `408074608` — key POS
-// trả "Cửa hàng không tồn tại" với mã cũ. Ai build không qua prebuild là chạy
-// bằng cấu hình sai mà không có dấu hiệu gì.
+// shop_id Đài Loan cũ `1328343252` trong khi bản chuẩn lúc đó là `408074608` (nay
+// là `1022091930`) — key POS trả "Cửa hàng không tồn tại" với mã sai. Ai build không
+// qua prebuild là chạy bằng cấu hình sai mà không có dấu hiệu gì.
 //
 // Nay deploy là VPS (git clone nguyên cây repo) nên `../config` luôn có mặt.
 // Bản sao đã xoá; hàm này là chỗ duy nhất ghép đường dẫn.

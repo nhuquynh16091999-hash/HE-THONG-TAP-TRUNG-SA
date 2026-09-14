@@ -6,13 +6,13 @@
   "markets": {
     "Taiwan": {
       "shop_label": "TW",
-      "shop_id": "408074608",
+      "shop_id": "1022091930",
       "currency": "TWD",
       "rate_vnd": 800,
       "pos_money_divisor": 1,
       "display": "Đài Loan",
       "_note": "TWD→VND tạm 800 (thật 780–800). Đây là thị trường DUY NHẤT nên tỷ giá sai là sai toàn hệ — soát lại mỗi tháng.",
-      "_shop_id_note": "Đổi từ 1328343252 sang 408074608 ngày 08/09/2026. Key Poscake thật trả \"Cửa hàng không tồn tại\" với mã cũ — mã cũ là của hệ thống trước."
+      "_shop_id_note": "Shop POS \"TAIWAN SỸ ANH\" — đổi sang 1022091930 ngày 14/09/2026 (Sỹ Anh chỉ định; đơn từ 13/09 có sản phẩm, tiền, marketer). Shop cũ 408074608 dừng ở 281 đơn tới 11/09: đơn của nó còn trong sale_order_raw nhưng không vào báo cáo. Trước nữa là 1328343252 (hệ thống cũ). Mỗi shop một API key riêng — đổi shop là phải đổi TALPHA_POSCAKE_TW_KEY."
     }
   },
   "market_aliases": {

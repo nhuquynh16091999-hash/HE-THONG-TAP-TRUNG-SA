@@ -27,7 +27,7 @@ load_dotenv(os.path.join(PROJECT_DIR, '.env'))
 from google.cloud import bigquery
 
 # ── sync/core imports ────────────────────────────────────────────
-from sync.core.business_rules import STATUS_CATEGORY_MAP
+from sync.core.business_rules import STATUS_CATEGORY_MAP, quy_doi_don_ngoai_te
 from sync.core.bq_writer import (
     load_truncate, load_append, ensure_dataset, get_last_sync_ts,
     append_and_rebuild_orders, append_and_rebuild_ads,
@@ -69,6 +69,8 @@ def _pos_shops():
             "label": label,
             "shop_id": str(m.get("shop_id", "")),
             "currency": m.get("currency", ""),
+            # Để quy đơn VND về tiền của shop — xem _drop_foreign_currency.
+            "rate_vnd": m.get("rate_vnd"),
         })
     return out
 
@@ -197,37 +199,47 @@ ADSET_SCHEMA = [
 # ═══════════════════════════════════════════════════════════════════
 
 def _drop_foreign_currency(orders, items, shop):
-    """Bỏ đơn KHÁC LOẠI TIỀN với loại đã khai cho shop.
+    """Đưa đơn KHÁC LOẠI TIỀN về loại tiền của shop, không quy đổi được thì bỏ.
 
-    Shop Đài thật đang chứa lẫn 71 đơn ghi bằng VND (650.000–1.000.000) nằm
-    cạnh 200 đơn TWD (749–1.399). Hai loại tiền đó không được cộng chung, và
-    nguy hơn nữa là mọi con số VND đều đi qua `revenue_vnd()` — hàm đó nhân
-    với tỷ giá 800 vì tin rằng số đầu vào là TWD. Một đơn 730.000 VND lọt qua
-    sẽ hoá thành 584 TRIỆU VND doanh thu, đủ làm hỏng mọi báo cáo mà không
-    có dấu hiệu nào báo sai.
+    Mọi con số tiền của đơn đều bị nhân với tỷ giá shop (800) vì tin rằng đầu vào
+    là TWD. Một đơn 730.000 VND lọt qua nguyên như vậy hoá thành 584 TRIỆU VND doanh
+    thu mà không có dấu hiệu nào báo sai — nên phải xử lý ngay ở cửa vào.
 
-    Nên chặn ngay ở cửa vào, và ghi rõ số đơn bị bỏ chứ không bỏ im lặng.
+    Trước 14/09/2026 hàm này BỎ hết đơn VND. Với shop "TAIWAN SỸ ANH" thì bỏ là mất
+    340 đơn, trong đó có toàn bộ đơn 01–10/09 — tuần đầu tháng báo cáo ra 0 đơn.
+    Nay đơn VND được chia cho tỷ giá (xem business_rules.quy_doi_don_ngoai_te); chỉ
+    loại tiền không có tỷ giá mới bị bỏ, và luôn ghi rõ số đơn, không bỏ im lặng.
     """
     want = (shop.get("currency") or "").upper()
     if not want:
         return orders, items
 
-    keep, dropped = [], {}
-    keep_ids = set()
+    items_of: dict[str, list] = {}
+    for it in items:
+        items_of.setdefault(str(it.get("order_id", "")), []).append(it)
+
+    keep, kept_items, quy_doi, dropped = [], [], {}, {}
     for o in orders:
         cur = (o.get("order_currency") or want).upper()
-        if cur == want:
-            keep.append(o)
-            keep_ids.add(str(o.get("id", "")))
-        else:
+        ra = quy_doi_don_ngoai_te(o, items_of.get(str(o.get("id", "")), []), want, shop.get("rate_vnd"))
+        if ra is None:
             dropped[cur] = dropped.get(cur, 0) + 1
+            continue
+        keep.append(ra[0])
+        kept_items.extend(ra[1])
+        if cur != want:
+            quy_doi[cur] = quy_doi.get(cur, 0) + 1
 
+    if quy_doi:
+        log.info(
+            f"  {shop['label']}: quy đổi {sum(quy_doi.values())} đơn {quy_doi} sang {want} "
+            f"theo tỷ giá {shop.get('rate_vnd')} — doanh thu VND giữ đúng số gốc."
+        )
     if dropped:
         log.warning(
             f"  {shop['label']}: bỏ {sum(dropped.values())} đơn khác loại tiền {dropped} "
-            f"— shop khai {want}. Cộng vào là sai doanh thu, xem _drop_foreign_currency."
+            f"— không có tỷ giá để quy về {want}. Cộng vào là sai doanh thu."
         )
-    kept_items = [it for it in items if str(it.get("order_id", "")) in keep_ids]
     return keep, kept_items
 
 
@@ -282,6 +294,10 @@ def sync_all_orders(window_start=None) -> tuple[int, int]:
         n_orders, n_items = append_and_rebuild_orders(
             client, P, DS, all_orders, all_items, ORDER_SCHEMA, ITEM_SCHEMA,
             order_table=_tbl('sale_order'), item_table=_tbl('order_items'),
+            # Bảng sạch CHỈ gồm shop đang khai trong config. Đổi shop (14/09/2026:
+            # 408074608 → 1022091930) thì đơn shop cũ vẫn nằm trong *_raw, không xoá,
+            # nhưng không lọt vào báo cáo để bị đếm chung với shop mới.
+            shop_ids=[s["shop_id"] for s in POS_SHOPS],
         )
     else:
         log.warning("  Không fetch được order từ bất kỳ shop nào!")

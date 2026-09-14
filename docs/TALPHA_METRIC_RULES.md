@@ -41,7 +41,7 @@ Cả ba cùng expose `attribute_order`/`attributeOrder` (rule CEO ba bậc), `pa
 
 Đường dẫn tới file cấu hình: phía TS hỏi `lib/talpha/config-path.ts`, đừng tự ghép
 `process.cwd()`. Bản sao `dashboard-ui/config/` đã xoá 11/09 — nó từng lệch thật
-(giữ shop_id Đài cũ `1328343252` trong khi bản chuẩn là `408074608`).
+(giữ shop_id Đài cũ `1328343252` trong khi bản chuẩn lúc đó là `408074608` — nay là `1022091930`).
 
 ## 2. Rule từng chỉ số
 

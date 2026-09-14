@@ -297,7 +297,12 @@ async function fetchPOSFromDirectAPI(shops: YamlConfig["poscake"]["shops"], star
                     const shopName = normalizeMarket(shop.name);
                     const rate = EXCHANGE_RATES[shopName] || 6850;
                     // X13 — số chia theo shop (GCC 100, Đài 1), xem fetchPOSFromBigQuery.
-                    const priceLocal = (o.cod || o.total_price || 0) / posMoneyDivisor(shopName);
+                    // Đơn ghi bằng VND trong shop TWD (shop 1022091930 còn 340 đơn như vậy):
+                    // chia cho tỷ giá như bước sync làm (business_rules.quy_doi_don_ngoai_te),
+                    // để phép nhân tỷ giá bên dưới trả lại đúng số VND — không thì 730.000đ
+                    // hoá 584 triệu. Đường BigQuery không cần: bảng đơn đã quy đổi sẵn.
+                    const laVnd = String(o.order_currency || '').toUpperCase() === 'VND';
+                    const priceLocal = (o.cod || o.total_price || 0) / (laVnd ? rate : posMoneyDivisor(shopName));
                     const mkRaw = o.marketer || o.pke_mkter || null;
                     const marketerName = mkRaw && typeof mkRaw === 'object' ? (mkRaw.name || '') : (mkRaw || '');
                     const custRaw = o.customer_name;
