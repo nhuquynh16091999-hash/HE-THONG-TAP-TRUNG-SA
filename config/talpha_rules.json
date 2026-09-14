@@ -404,8 +404,9 @@
     "_pending_note": "Quá 30 ngày kể từ ngày xuất kho mà chưa về tiền thì coi như mất, không phải chờ.",
     "purchase_sheet": {
       "_note": "File TIỀN HÀNG — mỗi kỳ đối soát COD có một đợt thanh toán tiền mua hàng, ghi trong ô kiểu 'THANH TOÁN NGÀY 14/8 TỔNG : 8.393.597 VND'. Đó là dòng 'phí mua hàng' trong luồng NAZA: COD × tỷ giá → RMB − phí → × tỷ giá → VND − phí mua hàng = phải nhận. Sỹ Anh chốt 13/09/2026: (1) kỳ NAZA có ghi phí mua hàng thì NAZA trừ vào COD, nhưng TIN SỐ TRONG FILE NÀY nếu hai bên lệch; (2) 4 kỳ trước 21/08 NAZA không ghi phí mua hàng — Sỹ Anh tự chuyển khoản riêng, không trừ vào tiền NAZA; (3) theo dõi đã trả / còn nợ từng đợt.",
-      "sheet_id": "1J1NJtZw4YW0k3BB0qIeAEHRn9W1X4RXSUQR0AZzmYSc",
+      "sheet_id": "1gAlKyznkb30ZIjBCAC7pxyaSkEwlTXlWvgrXXHq40vc",
       "sheet_gid": "0",
+      "_sheet_note": "File GỐC \"NOTE ĐÀI LOAN - SIG - THANH TOÁN\", tab \"PHÍ MUA HÀNG COD ĐÀI\" (gid 0) — đọc theo gid nên tab đổi tên không sao. Trước 14/09/2026 đọc bản sao 1J1NJtZw4YW0k3BB0qIeAEHRn9W1X4RXSUQR0AZzmYSc, nhưng bản sao chỉ là một ô IMPORTRANGE(\"...\", \"PHÍ MUA HÀNG!A:Y\") theo TÊN tab: tab gốc đổi tên là bản sao thành #REF! và đối soát mất sạch tiền hàng. Tab SIG (1171953732) là việc khác, không đọc.",
       "match_window_days": 4,
       "_match_note": "Ghép đợt thanh toán vào kỳ sao kê theo ngày: ngày đợt gần ngày trên tên file sao kê nhất, trong 4 ngày. Kỳ 24/07 ghép với đợt 27/07."
     }

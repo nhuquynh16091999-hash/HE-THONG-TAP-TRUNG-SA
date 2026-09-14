@@ -195,8 +195,20 @@ export async function docTienHang(): Promise<KetQuaTienHang> {
     } else {
         try {
             const r = await fetchSheetCsv(CFG.sheet_id, CFG.sheet_gid || "0");
-            const dot = docDotTienHang(csvToGrid(r.csv));
-            ket = { dot, loi: dot.length ? null : "Đọc được file tiền hàng nhưng không thấy đợt thanh toán nào.", doc_luc: luc };
+            const grid = csvToGrid(r.csv);
+            const dot = docDotTienHang(grid);
+            // Cả file chỉ còn ô lỗi công thức (#REF!, #N/A…) thì nói thẳng ra. 14/09/2026 bản
+            // sao dùng IMPORTRANGE theo TÊN tab, tab gốc đổi tên là cả file thành một ô #REF!
+            // — câu "không thấy đợt nào" khi đó chỉ khiến người ta đi soát nhầm chỗ.
+            const o = grid.flat().map((c) => c.trim()).filter(Boolean);
+            const loiCongThuc = o.length > 0 && o.every((c) => /^#(REF!|N\/A|ERROR!|VALUE!|NAME\?)$/i.test(c));
+            ket = {
+                dot,
+                loi: dot.length ? null
+                    : loiCongThuc ? `File tiền hàng đang ra lỗi công thức ${o[0]} — thường là IMPORTRANGE trỏ tới tab đã đổi tên. Sửa công thức, hoặc khai thẳng file gốc vào cod_settlement.purchase_sheet.`
+                        : "Đọc được file tiền hàng nhưng không thấy đợt thanh toán nào.",
+                doc_luc: luc,
+            };
         } catch (e) {
             ket = { dot: [], loi: `Không đọc được file tiền hàng: ${(e as Error).message}`, doc_luc: luc };
         }

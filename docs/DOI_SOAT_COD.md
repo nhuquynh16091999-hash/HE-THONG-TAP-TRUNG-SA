@@ -164,9 +164,11 @@ nhau, nhưng đáng hỏi NAZA cho rõ.
 
 ### Phí mua hàng (采购费) — soát với file tiền hàng
 
-Tiền hàng Trung Quốc mỗi đợt ghi ở Google Sheet **"FILE TIỀN HÀNG TAU PHẢI
-THANH TOÁN MỖI KÌ ĐỐI SOÁT"** (id ở `cod_settlement.purchase_sheet` trong
-`config/talpha_rules.json`, đọc bằng service account, chỉ đọc). Mỗi đợt một khối:
+Tiền hàng Trung Quốc mỗi đợt ghi ở file Google Sheet gốc **"NOTE ĐÀI LOAN - SIG - THANH
+TOÁN"**, tab **"PHÍ MUA HÀNG COD ĐÀI"** (id + gid ở `cod_settlement.purchase_sheet` trong
+`config/talpha_rules.json`, đọc bằng service account, chỉ đọc). Đọc thẳng file gốc theo gid,
+KHÔNG qua bản sao: bản sao chỉ là một ô `IMPORTRANGE` theo tên tab, tab gốc đổi tên là cả
+bản sao thành `#REF!` (dính thật 14/09/2026). Mỗi đợt một khối:
 `THANH TOÁN NGÀY d/m` · `TỔNG: x VNĐ` · có thể kèm `a + b` (b là nợ kỳ trước) ·
 `ĐÃ THANH TOÁN` · `CÒN THIẾU`.
 
