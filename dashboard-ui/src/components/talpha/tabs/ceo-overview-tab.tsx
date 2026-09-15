@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { format } from "date-fns";
 import { formatVNDCompact, formatMoney, formatNumber, marketName, shippingVNDFromRevVnd, cn } from "../utils";
+import { useMarkets, sqlMarketFromCampaign } from "../markets-context";
 import { BQ_PROJECT, DATASET } from "../constants";
 import TabSkeleton from "@/components/ui/tab-skeleton";
 import CeoAssistant from "../ceo-assistant";
@@ -41,7 +42,11 @@ export default function TALPHACeoOverviewTab({ dateRange }: Props) {
             .catch(() => setTargets({}));
     }, []);
 
+    const { loaded: marketsLoaded, markets: dsNuoc, primary: nuocChinh } = useMarkets();
+
     useEffect(() => {
+        // Chờ có danh sách nước: câu SQL tách chi tiêu theo nước sinh từ chính danh sách đó.
+        if (!marketsLoaded) return;
         async function fetchData() {
             setLoading(true);
             try {
@@ -89,22 +94,16 @@ export default function TALPHACeoOverviewTab({ dateRange }: Props) {
                     WHERE order_date BETWEEN '${from}' AND '${to}' AND is_confirmed AND marketer_group != 'external'
                     GROUP BY 1 ORDER BY revenue_vnd DESC`,
 
-                    // Q4: Market ads spend — market code from leading campaign_name segment
-                    `SELECT
-                        CASE
-                            WHEN campaign_name LIKE 'Saudi%' OR campaign_name LIKE 'KSA%' OR campaign_name LIKE 'SA/%' THEN 'SA'
-                            WHEN campaign_name LIKE 'UAE%' OR campaign_name LIKE 'Dubai%' OR campaign_name LIKE 'AE/%' THEN 'AE'
-                            WHEN campaign_name LIKE 'Kuwait%' OR campaign_name LIKE 'KW/%' THEN 'KW'
-                            WHEN campaign_name LIKE 'Oman%' OR campaign_name LIKE 'OM/%' THEN 'OM'
-                            WHEN campaign_name LIKE 'Qatar%' OR campaign_name LIKE 'QA/%' THEN 'QA'
-                            WHEN campaign_name LIKE 'Bahrain%' OR campaign_name LIKE 'BH/%' THEN 'BH'
-                            WHEN campaign_name LIKE 'TAIWAN%' OR campaign_name LIKE 'Taiwan%' OR campaign_name LIKE 'TW/%' THEN 'TW'
-                            ELSE 'Other'
-                        END as market,
-                        ROUND(SUM(spend), 0) as ads_spend
-                    FROM \`${BQ_PROJECT}.${DATASET}.vw_fb_ads_std\`
-                    WHERE date BETWEEN '${from}' AND '${to}' AND spend > 0
-                    GROUP BY 1`,
+                    // Q4: Chi tiêu theo nước — ô ĐẦU TIÊN là mã nước trong tên campaign thắng; tên
+                    // không ghi nước tính về nước chính (Sỹ Anh chốt 15/09/2026). Bản cũ gõ cứng 7
+                    // nước GCC + Đài bằng LIKE, không có Singapore, và ném tên kiểu "Lộc/…" vào "Other".
+                    `SELECT market, ROUND(SUM(spend), 0) as ads_spend
+                    FROM (
+                        SELECT ${sqlMarketFromCampaign(dsNuoc, nuocChinh)} AS market, spend
+                        FROM \`${BQ_PROJECT}.${DATASET}.vw_fb_ads_std\`
+                        WHERE date BETWEEN '${from}' AND '${to}' AND spend > 0
+                    )
+                    GROUP BY market`,
 
                     // Q5: Ads spend per ad_id (for double-count-free marketer attribution)
                     `SELECT ad_id, ROUND(SUM(spend), 0) as spend
@@ -237,7 +236,7 @@ export default function TALPHACeoOverviewTab({ dateRange }: Props) {
             } catch (e) { console.error("CEO fetch error", e); } finally { setLoading(false); }
         }
         fetchData();
-    }, [dateRange]);
+    }, [dateRange, marketsLoaded, dsNuoc, nuocChinh]);
 
     if (loading) return <TabSkeleton cards={6} showChart={true} rows={5} />;
 
@@ -421,7 +420,7 @@ export default function TALPHACeoOverviewTab({ dateRange }: Props) {
             <ReportTable
                 emoji="🌍"
                 title="Theo thị trường"
-                note="Tiền ads chia theo thị trường bằng ô đầu tên campaign; campaign không ghi thị trường rơi vào nhóm Other nên tổng cột ads ở đây có thể nhỏ hơn tổng toàn kỳ."
+note="Tiền ads chia theo nước bằng mã nước trong tên campaign (TW · SG · AE, đặt ở ô đầu). Campaign tên cũ không ghi nước đang tính về Đài Loan — đổi tên campaign để tách đúng nước."
                 columns={MARKET_COLUMNS}
                 rows={markets}
                 rowKey={m => m.shop_name}

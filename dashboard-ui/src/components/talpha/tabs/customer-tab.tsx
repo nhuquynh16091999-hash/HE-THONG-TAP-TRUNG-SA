@@ -10,6 +10,7 @@ import { Users, Repeat, ShoppingCart, Crown, Heart } from "lucide-react";
 import TabSkeleton from "@/components/ui/tab-skeleton";
 import { BQ_PROJECT, DATASET } from "../constants";
 import { formatVNDCompact, marketName } from "../utils";
+import { useMarkets } from "../markets-context";
 
 const PIE_COLORS = ["#6366f1", "#34d399", "#fbbf24", "#f43f5e", "#a78bfa", "#67e8f9"];
 
@@ -28,6 +29,9 @@ export default function TALPHACustomerTab({ dateRange }: Props) {
     const [segments, setSegments] = useState<any[]>([]);
     const [topCustomers, setTopCustomers] = useState<any[]>([]);
     const [shopCustomers, setShopCustomers] = useState<any[]>([]);
+
+    // Tên nước (Đài Loan · Singapore · UAE) nạp từ cấu hình — chờ nạp xong mới đổi mã ra tên.
+    const { loaded: marketsLoaded } = useMarkets();
 
     useEffect(() => {
         async function fetchData() {
@@ -148,7 +152,7 @@ export default function TALPHACustomerTab({ dateRange }: Props) {
             } catch (e) { console.error(e); } finally { setLoading(false); }
         }
         fetchData();
-    }, [dateRange]);
+    }, [dateRange, marketsLoaded]);
 
     if (loading) return <TabSkeleton />;
 

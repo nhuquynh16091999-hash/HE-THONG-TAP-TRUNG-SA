@@ -236,7 +236,9 @@ async function fetchPOSFromBigQuery(fromDate: string, toDate: string) {
         });
         for (const row of rows) {
             const shopName = normalizeMarket(row.shop_name); // shop_label code → POS full name
-            const rate = EXCHANGE_RATES[shopName] || 6850;
+            // Nước chưa khai tỷ giá → 0, KHÔNG dùng số dự phòng. Bản cũ rơi về 6.850 — tỷ giá AED
+            // thời GCC — nên tiền của mọi nước lạ bị nhân 6.850 mà không báo gì.
+            const rate = EXCHANGE_RATES[shopName] ?? 0;
             // X13: số chia tiền của POS khác nhau theo shop — GCC lưu minor units (÷100),
             // shop Đài lưu NGUYÊN TWD (÷1). Gõ thẳng /100 là làm tiền Đài tụt 100 lần.
             const priceLocal = (row.cod || row.total_price || 0) / posMoneyDivisor(shopName);
@@ -295,7 +297,7 @@ async function fetchPOSFromDirectAPI(shops: YamlConfig["poscake"]["shops"], star
 
                     // utcDate within [startUtc, endUtc] → include this order
                     const shopName = normalizeMarket(shop.name);
-                    const rate = EXCHANGE_RATES[shopName] || 6850;
+                    const rate = EXCHANGE_RATES[shopName] ?? 0;   // xem chú thích ở fetchPOSFromBigQuery
                     // X13 — số chia theo shop (GCC 100, Đài 1), xem fetchPOSFromBigQuery.
                     // Đơn ghi bằng VND trong shop TWD (shop 1022091930 còn 340 đơn như vậy):
                     // chia cho tỷ giá như bước sync làm (business_rules.quy_doi_don_ngoai_te),

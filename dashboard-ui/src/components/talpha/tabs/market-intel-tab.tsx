@@ -10,6 +10,7 @@ import { MapPin } from "lucide-react";
 import TabSkeleton from "@/components/ui/tab-skeleton";
 import { BQ_PROJECT, DATASET } from "../constants";
 import { formatVNDCompact, marketName } from "../utils";
+import { useMarkets } from "../markets-context";
 
 const PIE_COLORS = ["#34d399", "#3b82f6", "#f59e0b", "#a855f7", "#ec4899", "#06b6d4"];
 
@@ -28,6 +29,9 @@ export default function TALPHAMarketIntelTab({ dateRange }: Props) {
     const [markets, setMarkets] = useState<any[]>([]);
     const [marketProducts, setMarketProducts] = useState<any[]>([]);
     const [selectedMarket, setSelectedMarket] = useState("all");
+
+    // Tên nước (Đài Loan · Singapore · UAE) nạp từ cấu hình — chờ nạp xong mới đổi mã ra tên.
+    const { loaded: marketsLoaded } = useMarkets();
 
     useEffect(() => {
         async function fetchData() {
@@ -108,7 +112,7 @@ export default function TALPHAMarketIntelTab({ dateRange }: Props) {
             } catch (e) { console.error(e); } finally { setLoading(false); }
         }
         fetchData();
-    }, [dateRange]);
+    }, [dateRange, marketsLoaded]);
 
     if (loading) return <TabSkeleton />;
 

@@ -19,6 +19,7 @@ import TALPHAMarketIntelTab from "./tabs/market-intel-tab";
 import TALPHAAdHealthTab from "./tabs/ad-health-tab";
 import TALPHAAdSpendTab from "./tabs/ad-spend-tab";
 import TALPHACodReconTab from "./tabs/cod-recon-tab";
+import { MarketsProvider, useMarkets } from "./markets-context";
 import TALPHAOrderLedgerTab from "./tabs/order-ledger-tab";
 import TALPHATrackingTab from "./tabs/tracking-tab";
 import TALPHAAdsReconTab from "./tabs/ads-recon-tab";
@@ -117,6 +118,7 @@ export default function TALPHADashboardShell() {
     };
 
     return (
+        <MarketsProvider>
         <div className="flex h-screen overflow-hidden bg-background">
             {/* ═══ Sidebar ═══ */}
             <aside className="flex w-64 flex-col border-r border-border bg-white shadow-sm backdrop-blur-xl dark:bg-[#0d1117] dark:shadow-none">
@@ -133,8 +135,7 @@ export default function TALPHADashboardShell() {
                             <span className="ml-2 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-400">Active</span>
                         </div>
                     </div>
-                    <span className="ml-[52px] mt-1 text-xs text-muted-foreground">Tiểu Alpha — Đài Loan</span>
-                    <span className="ml-[52px] mt-0.5 text-[10px] text-muted-foreground">🇹🇼 Thị trường Đài Loan</span>
+                    <NhanThiTruong />
                 </div>
 
                 <nav className="flex-1 space-y-0.5 overflow-y-auto p-3">
@@ -216,5 +217,23 @@ export default function TALPHADashboardShell() {
                 </div>
             </main>
         </div>
+        </MarketsProvider>
+    );
+}
+
+/** Nhãn dưới logo: nước đang bán, và nước sắp chạy nếu có — đọc từ config, không gõ tay. */
+function NhanThiTruong() {
+    const { markets } = useMarkets();
+    const dangBan = markets.filter((m) => m.status === "dang_ban").map((m) => m.display);
+    const sapChay = markets.filter((m) => m.status === "sap_chay").map((m) => m.display);
+    return (
+        <>
+            <span className="ml-[52px] mt-1 text-xs text-muted-foreground">
+                Tiểu Alpha — {dangBan.length ? dangBan.join(" · ") : "…"}
+            </span>
+            {sapChay.length > 0 && (
+                <span className="ml-[52px] mt-0.5 text-[10px] text-muted-foreground">Sắp chạy: {sapChay.join(" · ")}</span>
+            )}
+        </>
     );
 }
