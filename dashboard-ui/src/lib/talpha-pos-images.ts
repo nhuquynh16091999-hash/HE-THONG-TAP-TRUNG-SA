@@ -19,7 +19,7 @@ const YAML_PATH = TALPHA_YAML();
 interface Shop { name: string; api_url: string; api_key: string; shop_id: string }
 
 // Đọc danh sách shop POS từ talpha.yaml (resolve ${ENV} như realtime route).
-function loadShops(): Shop[] {
+export function loadShops(): Shop[] {
     try {
         const raw = fs.readFileSync(YAML_PATH, "utf-8")
             .replace(/\$\{([A-Za-z_][A-Za-z0-9_]*)\}/g, (_m, n) => process.env[n] || "");
@@ -44,8 +44,6 @@ export function posMarketKey(shopName: string): string {
     return (label || shopName).toLowerCase();
 }
 
-/** Khoá thị trường của shop đầu tiên — dùng khi hệ chỉ chạy một thị trường. */
-export const POS_MARKET_KEY = posMarketKey(loadShops()[0]?.name ?? "Taiwan");
 
 /**
  * Chuẩn hoá mã SKU cho khớp giữa POS, đơn hàng và bảng tồn.

@@ -73,10 +73,13 @@ export default function TALPHAMarketIntelTab({ dateRange }: Props) {
                             oi.quantity,
                             v.revenue_vnd * SAFE_DIVIDE(
                                 oi.quantity,
-                                SUM(oi.quantity) OVER (PARTITION BY oi.order_id)
+                                SUM(oi.quantity) OVER (PARTITION BY oi.shop_id, oi.order_id)
                             ) AS revenue_vnd
                         FROM \`${BQ_PROJECT}.${DATASET}.order_items\` oi
-                        JOIN \`${BQ_PROJECT}.${DATASET}.vw_orders_std\` v ON oi.order_id = CAST(v.order_id AS STRING)
+                        -- X8: mã đơn KHÔNG duy nhất giữa các shop (đơn 65 có cả ở shop Đài lẫn
+                        -- Singapore) → ghép cả shop_id, không thì dòng hàng nước này chui sang nước kia.
+                        JOIN \`${BQ_PROJECT}.${DATASET}.vw_orders_std\` v
+                          ON oi.shop_id = CAST(v.shop_id AS STRING) AND oi.order_id = CAST(v.order_id AS STRING)
                         WHERE v.order_date BETWEEN '${from}' AND '${to}'
                           AND v.is_confirmed AND oi.product_name != ''
                     )

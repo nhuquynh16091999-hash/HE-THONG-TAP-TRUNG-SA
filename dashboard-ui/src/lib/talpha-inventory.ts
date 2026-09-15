@@ -1,27 +1,29 @@
 // ═══════════════════════════════════════════════════════════════════
 // TALPHA Inventory — builder dùng chung
 // ───────────────────────────────────────────────────────────────────
-// Nguồn DUY NHẤT: POS Poscake (actual_remain_quantity). Google Sheet thủ công
-// và hai parser sổ kho Saudi/UAE đã gỡ 11/09/2026 — sáu shop GCC ngừng bán từ
-// 05/09, còn đúng một kho Đài Loan.
+// Nguồn DUY NHẤT: POS Poscake (actual_remain_quantity). Mỗi shop POS khai trong
+// talpha.yaml là một kho — 15/09/2026: Đài Loan, Singapore, UAE.
 //
 // Dùng bởi:
 //   • /api/talpha/inventory       → nguồn chính của tab Sản phẩm & Kho
 //   • /api/talpha/sync-inventory  → ghi snapshot vào BigQuery làm đường dự phòng
 // ═══════════════════════════════════════════════════════════════════
-import { fetchPosInventory, POS_MARKET_KEY } from "@/lib/talpha-pos-images";
+import { fetchPosInventory, loadShops, posMarketKey } from "@/lib/talpha-pos-images";
+import { RULES } from "@/lib/talpha/rules";
 import { bigquery } from "@/lib/bigquery";
 import type { MarketOverview, StatusSummary, SkuRow } from "@/components/talpha/data/inventory";
 
 const BQ_PROJECT = process.env.NEXT_PUBLIC_BQ_PROJECT || "cty-507710";
 const BQ_DATASET = process.env.DATASET || "TALPHA_Dataset";
 
-// MỘT thị trường = MỘT shop POS. Thêm thị trường thì khai ở
-// config/talpha_rules.json → markets và config/projects/talpha.yaml → poscake.shops,
-// rồi mở lại vòng lặp nhiều kho ở đây (git log trước 11/09/2026 có bản 7 kho).
-const MARKETS_META = [
-    { key: POS_MARKET_KEY, market: "Taiwan", flag: "🇹🇼" },
-] as const;
+// Mỗi shop POS = một kho. Danh sách lấy từ talpha.yaml → poscake.shops, tên nước và cờ từ
+// talpha_rules.json → markets. Trước 15/09/2026 bảng này gõ cứng một dòng Đài — thêm shop
+// Singapore, UAE là tồn kho hai shop đó bị bỏ khỏi tổng mà không báo gì.
+const MARKETS_META = loadShops().map((s) => ({
+    key: posMarketKey(s.name),
+    market: s.name,
+    flag: (RULES.markets as Record<string, { flag?: string }>)[s.name]?.flag || "🏳️",
+}));
 const MK_KEYS = MARKETS_META.map((m) => m.key);
 
 // Trạng thái tự tính từ tồn + tốc độ bán (thay phân loại tay của Sheet cũ).
@@ -50,7 +52,8 @@ async function fetchSkuMarketers(variationToCode: Map<string, string>): Promise<
             query: `
                 SELECT oi.variation_id vid, JSON_EXTRACT_SCALAR(o.marketer, '$.name') nm, SUM(oi.quantity) qty
                 FROM \`${BQ_PROJECT}.${BQ_DATASET}.order_items\` oi
-                JOIN \`${BQ_PROJECT}.${BQ_DATASET}.sale_order\` o ON oi.order_id = CAST(o.id AS STRING)
+                -- X8: mã đơn trùng giữa các shop → ghép cả shop_id.
+                JOIN \`${BQ_PROJECT}.${BQ_DATASET}.sale_order\` o ON oi.shop_id = o.shop_id AND oi.order_id = CAST(o.id AS STRING)
                 WHERE DATE(TIMESTAMP(o.inserted_at)) >= DATE_SUB(CURRENT_DATE(), INTERVAL 30 DAY)
                   AND o.status_name != 'canceled' AND oi.variation_id != ''
                 GROUP BY 1, 2`,
@@ -82,7 +85,8 @@ async function fetchSold30(variationToCode: Map<string, string>): Promise<Record
             query: `
                 SELECT LOWER(o.shop_label) mk, oi.variation_id vid, SUM(oi.quantity) qty
                 FROM \`${BQ_PROJECT}.${BQ_DATASET}.order_items\` oi
-                JOIN \`${BQ_PROJECT}.${BQ_DATASET}.sale_order\` o ON oi.order_id = CAST(o.id AS STRING)
+                -- X8: mã đơn trùng giữa các shop → ghép cả shop_id.
+                JOIN \`${BQ_PROJECT}.${BQ_DATASET}.sale_order\` o ON oi.shop_id = o.shop_id AND oi.order_id = CAST(o.id AS STRING)
                 WHERE DATE(TIMESTAMP(o.inserted_at)) >= DATE_SUB(CURRENT_DATE(), INTERVAL 30 DAY)
                   AND o.status_name != 'canceled' AND oi.variation_id != ''
                 GROUP BY 1, 2`,
