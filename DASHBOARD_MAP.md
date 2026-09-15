@@ -10,9 +10,10 @@ Cách vận hành máy chủ: `docs/DEPLOY_VPS.md`.
 
 ## 1. Việc kinh doanh
 
-Bán trang sức và mỹ phẩm ở **Đài Loan**, qua Facebook Ads → chat-sale Messenger →
-**thu tiền COD**. Hàng đi từ kho Trung Quốc qua 3PL **NAZA供应链**; khách trả tiền
-cho shipper; NAZA gom rồi chuyển về theo kỳ.
+Bán trang sức và mỹ phẩm qua Facebook Ads → chat-sale Messenger → **thu tiền COD**.
+**Đài Loan đang bán**; **Singapore và UAE sắp chạy** (mở khung 15/09/2026). Hàng Đài đi
+từ kho Trung Quốc qua 3PL **NAZA供应链**; khách trả tiền cho shipper; NAZA gom rồi chuyển
+về theo kỳ. Singapore dự kiến cũng qua NAZA (có bảng giá); UAE chưa chốt 3PL.
 
 | Vai | Người | Thấy gì |
 |:--|:--|:--|
@@ -20,8 +21,15 @@ cho shipper; NAZA gom rồi chuyển về theo kỳ.
 | Marketer | 6 (Lộc · Sỹ Anh · Thái · Thương · Quỳnh · Thắng) | Báo cáo, chi phí quảng cáo |
 | Sale | 2 (một ghế còn trống) | Đơn hàng, đối soát COD |
 
-Một thị trường · một shop POS Poscake · 10 tài khoản quảng cáo Meta (4 đang chạy).
-Tiền: TWD, tỷ giá cố định **800đ/TWD**.
+Mỗi nước một shop POS Poscake — hiện có shop Đài "TAIWAN SỸ ANH" · 8 tài khoản quảng
+cáo Meta đọc được. Tiền Đài: TWD, tỷ giá **800đ/TWD**; SGD, AED chưa khai tỷ giá.
+
+**Nước nằm ở `config/talpha_rules.json → markets`**, mỗi nước một khối có `status`:
+`dang_ban` (đã nối shop, có tỷ giá và số chia — số tiền được tính) hoặc `sap_chay` (máy
+đã nhận ra trong tên campaign nên chi tiêu tách đúng nước, nhưng chưa kéo đơn, chưa
+tính tiền). Chi tiêu quảng cáo gán về nước bằng **ô đầu tên campaign** (`TW` · `SG` ·
+`AE`); tên cũ không ghi nước tính về Đài. Đơn gom ngày theo **giờ Việt Nam** cho cả ba
+nước. Kế hoạch mở rộng: trang "TALPHA ba thị trường".
 
 ---
 

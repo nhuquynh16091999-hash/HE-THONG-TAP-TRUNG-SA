@@ -8,7 +8,7 @@
 ## Công thức
 
 ```
-THỊTRƯỜNG/MARKETER/TỆPKHÁCH/MÃSANPHAM/TENTRANG/NGAY/TEST
+NƯỚC/MARKETER/TỆPKHÁCH/MÃSANPHAM/TENTRANG/NGAY/TEST
 ```
 
 Thêm `/TEST` ở cuối nếu là campaign thử sản phẩm.
@@ -20,16 +20,31 @@ TW/LOC/PHI/042-BLACK/TaiwanPrimeLeather/2808
 TW/THUONG/INDO/SET-KIM-CUONG/LuxeGold/0109
 TW/THAI/VN/040-VONGVANG1/LumoraJewelry/1908
 TW/SANH/TW/BONGTAI-TRON/LuckyClover/2808/TEST
+SG/LOC/PHI/042-BLACK/LuxeGold/1509
+AE/THAI/PHI/040-VONGVANG1/LumoraJewelry/1509
 ```
 
 ---
 
 ## Các ô, theo đúng thứ tự
 
-### 1. Thị trường — hiện luôn là `TW`
+### 1. Nước — BẮT BUỘC, luôn ở ô đầu
 
-Công ty chỉ bán ở Đài Loan nên ô này luôn `TW`. Giữ ô này để sau có thêm thị
-trường thì không phải đổi lại chuẩn, cũng không phải sửa tên campaign cũ.
+Từ 15/09/2026 công ty chạy ba nước. Chi tiêu quảng cáo được chia về nước **bằng chính
+ô này** (Sỹ Anh chốt) — không có ô thứ hai nào để máy dựa vào.
+
+| Nước | Mã | Tình trạng |
+|---|---|---|
+| Đài Loan | `TW` | đang bán |
+| Singapore | `SG` | sắp chạy |
+| UAE | `AE` | sắp chạy |
+
+Máy cũng nhận `TAIWAN`, `SINGAPORE`, `SING`, `UAE`, `DUBAI`, nhưng hãy dùng mã hai chữ.
+
+**Campaign không ghi nước** (tên cũ kiểu `Lộc/Philippine/…`) vẫn được tính về **Đài
+Loan**, và bị liệt kê trong log báo cáo mỗi giờ dưới dòng `KHONG GHI NUOC`. Bẫy thật
+nằm ở đây: một campaign **Singapore** quên ghi `SG/` sẽ lặng lẽ cộng vào tiền Đài —
+ROAS Đài xấu đi, Singapore trông như không tiêu đồng nào.
 
 ### 2. Marketer — dùng mã, không dùng tên có dấu
 
@@ -49,7 +64,7 @@ viết hoa ra `"THẮNG"` — máy so với `"THANG"` là **không khớp**. Đ�
 Máy nhận ra marketer bằng chính mã trong bảng trên chứ không bằng vị trí, nên vẫn
 đọc được tên cũ đặt khác thứ tự. Nhưng đặt đúng chỗ thì chắc chắn hơn.
 
-### 3. Tệp khách — cộng đồng ở Đài mà quảng cáo nhắm tới
+### 3. Tệp khách — cộng đồng ở nước bán mà quảng cáo nhắm tới
 
 | Tệp khách | Mã |
 |---|---|
@@ -160,7 +175,7 @@ tiền thật đã tiêu, không giấu.
 
 1. **`/` chỉ để ngăn ô.** Không dùng trong ngày tháng, tên sản phẩm hay tên trang.
 2. **Không dấu tiếng Việt** ở ô marketer và ô tệp khách.
-3. **Đúng thứ tự.** Thị trường ô 1, marketer ô 2, tệp khách ô 3.
+3. **Đúng thứ tự.** Nước ô 1, marketer ô 2, tệp khách ô 3.
 4. **Không đổi tên campaign sau khi đã chạy.** Đổi tên là số lịch sử gãy làm đôi:
    nửa cũ gán một người, nửa mới gán người khác.
 
@@ -171,13 +186,15 @@ tiền thật đã tiêu, không giấu.
 Hệ thống **đọc được cả tên cũ lẫn tên mới** — không phải đi sửa lại campaign đang
 chạy. Nhưng tên cũ đọc bằng cách đoán, còn tên mới đọc chắc chắn.
 
-Áp chuẩn này cho **campaign tạo mới từ nay**. Tên cũ để nguyên cho tới khi tự tắt.
+Áp chuẩn này cho **campaign tạo mới từ nay**. Tên cũ để nguyên cho tới khi tự tắt —
+campaign Đài tên cũ vẫn tính đúng về Đài. Riêng campaign **Singapore và UAE thì không
+có ngoại lệ**: thiếu ô nước là tiền chạy nhầm sang Đài.
 
 ---
 
 ## Kiểm nhanh trước khi bấm tạo
 
-- [ ] Ô 1 có phải `TW` không?
+- [ ] Ô 1 có phải mã nước `TW` / `SG` / `AE` không — và đúng nước đang chạy?
 - [ ] Ô 2 có phải mã marketer không dấu trong bảng trên không?
 - [ ] Ô 3 có phải mã tệp khách (`PHI` / `INDO` / `VN` / `TW`) không?
 - [ ] Trong tên còn dấu `/` nào không phải để ngăn ô không?
