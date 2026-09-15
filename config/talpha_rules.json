@@ -76,7 +76,8 @@
       "display": "Lộc",
       "full": "Lộc",
       "aliases": [
-        "Lâm"
+        "Lâm",
+        "Chun Ho"
       ]
     },
     "SAnh": {
@@ -85,7 +86,10 @@
     },
     "Thai": {
       "display": "Thái",
-      "full": "Thái"
+      "full": "Thái",
+      "aliases": [
+        "Thanh Ngô Thanh"
+      ]
     },
     "Thuong": {
       "display": "Thương",
@@ -98,7 +102,10 @@
     },
     "Thang": {
       "display": "Thắng",
-      "full": "Thắng"
+      "full": "Thắng",
+      "aliases": [
+        "Linh Thy Hoang"
+      ]
     }
   },
   "sales": {
@@ -133,6 +140,23 @@
       "contains": "S.ANH",
       "key": "SAnh",
       "_note": "Ba dòng của Sỹ Anh phải đứng TRƯỚC mọi tên khác. Không dùng 'ANH' trần: 'ANH' nằm trong rất nhiều tên Việt (Thanh, Ánh, Anh Tuấn…) nên sẽ vơ nhầm."
+    },
+    {
+      "contains": "CHUN HO",
+      "key": "Loc",
+      "_note": "Tên tài khoản POS shop 'TAIWAN SỸ ANH' — tên tài khoản không trùng tên thật nên phải khai nguyên tên. Sỹ Anh xác nhận 15/09/2026: Chun Ho = Lộc, Thanh Ngô Thanh = Thái, Linh Thy Hoang = Thắng. Đứng TRƯỚC luật tên ngắn để khỏi bị một mẩu tên khác vơ mất."
+    },
+    {
+      "contains": "THANH NGÔ THANH",
+      "key": "Thai"
+    },
+    {
+      "contains": "THANH NGO THANH",
+      "key": "Thai"
+    },
+    {
+      "contains": "LINH THY HOANG",
+      "key": "Thang"
     },
     {
       "contains": "LỘC",

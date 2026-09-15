@@ -51,6 +51,13 @@ t("Sỹ Anh bắt được cả ba cách viết", () => {
     assert.strictEqual(pos("Ho Sy Anh"), "SAnh");
     assert.strictEqual(pos("S.Anh"), "SAnh");
 });
+t("tên tài khoản POS shop TAIWAN SỸ ANH (Sỹ Anh xác nhận 15/09/2026)", () => {
+    // Tài khoản POS không mang tên thật — thiếu luật là đơn rơi về chủ campaign hoặc "(không gán)".
+    assert.strictEqual(pos("Chun Ho"), "Loc");
+    assert.strictEqual(pos("Thanh Ngô Thanh"), "Thai");
+    assert.strictEqual(pos("Linh Thy Hoang"), "Thang");
+    assert.strictEqual(pos("Thương Thương"), "Thuong");
+});
 t("BẪY: tên khác có chữ 'Anh' KHÔNG được rơi vào Sỹ Anh", () => {
     // Nếu luật dùng 'ANH' trần thì mấy tên này bị vơ hết về Sỹ Anh.
     for (const name of ["Nguyễn Thanh", "Trần Ánh", "Lê Anh Tuấn", "Vũ Ngọc Anh"]) {

@@ -19,6 +19,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from sync.core.business_rules import quy_doi_don_ngoai_te, revenue_vnd  # noqa: E402
 from sync.core.bq_writer import _loc_shop, sql_rebuild_orders  # noqa: E402
 
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "ops" / "talpha_reports"))
+from talpha_rules import norm_pos_nv  # noqa: E402
+
 
 def _don(**kw):
     base = {"id": "A715108714.2", "order_currency": "VND", "cod": 1_210_000.0,
@@ -88,3 +91,16 @@ class TestBangDonChiGomShopDangKhai:
     def test_ma_shop_la_chu_thi_tu_choi(self):
         with pytest.raises(ValueError):
             _loc_shop(["1022091930') OR ('1'='1"], "t.shop_id")
+
+
+class TestTenTaiKhoanPos:
+    """Tài khoản POS shop mới không mang tên thật (Sỹ Anh xác nhận 15/09/2026)."""
+
+    def test_ba_tai_khoan_gan_dung_nguoi(self):
+        assert norm_pos_nv("Chun Ho") == "Loc"
+        assert norm_pos_nv("Thanh Ngô Thanh") == "Thai"
+        assert norm_pos_nv("Linh Thy Hoang") == "Thang"
+        assert norm_pos_nv("Thương Thương") == "Thuong"
+
+    def test_ten_thanh_khac_khong_bi_vo_nham(self):
+        assert norm_pos_nv("Nguyễn Thanh") is None
