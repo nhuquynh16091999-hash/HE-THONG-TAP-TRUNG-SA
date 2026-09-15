@@ -1,0 +1,229 @@
+// Báo cáo ads: 1 tin TỔNG TEAM (gửi trước) + MỖI marketer 1 tin riêng.
+// Dùng cho CẢ hai loại mốc: 8h30 (số HÔM QUA, đã chốt ngày) và giữa ngày 13:30 / 22:00
+// (số HÔM NAY đang chạy). Khác nhau đúng ở phần chữ: truyền opts.intraday để tin nói rõ
+// số chưa chốt — cùng một con số mà không ghi rõ mốc thì người đọc tưởng ngày tụt doanh thu.
+//
+// Chép từ ops/whatsapp-alerts/daily_report.js (bot WhatsApp đang tắt), sửa bốn chỗ:
+//   1. chữ đậm/nghiêng đi bằng B()/I() (zalo_text.js) — Zalo không đọc *…* và _…_;
+//   2. thứ tự tin riêng theo khối marketers trong talpha_rules.json, không gõ tay tên;
+//   3. tên sản phẩm theo chuẩn tên campaign mới, có cờ nước cho Singapore, UAE; chủ
+//      campaign theo luật của Sheet chứ không quét cả tên (rules.js → chuCamp);
+//   4. /api/talpha/realtime lỗi thì VẪN gửi — số đầu bài lấy từ Sheet, chỉ thiếu phần
+//      chi tiết campaign (bản WhatsApp mất cả báo cáo vì phần phụ này).
+//
+// Số ĐẦU BÀI của mọi tin đọc THẲNG từ file Google Sheet "TỔNG TEAM THÁNG n" — đúng file
+// CEO đang xem. Bot từng tự tính lại số, và cứ mỗi lần rule đổi là tin nhắn lệch với
+// Sheet: lần do camp test, lần do cách gán đơn, lần do hai bên gom ngày theo hai múi giờ
+// khác nhau. Đọc thẳng ô trong Sheet thì không còn chỗ nào để lệch.
+// Phần "Theo campaign" lấy từ /api/talpha/realtime (Meta + POS live), đơn gán theo
+// quảng cáo — nên cộng lại có thể khác số đầu bài, và tin nói rõ điều đó.
+const { B, I } = require("./zalo_text");
+const {
+    chuCamp, MARKETERS, DISPLAY, THU_TU, UNASSIGN, TAB_NUOC, isTestCampaign, tenNganCamp,
+} = require("./rules");
+const { ngayChuaDu } = require("./schedule");   // "ngày đó xong chưa" — có test riêng
+
+const fmt = (n) => Number(n || 0).toLocaleString("vi-VN");
+const pct = (a, b) => (b > 0 ? (a / b) * 100 : 0);
+const p1 = (x) => Number(x || 0).toFixed(1).replace(".", ",");
+const ddmm = (d) => `${d.slice(8, 10)}/${d.slice(5, 7)}`;
+// Tỷ lệ chốt = đơn / tin nhắn. Chỉ có nghĩa khi CẢ HAI cùng đến từ quảng cáo của người
+// đó. Đơn gán theo tag POS nên người gần như không chạy ads vẫn nhận đơn → ra "chốt
+// 460%", vô nghĩa và trông như lỗi. Trường hợp đó trả "—".
+const chot = (ord, mess) => (mess > 0 && ord <= mess ? p1(pct(ord, mess)) + "%" : "—");
+
+// Tên hiển thị của người ĐÃ NGHỈ — không có tin riêng, không nằm trong bảng xếp hạng.
+const DA_NGHI = new Set([...UNASSIGN].map((k) => DISPLAY[k] || k));
+const KHONG_GAN = "(không gán)";
+
+// Chủ campaign theo đúng luật của Sheet (xem chuCamp trong rules.js) — phần chi tiết phải
+// cộng lại khớp số đầu bài của chính tin đó.
+function marketerOf(name) {
+    const key = chuCamp(name);
+    return key ? DISPLAY[key] || key : "";
+}
+
+async function getJson(f, url, ten) {
+    const res = await f(url, { headers: { "cache-control": "no-store" } });
+    if (!res.ok) throw new Error(`${ten} HTTP ${res.status}`);
+    return res.json();
+}
+
+// 1 LẦN gọi realtime cho cả tin tổng lẫn tin cá nhân: route này hỏi thẳng Meta + POS live
+// (chậm, có rate-limit) — gọi hai lần một mốc là tự chuốc lỗi.
+function fetchRealtime(cfg, dateStr, f) {
+    return getJson(f, `${cfg.realtimeUrl}?from_date=${dateStr}&to_date=${dateStr}`, "realtime");
+}
+
+async function fetchSheetReport(cfg, dateStr, f) {
+    if (!cfg.sheetReportUrl) throw new Error("thiếu dailyReport.sheetReportUrl trong config");
+    const j = await getJson(f, `${cfg.sheetReportUrl}?date=${dateStr}`, "sheet-report");
+    if (j.error) throw new Error(j.error);
+    if (!j.team) throw new Error(`Sheet chưa có dòng ngày ${dateStr}`);
+    return j;
+}
+
+// Route trả MỌI tab khác "Tổng" trong mảng marketers — kể cả tab nước. Không lọc thì
+// "Đài Loan" có tin riêng như một marketer và đứng Top 1 bảng xếp hạng (dính thật ngày
+// 15/09/2026, lần đầu file có tab nước). Tin KHÔNG in số theo nước (Sỹ Anh chốt cùng
+// ngày) nên tab nước bỏ lặng lẽ; tab không phải nước, không phải marketer đang khai
+// trong rules, không phải "(không gán)" thì bỏ, có log.
+function tabMarketer(sheet, log) {
+    const marketers = [], la = [];
+    for (const r of sheet.marketers || []) {
+        if (TAB_NUOC.has(r.tab)) continue;
+        if (r.tab === KHONG_GAN || Object.prototype.hasOwnProperty.call(MARKETERS, r.tab)) marketers.push(r);
+        else la.push(r.tab);
+    }
+    if (la.length && log) log(`Sheet có tab lạ, bỏ qua: ${la.join(", ")}`);
+    return marketers;
+}
+
+// Sheet KHÔNG BAO GIỜ mất dòng: sync chết thì dòng vẫn nằm đó, chỉ ĐỨNG SỐ. Nên "đọc
+// được dòng ngày X" hoàn toàn không chứng minh số của ngày X đã đủ (04/09/2026: tin 8h
+// báo 12,2tr / 116 đơn, số thật 37,2tr / 178 đơn — token Meta mất quyền từ chiều hôm
+// trước). Từ đó tin tự tố tuổi của số nó đang đọc. Hai loại tin hỏi hai câu KHÁC NHAU:
+//   - tin giữa ngày nói về HÔM NAY → chỉ hỏi được "số cũ bao lâu";
+//   - tin 8h30 nói về NGÀY ĐÃ QUA → hỏi "đã có vòng sync nào chạy sau nửa đêm chưa".
+function gioVN(ts) {
+    const d = new Date(ts);
+    const p = (o) => d.toLocaleString("en-GB", { timeZone: "Asia/Ho_Chi_Minh", ...o });
+    return `${p({ hour: "2-digit", minute: "2-digit", hourCycle: "h23" })} ngày `
+        + `${p({ day: "2-digit" })}/${p({ month: "2-digit" })}`;
+}
+function canhBaoSoCu(stale, dateStr, intraday) {
+    if (!stale) return "";
+    if (intraday) {
+        if (stale.okAge == null || !(stale.okAge > stale.limit)) return "";
+        const h = Math.floor(stale.okAge / 60), m = Math.round(stale.okAge % 60);
+        const lau = h > 0 ? `${h} giờ${m ? " " + m + " phút" : ""}` : `${m} phút`;
+        return `⚠️ ${B(`SỐ CHƯA ĐỦ — sync đứng ${lau}.`)}\n${I("Đợi sync chạy lại rồi đọc lại.")}\n\n`;
+    }
+    if (!ngayChuaDu(stale.lastOkTs, dateStr)) return "";
+    return `⚠️ ${B(`SỐ CHƯA ĐỦ — chưa có vòng sync nào chạy sau khi hết ngày ${ddmm(dateStr)}.`)}\n`
+        + `${I(`Số dưới đây chốt lúc ${gioVN(stale.lastOkTs)} — chưa phải số cả ngày. Đợi sync chạy lại rồi đọc lại.`)}\n\n`;
+}
+
+// opts.label    — chữ in trên đầu tin thay cho ngày thô ("HÔM NAY 02/09 · 13:30").
+// opts.intraday — số chưa chốt ngày: thêm dòng nhắc + đổi lời chú thích DS giao.
+// opts.stale    — tuổi số từ /api/talpha/sync-health (null = không biết, không cảnh báo).
+// opts.fetch    — thay fetch khi test.
+async function buildMarketerReports(cfg, dateStr, opts = {}) {
+    const f = opts.fetch || fetch;
+    const label = opts.label || ddmm(dateStr);
+    const sheet = await fetchSheetReport(cfg, dateStr, f);
+    let camps = [], canhBaoCamp = "";
+    try {
+        const data = await fetchRealtime(cfg, dateStr, f);
+        // Camp TEST cũng phải rời khỏi phần chi tiết, nếu không phần chi tiết lại lệch
+        // với đầu bài của chính tin đó.
+        camps = (data.campaigns || []).filter((c) => (c.spend_vnd || 0) > 0 && !isTestCampaign(c.campaign_name));
+    } catch (e) {
+        canhBaoCamp = e.message;
+        if (opts.log) opts.log(`realtime lỗi — gửi tin không kèm chi tiết campaign: ${e.message}`);
+    }
+
+    // tab Sheet dùng KEY (Loc, Thuong…), tin nhắn hiển thị TÊN (Lộc, Thương…)
+    const bySheet = {};
+    for (const r of tabMarketer(sheet, opts.log)) bySheet[DISPLAY[r.tab] || r.tab] = r;
+
+    const byMk = {};
+    for (const c of camps) {
+        const mk = marketerOf(c.campaign_name);
+        if (mk) (byMk[mk] = byMk[mk] || []).push(c);   // camp không gán được → không vào tin cá nhân
+    }
+
+    const viTri = (mk) => (THU_TU.includes(mk) ? THU_TU.indexOf(mk) : THU_TU.length);
+    // Ai có tin riêng: người có số trong Sheet, không phải người có campaign — người chi
+    // 0đ mà vẫn có đơn về tag mình thì vẫn phải có tin.
+    const names = Object.keys(bySheet)
+        .filter((mk) => mk !== KHONG_GAN && !DA_NGHI.has(mk))
+        .filter((mk) => bySheet[mk].ads > 0 || bySheet[mk].don > 0)
+        .sort((a, b) => viTri(a) - viTri(b));
+
+    const messages = names.map((mk) => {
+        const list = (byMk[mk] || []).sort((a, b) => b.spend_vnd - a.spend_vnd);
+        const p = bySheet[mk];
+        const spend = p.ads, rev = p.doanh_so, mess = p.mess, ord = p.don;
+        // dùng luôn tỷ lệ Sheet đã tính, không tự chia lại rồi lệch số lẻ
+        const closeR = p.ty_le_chot, adsR = p.phan_tram_ads;
+
+        let m = canhBaoSoCu(opts.stale, dateStr, opts.intraday) + `📊 ${B(`ADS ${label} — ${mk}`)}\n`;
+        m += `💰 Tiền ads: ${B(fmt(spend) + "đ")}  ·  Doanh số: ${B(fmt(rev) + "đ")}  ·  %ads: ${B(rev > 0 ? p1(adsR) + "%" : "—")}\n`;
+        m += `💬 Mess: ${fmt(mess)}  ·  🛒 Đơn: ${fmt(ord)}  ·  ✅ Chốt: ${B(chot(ord, mess))}\n`;
+        if (opts.intraday) m += `${I("số đang chạy trong ngày — chưa chốt, còn lên tiếp")}\n`;
+        if (list.length) {
+            m += `\n${B("Theo campaign:")}  ${I("(đơn ở đây gán theo quảng cáo, nên tổng có thể khác số đầu bài — số đầu bài gán theo tag POS, khớp Sheet)")}`;
+            for (const c of list.slice(0, cfg.topCampaigns || 8)) {
+                const cr = pct(c.orders, c.messages), ar = pct(c.spend_vnd, c.revenue_vnd);
+                m += `\n• ${tenNganCamp(c.campaign_name)}`;
+                m += `\n   Ads ${fmt(c.spend_vnd)}đ · Mess ${c.messages || 0} · Đơn ${c.orders || 0} · Chốt ${p1(cr)}% · %ads ${c.revenue_vnd > 0 ? Math.round(ar) + "%" : "—"}`;
+            }
+        } else {
+            m += `\n${I(canhBaoCamp
+                ? "(chưa lấy được chi tiết campaign lúc này — số đầu bài vẫn đúng theo Sheet)"
+                : "(không có campaign nào tiêu tiền)")}`;
+        }
+        const recs = recommend(list, { rev, closeR, adsR }, cfg);
+        if (recs.length) m += `\n\n💡 ${B("Đề xuất:")}\n` + recs.map((r) => "• " + r).join("\n");
+        return m;
+    });
+    return { dateStr, teamMessage: buildTeamReport(dateStr, sheet, { ...opts, label }), messages };
+}
+
+// Tin TỔNG TEAM — số lấy thẳng dòng TỔNG của Sheet, cùng bảng xếp hạng từng người. Ô
+// "(không gán)" KHÔNG nằm trong dòng TỔNG nhưng là tiền thật — nêu riêng chứ không giấu.
+function buildTeamReport(dateStr, sheet, opts = {}) {
+    const label = opts.label || ddmm(dateStr);
+    const T = sheet.team;
+    const marketers = tabMarketer(sheet);
+    const ds = (r) => (r.doanh_so > 0 ? Math.round(r.phan_tram_ads) + "%" : "—");
+
+    let m = canhBaoSoCu(opts.stale, dateStr, opts.intraday) + `🏆 ${B(`TỔNG TEAM — ${label}`)}\n`;
+    m += `💰 Tiền ads: ${B(fmt(Math.round(T.ads)) + "đ")}  ·  Doanh số: ${B(fmt(Math.round(T.doanh_so)) + "đ")}  ·  %ads: ${B(T.doanh_so > 0 ? p1(T.phan_tram_ads) + "%" : "—")}\n`;
+    m += `💬 Mess: ${fmt(T.mess)}  ·  🛒 Đơn: ${fmt(T.don)}  ·  ✅ Chốt: ${B(p1(T.ty_le_chot) + "%")}\n`;
+    // Đơn COD vài ngày mới giao xong, nên DS giao của ngày vừa qua LUÔN thấp — ghi rõ để
+    // không ai tưởng doanh số tụt.
+    m += `📦 DS giao thành công: ${fmt(Math.round(T.ds_giao_tc))}đ ${I(opts.intraday
+        ? "(đơn hôm nay gần như chưa giao xong — số này còn lên nhiều)"
+        : "(đơn hôm qua phần lớn chưa giao xong — số này còn lên)")}\n`;
+
+    const rows = marketers
+        .filter((r) => r.tab !== KHONG_GAN && (r.ads > 0 || r.don > 0))
+        .map((r) => ({ ...r, mk: DISPLAY[r.tab] || r.tab }))
+        .filter((r) => !DA_NGHI.has(r.mk))
+        .sort((a, b) => (b.doanh_so - a.doanh_so) || (b.ads - a.ads));
+
+    if (rows.length) {
+        const top = rows[0];
+        if (top.doanh_so > 0) {
+            m += `\n👑 ${B(`Top 1 ${opts.intraday ? "hôm nay" : "ngày " + ddmm(dateStr)}: ${top.mk} — ${fmt(Math.round(top.doanh_so))}đ`)}\n`;
+        }
+        m += `\n${B("Xếp hạng theo doanh số:")}`;
+        rows.forEach((r, i) => {
+            m += `\n${i === 0 && r.doanh_so > 0 ? "👑" : i + 1 + "."} ${B(r.mk)} — Ads ${fmt(Math.round(r.ads))}đ · DS ${fmt(Math.round(r.doanh_so))}đ · %ads ${ds(r)} · ${fmt(r.don)} đơn · chốt ${p1(r.ty_le_chot)}%`;
+        });
+    }
+
+    const un = marketers.find((r) => r.tab === KHONG_GAN);
+    if (un && (un.doanh_so > 0 || un.don > 0)) {
+        m += `\n\n📍 Chưa gán được cho ai: ${fmt(Math.round(un.doanh_so))}đ · ${fmt(un.don)} đơn — nằm ngoài bảng trên.`;
+    }
+    m += `\n${I(`số lấy thẳng từ file TỔNG TEAM THÁNG ${Number(dateStr.slice(5, 7))}`)}`;
+    return m;
+}
+
+function recommend(list, agg, cfg) {
+    const r = [];
+    const waste = list.filter((c) => c.spend_vnd >= (cfg.recWasteSpend || 300000) && (c.orders || 0) === 0);
+    if (waste.length) r.push(`Tắt / đổi sản phẩm ${waste.length} camp đốt tiền không ra đơn: ${waste.slice(0, 3).map((c) => tenNganCamp(c.campaign_name)).join(", ")}`);
+    const lowClose = list.filter((c) => (c.messages || 0) >= 20 && pct(c.orders, c.messages) < (cfg.recLowClosePct || 5));
+    if (lowClose.length) r.push(`Chốt thấp (<${cfg.recLowClosePct || 5}%) ở ${lowClose.length} camp — kiểm tra sale chốt & target`);
+    if (agg.rev > 0 && agg.adsR > (cfg.recHighAdsPct || 30)) r.push(`%ads cao (${Math.round(agg.adsR)}%) — đang ăn mòn lãi, siết ngân sách các camp kém`);
+    const win = list.filter((c) => c.revenue_vnd > 0 && pct(c.spend_vnd, c.revenue_vnd) < (cfg.recGoodAdsPct || 20) && (c.orders || 0) >= 3);
+    if (win.length) r.push(`Tăng ngân sách ${win.length} camp hiệu quả (%ads thấp): ${win.slice(0, 3).map((c) => tenNganCamp(c.campaign_name)).join(", ")}`);
+    if (!r.length && list.length) r.push("Chỉ số ổn định — duy trì và theo dõi.");
+    return r;
+}
+
+module.exports = { buildMarketerReports, buildTeamReport, recommend };

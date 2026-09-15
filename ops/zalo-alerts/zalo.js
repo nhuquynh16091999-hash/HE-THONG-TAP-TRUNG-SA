@@ -1,0 +1,92 @@
+// Kết nối Zalo bằng tài khoản PHỤ qua zca-js — thư viện KHÔNG chính thức, giả làm Zalo Web.
+//
+// Hệ quả phải biết (Sỹ Anh chọn cách này 15/09/2026, đã được nói rõ rủi ro):
+//   - Trái điều khoản Zalo, nick có thể bị khoá → chỉ dùng nick PHỤ, không dùng nick chính.
+//   - Zalo chỉ cho MỘT phiên web mỗi nick: mở Zalo Web / Zalo PC bằng nick phụ ở máy khác
+//     là phiên của bot bị đá ra, bot im lặng cho tới khi ghép lại (`node pair.js`).
+//   - Phiên (cookie + imei + userAgent) là KHOÁ ĐĂNG NHẬP: nằm trong .zalo_session.json,
+//     quyền 600, gitignore, không in ra log, không chép đi đâu.
+const fs = require("fs");
+const path = require("path");
+const { Zalo, ThreadType } = require("zca-js");
+const { toZalo, chiaTin } = require("./zalo_text");
+
+const DIR = __dirname;
+const SESSION_FILE = path.join(DIR, ".zalo_session.json");
+const GROUP_FILE = path.join(DIR, "zalo_group.json");
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+function docJson(file) {
+    try { return JSON.parse(fs.readFileSync(file, "utf8")); } catch { return null; }
+}
+
+// Ghi file quyền 600 qua file tạm rồi đổi tên: chết giữa chừng không để lại phiên cụt.
+function ghiRieng(file, obj) {
+    const tam = `${file}.${process.pid}.tmp`;
+    fs.writeFileSync(tam, JSON.stringify(obj, null, 2), { mode: 0o600 });
+    fs.renameSync(tam, file);
+    fs.chmodSync(file, 0o600);
+}
+
+// checkUpdate: false — không gọi npm mỗi lần đăng nhập. logging: false — log của bot tự lo.
+const taoZalo = () => new Zalo({ selfListen: false, checkUpdate: false, logging: false });
+
+/** Lưu lại phiên từ api đang chạy (cookie Zalo có thể được làm mới sau đăng nhập). */
+function luuPhien(api, them = {}) {
+    const cu = docJson(SESSION_FILE) || {};
+    const ctx = api.getContext();
+    const jar = ctx.cookie && typeof ctx.cookie.toJSON === "function" ? ctx.cookie.toJSON() : null;
+    ghiRieng(SESSION_FILE, {
+        ...cu, ...them,
+        imei: ctx.imei || cu.imei,
+        userAgent: ctx.userAgent || cu.userAgent,
+        language: ctx.language || cu.language || "vi",
+        cookie: (jar && jar.cookies) || cu.cookie,
+        savedAt: new Date().toISOString(),
+    });
+}
+
+/** Đăng nhập bằng phiên đã ghép. Chưa ghép → lỗi nói rõ phải làm gì. */
+async function dangNhap() {
+    const s = docJson(SESSION_FILE);
+    if (!s || !s.imei || !s.cookie || !s.userAgent) {
+        throw new Error("chưa ghép nick Zalo — chạy `node pair.js` rồi quét QR");
+    }
+    const api = await taoZalo().login({ imei: s.imei, cookie: s.cookie, userAgent: s.userAgent, language: s.language || "vi" });
+    luuPhien(api);
+    return api;
+}
+
+/** Nhóm nhận tin, chọn bằng `node pair.js --chon <id>`. null = chưa chọn. */
+function docNhomDich() {
+    const g = docJson(GROUP_FILE);
+    return g && g.id ? g : null;
+}
+
+async function danhSachNhom(api) {
+    const { gridVerMap } = await api.getAllGroups();
+    const ids = Object.keys(gridVerMap || {});
+    const out = [];
+    for (let i = 0; i < ids.length; i += 50) {
+        const info = await api.getGroupInfo(ids.slice(i, i + 50));
+        for (const [id, g] of Object.entries(info.gridInfoMap || {})) {
+            out.push({ id, name: g.name || "(không tên)", members: g.totalMember });
+        }
+    }
+    return out.sort((a, b) => a.name.localeCompare(b.name, "vi"));
+}
+
+/** Gửi một bản tin vào nhóm: đổi chữ đậm sang style Zalo, dài quá thì chia nhiều tin. */
+async function guiNhom(api, groupId, text, { maxChars = 1800, sendGapMs = 4000 } = {}) {
+    const phan = chiaTin(toZalo(text), maxChars);
+    for (let i = 0; i < phan.length; i++) {
+        const p = phan[i];
+        await api.sendMessage(p.styles.length ? { msg: p.msg, styles: p.styles } : p.msg, groupId, ThreadType.Group);
+        if (i < phan.length - 1) await sleep(sendGapMs);
+    }
+    return phan.length;
+}
+
+module.exports = {
+    SESSION_FILE, GROUP_FILE, taoZalo, ghiRieng, luuPhien, dangNhap, docNhomDich, danhSachNhom, guiNhom,
+};

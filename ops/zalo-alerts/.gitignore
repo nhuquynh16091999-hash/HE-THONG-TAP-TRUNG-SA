@@ -1,0 +1,9 @@
+node_modules/
+# Phiên đăng nhập nick Zalo phụ = KHOÁ, chỉ nằm trên máy chủ (quyền 600).
+.zalo_session.json
+.zalo_session.json.*.tmp
+# Sinh ra trên máy chủ khi ghép và chạy.
+zalo_group.json
+state.json
+qr.png
+groups.txt

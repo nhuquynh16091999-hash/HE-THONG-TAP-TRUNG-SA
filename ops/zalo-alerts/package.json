@@ -1,0 +1,17 @@
+{
+  "name": "talpha-zalo-alerts",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Bot gửi báo cáo và cảnh báo ads TALPHA vào nhóm Zalo (tài khoản Zalo phụ, đăng nhập bằng QR)",
+  "main": "bot.js",
+  "scripts": {
+    "start": "node bot.js",
+    "test": "node schedule.test.js && node zalo_text.test.js && node daily_report.test.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "zca-js": "2.2.0"
+  }
+}

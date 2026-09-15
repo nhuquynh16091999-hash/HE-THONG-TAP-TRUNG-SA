@@ -121,6 +121,32 @@ pm2 delete talpha-dashboard >/dev/null 2>&1 || true
 pm2 start ops/pm2/ecosystem.vps.config.js --only talpha-dashboard
 pm2 save
 
+# Bot Zalo (ops/zalo-alerts): code vừa kéo về, nhưng tiến trình đang chạy giữ code cũ
+# tới khi restart. Chỉ đụng khi bot ĐANG CHẠY — chưa ghép nick Zalo thì để yên, bật
+# lần đầu theo ops/zalo-alerts/README.md. Hỏng ở đây không được làm hỏng deploy.
+# Đọc trạng thái qua `pm2 jlist` + node chứ không `pm2 describe | grep -q`: grep thoát
+# sớm làm pm2 dính SIGPIPE, và với pipefail thì "tìm thấy" lại thành "không thấy".
+zalo_online() {
+    pm2 jlist 2>/dev/null | node -e '
+        let s = "";
+        process.stdin.on("data", (d) => { s += d; }).on("end", () => {
+            try {
+                const a = JSON.parse(s).find((p) => p.name === "talpha-zalo-alerts");
+                process.exit(a && a.pm2_env.status === "online" ? 0 : 1);
+            } catch { process.exit(1); }
+        });'
+}
+if zalo_online; then
+    if (cd "$APP_DIR/ops/zalo-alerts" && npm ci --no-audit --no-fund >/dev/null 2>&1); then
+        pm2 restart talpha-zalo-alerts >/dev/null && echo "   bot Zalo đã nạp code mới" \
+            || warn "restart bot Zalo lỗi — xem: pm2 logs talpha-zalo-alerts"
+    else
+        warn "npm ci của bot Zalo lỗi — bot vẫn chạy code cũ"
+    fi
+else
+    echo "   bot Zalo chưa bật — bỏ qua (bật lần đầu: ops/zalo-alerts/README.md)"
+fi
+
 # Chạy với quyền root thì pm2 tự tạo luôn dịch vụ systemd, rồi in thêm một dòng
 # gợi ý cách gỡ: "$ pm2 unstartup systemd". Bản trước đem `| tail -1 | bash`
 # dòng đó nên bash kêu "$: command not found" — trông như dựng hỏng trong khi

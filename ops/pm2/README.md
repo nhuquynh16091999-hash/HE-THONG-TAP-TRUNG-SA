@@ -5,6 +5,7 @@
 | App | Cổng | Trạng thái |
 |---|---|---|
 | `talpha-dashboard` | 3000 | Đang chạy trên `139.180.131.21` (`/opt/talpha`) |
+| `talpha-zalo-alerts` | — | Báo cáo ads vào nhóm Zalo — bật sau khi ghép nick Zalo phụ (`ops/zalo-alerts/README.md`) |
 | `talpha-wa-alerts` | — | **Tắt** — chưa cài, chưa quét QR (xem chú thích trong file) |
 
 Trước 11/09/2026 có **bốn** file pm2 cho một dự án: bản Mac (Cloudflare Tunnel +

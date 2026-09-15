@@ -1,0 +1,28 @@
+{
+  "dashboardBaseUrl": "http://localhost:3000",
+  "timezone": "Asia/Ho_Chi_Minh",
+  "quietStartHour": 23,
+  "quietEndHour": 7,
+  "maxChars": 1800,
+  "sendGapMs": 4000,
+  "syncHealthUrl": "/api/talpha/sync-health",
+  "adsAlertsUrl": "/api/talpha/ads-alerts",
+  "adsPollMinutes": 180,
+  "adsSpikeRatio": 1.5,
+  "adsMinTotalForSpike": 3000000,
+  "adsWasteSpend": 300000,
+  "dailyReport": {
+    "at": "08:30",
+    "atCatchUpMinutes": 210,
+    "intradaySlots": ["13:30", "22:00"],
+    "intradayCatchUpMinutes": 60,
+    "staleWarnMinutes": 120,
+    "realtimeUrl": "/api/talpha/realtime",
+    "sheetReportUrl": "/api/talpha/sheet-report",
+    "topCampaigns": 8,
+    "recWasteSpend": 300000,
+    "recLowClosePct": 5,
+    "recHighAdsPct": 30,
+    "recGoodAdsPct": 20
+  }
+}

@@ -52,6 +52,39 @@ module.exports = {
         },
 
         // ─────────────────────────────────────────────────────────────
+        // Bot báo cáo ads vào nhóm Zalo (nick Zalo phụ, zca-js) — 15/09/2026.
+        //
+        // Bật lần đầu phải ghép nick bằng QR — xem ops/zalo-alerts/README.md:
+        //     cd /opt/talpha/ops/zalo-alerts && npm ci
+        //     node pair.js && node pair.js --chon <id nhóm>
+        //     pm2 start /opt/talpha/ops/pm2/ecosystem.vps.config.js --only talpha-zalo-alerts
+        //     pm2 save
+        // Sau đó mỗi lần from-mac.sh, vps-setup.sh tự restart bot nếu nó đang chạy.
+        // ─────────────────────────────────────────────────────────────
+        {
+            name: 'talpha-zalo-alerts',
+            namespace: 'talpha',
+            cwd: path.join(REPO, 'ops', 'zalo-alerts'),
+            script: 'bot.js',
+            interpreter: 'node',
+            exec_mode: 'fork',
+            instances: 1,
+
+            // Chưa ghép / phiên chết thì bot KHÔNG thoát mà đứng chờ, tự thử lại mỗi 10' —
+            // nên pm2 chỉ restart khi bot chết thật.
+            autorestart: true,
+            max_restarts: 10,
+            min_uptime: '30s',
+            restart_delay: 10000,
+            max_memory_restart: '250M',
+
+            merge_logs: true,
+            out_file: '/var/log/talpha/zalo-alerts-out.log',
+            error_file: '/var/log/talpha/zalo-alerts-error.log',
+            env: { NODE_ENV: 'production' },
+        },
+
+        // ─────────────────────────────────────────────────────────────
         // Bot cảnh báo WhatsApp — HIỆN ĐANG TẮT, không nằm trong `pm2 save`.
         //
         // Chưa từng chạy trên máy chủ này: không có node_modules, chưa quét QR

@@ -175,7 +175,8 @@ cookie `activeDataset` (shell đặt `TALPHA_Dataset`).
 | `ceo-ask` | Hỏi đáp bằng LLM → sinh SQL | Giao diện |
 | `export-report` | Nút "Xuất Sheet" → chạy thẳng `format_all.py` (**đang hỏng**, xem mục 7) | Giao diện |
 | `sync-inventory` | Ghi snapshot tồn kho làm dự phòng cho tab Kho | `snapshot_cron.sh` (chưa hẹn giờ) |
-| `ads-alerts` · `billing` · `sheet-report` · `sync-health` | Cảnh báo spend, hạn mức TKQC, số từ Sheet, sức khoẻ sync | Bot WA (đang tắt) |
+| `ads-alerts` · `sheet-report` · `sync-health` | Cảnh báo spend, số từ Sheet, sức khoẻ sync | Bot Zalo · bot WA (đang tắt) |
+| `billing` | Hạn mức, số dư TKQC | Bot WA (đang tắt) |
 
 Hạ tầng: `auth/[...nextauth]`, `auth/validate`, `users`, `ad-accounts`.
 
@@ -210,6 +211,7 @@ Bảng thô dashboard đọc thẳng: `sale_order`, `order_items`, `fb_ads_data`
 | Dashboard | VPS `139.180.131.21:3000`, `/opt/talpha` | pm2 `talpha-dashboard` — `ops/pm2/ecosystem.vps.config.js` |
 | Kéo số vào BigQuery | VPS, mỗi giờ phút :00 | systemd `talpha-sync.timer` → `sync/talpha/talpha_sync.py` |
 | Ghi Google Sheets | VPS, mỗi giờ phút :20 | systemd `talpha-report.timer` → `/root/talpha_reports/daily_guarded.sh` |
+| Bot báo cáo ads Zalo | VPS, 08:30 · 13:30 · 22:00 + cảnh báo mỗi 3 giờ | pm2 `talpha-zalo-alerts` — **chờ ghép nick Zalo phụ** (15/09/2026); cách bật: `ops/zalo-alerts/README.md` |
 | Bot cảnh báo WhatsApp | — | **Tắt**. Code ở `ops/whatsapp-alerts/`, cách bật trong `ops/pm2/README.md` |
 | Máy Mac | Máy dev | `cd dashboard-ui && npm run dev`. Không job nền nào. |
 
@@ -247,6 +249,7 @@ sync/                    engine sync POS + Meta → BigQuery (bản DUY NHẤT)
 ops/deploy/              5 script dựng và cập nhật máy chủ
 ops/pm2/                 ecosystem.vps.config.js — file pm2 DUY NHẤT
 ops/talpha_reports/      đường ống báo cáo Google Sheets
+ops/zalo-alerts/         bot báo cáo ads vào nhóm Zalo
 ops/whatsapp-alerts/     bot cảnh báo (đang tắt)
 sql/talpha/views/        12 định nghĩa view BigQuery
 docs/                    TALPHA_METRIC_RULES.md là source of truth về chỉ số
