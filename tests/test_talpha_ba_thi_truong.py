@@ -25,6 +25,7 @@ class TestGanNuocTheoTenCampaign:
 
     def test_cac_cach_viet_nuoc(self):
         for ten, nuoc in (("SINGAPORE/LOC/x", "Singapore"), ("sing/LOC/x", "Singapore"),
+                          ("SGP/LOC/PHI/075 - SETTS01/Lucky Silver Philippines/13-9", "Singapore"),
                           ("UAE/LOC/x", "UAE"), ("Dubai/LOC/x", "UAE"), ("TAIWAN/LOC/x", "Taiwan")):
             assert campaign_market(ten)[0] == nuoc, ten
 

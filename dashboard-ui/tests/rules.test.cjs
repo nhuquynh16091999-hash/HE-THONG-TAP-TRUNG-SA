@@ -302,6 +302,10 @@ t("ô đầu là nước", () => {
 });
 t("các cách viết nước khác vẫn nhận", () => {
     assert.strictEqual(R.campaignMarket("Singapore/LOC/x").market, "Singapore");
+    // Đội đặt "SGP/…" cho camp Singapore (khai thêm 15/09/2026) — thiếu mã này là tiền tính về Đài.
+    assert.deepStrictEqual(R.campaignMarket("SGP/LOC/PHI/075 - SETTS01/Lucky Silver Philippines/13-9"),
+        { market: "Singapore", source: "o_dau" });
+    assert.strictEqual(R.parseCampaign("SGP/LOC/PHI/075 - SETTS01/Lucky Silver Philippines/13-9")[1], "Loc");
     assert.strictEqual(R.campaignMarket("Dubai/LOC/x").market, "UAE");
     assert.strictEqual(R.campaignMarket("UAE/LOC/x").market, "UAE");
 });

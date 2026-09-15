@@ -57,13 +57,14 @@
     }
   },
   "market_aliases": {
-    "_note": "Mọi cách viết thị trường → tên chuẩn. Mã chuẩn ở ô đầu tên campaign: TW · SG · AE.",
+    "_note": "Mọi cách viết thị trường → tên chuẩn. Mã chuẩn ở ô đầu tên campaign: TW · SG · AE. SGP khai thêm 15/09/2026 (Sỹ Anh chốt): đội đã đặt 'SGP/…' cho camp Singapore, máy không nhận nên tính cả về Đài — ngày 14/09 khoảng 675k chi tiêu Singapore nằm nhầm bên Đài.",
     "TW": "Taiwan",
     "TAIWAN": "Taiwan",
     "TAIWAIN": "Taiwan",
     "ĐÀI": "Taiwan",
     "DAI": "Taiwan",
     "SG": "Singapore",
+    "SGP": "Singapore",
     "SING": "Singapore",
     "SINGAPORE": "Singapore",
     "AE": "UAE",
@@ -77,6 +78,7 @@
     "ĐÀI",
     "DAI",
     "SG",
+    "SGP",
     "SING",
     "SINGAPORE",
     "AE",

@@ -39,7 +39,7 @@ Từ 15/09/2026 công ty chạy ba nước. Chi tiêu quảng cáo được chia
 | Singapore | `SG` | đang bán |
 | UAE | `AE` | đang bán |
 
-Máy cũng nhận `TAIWAN`, `SINGAPORE`, `SING`, `UAE`, `DUBAI`, nhưng hãy dùng mã hai chữ.
+Máy cũng nhận `TAIWAN`, `SINGAPORE`, `SING`, `SGP`, `UAE`, `DUBAI`, nhưng hãy dùng mã hai chữ.
 
 **Campaign không ghi nước** (tên cũ kiểu `Lộc/Philippine/…`) vẫn được tính về **Đài
 Loan**, và bị liệt kê trong log báo cáo mỗi giờ dưới dòng `KHONG GHI NUOC`. Bẫy thật
