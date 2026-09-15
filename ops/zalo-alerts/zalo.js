@@ -29,7 +29,9 @@ function ghiRieng(file, obj) {
 }
 
 // checkUpdate: false — không gọi npm mỗi lần đăng nhập. logging: false — log của bot tự lo.
-const taoZalo = () => new Zalo({ selfListen: false, checkUpdate: false, logging: false });
+// selfListen: true — người cầm điện thoại nick phụ gõ /baocao cũng phải được nghe. Tin
+// báo cáo của chính bot cũng lọt vào, nhưng không bắt đầu bằng "/" nên bộ đọc lệnh bỏ qua.
+const taoZalo = () => new Zalo({ selfListen: true, checkUpdate: false, logging: false });
 
 /** Lưu lại phiên từ api đang chạy (cookie Zalo có thể được làm mới sau đăng nhập). */
 function luuPhien(api, them = {}) {
@@ -87,6 +89,22 @@ async function guiNhom(api, groupId, text, { maxChars = 1800, sendGapMs = 4000 }
     return phan.length;
 }
 
+/**
+ * Nghe tin trong các nhóm để bắt lệnh. zca-js tự nối lại khi rớt mạng (retryOnClose);
+ * "closed" chỉ phát khi nó THÔI nối — thường vì có phiên web khác của nick phụ chen vào
+ * (mở Zalo Web / Zalo PC). Bên gọi quyết định đăng nhập lại lúc nào.
+ */
+function batNghe(api, { onMessage, onClosed, log }) {
+    const l = api.listener;
+    l.on("connected", () => log("Bộ nhận lệnh Zalo đã kết nối."));
+    l.on("message", onMessage);
+    l.on("error", (e) => log("Bộ nhận lệnh lỗi:", (e && e.message) || e));
+    l.on("closed", (code, reason) => onClosed(l, code, reason));
+    l.start({ retryOnClose: true });
+    return l;
+}
+
 module.exports = {
-    SESSION_FILE, GROUP_FILE, taoZalo, ghiRieng, luuPhien, dangNhap, docNhomDich, danhSachNhom, guiNhom,
+    SESSION_FILE, GROUP_FILE, ThreadType,
+    taoZalo, ghiRieng, luuPhien, dangNhap, docNhomDich, danhSachNhom, guiNhom, batNghe,
 };

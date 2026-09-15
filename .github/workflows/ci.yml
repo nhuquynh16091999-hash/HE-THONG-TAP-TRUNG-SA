@@ -131,7 +131,7 @@ jobs:
         run: npm test
 
   # ═══════════════════════════════════════════════════════
-  # Bot Zalo — dựng tin, chữ đậm, mốc giờ (không gọi mạng, không cần cài zca-js)
+  # Bot Zalo — dựng tin, chữ đậm, lệnh trong nhóm, mốc giờ (không gọi mạng, không cần zca-js)
   # ═══════════════════════════════════════════════════════
   zalo-bot-tests:
     name: "💬 Bot Zalo"

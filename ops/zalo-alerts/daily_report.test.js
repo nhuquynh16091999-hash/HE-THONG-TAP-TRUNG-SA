@@ -2,7 +2,7 @@
 // Số liệu dưới đây là số DỰNG cho test, không phải số thật của ngày nào.
 const assert = require("assert");
 const { buildMarketerReports } = require("./daily_report");
-const { buildAdsAlert } = require("./ads_alerts");
+const { buildAdsAlert, buildAdsStatus } = require("./ads_alerts");
 const { tenNganCamp, chuCamp, THU_TU, DISPLAY } = require("./rules");
 const { toZalo, chiaTin } = require("./zalo_text");
 
@@ -112,6 +112,7 @@ function fakeFetch({ sheet = SHEET, camps = CAMPS, realtimeStatus = 200, sheetSt
         const nguoi = r.messages.map((m) => tron(m).split("\n")[0].split(" — ")[1]);
         const mong = THU_TU.filter((x) => ["Lộc", "Thương", "Thắng", "Thái"].includes(x));
         assert.deepStrictEqual(nguoi, mong);
+        assert.deepStrictEqual(r.nguoi, mong, "nguoi[i] phải là chủ của messages[i] — lệnh /baocao <tên> dựa vào đây");
 
         // Tab nước (Đài Loan, Singapore, UAE) KHÔNG phải người: không tin riêng, không vào
         // bảng xếp hạng, và tin không in số theo nước (Sỹ Anh chốt 15/09/2026).
@@ -236,6 +237,17 @@ function fakeFetch({ sheet = SHEET, camps = CAMPS, realtimeStatus = 200, sheetSt
         assert.strictEqual(buildAdsAlert(cao, r1.state, cfg).text, null);
         const nho = { ...cao, totalSpend: 2000000, avg7d: 1000000, spikeRatio: 2 };
         assert.strictEqual(buildAdsAlert(nho, undefined, cfg).text, null, "dưới mức sàn 3tr thì không kêu");
+    });
+
+    await t("lệnh /canhbao: yên ổn vẫn trả lời kèm chi tiêu; có camp đốt tiền thì báo đủ, không nhớ state", () => {
+        const cfg = { adsWasteSpend: 300000, adsSpikeRatio: 1.5, adsMinTotalForSpike: 3000000 };
+        const yen = { day: "2026-09-15", totalSpend: 1562185, avg7d: 2940522, spikeRatio: 0.53, wasteful: [] };
+        const chu = tron(buildAdsStatus(yen, cfg));
+        assert.ok(chu.startsWith("✅ ADS — chưa thấy gì bất thường\nngày 15/09"));
+        assert.ok(chu.includes("Chi tiêu hôm nay: 1.562.185đ · TB 7 ngày: 2.940.522đ (×0,53)"));
+        const dot = { ...yen, wasteful: [{ campaign: "TW/LOC/PHI/072 - DENTAL/Trang/8-9", spend: 350000 }] };
+        assert.ok(tron(buildAdsStatus(dot, cfg)).includes("350.000đ · 0 tin nhắn · Lộc"));
+        assert.ok(tron(buildAdsStatus(dot, cfg)).includes("350.000đ"), "hỏi lần hai vẫn báo — không dùng state");
     });
 
     console.log(`daily_report.test.js: ${ok}/${ok} PASS`);

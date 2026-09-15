@@ -1,36 +1,40 @@
 // ═══════════════════════════════════════════════════════════════════
-// TALPHA — Bot báo cáo & cảnh báo ADS vào nhóm Zalo
+// TALPHA — Bot báo cáo ADS vào nhóm Zalo
 // ───────────────────────────────────────────────────────────────────
+// Sỹ Anh chốt 15/09/2026: tự động CHỈ gửi mốc 8h30, còn lại gửi khi có người yêu cầu.
 // - 08:30: tin TỔNG TEAM + từng marketer, số HÔM QUA (đã chốt ngày).
-// - 13:30 & 22:00: TỔNG TEAM + từng marketer, số ĐANG CHẠY hôm nay.
-// - Mỗi adsPollMinutes (180'): chi tiêu cao bất thường / campaign đốt tiền 0 tin nhắn.
-// - Không gửi 23h–7h.
-// Chỉ tin ADS (Sỹ Anh chốt 15/09/2026) — không tồn kho, không thẻ/TKQC, không lệnh trong
-// nhóm như bot WhatsApp. Nguồn số: API dashboard cùng máy (sheet-report = file TỔNG TEAM,
-// realtime = Meta + POS live, ads-alerts = BigQuery, sync-health = tuổi số).
-// Gửi bằng nick Zalo PHỤ (zca-js) — ghép bằng `node pair.js`, xem README.md.
+// - Lệnh gõ trong nhóm (commands.js): /baocao [homqua | dd/mm] [tên | team] · /canhbao · /bot
+// - Mốc giữa ngày (dailyReport.intradaySlots) và cảnh báo ads theo chu kỳ (adsPollMinutes)
+//   vẫn còn trong code nhưng đang TẮT ở config.json — bật lại là điền mốc / số phút.
+// Chỉ tin ADS — không tồn kho, không thẻ/TKQC như bot WhatsApp. Nguồn số: API dashboard
+// cùng máy (sheet-report = file TỔNG TEAM, realtime = Meta + POS live, ads-alerts =
+// BigQuery, sync-health = tuổi số). Gửi bằng nick Zalo PHỤ (zca-js) — xem README.md.
 //
-// Chạy: node bot.js                                  (dịch vụ — pm2 talpha-zalo-alerts)
-//       node bot.js --report [YYYY-MM-DD]            (gửi ngay báo cáo ngày đó — mặc định hôm qua)
-//       node bot.js --intraday-now                   (gửi ngay báo cáo giữa ngày)
-//       node bot.js --ads-now                        (gửi ngay cảnh báo ads nếu có)
-//       thêm --dry-run vào bất kỳ lệnh nào: IN tin ra màn hình, không đăng nhập, không gửi.
+// Chạy: node bot.js                          (dịch vụ — pm2 talpha-zalo-alerts)
+//       node bot.js --lenh "/baocao homqua"  (làm như có người gõ lệnh đó trong nhóm)
+//       node bot.js --report [YYYY-MM-DD]    (gửi ngay báo cáo ngày đó — mặc định hôm qua)
+//       thêm --dry-run: IN tin ra màn hình, không đăng nhập, không gửi.
 // ═══════════════════════════════════════════════════════════════════
 const fs = require("fs");
 const path = require("path");
 const CFG = require("./config");
 const { buildMarketerReports } = require("./daily_report");
-const { buildAdsAlert } = require("./ads_alerts");
+const { buildAdsAlert, buildAdsStatus } = require("./ads_alerts");
+const { docLenh, huongDan, homQua } = require("./commands");
 const { slotAction, toMin } = require("./schedule");
 const { toZalo, chiaTin } = require("./zalo_text");
+const { MARKETERS, DISPLAY } = require("./rules");
 
 const DIR = __dirname;
 const STATE_FILE = path.join(DIR, "state.json");
 const ARGS = process.argv.slice(2);
 const DRY = ARGS.includes("--dry-run");
 const DR = CFG.dailyReport || {};
+const ADS_POLL = Number(CFG.adsPollMinutes) || 0;          // 0 = tắt cảnh báo theo chu kỳ
+const NGUOI = Object.keys(MARKETERS).map((key) => ({ key, ten: DISPLAY[key] }));
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const log = (...a) => console.log(new Date().toISOString(), ...a);
+const ddmm = (d) => (/^\d{4}-\d{2}-\d{2}$/.test(String(d)) ? `${d.slice(8, 10)}/${d.slice(5, 7)}` : String(d || ""));
 
 function argAfter(flag) {
     const i = ARGS.indexOf(flag);
@@ -56,11 +60,6 @@ function markState(mut) {
 // của bot WhatsApp từng bắn lúc 0h05 vì đúng chuyện này. ───
 const vnDateStr = () => new Date().toLocaleDateString("sv-SE", { timeZone: CFG.timezone });   // YYYY-MM-DD
 const vnHHMM = () => new Date().toLocaleString("en-US", { hour: "2-digit", minute: "2-digit", hourCycle: "h23", timeZone: CFG.timezone });
-function homQua(today) {
-    const d = new Date(today + "T00:00:00Z");
-    d.setUTCDate(d.getUTCDate() - 1);
-    return d.toISOString().slice(0, 10);
-}
 function inQuietHours() {
     const h = toMin(vnHHMM()) / 60;
     const { quietStartHour: a, quietEndHour: b } = CFG;
@@ -86,18 +85,29 @@ async function fetchStale() {
     } catch (e) { log("Đọc tuổi sync lỗi:", e.message); return null; }
 }
 
-// ─── Gửi ───
+async function fetchAds() {
+    if (!CFG.adsAlertsUrl) throw new Error("thiếu adsAlertsUrl trong config");
+    const res = await fetch(CFG.adsAlertsUrl, { headers: { "cache-control": "no-store" } });
+    if (!res.ok) throw new Error(`ads-alerts HTTP ${res.status}`);
+    const a = await res.json();
+    if (a.error) throw new Error(a.error);
+    return a;
+}
+
+// ─── Kết nối + gửi ───
 // Đăng nhập lười: chỉ khi có tin cần gửi. Gửi hỏng thì bỏ phiên trong bộ nhớ, đăng nhập lại
 // một lần rồi gửi lại — phiên web của Zalo hay rớt khi Zalo đổi máy chủ.
 let zalo = null;           // require("./zalo") muộn: --dry-run chạy được cả khi chưa cài zca-js
 let api = null;
 let nhomDich = null;
+let dichVu = false;        // chạy dịch vụ thì mỗi lần đăng nhập đều bật lại bộ nhận lệnh
 
 async function ketNoi() {
     if (!zalo) zalo = require("./zalo");
     if (!api) {
         api = await zalo.dangNhap();
         log("Đã đăng nhập Zalo.");
+        if (dichVu) batDauNghe(api);
     }
     return api;
 }
@@ -127,8 +137,8 @@ async function guiMot(text) {
     }
 }
 
-// Mọi lần gửi xếp MỘT hàng: cảnh báo ads rơi đúng lúc loạt báo cáo 13:30 đang gửi thì
-// đợi loạt đó xong, không chen vào giữa tin của hai marketer.
+// Mọi lần gửi xếp MỘT hàng: hai người gõ lệnh cùng lúc, hay lệnh rơi đúng lúc tin 8h30
+// đang gửi, thì loạt sau đợi loạt trước — không xen tin của hai loạt vào nhau.
 let hangGui = Promise.resolve();
 function lanLuot(fn) {
     const p = hangGui.then(fn);
@@ -148,19 +158,97 @@ async function guiLoat(texts) {
     return da;
 }
 
-function guiBaoCao(dateStr, opts) {
+async function dungBaoCao(ngay, homNay, label) {
+    return buildMarketerReports(DR, ngay,
+        { intraday: homNay, label: label || (homNay ? slotLabel(vnHHMM()) : undefined), stale: await fetchStale(), log });
+}
+
+function guiBaoCao(ngay, { homNay = false, label } = {}) {
     return lanLuot(async () => {
-        const { teamMessage, messages } = await buildMarketerReports(DR, dateStr,
-            { ...opts, stale: await fetchStale(), log });
-        const n = await guiLoat([teamMessage, ...messages]);
-        return { n, marketers: messages.length };
+        const r = await dungBaoCao(ngay, homNay, label);
+        const n = await guiLoat([r.teamMessage, ...r.messages]);
+        return { n, marketers: r.messages.length };
     });
 }
 
-// ─── Mốc báo cáo: 08:30 (hôm qua) và các mốc giữa ngày (hôm nay) ───
-// Rà theo vòng 5' chứ không hẹn giờ: pm2 restart lúc 13:29 là mất sạch timer. Đổi lại vòng
-// rà tự lo hai việc: chống bắn lại (state ghi TỪNG mốc) và chống bắn MUỘN (cửa sổ bù —
-// bot bật lại lúc 21h thì bỏ mốc 13:30 chứ không gửi tin dán nhãn sai giờ).
+// ─── Lệnh trong nhóm ───
+const lanCuoi = new Map();     // chữ lệnh → lúc nhận; cùng lệnh trong 60 giây thì bỏ (bấm gửi hai lần)
+
+async function lamLenh(text, ai = "dòng lệnh") {
+    const lenh = docLenh(text, { today: vnDateStr(), nguoi: NGUOI });
+    if (!lenh) return false;
+    const khoa = String(text).trim().toLowerCase();
+    if (Date.now() - (lanCuoi.get(khoa) || 0) < 60000) { log(`Bỏ lệnh lặp "${khoa}" từ ${ai}.`); return true; }
+    lanCuoi.set(khoa, Date.now());
+    log(`Lệnh "${String(text).trim()}" từ ${ai}.`);
+
+    await lanLuot(async () => {
+        try {
+            if (lenh.loi) { await guiMot(`⚠️ ${lenh.loi}`); return; }
+            if (lenh.lenh === "trogiup") { await guiMot(huongDan({ at: DAILY_AT, nguoi: NGUOI })); return; }
+            if (lenh.lenh === "canhbao") { await guiMot(buildAdsStatus(await fetchAds(), CFG)); return; }
+
+            const r = await dungBaoCao(lenh.ngay, lenh.homNay);
+            let tin;
+            if (lenh.loc === "team") tin = [r.teamMessage];
+            else if (lenh.loc) {
+                const i = r.nguoi.indexOf(lenh.loc);
+                tin = [i >= 0 ? r.messages[i]
+                    : `ℹ️ ${lenh.loc} chưa có số ${lenh.homNay ? "hôm nay" : "ngày " + ddmm(lenh.ngay)} — 0đ ads, 0 đơn.`];
+            } else tin = [r.teamMessage, ...r.messages];
+            log(`Đã trả lệnh: ${await guiLoat(tin)} tin.`);
+        } catch (e) {
+            log("Lệnh lỗi:", e.message);
+            if (e.daGui > 0) return;                   // gửi được một phần rồi — không chen tin lỗi vào giữa
+            const bao = /Sheet chưa có dòng/.test(e.message)
+                ? `⚠️ Sheet chưa có số ngày ${ddmm(lenh.ngay)} — vòng ghi Sheet chạy mỗi giờ phút 20, lát nữa gõ lại.`
+                : `⚠️ Chưa lấy được số lúc này (${e.message}). Lát nữa gõ lại.`;
+            try { await guiMot(bao); } catch (e2) { log("Không gửi được tin báo lỗi:", e2.message); }
+        }
+    });
+    return true;
+}
+
+// Chỉ nghe ĐÚNG nhóm nhận tin. Nick phụ còn ở các nhóm COD có người của đối tác — gõ
+// /baocao ở đó mà bot trả số doanh thu là lộ số ra ngoài.
+function xuLyTin(msg) {
+    if (!nhomDich || !zalo || msg.type !== zalo.ThreadType.Group || msg.threadId !== nhomDich.id) return;
+    const text = typeof msg.data.content === "string" ? msg.data.content : "";
+    if (!text.trim().startsWith("/")) return;
+    lamLenh(text, msg.data.dName || msg.data.uidFrom).catch((e) => log("Lỗi xử lý lệnh:", e.message));
+}
+
+// Bộ nhận lệnh gắn với MỘT phiên đăng nhập. Đăng nhập lại là thay bộ mới. Bộ nghe bị Zalo
+// đóng hẳn (thường do mở Zalo Web/PC bằng nick phụ) thì đợi rồi đăng nhập lại, đợi dài dần
+// để không giành phiên qua lại với người đang dùng Zalo Web.
+const DOI_DAU = 10 * 60 * 1000, DOI_TOI_DA = 2 * 60 * 60 * 1000;
+let nghe = null;
+let doiHoiPhuc = DOI_DAU;
+
+function batDauNghe(a) {
+    const cu = nghe;
+    nghe = null;
+    if (cu) { try { cu.stop(); } catch { /* bộ cũ đã chết */ } }
+    const moi = zalo.batNghe(a, {
+        onMessage: xuLyTin,
+        log,
+        onClosed: (l, code, reason) => {
+            if (l !== nghe) return;                     // bộ cũ vừa bị thay — không phải sự cố
+            nghe = null;
+            api = null;
+            const doi = doiHoiPhuc;
+            doiHoiPhuc = Math.min(doiHoiPhuc * 2, DOI_TOI_DA);
+            log(`Bộ nhận lệnh bị đóng (mã ${code}${reason ? ", " + reason : ""}) — thường do mở Zalo Web/PC bằng nick phụ. Đăng nhập lại sau ${Math.round(doi / 60000)}'.`);
+            setTimeout(() => { if (!api) ketNoi().catch((e) => log("Đăng nhập lại lỗi:", e.message)); }, doi);
+        },
+    });
+    moi.on("connected", () => { doiHoiPhuc = DOI_DAU; });
+    nghe = moi;
+}
+
+// ─── Mốc tự gửi: 08:30 (hôm qua), và các mốc giữa ngày nếu bật lại ───
+// Rà theo vòng 5' chứ không hẹn giờ: pm2 restart lúc 08:29 là mất sạch timer. Đổi lại vòng
+// rà tự lo hai việc: chống bắn lại (state ghi TỪNG mốc) và chống bắn MUỘN (cửa sổ bù).
 // Dựng tin hỏng (Sheet chưa có dòng, dashboard lỗi) → CHƯA đánh dấu, vòng sau thử lại
 // trong cửa sổ. Gửi được ít nhất một tin rồi mới hỏng → vẫn đánh dấu, để không gửi lặp
 // cả loạt vào nhóm.
@@ -183,22 +271,18 @@ async function chayMoc(khoa, moc, cuaSo, lamViec) {
 
 async function ratMoc() {
     await chayMoc("sang", DAILY_AT, Number(DR.atCatchUpMinutes || 210),
-        () => guiBaoCao(homQua(vnDateStr()), {}));
+        () => guiBaoCao(homQua(vnDateStr())));
     for (const slot of INTRADAY_SLOTS) {
         await chayMoc(slot, slot, Number(DR.intradayCatchUpMinutes || 60),
-            () => guiBaoCao(vnDateStr(), { intraday: true, label: slotLabel(slot) }));
+            () => guiBaoCao(vnDateStr(), { homNay: true, label: slotLabel(slot) }));
     }
 }
 
-// ─── Cảnh báo ads ───
-async function pollAds({ boQuaGioYen = false } = {}) {
-    if (!CFG.adsAlertsUrl) return;
-    if (!boQuaGioYen && inQuietHours()) return;
+// Cảnh báo ads theo chu kỳ — chỉ chạy khi adsPollMinutes > 0.
+async function pollAds() {
+    if (inQuietHours()) return;
     try {
-        const res = await fetch(CFG.adsAlertsUrl, { headers: { "cache-control": "no-store" } });
-        if (!res.ok) throw new Error(`ads-alerts HTTP ${res.status}`);
-        const a = await res.json();
-        if (a.error) throw new Error(a.error);
+        const a = await fetchAds();
         const { text, state } = buildAdsAlert(a, loadState().ads, CFG);
         if (!text) { log("Poll ads: không có cảnh báo mới."); return; }
         await lanLuot(() => guiMot(text));
@@ -207,7 +291,6 @@ async function pollAds({ boQuaGioYen = false } = {}) {
     } catch (e) { log("Lỗi poll ads:", e.message); }
 }
 
-// ─── Giữ phiên ───
 async function giuPhien() {
     if (!api) return;
     try { await api.keepAlive(); zalo.luuPhien(api); }
@@ -216,17 +299,13 @@ async function giuPhien() {
 
 async function gioiThieuNeuMoi() {
     if ((loadState().gioiThieu || {})[nhomDich.id]) return;
-    await lanLuot(() => guiMot(
-        `🤖 Bot TALPHA gửi báo cáo ads vào nhóm này:\n` +
-        `• ${DAILY_AT}: số ads HÔM QUA — TỔNG TEAM + từng marketer\n` +
-        (INTRADAY_SLOTS.length ? `• ${INTRADAY_SLOTS.join(" & ")}: số ads ĐANG CHẠY hôm nay\n` : "") +
-        `• Mỗi ${Math.round((CFG.adsPollMinutes || 180) / 60)} giờ: cảnh báo camp đốt tiền không ra tin nhắn, chi tiêu cao bất thường\n` +
-        `Không gửi từ ${CFG.quietStartHour}h đến ${CFG.quietEndHour}h.`));
+    await lanLuot(() => guiMot(huongDan({ at: DAILY_AT, nguoi: NGUOI })));
     markState((s) => { (s.gioiThieu = s.gioiThieu || {})[nhomDich.id] = new Date().toISOString(); });
     log("Đã gửi tin giới thiệu vào nhóm.");
 }
 
-async function dichVu() {
+async function chayDichVu() {
+    dichVu = true;
     log(`Dashboard base: ${CFG.dashboardBaseUrl}${process.env.TALPHA_DASHBOARD_URL ? " (env TALPHA_DASHBOARD_URL)" : ""}`);
     zalo = require("./zalo");
     // Chưa ghép/chưa chọn nhóm/đăng nhập hỏng: KHÔNG thoát — pm2 sẽ khởi động lại liên tục
@@ -240,14 +319,13 @@ async function dichVu() {
         }
         await sleep(10 * 60 * 1000);
     }
-    log(`Gửi vào nhóm "${nhomDich.name}" (${nhomDich.id}). Báo cáo ${DAILY_AT}`
-        + (INTRADAY_SLOTS.length ? ` + ${INTRADAY_SLOTS.join(" + ")}` : "")
-        + ` · cảnh báo ads mỗi ${CFG.adsPollMinutes || 180}'.`);
+    log(`Nhóm "${nhomDich.name}" (${nhomDich.id}) · tự gửi ${[DAILY_AT, ...INTRADAY_SLOTS].join(" + ")}`
+        + (ADS_POLL > 0 ? ` · cảnh báo ads mỗi ${ADS_POLL}'` : " · cảnh báo ads chỉ khi gõ /canhbao")
+        + " · nghe lệnh trong nhóm.");
 
     try { await gioiThieuNeuMoi(); } catch (e) { log("Tin giới thiệu lỗi:", e.message); }
 
-    // Rà mốc tuần tự, không để hai vòng chồng nhau khi một vòng gửi lâu.
-    let dangRa = false;
+    let dangRa = false;                 // không để hai vòng rà chồng nhau khi một vòng gửi lâu
     const vongMoc = async () => {
         if (dangRa) return;
         dangRa = true;
@@ -255,31 +333,27 @@ async function dichVu() {
     };
     await vongMoc();
     setInterval(vongMoc, 5 * 60 * 1000);
-    await pollAds();
-    setInterval(pollAds, (CFG.adsPollMinutes || 180) * 60 * 1000);
+    if (ADS_POLL > 0) {
+        await pollAds();
+        setInterval(pollAds, ADS_POLL * 60 * 1000);
+    }
     setInterval(giuPhien, 60 * 60 * 1000);
 }
 
 async function main() {
-    if (ARGS.includes("--report")) {
-        const ngay = /^\d{4}-\d{2}-\d{2}$/.test(argAfter("--report")) ? argAfter("--report") : homQua(vnDateStr());
+    const lenh = argAfter("--lenh");
+    if (lenh || ARGS.includes("--report")) {
         if (!DRY) nhomDich = require("./zalo").docNhomDich();
-        const r = await guiBaoCao(ngay, {});
-        log(`${DRY ? "In thử" : "Đã gửi"} báo cáo ngày ${ngay}: TỔNG TEAM + ${r.marketers} marketer.`);
+        if (lenh) {
+            if (!(await lamLenh(lenh))) log(`"${lenh}" không phải lệnh của bot.`);
+        } else {
+            const ngay = /^\d{4}-\d{2}-\d{2}$/.test(argAfter("--report")) ? argAfter("--report") : homQua(vnDateStr());
+            const r = await guiBaoCao(ngay);
+            log(`${DRY ? "In thử" : "Đã gửi"} báo cáo ngày ${ngay}: TỔNG TEAM + ${r.marketers} marketer.`);
+        }
         return true;
     }
-    if (ARGS.includes("--intraday-now")) {
-        if (!DRY) nhomDich = require("./zalo").docNhomDich();
-        const r = await guiBaoCao(vnDateStr(), { intraday: true, label: slotLabel(vnHHMM()) });
-        log(`${DRY ? "In thử" : "Đã gửi"} báo cáo giữa ngày: TỔNG TEAM + ${r.marketers} marketer.`);
-        return true;
-    }
-    if (ARGS.includes("--ads-now")) {
-        if (!DRY) nhomDich = require("./zalo").docNhomDich();
-        await pollAds({ boQuaGioYen: true });
-        return true;
-    }
-    await dichVu();
+    await chayDichVu();
     return false;
 }
 

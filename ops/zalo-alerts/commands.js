@@ -1,0 +1,94 @@
+// Lệnh gõ trong nhóm Zalo. Sỹ Anh chốt 15/09/2026: tự động CHỈ gửi mốc 8h30, còn lại
+// gửi "khi có ai đó yêu cầu". Hàm thuần — chữ người gõ → việc bot phải làm — không đụng
+// mạng, không đụng Zalo, để test được.
+//
+//   /baocao               số ĐANG CHẠY hôm nay: TỔNG TEAM + từng marketer
+//   /baocao homqua        số hôm qua          /baocao 14/09   số ngày đó
+//   /baocao Lộc           chỉ tin của một người (ghép được với ngày: /baocao homqua Lộc)
+//   /baocao team          chỉ tin TỔNG TEAM
+//   /canhbao              camp đốt tiền 0 tin nhắn + chi tiêu bất thường, ngay lúc gõ
+//   /bot                  cách dùng
+// Có dấu hay không dấu, hoa hay thường đều được. Không bắt đầu bằng "/" → không phải lệnh,
+// bot im — tin báo cáo của chính bot cũng đi qua đây nên điều này là bắt buộc.
+const { B, I } = require("./zalo_text");
+
+const boDau = (s) => String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "")
+    .replace(/đ/g, "d").replace(/Đ/g, "D").toLowerCase();
+const gon = (s) => boDau(s).replace(/[\s.]/g, "");
+
+const TEN_LENH = {
+    baocao: "baocao", bc: "baocao",
+    canhbao: "canhbao", cb: "canhbao",
+    bot: "trogiup", lenh: "trogiup", help: "trogiup",
+};
+
+function homQua(today) {
+    const d = new Date(today + "T00:00:00Z");
+    d.setUTCDate(d.getUTCDate() - 1);
+    return d.toISOString().slice(0, 10);
+}
+
+/**
+ * @param text   chữ người gõ
+ * @param today  "YYYY-MM-DD" giờ VN
+ * @param nguoi  [{ key: "Loc", ten: "Lộc" }, …] — marketer đang khai trong rules
+ * @returns null (không phải lệnh) · { lenh: "canhbao" | "trogiup" }
+ *        · { lenh: "baocao", ngay, homNay, loc: null | "team" | tên hiển thị } · { loi }
+ */
+function docLenh(text, { today, nguoi = [] }) {
+    const s = String(text || "").trim();
+    if (!s.startsWith("/")) return null;
+    const [dau, ...con] = s.split(/\s+/);
+    const lenh = TEN_LENH[boDau(dau.slice(1))];
+    if (!lenh) return null;
+    if (lenh !== "baocao") return { lenh };
+
+    const goc = con.join(" ");
+    let phan = ` ${boDau(goc)} `;
+    let ngay = today;
+    if (/\bhom\s*qua\b/.test(phan)) {
+        ngay = homQua(today);
+        phan = phan.replace(/\bhom\s*qua\b/, " ");
+    } else if (/\bhom\s*nay\b/.test(phan)) {
+        phan = phan.replace(/\bhom\s*nay\b/, " ");
+    }
+    const d = phan.match(/\b(\d{1,2})\/(\d{1,2})(?:\/(\d{4}))?\b/);
+    if (d) {
+        const iso = `${d[3] || today.slice(0, 4)}-${d[2].padStart(2, "0")}-${d[1].padStart(2, "0")}`;
+        const that = new Date(iso + "T00:00:00Z");
+        if (Number.isNaN(that.getTime()) || that.toISOString().slice(0, 10) !== iso) {
+            return { loi: `Ngày "${d[0]}" không có thật. Viết kiểu /baocao 14/09.` };
+        }
+        if (iso > today) return { loi: `Ngày ${d[0]} chưa tới — chưa có số.` };
+        ngay = iso;
+        phan = phan.replace(d[0], " ");
+    }
+
+    const chu = phan.replace(/\s+/g, " ").trim();
+    let loc = null;
+    if (chu) {
+        if (["team", "tong", "tongteam"].includes(gon(chu))) loc = "team";
+        else {
+            const khop = nguoi.find((n) => gon(n.ten) === gon(chu) || gon(n.key) === gon(chu));
+            if (!khop) return { loi: `Không hiểu "${goc}". Gõ /bot xem cách dùng.` };
+            loc = khop.ten;
+        }
+    }
+    return { lenh, ngay, homNay: ngay === today, loc };
+}
+
+function huongDan({ at, nguoi = [] } = {}) {
+    const vi = nguoi[0] ? nguoi[0].ten : "Lộc";
+    return `🤖 ${B("Bot TALPHA — báo cáo ads")}\n`
+        + `Tự gửi lúc ${at || "08:30"}: số ads hôm qua, TỔNG TEAM + từng marketer.\n\n`
+        + `${B("Gõ trong nhóm để lấy số:")}\n`
+        + `• /baocao — số đang chạy hôm nay\n`
+        + `• /baocao homqua — số hôm qua\n`
+        + `• /baocao 14/09 — số một ngày\n`
+        + `• /baocao ${vi} — chỉ tin của một người (ghép được: /baocao homqua ${vi})\n`
+        + `• /baocao team — chỉ tin TỔNG TEAM\n`
+        + `• /canhbao — camp đốt tiền không ra tin nhắn, chi tiêu bất thường\n`
+        + `${I("Có dấu hay không dấu đều được.")}`;
+}
+
+module.exports = { docLenh, huongDan, homQua, boDau };

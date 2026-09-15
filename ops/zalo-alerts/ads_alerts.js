@@ -48,4 +48,16 @@ function buildAdsAlert(a, st, cfg) {
     return { text, state: s };
 }
 
-module.exports = { buildAdsAlert };
+// Lệnh /canhbao: người gõ cần câu trả lời kể cả khi yên ổn — không có gì bất thường thì
+// vẫn báo chi tiêu hôm nay, để biết bot có đọc được số chứ không phải im vì hỏng.
+// Không dùng state: hỏi lúc nào trả đủ lúc đó, kể cả camp đã báo trước đó.
+function buildAdsStatus(a, cfg) {
+    const { text } = buildAdsAlert(a, undefined, cfg);
+    if (text) return text;
+    const lan = a.spikeRatio == null ? "" : ` (×${String(a.spikeRatio).replace(".", ",")})`;
+    return `✅ ${B("ADS — chưa thấy gì bất thường")}\n${I(`ngày ${ddmm(a.day)}`)}\n\n`
+        + `Chi tiêu hôm nay: ${vnd(a.totalSpend)}đ · TB 7 ngày: ${vnd(a.avg7d)}đ${lan}\n`
+        + `Không camp nào tiêu từ ${vnd(cfg.adsWasteSpend || 300000)}đ mà 0 tin nhắn.`;
+}
+
+module.exports = { buildAdsAlert, buildAdsStatus };

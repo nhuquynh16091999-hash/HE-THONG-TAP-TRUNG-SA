@@ -141,6 +141,7 @@ async function buildMarketerReports(cfg, dateStr, opts = {}) {
         .filter((mk) => bySheet[mk].ads > 0 || bySheet[mk].don > 0)
         .sort((a, b) => viTri(a) - viTri(b));
 
+    // nguoi[i] là chủ của messages[i] — lệnh "/baocao Lộc" lấy đúng một tin.
     const messages = names.map((mk) => {
         const list = (byMk[mk] || []).sort((a, b) => b.spend_vnd - a.spend_vnd);
         const p = bySheet[mk];
@@ -168,7 +169,7 @@ async function buildMarketerReports(cfg, dateStr, opts = {}) {
         if (recs.length) m += `\n\n💡 ${B("Đề xuất:")}\n` + recs.map((r) => "• " + r).join("\n");
         return m;
     });
-    return { dateStr, teamMessage: buildTeamReport(dateStr, sheet, { ...opts, label }), messages };
+    return { dateStr, teamMessage: buildTeamReport(dateStr, sheet, { ...opts, label }), messages, nguoi: names };
 }
 
 // Tin TỔNG TEAM — số lấy thẳng dòng TỔNG của Sheet, cùng bảng xếp hạng từng người. Ô

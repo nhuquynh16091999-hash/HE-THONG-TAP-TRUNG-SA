@@ -211,7 +211,7 @@ Bảng thô dashboard đọc thẳng: `sale_order`, `order_items`, `fb_ads_data`
 | Dashboard | VPS `139.180.131.21:3000`, `/opt/talpha` | pm2 `talpha-dashboard` — `ops/pm2/ecosystem.vps.config.js` |
 | Kéo số vào BigQuery | VPS, mỗi giờ phút :00 | systemd `talpha-sync.timer` → `sync/talpha/talpha_sync.py` |
 | Ghi Google Sheets | VPS, mỗi giờ phút :20 | systemd `talpha-report.timer` → `/root/talpha_reports/daily_guarded.sh` |
-| Bot báo cáo ads Zalo | VPS, 08:30 · 13:30 · 22:00 + cảnh báo mỗi 3 giờ | pm2 `talpha-zalo-alerts` — **chờ ghép nick Zalo phụ** (15/09/2026); cách bật: `ops/zalo-alerts/README.md` |
+| Bot báo cáo ads Zalo | VPS — tự gửi 08:30, còn lại khi có người gõ `/baocao`, `/canhbao` trong nhóm "BOT AI NHẬN THÔNG BÁO" | pm2 `talpha-zalo-alerts` — nick Zalo phụ ghép 15/09/2026; ghép lại, đổi nhóm: `ops/zalo-alerts/README.md` |
 | Bot cảnh báo WhatsApp | — | **Tắt**. Code ở `ops/whatsapp-alerts/`, cách bật trong `ops/pm2/README.md` |
 | Máy Mac | Máy dev | `cd dashboard-ui && npm run dev`. Không job nền nào. |
 
