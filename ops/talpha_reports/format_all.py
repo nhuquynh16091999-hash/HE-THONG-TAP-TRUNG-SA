@@ -19,7 +19,7 @@ FROM=_T.replace(day=1).isoformat(); TO=_T.isoformat()  # ngày ĐỘNG: đầu t
 from talpha_rules import (RATE, LOCALCUR, MONEY_DIV, ALLM, MARKETS, SHOP2MKT, GTC_CAT, POS_TZ,
                           NUMID, norm_nv, norm_pos_nv, is_test, PRIMARY_MARKET,
                           DISPLAY, EXTERNAL_DISPLAY, norm_pos_external, norm_nv_external,
-                          UNASSIGN, bucket_nv)
+                          UNASSIGN, bucket_nv, campaign_market)
 def page_of(p):
     for i,seg in enumerate(p):
         if NUMID.match(seg.replace(' ','')) and i+1<len(p) and p[i+1].strip(): return p[i+1].strip()
@@ -72,6 +72,8 @@ cell=collections.defaultdict(lambda:{"spend":0.0,"msg":0,"pur":0,"orders":0,"cod
 # TÁCH khỏi mọi báo cáo doanh số (file thị trường + TỔNG marketer + TỔNG TEAM),
 # gom vào 1 file Test riêng cho mỗi marketer (chung mọi thị trường, tab theo sản phẩm).
 from talpha_rules import NO_TEST_MARKETS  # is_test đã import ở đầu file; rule test nằm trong talpha_rules.json
+from talpha_rules import RULES as _RULES
+RULES_MARKETS={m: v for m, v in _RULES["markets"].items() if isinstance(v, dict)}
 cell_test=collections.defaultdict(lambda:{"spend":0.0,"msg":0,"pur":0,"orders":0,"cod":0.0,"cod_gtc":0.0})
 test_pages=set(); main_pages=set()  # page thuộc camp test / camp thường (để chia đơn không có ad_id)
 # ADS: spend/tin nhắn/purchases theo campaign (giữ nguyên). Đồng thời build map page_id → tên page (sản phẩm).
@@ -80,6 +82,10 @@ pageid2name={}
 # trước đây bị bỏ IM LẶNG — spend biến mất khỏi mọi báo cáo mà không ai biết. Nay gom lại
 # và in cảnh báo ở cuối (report_health đọc tail log → bot WA thấy được).
 DROPPED=collections.defaultdict(float)
+# 15/09/2026 — ba thị trường. Campaign KHÔNG ghi nước ở tên (tên cũ "Lộc/Philippine/…")
+# vẫn tính Đài (Sỹ Anh chốt), nhưng gom lại để in cảnh báo: có Singapore, UAE rồi thì
+# một campaign Singapore quên ghi "SG/" sẽ lặng lẽ chạy vào số của Đài.
+THIEU_NUOC=collections.defaultdict(float)
 for r in bq.query(f"SELECT date, campaign_name, SUM(spend) spend, SUM(messaging_conversations_started) msg, SUM(purchases) pur FROM `{PROJECT}.{DS}.fb_ads_data` WHERE date BETWEEN '{FROM}' AND '{TO}' GROUP BY date, campaign_name").result():
     mkt,nv,prod=parse_camp(r.campaign_name)
     if not mkt or not nv:
@@ -92,6 +98,7 @@ for r in bq.query(f"SELECT date, campaign_name, SUM(spend) spend, SUM(messaging_
     # Người đã nghỉ (unassign_marketers): ĐỔI Ô ĐÍCH sang "(không gán)", KHÔNG bỏ camp.
     # Đặt SAU nhánh DROPPED ở trên để spend còn sót của họ vẫn được đếm và soi được,
     # chỉ là không mang tên ai.
+    if campaign_market(r.campaign_name)[1]=="mac_dinh": THIEU_NUOC[r.campaign_name or "(tên rỗng)"]+=r.spend or 0
     nv=bucket_nv(nv)
     t=is_test(r.campaign_name, mkt)
     pid,_=page_id_of([x.strip() for x in (r.campaign_name or "").split("/")])
@@ -256,7 +263,7 @@ n=0
 # 48 market files
 for (emp,mkt),key in MARKET_MAP.items():
     rate=RATE[mkt];local=LOCALCUR[mkt];div=MONEY_DIV[mkt];sub={k:v for k,v in cell.items() if k[0]==emp and k[1]==mkt}
-    prods=sorted({k[2] for k in sub}, key=lambda p:-sum(sub[x]["spend"] for x in sub if x[2]==p))
+    prods=sorted({k[2] for k in sub}, key=lambda p:(-sum(sub[x]["spend"] for x in sub if x[2]==p), str(p)))
     used=set(); tabs=[("Tổng",market_tab(sub,rate,local,div))]; used.add("tổng")
     for prod in prods:
         psub={k:v for k,v in sub.items() if k[2]==prod}; tabs.append((safe(prod,used),market_tab(psub,rate,local,div)))
@@ -269,8 +276,13 @@ for emp,key in TONG_MAP.items():
         tabs.append((safe(mkt.upper(),used),market_tab(sub,RATE[mkt],LOCALCUR[mkt],MONEY_DIV[mkt])))
     # title: trước đây chỉ file GRAND được đổi tên → 7 file này kẹt tên 'THÁNG 7' suốt tháng 8.
     write_file(key,tabs,title=f"TỔNG ADS THÁNG {_T.month}"); n+=1; print(f"[{n}] TỔNG {emp}: {len(tabs)} tab"); time.sleep(1.0)
-# File TAIWAN riêng mỗi marketer (Đài MIỄN rule test → camp 'test' vẫn tính thật).
+# File báo cáo riêng mỗi marketer (tên file "TAIWAN T9" do CEO đặt — code không đổi tên).
 # ID ở taiwan_files.json (user tạo sheet + share SA rồi thêm ID; thiếu → bỏ qua, không crash).
+# 15/09/2026 — BA thị trường, Sỹ Anh chốt "thêm tab theo nước":
+#   • marketer có số ở MỘT nước  → giữ NGUYÊN bố cục cũ: "Tổng" = bảng của nước đó (có cột
+#     tiền địa phương + tỷ giá), rồi mỗi sản phẩm một tab. File Đài hiện có không đổi gì.
+#   • có số ở từ HAI nước trở lên → "Tổng" cộng mọi nước quy VND, mỗi nước một tab
+#     "<Nước> · Tổng" (tiền địa phương), tab sản phẩm mang tiền tố mã nước.
 _HERE=os.path.dirname(os.path.abspath(__file__))
 def _mapping_path(ten):  # chạy được ở CẢ repo lẫn runtime: file cạnh script thắng
     canh=os.path.join(_HERE,ten)
@@ -278,15 +290,39 @@ def _mapping_path(ten):  # chạy được ở CẢ repo lẫn runtime: file c�
 TWFILES_PATH=_mapping_path('taiwan_files.json')
 try: TWFILES=json.load(open(TWFILES_PATH))
 except Exception: TWFILES={}
+_SHOP_LABEL={m: v.get("shop_label", m) for m, v in RULES_MARKETS.items()}
+_TEN_NUOC={m: v.get("display", m) for m, v in RULES_MARKETS.items()}
+def nuoc_co_so(cells, loc=lambda k: True):
+    """Các nước có số (chi tiêu hoặc đơn) trong tập ô, xếp Đài trước rồi theo thứ tự cấu hình."""
+    co={k[1] for k,c in cells.items() if loc(k) and (c["spend"] or c["orders"] or c["msg"])}
+    return [m for m in ALLM if m in co]
+def tabs_mot_marketer(emp):
+    ds_nuoc=nuoc_co_so(cell, lambda k: k[0]==emp) or [PRIMARY_MARKET]
+    used=set(); used.add("tổng")
+    if len(ds_nuoc)==1:
+        mkt=ds_nuoc[0]
+        sub={k:v for k,v in cell.items() if k[0]==emp and k[1]==mkt}
+        tabs=[("Tổng",market_tab(sub,RATE[mkt],LOCALCUR[mkt],MONEY_DIV[mkt]))]
+        prods=sorted({k[2] for k in sub}, key=lambda p:(-sum(sub[x]["spend"] for x in sub if x[2]==p), str(p)))
+        for prod in prods:
+            psub={k:v for k,v in sub.items() if k[2]==prod}; tabs.append((safe(prod,used),market_tab(psub,RATE[mkt],LOCALCUR[mkt],MONEY_DIV[mkt])))
+        return tabs
+    tabs=[("Tổng",combined_tab(emp))]
+    for mkt in ds_nuoc:
+        sub={k:v for k,v in cell.items() if k[0]==emp and k[1]==mkt}
+        tabs.append((safe(f"{_TEN_NUOC[mkt]} · Tổng",used),market_tab(sub,RATE[mkt],LOCALCUR[mkt],MONEY_DIV[mkt])))
+    for mkt in ds_nuoc:
+        sub={k:v for k,v in cell.items() if k[0]==emp and k[1]==mkt}
+        prods=sorted({k[2] for k in sub}, key=lambda p:(-sum(sub[x]["spend"] for x in sub if x[2]==p), str(p)))
+        for prod in prods:
+            psub={k:v for k,v in sub.items() if k[2]==prod}
+            tabs.append((safe(f"{_SHOP_LABEL[mkt]} · {prod}",used),market_tab(psub,RATE[mkt],LOCALCUR[mkt],MONEY_DIV[mkt])))
+    return tabs
 for emp in TWFILES:
     key=TWFILES.get(emp)
     if not key: continue
-    sub={k:v for k,v in cell.items() if k[0]==emp and k[1]=="Taiwan"}
-    prods=sorted({k[2] for k in sub}, key=lambda p:-sum(sub[x]["spend"] for x in sub if x[2]==p))
-    used=set(); tabs=[("Tổng",market_tab(sub,RATE["Taiwan"],LOCALCUR["Taiwan"],MONEY_DIV["Taiwan"]))]; used.add("tổng")
-    for prod in prods:
-        psub={k:v for k,v in sub.items() if k[2]==prod}; tabs.append((safe(prod,used),market_tab(psub,RATE["Taiwan"],LOCALCUR["Taiwan"],MONEY_DIV["Taiwan"])))
-    write_file(key,tabs); n+=1; print(f"[{n}] TAIWAN {emp}: {len(tabs)} tab — https://docs.google.com/spreadsheets/d/{key}")
+    tabs=tabs_mot_marketer(emp)
+    write_file(key,tabs); n+=1; print(f"[{n}] FILE {emp}: {len(tabs)} tab — https://docs.google.com/spreadsheets/d/{key}")
 # 1 file TỔNG THÁNG — gộp tất cả marketer: tab "Tổng" (all mkt) + 1 tab mỗi marketer
 if GRAND_KEY and not GRAND_KEY.endswith("placeholder"):
     used=set(); tabs=[("Tổng",grand_tab())]; used.add("tổng")
@@ -307,6 +343,13 @@ if GRAND_KEY and not GRAND_KEY.endswith("placeholder"):
     # không hiển thị nữa. Cần soi thì xem khối "NGOÀI TEAM" trên dashboard.
     # Đơn không gán được cho ai (không tag + ad không thuộc team) — hiện riêng, không giấu
     if any(k[0]==UNASSIGNED for k in cell): tabs.append((safe(UNASSIGNED,used),combined_tab(UNASSIGNED)))
+    # Ba thị trường (15/09/2026): từ HAI nước có số trở lên thì thêm mỗi nước một tab,
+    # CHỈ người trong team như tab Tổng, tiền địa phương + tỷ giá của nước đó.
+    ds_nuoc=nuoc_co_so(cell, lambda k: k[0]!=UNASSIGNED and not str(k[0]).startswith(EXT_PREFIX))
+    if len(ds_nuoc)>1:
+        for mkt in ds_nuoc:
+            sub={k:v for k,v in cell.items() if k[1]==mkt and k[0]!=UNASSIGNED and not str(k[0]).startswith(EXT_PREFIX)}
+            tabs.append((safe(_TEN_NUOC[mkt],used),market_tab(sub,RATE[mkt],LOCALCUR[mkt],MONEY_DIV[mkt])))
     write_file(GRAND_KEY,tabs,title=f"TỔNG TEAM THÁNG {_T.month}"); n+=1; print(f"[{n}] GRAND TỔNG THÁNG: {len(tabs)} tab")
 # ── FILE TEST mỗi marketer (chung mọi thị trường, tab theo sản phẩm) ──
 # ID file lưu ở test_files.json (tạo lần đầu qua service account, share anyone-link editor).
@@ -322,12 +365,17 @@ for emp in TESTMAP:
         # vào test_files.json. Thiếu file thì bỏ qua marketer này, KHÔNG làm chết cả chain.
         print(f"[SKIP] TEST {emp}: chưa có file trong {TESTMAP_PATH} — tạo sheet, share SA, thêm ID.")
         continue
-    prods=sorted({k[2] for k in sub}, key=lambda p:-sum(sub[x]["spend"] for x in sub if x[2]==p))
+    prods=sorted({k[2] for k in sub}, key=lambda p:(-sum(sub[x]["spend"] for x in sub if x[2]==p), str(p)))
     used=set(); tabs=[("Tổng",test_tab(emp))]; used.add("tổng")
     for prod in prods: tabs.append((safe(prod,used),test_tab(emp,prod)))
     write_file(key,tabs,month_suffix=True); n+=1
     print(f"[{n}] TEST {emp}: {len(tabs)} tab — https://docs.google.com/spreadsheets/d/{key}")
 print("ALL DONE", n)
+if THIEU_NUOC:
+    _tn=sum(THIEU_NUOC.values())
+    print(f"CANH BAO: {len(THIEU_NUOC)} campaign KHONG GHI NUOC o dau ten — {_tn:,.0f} d dang tinh ve {PRIMARY_MARKET}. Doi ten thanh TW/… SG/… AE/… de khoi nham nuoc.")
+    for _c,_s in sorted(THIEU_NUOC.items(), key=lambda x:-x[1])[:10]:
+        print(f"    {_s:>12,.0f} d | {_c[:90]}")
 if DROPPED:
     _ts=sum(DROPPED.values())
     print(f"CANH BAO: {len(DROPPED)} campaign KHONG VAO BAO CAO — {_ts:,.0f} d bi roi (ten camp sai format/typo thi truong)")
