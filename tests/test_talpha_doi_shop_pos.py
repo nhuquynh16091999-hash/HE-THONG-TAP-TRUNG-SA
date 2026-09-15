@@ -47,6 +47,12 @@ class TestDonVndTrongShopTwd:
         assert don["cod"] == 1512.5
         assert revenue_vnd(don["cod"], "TW") == 1_210_000.0
 
+    def test_shop_luu_don_vi_nho_thi_nhan_so_chia(self):
+        # Singapore: số chia 100. 1.210.000đ → 60,5 SGD → lưu 6050 → ÷100 × 20.000 = 1.210.000đ.
+        don, _ = quy_doi_don_ngoai_te(_don(), [], "SGD", 20000, 100)
+        assert don["cod"] == 6050.0
+        assert revenue_vnd(don["cod"], "SG") == 1_210_000.0
+
     def test_moi_khoan_tien_deu_quy_doi(self):
         don, _ = quy_doi_don_ngoai_te(_don(total_discount=80_000.0), [], "TWD", 800)
         assert don["shipping_fee"] == 1512.5 and don["money_to_collect"] == 1512.5

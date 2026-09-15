@@ -129,12 +129,13 @@ ITEM_MONEY_FIELDS = ("retail_price", "discount_each_product", "total_discount", 
 
 
 def quy_doi_don_ngoai_te(order: dict, items: list[dict], shop_currency: str,
-                         rate_vnd: Optional[float]) -> Optional[tuple[dict, list[dict]]]:
+                         rate_vnd: Optional[float], so_chia: int = 1) -> Optional[tuple[dict, list[dict]]]:
     """Đưa một đơn về loại tiền của shop. Trả (đơn, items) đã quy đổi, hoặc None nếu phải bỏ.
 
     - Đơn cùng loại tiền với shop (hoặc không ghi loại tiền): trả nguyên.
-    - Đơn VND trong shop có tỷ giá VND: chia mọi khoản tiền cho tỷ giá, đổi nhãn sang
-      tiền của shop. `cod × tỷ giá` phía sau ra lại đúng số VND gốc.
+    - Đơn VND trong shop có tỷ giá VND: chia mọi khoản tiền cho tỷ giá rồi NHÂN số chia
+      của shop, đổi nhãn sang tiền của shop. Phía sau lấy `cod ÷ số chia × tỷ giá` nên ra
+      lại đúng số VND gốc — kể cả shop lưu tiền theo đơn vị nhỏ (Singapore: số chia 100).
     - Loại tiền khác, hoặc shop không có tỷ giá VND: None — không đoán tỷ giá.
     """
     want = (shop_currency or "").upper()
@@ -146,14 +147,14 @@ def quy_doi_don_ngoai_te(order: dict, items: list[dict], shop_currency: str,
     moi = dict(order)
     for k in ORDER_MONEY_FIELDS:
         if moi.get(k) is not None:
-            moi[k] = round(float(moi[k] or 0) / rate_vnd, 4)
+            moi[k] = round(float(moi[k] or 0) / rate_vnd * (so_chia or 1), 4)
     moi["order_currency"] = want
     moi_items = []
     for it in items:
         x = dict(it)
         for k in ITEM_MONEY_FIELDS:
             if x.get(k) is not None:
-                x[k] = round(float(x[k] or 0) / rate_vnd, 4)
+                x[k] = round(float(x[k] or 0) / rate_vnd * (so_chia or 1), 4)
         moi_items.append(x)
     return moi, moi_items
 

@@ -102,10 +102,18 @@ t("campaign lạc quy ước → không đoán MARKETER, nhưng thị trường 
 });
 
 console.log("── Thị trường ──");
-t("ba nước, chỉ Đài đang bán (15/09/2026)", () => {
+t("ba nước: Đài và Singapore đang bán, UAE chưa có tỷ giá (15/09/2026)", () => {
     assert.deepStrictEqual(Object.keys(R.RULES.markets), ["Taiwan", "Singapore", "UAE"]);
     const dangBan = Object.entries(R.RULES.markets).filter(([, v]) => v.status === "dang_ban").map(([k]) => k);
-    assert.deepStrictEqual(dangBan, ["Taiwan"]);
+    assert.deepStrictEqual(dangBan, ["Taiwan", "Singapore"]);
+});
+t("mỗi nước có shop thì có mốc ngày tính đơn hợp lệ", () => {
+    for (const [ten, v] of Object.entries(R.RULES.markets)) {
+        if (v.orders_from == null) continue;
+        assert.ok(/^\d{4}-\d{2}-\d{2}$/.test(v.orders_from), `${ten}: orders_from phải dạng YYYY-MM-DD`);
+    }
+    // Singapore có 54 đơn là bản sao đơn Đài tạo trước 14/09 — mốc này là thứ chặn đếm hai lần.
+    assert.strictEqual(R.RULES.markets.Singapore.orders_from, "2026-09-14");
 });
 t("nước đang bán phải khai đủ shop, tỷ giá, số chia", () => {
     for (const [ten, v] of Object.entries(R.RULES.markets)) {
@@ -310,22 +318,31 @@ t("chữ TW nằm trong tên trang KHÔNG phải ô nước", () => {
 t("tệp khách vẫn đọc đúng khi ô đầu là SG", () => {
     assert.strictEqual(R.parseAudience("SG/LOC/PHI/042-BLACK/LuxeGold/1509"), "PHI");
 });
-t("nước sắp chạy: tỷ giá 0, số chia 1 — không đoán tiền", () => {
-    assert.strictEqual(R.EXCHANGE_RATES.Singapore, 0);
-    assert.strictEqual(R.EXCHANGE_RATES.UAE, 0);
+t("tỷ giá và số chia: Singapore 20.000 ÷100, UAE chưa có → 0, không đoán", () => {
     assert.strictEqual(R.EXCHANGE_RATES.Taiwan, 800);
-    assert.strictEqual(R.posMoneyDivisor("SG"), 1);
+    assert.strictEqual(R.EXCHANGE_RATES.Singapore, 20000);
+    assert.strictEqual(R.EXCHANGE_RATES.UAE, 0);
     assert.strictEqual(R.posMoneyDivisor("TW"), 1);
+    assert.strictEqual(R.posMoneyDivisor("SG"), 100);
+    assert.strictEqual(R.posMoneyDivisor("AE"), 1);
 });
 t("thông tin nước cho giao diện: mã, ký hiệu tiền, trạng thái, mã trong tên campaign", () => {
     const m = Object.fromEntries(R.MARKETS_PUBLIC.markets.map((x) => [x.code, x]));
     assert.deepStrictEqual(Object.keys(m).sort(), ["AE", "SG", "TW"]);
     assert.strictEqual(m.TW.symbol, "NT$");
     assert.strictEqual(m.SG.symbol, "S$");
-    assert.strictEqual(m.SG.status, "sap_chay");
+    assert.strictEqual(m.SG.status, "dang_ban");
+    assert.strictEqual(m.AE.status, "sap_chay");
     assert.strictEqual(m.TW.status, "dang_ban");
     assert.ok(m.SG.tokens.includes("SG") && m.AE.tokens.includes("UAE"));
     assert.strictEqual(R.MARKETS_PUBLIC.primary, "Taiwan");
+});
+t("giá vốn quy từ TỆ × cost_rate_rmb_vnd, không dùng giá VND cũ", () => {
+    const tyGia = R.RULES.cost_rate_rmb_vnd;
+    assert.strictEqual(tyGia, 3860);
+    const p = R.RULES.products["002"];
+    assert.strictEqual(R.costPriceVnd("002"), Math.round(p.cost_price_rmb * tyGia));
+    assert.strictEqual(R.costPriceVnd("khong-co-ma-nay"), null);
 });
 t("ba nước đều miễn luật campaign test", () => {
     assert.strictEqual(R.isTestCampaign("SG/LOC/PHI/TEST/Trang/1509", "Singapore"), false);

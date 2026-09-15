@@ -3,6 +3,8 @@
   "_readme": "NGUỒN RULE DUY NHẤT của hệ thống. Sửa rule = sửa file NÀY, mọi nơi khác đọc từ đây (view SQL sinh lúc deploy, route API dashboard, sync, bot). Hệ thống từ 05/09/2026 bán ở Đài Loan; từ 15/09/2026 mở khung ba thị trường — Đài Loan đang bán, Singapore và UAE sắp chạy (xem markets.*.status).",
   "_market_note": "X13 — pos_money_divisor là SỐ ĐƠN VỊ PHỤ trên 1 đơn vị tiền MÀ POS ĐANG LƯU. Shop Đài lưu NGUYÊN TWD (cod=950 ⇒ 950 TWD) nên chia 1, KHÔNG chia 100. Gõ /100 cứng ở bất kỳ đâu = tiền tụt đúng 100 lần.",
   "primary_market": "Taiwan",
+  "cost_rate_rmb_vnd": 3860,
+  "_cost_rate_rmb_vnd_note": "Tỷ giá tệ → VND để quy GIÁ VỐN (products.*.cost_price_rmb) ở nơi không có tỷ giá của kỳ sao kê: view BigQuery, tab P&L theo SP, CEO hỏi. Sổ đơn hàng vẫn ưu tiên tỷ giá của chính kỳ sao kê NAZA, chỉ lùi về số này khi kỳ đó không có. 3.860 = tỷ giá sheet TỔNG của NAZA kỳ 11/09/2026 — soát lại mỗi tháng. Trước 15/09/2026 số này gõ cứng trong order-ledger.ts, còn view BigQuery vẫn dùng 27 giá VND của hệ thống cũ (cao gấp mấy lần giá thật).",
   "_primary_market_note": "CHỈ dùng cho campaign KHÔNG ghi nước ở tên (tên cũ kiểu 'Lộc/Philippine/…'): tính về Đài — Sỹ Anh chốt 15/09/2026. Campaign mới phải ghi nước ở ô đầu (TW/SG/AE); thiếu thì báo cáo vẫn tính Đài nhưng liệt kê ra để sửa tên. Không dùng primary_market để suy nước của ĐƠN — nước của đơn là shop POS.",
   "_status_note": "markets.*.status: 'dang_ban' = đã nối shop POS, có tỷ giá và số chia, số tiền được tính; 'sap_chay' = mới nhận ra trong tên campaign (chi tiêu tách đúng nước) nhưng CHƯA kéo đơn, CHƯA tính tiền. Chuyển sang dang_ban khi khai đủ shop_id + key + rate_vnd + pos_money_divisor (đo trên đơn thật, không đoán).",
   "markets": {
@@ -14,31 +16,42 @@
       "rate_vnd": 800,
       "pos_money_divisor": 1,
       "display": "Đài Loan",
+      "flag": "🇹🇼",
       "status": "dang_ban",
+      "orders_from": null,
       "_note": "TWD→VND tạm 800 (thật 780–800) — soát lại mỗi tháng.",
       "_shop_id_note": "Shop POS \"TAIWAN SỸ ANH\" — đổi sang 1022091930 ngày 14/09/2026 (Sỹ Anh chỉ định; đơn từ 13/09 có sản phẩm, tiền, marketer). Shop cũ 408074608 dừng ở 281 đơn tới 11/09: đơn của nó còn trong sale_order_raw nhưng không vào báo cáo. Trước nữa là 1328343252 (hệ thống cũ). Mỗi shop một API key riêng — đổi shop là phải đổi TALPHA_POSCAKE_TW_KEY."
     },
     "Singapore": {
       "shop_label": "SG",
-      "shop_id": "",
+      "shop_id": "715135541",
       "currency": "SGD",
       "currency_symbol": "S$",
-      "rate_vnd": null,
-      "pos_money_divisor": null,
+      "rate_vnd": 20000,
+      "pos_money_divisor": 100,
+      "pos_money_divisor_confirmed": false,
       "display": "Singapore",
-      "status": "sap_chay",
-      "_todo": "Mở khung 15/09/2026, CHƯA nối: cần shop POS + API key (TALPHA_POSCAKE_SG_KEY), tỷ giá SGD→VND, số chia tiền POS (đo trên đơn thật đầu tiên). 3PL dự kiến NAZA — bảng giá Singapore bản 28/09/2025 trong '18.10 COD TỪ TQ ĐI 8 NƯỚC.xlsx': chặng đầu 2,3 RMB/0,1kg; chặng cuối 24 RMB 2kg đầu, 4 RMB/kg sau; thu hộ COD 4% (tối thiểu 10 RMB); COD tối đa 2000 SGD/đơn."
+      "flag": "🇸🇬",
+      "status": "dang_ban",
+      "orders_from": "2026-09-14",
+      "_note": "Nối 15/09/2026. Tỷ giá 1 SGD = 20.000đ (Sỹ Anh chốt) — soát lại mỗi tháng.",
+      "_orders_from_note": "Chỉ tính đơn TẠO từ 14/09/2026 (giờ VN). Shop có sẵn 60 đơn khi nối: 54 đơn là BẢN SAO đơn shop Đài (cùng SĐT, cùng phút tạo, đầu số 09 của Đài, 52 đơn tạo tháng 7 khi Singapore chưa chạy). Đơn Singapore thật đầu tiên tạo 19:41 ngày 14/09. Bỏ mốc này là đơn Đài bị đếm hai lần dưới tên Singapore.",
+      "_divisor_note": "CHƯA ĐO: khi nối, mọi đơn đều ghi VND, chưa đơn nào ghi SGD có giá. Tạm đặt 100 vì Poscake lưu tiền có hai số lẻ theo đơn vị nhỏ (shop SAR/AED thời GCC: cod 10900 = 109,00) — nếu sai thì doanh thu HỤT 100 lần chứ không phồng. Có đơn SGD đầu tiên thì so cod với giá bán, rồi đặt pos_money_divisor_confirmed = true.",
+      "_todo": "3PL dự kiến NAZA — chờ file sao kê mẫu. Bảng giá NAZA Singapore bản 28/09/2025: chặng đầu 2,3 RMB/0,1kg; chặng cuối 24 RMB 2kg đầu, 4 RMB/kg sau; thu hộ COD 4% (tối thiểu 10 RMB); COD tối đa 2000 SGD/đơn."
     },
     "UAE": {
       "shop_label": "AE",
-      "shop_id": "",
+      "shop_id": "101085629",
       "currency": "AED",
       "currency_symbol": "AED",
       "rate_vnd": null,
       "pos_money_divisor": null,
       "display": "UAE",
+      "flag": "🇦🇪",
       "status": "sap_chay",
-      "_todo": "Mở khung 15/09/2026, CHƯA nối: cần chốt 3PL (bảng giá NAZA 8 nước KHÔNG có UAE; hệ GCC cũ dùng iMile), shop POS + API key (TALPHA_POSCAKE_AE_KEY), tỷ giá AED→VND, số chia. Shop UAE thời GCC là 1635200759 và lưu tiền ×100 — dùng lại thì vẫn phải đo số chia trên đơn thật."
+      "orders_from": "2026-09-15",
+      "_note": "Shop POS nối 15/09/2026 (0 đơn lúc nối). Khác shop UAE thời GCC (1635200759). Đơn được kéo về để đếm, nhưng CHƯA có tỷ giá AED→VND nên doanh thu ra 0 — không đoán.",
+      "_todo": "Cần: tỷ giá AED→VND; 3PL (Sỹ Anh bổ sung sau — bảng giá NAZA 8 nước không có UAE); số chia tiền POS đo trên đơn thật đầu tiên. Đủ ba thứ thì chuyển status sang dang_ban."
     }
   },
   "market_aliases": {

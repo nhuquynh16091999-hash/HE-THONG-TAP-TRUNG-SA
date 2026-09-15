@@ -12,7 +12,8 @@ type MarketStatus = "dang_ban" | "sap_chay";
 type MarketInfo = {
     shop_label: string; shop_id?: string; currency: string; currency_symbol?: string;
     rate_vnd: number | null; pos_money_divisor: number | null;
-    display?: string; status?: MarketStatus;
+    display?: string; status?: MarketStatus; flag?: string;
+    orders_from?: string | null; pos_money_divisor_confirmed?: boolean;
 };
 type ScanRule = { key: string; substrings?: string[]; word_tokens?: string[]; regex?: string };
 type ShipFee = { partner?: string; packing: number; delivery: number; cod_pct: number; cod_flat: number };
@@ -36,7 +37,7 @@ type Rules = {
         marketer_monthly_ship_vnd?: Record<string, Record<string, number> | string>;
     };
 };
-type ProductCost = { name: string; cost_price_vnd: number };
+type ProductCost = { name: string; cost_price_rmb?: number; cost_price_vnd: number };
 
 export const RULES: Rules = JSON.parse(fs.readFileSync(RULES_JSON(), "utf-8"));
 
@@ -235,8 +236,16 @@ export function shippingVnd(shopLabel: string, orders: number, revenueLocal: num
 
 // ── Giá vốn theo SKU (E2) — VND/unit, key = product_catalog.sku ──
 // POS không trả giá vốn (last_imported_price/avg_price = 0 mọi item) → JSON là nguồn duy nhất.
+// Giá vốn khai bằng TỆ từ 08/09/2026 (hàng mua ở Trung Quốc, trả bằng tệ). VND = tệ × cost_rate_rmb_vnd.
+// CỐ Ý bỏ qua cost_price_vnd cũ nếu còn sót: đó là giá của hệ thống GCC, cao gấp mấy lần giá thật.
+export const COST_RATE_RMB_VND: number = Number((RULES as unknown as { cost_rate_rmb_vnd?: number }).cost_rate_rmb_vnd ?? 3860);
 export const PRODUCT_COSTS: Record<string, ProductCost> = Object.fromEntries(
-    Object.entries(RULES.products || {}).filter(([k]) => !k.startsWith("_"))) as Record<string, ProductCost>;
+    Object.entries(RULES.products || {})
+        .filter(([k, v]) => !k.startsWith("_") && typeof (v as ProductCost).cost_price_rmb === "number" && (v as ProductCost).cost_price_rmb! > 0)
+        .map(([k, v]) => {
+            const p = v as ProductCost;
+            return [k, { ...p, cost_price_vnd: Math.round(p.cost_price_rmb! * COST_RATE_RMB_VND) }];
+        })) as Record<string, ProductCost>;
 
 /** Giá vốn 1 unit theo SKU (VND); null = SKU chưa khai giá vốn — KHÔNG coi là 0. */
 export function costPriceVnd(sku?: string | null): number | null {

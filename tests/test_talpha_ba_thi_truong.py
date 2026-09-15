@@ -13,6 +13,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "ops" / "talpha_
 
 from talpha_rules import (  # noqa: E402
     campaign_market, RATE, MONEY_DIV, DANG_BAN, CURRENCY_SYMBOL, NO_TEST_MARKETS, is_test,
+    cost_price_vnd, COST_RATE_RMB_VND, RULES,
 )
 
 
@@ -38,13 +39,15 @@ class TestGanNuocTheoTenCampaign:
         assert campaign_market("Thainx/INDO/SET KC/Master Jewelry Gold - TW - 02/09")[1] == "mac_dinh"
 
 
-class TestNuocSapChay:
-    def test_chua_co_ty_gia_thi_doanh_thu_bang_khong(self):
-        assert RATE["Singapore"] == 0 and RATE["UAE"] == 0
-        assert MONEY_DIV["Singapore"] == 1 and MONEY_DIV["UAE"] == 1
+class TestTrangThaiNuoc:
+    def test_singapore_da_noi(self):
+        assert RATE["Singapore"] == 20000 and MONEY_DIV["Singapore"] == 100
 
-    def test_chi_dai_dang_ban(self):
-        assert DANG_BAN == ["Taiwan"]
+    def test_uae_chua_co_ty_gia_thi_doanh_thu_bang_khong(self):
+        assert RATE["UAE"] == 0 and MONEY_DIV["UAE"] == 1
+
+    def test_dai_va_singapore_dang_ban(self):
+        assert DANG_BAN == ["Taiwan", "Singapore"]
 
     def test_ky_hieu_tien(self):
         assert CURRENCY_SYMBOL == {"Taiwan": "NT$", "Singapore": "S$", "UAE": "AED"}
@@ -52,3 +55,12 @@ class TestNuocSapChay:
     def test_ca_ba_nuoc_mien_luat_test(self):
         assert NO_TEST_MARKETS == {"Taiwan", "Singapore", "UAE"}
         assert is_test("SG/LOC/PHI/TEST/Page/1509", "Singapore") is False
+
+
+class TestGiaVon:
+    def test_quy_tu_te_theo_ty_gia_cau_hinh(self):
+        assert COST_RATE_RMB_VND == 3860
+        assert cost_price_vnd("002") == round(RULES["products"]["002"]["cost_price_rmb"] * 3860)
+
+    def test_ma_chua_khai_thi_none_khong_phai_0(self):
+        assert cost_price_vnd("khong-co-ma-nay") is None

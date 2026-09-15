@@ -71,9 +71,9 @@ meta_ads:
 # ─── 4. POS / ORDER MANAGEMENT ───
 pos_system: poscake
 
-# Mỗi nước một shop. CHỈ khai shop ĐÃ có key: Singapore và UAE (sắp chạy) chưa có shop
-# nên chưa có dòng — khai shop với api_key trống là mỗi lần mở tab Kho hay Ads Command
-# Center lại gọi POS rồi chờ timeout (đã dính với sáu shop GCC, gỡ 11/09/2026).
+# Mỗi nước một shop. CHỈ khai shop ĐÃ có key — khai shop với api_key trống là mỗi lần mở
+# tab Kho hay Ads Command Center lại gọi POS rồi chờ timeout (đã dính với sáu shop GCC,
+# gỡ 11/09/2026). `name` phải là tên nước trong talpha_rules.json → markets.
 # Danh sách nước thật nằm ở config/talpha_rules.json → markets; file này phải khớp.
 poscake:
   shops:
@@ -83,6 +83,14 @@ poscake:
       shop_id: "1022091930"  # "TAIWAN SỸ ANH" — đổi 14/09/2026 từ shop cũ 408074608.
                              # Mỗi shop một key: đổi shop phải đổi TALPHA_POSCAKE_TW_KEY,
                              # key cũ gọi shop mới trả "Cửa hàng không tồn tại"
+    - name: "Singapore"
+      api_url: "https://pos.pages.fm/api/v1"
+      api_key: "${TALPHA_POSCAKE_SG_KEY}"               # ⚠️ Giá trị thật nằm trong .env
+      shop_id: "715135541"   # nối 15/09/2026 — chỉ tính đơn từ 14/09 (xem talpha_rules.json)
+    - name: "UAE"
+      api_url: "https://pos.pages.fm/api/v1"
+      api_key: "${TALPHA_POSCAKE_AE_KEY}"               # ⚠️ Giá trị thật nằm trong .env
+      shop_id: "101085629"   # nối 15/09/2026 — chưa có tỷ giá, chưa 3PL
 
 # ─── 5. PANCAKE CRM ───
 pancake:

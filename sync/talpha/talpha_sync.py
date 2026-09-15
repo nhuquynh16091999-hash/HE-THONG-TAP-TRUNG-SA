@@ -79,6 +79,11 @@ def _pos_shops():
             "currency": m.get("currency", ""),
             # Để quy đơn VND về tiền của shop — xem _drop_foreign_currency.
             "rate_vnd": m.get("rate_vnd"),
+            "pos_money_divisor": m.get("pos_money_divisor") or 1,
+            "divisor_confirmed": m.get("pos_money_divisor_confirmed", True),
+            # Mốc NGÀY TẠO đơn (giờ VN) bắt đầu tính. Singapore có 54 đơn là bản sao đơn
+            # Đài được tạo sẵn trước khi mở — kéo về là đơn Đài bị đếm hai lần.
+            "orders_from": m.get("orders_from"),
         })
     return out
 
@@ -227,9 +232,13 @@ def _drop_foreign_currency(orders, items, shop):
         items_of.setdefault(str(it.get("order_id", "")), []).append(it)
 
     keep, kept_items, quy_doi, dropped = [], [], {}, {}
+    so_chia = shop.get("pos_money_divisor") or 1
+    chua_do = []
     for o in orders:
         cur = (o.get("order_currency") or want).upper()
-        ra = quy_doi_don_ngoai_te(o, items_of.get(str(o.get("id", "")), []), want, shop.get("rate_vnd"))
+        if cur == want and not shop.get("divisor_confirmed", True) and float(o.get("cod") or 0) > 0:
+            chua_do.append(o)
+        ra = quy_doi_don_ngoai_te(o, items_of.get(str(o.get("id", "")), []), want, shop.get("rate_vnd"), so_chia)
         if ra is None:
             dropped[cur] = dropped.get(cur, 0) + 1
             continue
@@ -248,7 +257,23 @@ def _drop_foreign_currency(orders, items, shop):
             f"  {shop['label']}: bỏ {sum(dropped.values())} đơn khác loại tiền {dropped} "
             f"— không có tỷ giá để quy về {want}. Cộng vào là sai doanh thu."
         )
+    if chua_do:
+        o = chua_do[0]
+        log.warning(
+            f"  ⚠️ {shop['label']}: {len(chua_do)} đơn ghi {want} có tiền nhưng số chia {so_chia} CHƯA ĐO — "
+            f"mở đơn id={o.get('id')} (cod={o.get('cod')}) trên POS so với giá bán, rồi đặt "
+            f"pos_money_divisor_confirmed=true trong talpha_rules.json."
+        )
     return keep, kept_items
+
+
+def _moc_shop(window_start, orders_from):
+    """Mốc inserted_at (UTC, dạng POS trả về) muộn hơn giữa cửa sổ sync và ngày bắt đầu tính
+    đơn của shop. orders_from là NGÀY GIỜ VIỆT NAM — 00:00 giờ VN là 17:00 UTC hôm trước."""
+    if not orders_from:
+        return window_start
+    moc = (datetime.strptime(orders_from, "%Y-%m-%d") - timedelta(hours=7)).strftime("%Y-%m-%dT%H:%M:%S")
+    return moc if not window_start or moc > window_start else window_start
 
 
 def sync_all_orders(window_start=None) -> tuple[int, int]:
@@ -274,11 +299,15 @@ def sync_all_orders(window_start=None) -> tuple[int, int]:
             currency=shop.get("currency", "AED"),
             sync_time=sync_time,
         )
+        # Mốc riêng của shop: đơn TẠO trước ngày orders_from (giờ VN) không kéo về.
+        tu = _moc_shop(window_start, shop.get("orders_from"))
+        if tu != window_start:
+            log.info(f"  {shop['label']}: chỉ kéo đơn tạo từ {shop.get('orders_from')} (giờ VN) — {tu} UTC")
         # Retry cả shop (ngoài retry từng page) — SA hay bị reset giữa chừng.
         orders = items = None
         for attempt in range(3):
             try:
-                orders, items = pos.fetch_orders(window_start=window_start)
+                orders, items = pos.fetch_orders(window_start=tu)
                 break
             except PosFetchError as e:
                 log.error(f"  {shop['label']} fetch lỗi (lần {attempt+1}/3): {e}")

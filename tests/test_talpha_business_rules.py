@@ -25,19 +25,23 @@ from sync.core.business_rules import (  # noqa: E402
 
 
 class TestBaThiTruong:
-    """15/09/2026: Đài Loan đang bán, Singapore và UAE sắp chạy."""
+    """15/09/2026: Đài Loan và Singapore đang bán; UAE đã nối shop nhưng chưa có tỷ giá."""
 
     def test_khai_du_ba_nuoc(self):
         assert set(MARKET_NAMES) == {"TW", "SG", "AE"}
 
     def test_chi_nuoc_da_co_so_moi_co_ty_gia_va_so_chia(self):
-        # Nước sắp chạy chưa có tỷ giá: không được có dòng — nhân với số đoán là sai tiền.
-        assert set(FX_RATES_TO_VND) == {"TW", "USD"}
-        assert set(POS_MONEY_DIVISOR) == {"TW"}
+        # UAE chưa có tỷ giá: không được có dòng — nhân với số đoán là sai tiền.
+        assert FX_RATES_TO_VND == {"TW": 800, "SG": 20000, "USD": 25700}
+        assert POS_MONEY_DIVISOR == {"TW": 1, "SG": 100}
+
+    def test_singapore_49_sgd_luu_4900(self):
+        # Poscake lưu SGD theo đơn vị nhỏ: cod 4900 = 49 SGD = 980.000đ.
+        assert revenue_vnd(4900, "SG") == 980_000.0
 
     def test_quy_doi_nuoc_chua_co_ty_gia_thi_bao_loi(self):
         with pytest.raises(ValueError):
-            to_vnd(49, "SG")
+            to_vnd(49, "AE")
 
     def test_nuoc_dang_ban_phai_khai_du(self):
         # Chuyển một nước sang "dang_ban" mà quên shop, tỷ giá hay số chia → đỏ trước deploy.

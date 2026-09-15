@@ -11,9 +11,9 @@ Cách vận hành máy chủ: `docs/DEPLOY_VPS.md`.
 ## 1. Việc kinh doanh
 
 Bán trang sức và mỹ phẩm qua Facebook Ads → chat-sale Messenger → **thu tiền COD**.
-**Đài Loan đang bán**; **Singapore và UAE sắp chạy** (mở khung 15/09/2026). Hàng Đài đi
-từ kho Trung Quốc qua 3PL **NAZA供应链**; khách trả tiền cho shipper; NAZA gom rồi chuyển
-về theo kỳ. Singapore dự kiến cũng qua NAZA (có bảng giá); UAE chưa chốt 3PL.
+**Đài Loan và Singapore đang bán**; **UAE đã nối shop, chưa có tỷ giá và 3PL** (15/09/2026).
+Hàng Đài đi từ kho Trung Quốc qua 3PL **NAZA供应链**; khách trả tiền cho shipper; NAZA gom
+rồi chuyển về theo kỳ. Singapore dự kiến cũng qua NAZA (có bảng giá, chờ sao kê mẫu).
 
 | Vai | Người | Thấy gì |
 |:--|:--|:--|
@@ -21,8 +21,13 @@ về theo kỳ. Singapore dự kiến cũng qua NAZA (có bảng giá); UAE chư
 | Marketer | 6 (Lộc · Sỹ Anh · Thái · Thương · Quỳnh · Thắng) | Báo cáo, chi phí quảng cáo |
 | Sale | 2 (một ghế còn trống) | Đơn hàng, đối soát COD |
 
-Mỗi nước một shop POS Poscake — hiện có shop Đài "TAIWAN SỸ ANH" · 8 tài khoản quảng
-cáo Meta đọc được. Tiền Đài: TWD, tỷ giá **800đ/TWD**; SGD, AED chưa khai tỷ giá.
+Mỗi nước một shop POS Poscake — Đài "TAIWAN SỸ ANH" 1022091930 · Singapore 715135541 ·
+UAE 101085629 · 8 tài khoản quảng cáo Meta đọc được, chạy chung cho mọi nước. Tỷ giá:
+**800đ/TWD**, **20.000đ/SGD**; AED chưa khai (doanh thu UAE ra 0, không đoán).
+
+**Singapore chỉ tính đơn tạo từ 14/09/2026** (`markets.Singapore.orders_from`): lúc nối,
+shop có 54 đơn là bản sao đơn Đài (cùng SĐT, cùng phút tạo). Số chia tiền Singapore đặt
+100 nhưng **chưa đo** trên đơn SGD thật — có đơn đầu tiên thì soát lại.
 
 **Nước nằm ở `config/talpha_rules.json → markets`**, mỗi nước một khối có `status`:
 `dang_ban` (đã nối shop, có tỷ giá và số chia — số tiền được tính) hoặc `sap_chay` (máy
