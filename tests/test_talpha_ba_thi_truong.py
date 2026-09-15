@@ -43,11 +43,13 @@ class TestTrangThaiNuoc:
     def test_singapore_da_noi(self):
         assert RATE["Singapore"] == 20000 and MONEY_DIV["Singapore"] == 100
 
-    def test_uae_chua_co_ty_gia_thi_doanh_thu_bang_khong(self):
-        assert RATE["UAE"] == 0 and MONEY_DIV["UAE"] == 1
+    def test_uae_da_co_ty_gia(self):
+        # Chốt 15/09/2026: 1 AED = 7.000đ. Số chia 100 chưa đo — phải khai cùng lúc với tỷ
+        # giá: để trống thì ở đây ra 1 trong khi view BigQuery chia 100.
+        assert RATE["UAE"] == 7000 and MONEY_DIV["UAE"] == 100
 
-    def test_dai_va_singapore_dang_ban(self):
-        assert DANG_BAN == ["Taiwan", "Singapore"]
+    def test_ca_ba_nuoc_dang_ban(self):
+        assert DANG_BAN == ["Taiwan", "Singapore", "UAE"]
 
     def test_ky_hieu_tien(self):
         assert CURRENCY_SYMBOL == {"Taiwan": "NT$", "Singapore": "S$", "UAE": "AED"}

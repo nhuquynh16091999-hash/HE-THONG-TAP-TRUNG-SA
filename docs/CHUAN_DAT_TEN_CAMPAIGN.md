@@ -36,8 +36,8 @@ Từ 15/09/2026 công ty chạy ba nước. Chi tiêu quảng cáo được chia
 | Nước | Mã | Tình trạng |
 |---|---|---|
 | Đài Loan | `TW` | đang bán |
-| Singapore | `SG` | sắp chạy |
-| UAE | `AE` | sắp chạy |
+| Singapore | `SG` | đang bán |
+| UAE | `AE` | đang bán |
 
 Máy cũng nhận `TAIWAN`, `SINGAPORE`, `SING`, `UAE`, `DUBAI`, nhưng hãy dùng mã hai chữ.
 

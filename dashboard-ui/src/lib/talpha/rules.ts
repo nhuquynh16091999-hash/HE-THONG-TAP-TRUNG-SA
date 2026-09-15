@@ -42,7 +42,7 @@ type ProductCost = { name: string; cost_price_rmb?: number; cost_price_vnd: numb
 export const RULES: Rules = JSON.parse(fs.readFileSync(RULES_JSON(), "utf-8"));
 
 // ── Tỷ giá & thị trường ──
-// Nước sắp chạy (15/09/2026: Singapore, UAE) có tỷ giá null → 0 ở đây: doanh thu của nó
+// Nước sắp chạy có tỷ giá null → 0 ở đây: doanh thu của nó
 // ra 0 chứ KHÔNG bị nhân với một tỷ giá đoán. Nước đang bán thiếu tỷ giá thì test chặn.
 const soDuong = (v: unknown): v is number => typeof v === "number" && v > 0;
 const MARKET_ENTRIES = Object.entries(RULES.markets).filter(([, v]) => v && typeof v === "object") as [string, MarketInfo][];

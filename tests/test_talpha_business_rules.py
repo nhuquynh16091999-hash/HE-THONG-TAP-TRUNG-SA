@@ -31,17 +31,21 @@ class TestBaThiTruong:
         assert set(MARKET_NAMES) == {"TW", "SG", "AE"}
 
     def test_chi_nuoc_da_co_so_moi_co_ty_gia_va_so_chia(self):
-        # UAE chưa có tỷ giá: không được có dòng — nhân với số đoán là sai tiền.
-        assert FX_RATES_TO_VND == {"TW": 800, "SG": 20000, "USD": 25700}
-        assert POS_MONEY_DIVISOR == {"TW": 1, "SG": 100}
+        # Nước chưa có tỷ giá thì không được có dòng — nhân với số đoán là sai tiền.
+        assert FX_RATES_TO_VND == {"TW": 800, "SG": 20000, "AE": 7000, "USD": 25700}
+        assert POS_MONEY_DIVISOR == {"TW": 1, "SG": 100, "AE": 100}
 
     def test_singapore_49_sgd_luu_4900(self):
         # Poscake lưu SGD theo đơn vị nhỏ: cod 4900 = 49 SGD = 980.000đ.
         assert revenue_vnd(4900, "SG") == 980_000.0
 
+    def test_uae_49_aed_luu_4900(self):
+        # Tỷ giá 7.000đ/AED (chốt 15/09/2026), số chia 100 chưa đo: cod 4900 = 49 AED = 343.000đ.
+        assert revenue_vnd(4900, "AE") == 343_000.0
+
     def test_quy_doi_nuoc_chua_co_ty_gia_thi_bao_loi(self):
         with pytest.raises(ValueError):
-            to_vnd(49, "AE")
+            to_vnd(49, "KW")
 
     def test_nuoc_dang_ban_phai_khai_du(self):
         # Chuyển một nước sang "dang_ban" mà quên shop, tỷ giá hay số chia → đỏ trước deploy.
@@ -55,6 +59,9 @@ class TestBaThiTruong:
                 assert str(v.get("shop_id", "")).strip(), f"{ten}: đang bán mà chưa có shop_id"
                 assert isinstance(v.get("rate_vnd"), (int, float)) and v["rate_vnd"] > 0, f"{ten}: thiếu tỷ giá"
                 assert isinstance(v.get("pos_money_divisor"), int) and v["pos_money_divisor"] > 0, f"{ten}: thiếu số chia"
+            if v.get("rate_vnd"):
+                # Có tỷ giá mà trống số chia: view BigQuery chia 100, Sheet và dashboard chia 1.
+                assert isinstance(v.get("pos_money_divisor"), int) and v["pos_money_divisor"] > 0, f"{ten}: có tỷ giá mà thiếu số chia"
             assert v.get("currency_symbol"), f"{ten}: thiếu ký hiệu tiền"
 
 

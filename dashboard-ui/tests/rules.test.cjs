@@ -102,10 +102,10 @@ t("campaign lạc quy ước → không đoán MARKETER, nhưng thị trường 
 });
 
 console.log("── Thị trường ──");
-t("ba nước: Đài và Singapore đang bán, UAE chưa có tỷ giá (15/09/2026)", () => {
+t("ba nước đều đang bán — UAE có tỷ giá từ 15/09/2026", () => {
     assert.deepStrictEqual(Object.keys(R.RULES.markets), ["Taiwan", "Singapore", "UAE"]);
     const dangBan = Object.entries(R.RULES.markets).filter(([, v]) => v.status === "dang_ban").map(([k]) => k);
-    assert.deepStrictEqual(dangBan, ["Taiwan", "Singapore"]);
+    assert.deepStrictEqual(dangBan, ["Taiwan", "Singapore", "UAE"]);
 });
 t("mỗi nước có shop thì có mốc ngày tính đơn hợp lệ", () => {
     for (const [ten, v] of Object.entries(R.RULES.markets)) {
@@ -318,13 +318,15 @@ t("chữ TW nằm trong tên trang KHÔNG phải ô nước", () => {
 t("tệp khách vẫn đọc đúng khi ô đầu là SG", () => {
     assert.strictEqual(R.parseAudience("SG/LOC/PHI/042-BLACK/LuxeGold/1509"), "PHI");
 });
-t("tỷ giá và số chia: Singapore 20.000 ÷100, UAE chưa có → 0, không đoán", () => {
+t("tỷ giá và số chia: Singapore 20.000 ÷100, UAE 7.000 ÷100", () => {
     assert.strictEqual(R.EXCHANGE_RATES.Taiwan, 800);
     assert.strictEqual(R.EXCHANGE_RATES.Singapore, 20000);
-    assert.strictEqual(R.EXCHANGE_RATES.UAE, 0);
+    assert.strictEqual(R.EXCHANGE_RATES.UAE, 7000);
     assert.strictEqual(R.posMoneyDivisor("TW"), 1);
     assert.strictEqual(R.posMoneyDivisor("SG"), 100);
-    assert.strictEqual(R.posMoneyDivisor("AE"), 1);
+    // Phải khớp view BigQuery: UAE để trống số chia thì dashboard chia 1, view chia 100.
+    assert.strictEqual(R.posMoneyDivisor("AE"), 100);
+    assert.strictEqual(R.posMoneyDivisor("UAE"), 100);
 });
 t("thông tin nước cho giao diện: mã, ký hiệu tiền, trạng thái, mã trong tên campaign", () => {
     const m = Object.fromEntries(R.MARKETS_PUBLIC.markets.map((x) => [x.code, x]));
@@ -332,7 +334,7 @@ t("thông tin nước cho giao diện: mã, ký hiệu tiền, trạng thái, m�
     assert.strictEqual(m.TW.symbol, "NT$");
     assert.strictEqual(m.SG.symbol, "S$");
     assert.strictEqual(m.SG.status, "dang_ban");
-    assert.strictEqual(m.AE.status, "sap_chay");
+    assert.strictEqual(m.AE.status, "dang_ban");
     assert.strictEqual(m.TW.status, "dang_ban");
     assert.ok(m.SG.tokens.includes("SG") && m.AE.tokens.includes("UAE"));
     assert.strictEqual(R.MARKETS_PUBLIC.primary, "Taiwan");

@@ -6,7 +6,7 @@
 # ─── 1. THÔNG TIN DỰ ÁN ───
 project_id: talpha
 project_name: "Tiểu Alpha"
-description: "Trang sức và mỹ phẩm COD — Đài Loan đang bán; Singapore, UAE sắp chạy (15/09/2026)"
+description: "Trang sức và mỹ phẩm COD — Đài Loan · Singapore · UAE (15/09/2026)"
 currency: VND                # tiền báo cáo; tiền từng nước ở talpha_rules.json → markets
 timezone: Asia/Ho_Chi_Minh   # đơn gom ngày theo giờ Việt Nam cho cả ba nước (chốt 15/09/2026)
 status: active
@@ -90,7 +90,7 @@ poscake:
     - name: "UAE"
       api_url: "https://pos.pages.fm/api/v1"
       api_key: "${TALPHA_POSCAKE_AE_KEY}"               # ⚠️ Giá trị thật nằm trong .env
-      shop_id: "101085629"   # nối 15/09/2026 — chưa có tỷ giá, chưa 3PL
+      shop_id: "101085629"   # nối 15/09/2026 — tỷ giá 7.000đ/AED, chưa 3PL
 
 # ─── 5. PANCAKE CRM ───
 pancake:

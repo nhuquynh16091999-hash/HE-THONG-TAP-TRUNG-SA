@@ -1,6 +1,6 @@
 {
   "version": "2026-09-05",
-  "_readme": "NGUỒN RULE DUY NHẤT của hệ thống. Sửa rule = sửa file NÀY, mọi nơi khác đọc từ đây (view SQL sinh lúc deploy, route API dashboard, sync, bot). Hệ thống từ 05/09/2026 bán ở Đài Loan; từ 15/09/2026 mở khung ba thị trường — Đài Loan đang bán, Singapore và UAE sắp chạy (xem markets.*.status).",
+  "_readme": "NGUỒN RULE DUY NHẤT của hệ thống. Sửa rule = sửa file NÀY, mọi nơi khác đọc từ đây (view SQL sinh lúc deploy, route API dashboard, sync, bot). Hệ thống từ 05/09/2026 bán ở Đài Loan; từ 15/09/2026 bán ở ba thị trường — Đài Loan, Singapore, UAE (xem markets.*.status).",
   "_market_note": "X13 — pos_money_divisor là SỐ ĐƠN VỊ PHỤ trên 1 đơn vị tiền MÀ POS ĐANG LƯU. Shop Đài lưu NGUYÊN TWD (cod=950 ⇒ 950 TWD) nên chia 1, KHÔNG chia 100. Gõ /100 cứng ở bất kỳ đâu = tiền tụt đúng 100 lần.",
   "primary_market": "Taiwan",
   "cost_rate_rmb_vnd": 3860,
@@ -44,14 +44,16 @@
       "shop_id": "101085629",
       "currency": "AED",
       "currency_symbol": "AED",
-      "rate_vnd": null,
-      "pos_money_divisor": null,
+      "rate_vnd": 7000,
+      "pos_money_divisor": 100,
+      "pos_money_divisor_confirmed": false,
       "display": "UAE",
       "flag": "🇦🇪",
-      "status": "sap_chay",
+      "status": "dang_ban",
       "orders_from": "2026-09-15",
-      "_note": "Shop POS nối 15/09/2026 (0 đơn lúc nối). Khác shop UAE thời GCC (1635200759). Đơn được kéo về để đếm, nhưng CHƯA có tỷ giá AED→VND nên doanh thu ra 0 — không đoán.",
-      "_todo": "Cần: tỷ giá AED→VND; 3PL (Sỹ Anh bổ sung sau — bảng giá NAZA 8 nước không có UAE); số chia tiền POS đo trên đơn thật đầu tiên. Đủ ba thứ thì chuyển status sang dang_ban."
+      "_note": "Shop POS nối 15/09/2026 (0 đơn lúc nối). Khác shop UAE thời GCC (1635200759). Tỷ giá 1 AED = 7.000đ (Sỹ Anh chốt 15/09/2026) — soát lại mỗi tháng.",
+      "_divisor_note": "CHƯA ĐO: lúc khai tỷ giá (15/09/2026) shop vẫn 0 đơn. Tạm đặt 100 như Singapore — nếu sai thì doanh thu HỤT 100 lần chứ không phồng. Để trống thì view BigQuery chia 100 còn Sheet và dashboard chia 1 — hai nơi lệch nhau 100 lần. Có đơn AED đầu tiên thì so cod với giá bán, rồi đặt pos_money_divisor_confirmed = true.",
+      "_todo": "3PL: Sỹ Anh bổ sung sau (bảng giá NAZA 8 nước không có UAE) — tới lúc đó phí ship UAE tính 0."
     }
   },
   "market_aliases": {

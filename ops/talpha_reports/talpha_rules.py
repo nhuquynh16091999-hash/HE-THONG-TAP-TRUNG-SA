@@ -18,7 +18,7 @@ with open(RULES_PATH, encoding="utf-8") as _f:
     RULES = json.load(_f)
 
 # ── Thị trường & tỷ giá (tương đương RATE/LOCALCUR/ALLM/MARKETS/SHOP2MKT cũ) ──
-# Nước "sap_chay" (15/09/2026: Singapore, UAE) chưa có tỷ giá và số chia — khai null
+# Nước "sap_chay" chưa có tỷ giá và số chia — khai null
 # trong JSON. Ở đây null → tỷ giá 0 (doanh thu 0, KHÔNG đoán) và số chia 1 (chưa có đơn
 # nào để chia). Nước "dang_ban" thiếu hai số này là cấu hình sai — test chặn trước deploy.
 def _so_duong(v, mac_dinh):

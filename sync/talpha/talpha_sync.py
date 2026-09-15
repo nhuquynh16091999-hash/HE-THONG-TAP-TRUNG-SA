@@ -66,7 +66,7 @@ def _pos_shops():
         label = m.get("shop_label", "")
         if not label:
             continue
-        # Nước "sắp chạy" (15/09/2026: Singapore, UAE) chưa có shop POS: bỏ qua, KHÔNG
+        # Nước "sắp chạy" chưa có shop POS: bỏ qua, KHÔNG
         # đưa vào danh sách. Để shop_id rỗng lọt vào là bộ lọc shop_ids của bảng đơn
         # coi như "không lọc" — đơn shop Đài cũ 408074608 sẽ quay lại báo cáo.
         if not str(m.get("shop_id", "")).strip():
