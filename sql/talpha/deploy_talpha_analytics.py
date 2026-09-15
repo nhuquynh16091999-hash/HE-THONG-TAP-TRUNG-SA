@@ -184,11 +184,17 @@ def product_costs_sql() -> str:
     """
     import json
     with open(RULES_FILE, 'r', encoding='utf-8') as f:
-        products = json.load(f).get('products', {})
-
-    rows = [(sku, int(v['cost_price_vnd']))
+        rules = json.load(f)
+    products = rules.get('products', {})
+    # Từ 08/09/2026 giá vốn khai bằng TỆ. Bản cũ đọc cost_price_vnd — mục đó đã bỏ, nên từ
+    # hôm ấy script dừng ở đây và view đứng nguyên bản 05/09 với 27 giá VND của hệ thống cũ.
+    rate = rules.get('cost_rate_rmb_vnd')
+    if not isinstance(rate, (int, float)) or rate <= 0:
+        raise SystemExit(f"❌ {RULES_FILE}: thiếu `cost_rate_rmb_vnd` — không quy được giá vốn tệ ra VND. Dừng.")
+    rows = [(sku, int(round(v['cost_price_rmb'] * rate)))
             for sku, v in products.items()
-            if not sku.startswith('_') and isinstance(v, dict) and v.get('cost_price_vnd')]
+            if not sku.startswith('_') and isinstance(v, dict)
+            and isinstance(v.get('cost_price_rmb'), (int, float)) and v['cost_price_rmb'] > 0]
     if not rows:
         raise SystemExit(f"❌ {RULES_FILE}: mục `products` rỗng — view sẽ có COGS = 0 toàn bộ. Dừng.")
 

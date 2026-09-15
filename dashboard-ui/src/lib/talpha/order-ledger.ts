@@ -59,8 +59,8 @@ export const OVERDUE_DAYS = Number(CFG.pending_alert_days ?? 30);
 export const TOLERANCE_TWD = Number(CFG.amount_tolerance_local ?? 1);
 /** Tỷ giá dự phòng khi bản sao kê không nói tỷ giá của kỳ đó. */
 export const FALLBACK_TWD_VND = Number(TW.rate_vnd ?? 800);
-/** Tỷ giá RMB→VND dự phòng, chỉ dùng khi bản sao kê không nói tỷ giá kỳ đó. */
-export const FALLBACK_RMB_VND = 3860;
+/** Tỷ giá RMB→VND dự phòng, chỉ dùng khi bản sao kê không nói tỷ giá kỳ đó — talpha_rules.json → cost_rate_rmb_vnd. */
+export const FALLBACK_RMB_VND = Number((RULES as unknown as { cost_rate_rmb_vnd?: number }).cost_rate_rmb_vnd ?? 3860);
 
 // ─────────────────────────────────────────────────────────────────────────
 // Chuẩn hoá khoá — phải giống hệt cod-recon.ts, lệch một chữ là hai bên

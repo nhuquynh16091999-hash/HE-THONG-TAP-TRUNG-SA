@@ -165,7 +165,14 @@ def shipping_vnd(shop_label, orders, revenue_local):
 # ── Giá vốn theo SKU (E2) — VND/unit, key = product_catalog.sku ──
 # POS không trả giá vốn (variation_info.last_imported_price/avg_price = 0 mọi item)
 # → khối products trong JSON là nguồn DUY NHẤT. Song song với PRODUCT_COSTS bên rules.ts.
-PRODUCT_COSTS = {k: v for k, v in RULES.get("products", {}).items() if not k.startswith("_")}
+# Giá vốn khai bằng TỆ từ 08/09/2026 → VND = tệ × cost_rate_rmb_vnd. Bỏ qua cost_price_vnd cũ
+# (giá hệ thống GCC, cao gấp mấy lần giá thật) — cùng luật với PRODUCT_COSTS bên rules.ts.
+COST_RATE_RMB_VND = RULES.get("cost_rate_rmb_vnd") or 3860
+PRODUCT_COSTS = {
+    k: dict(v, cost_price_vnd=round(v["cost_price_rmb"] * COST_RATE_RMB_VND))
+    for k, v in RULES.get("products", {}).items()
+    if not k.startswith("_") and isinstance(v, dict) and isinstance(v.get("cost_price_rmb"), (int, float)) and v["cost_price_rmb"] > 0
+}
 
 def cost_price_vnd(sku):
     """Giá vốn 1 unit theo SKU (VND); None = SKU chưa khai giá vốn — KHÔNG coi là 0."""
