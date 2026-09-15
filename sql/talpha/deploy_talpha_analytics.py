@@ -91,8 +91,9 @@ def fx_sql() -> tuple:
     import json
     with open(RULES_FILE, 'r', encoding='utf-8') as f:
         markets = json.load(f)['markets']
+    # Nước "sắp chạy" (rate_vnd null) chưa có đơn nào — không sinh dòng tỷ giá cho nó.
     pairs = [(v['shop_label'], float(v['rate_vnd'])) for v in markets.values()
-             if isinstance(v, dict) and v.get('shop_label')]
+             if isinstance(v, dict) and v.get('shop_label') and v.get('rate_vnd')]
     if not pairs:
         raise SystemExit(f"❌ {RULES_FILE}: mục `markets` rỗng — không sinh được tỷ giá.")
     for lb, _ in pairs:
@@ -100,7 +101,7 @@ def fx_sql() -> tuple:
             raise SystemExit(f"❌ shop_label lạ, chặn để khỏi phá SQL: {lb!r}")
     case = "CASE o.shop_label\n" + "\n".join(
         f"            WHEN '{lb}' THEN {r}    -- → VND" for lb, r in pairs
-    ) + "\n            ELSE 7010.0  -- shop mới chưa khai tỷ giá: tạm coi như AED\n        END"
+    ) + "\n            ELSE 0.0  -- shop chưa khai tỷ giá: doanh thu 0, is_fx_known = FALSE — KHÔNG đoán\n        END"
     known = "(o.shop_label IN (" + ", ".join(f"'{lb}'" for lb, _ in pairs) + "))"
     return case, known
 
@@ -125,6 +126,8 @@ def money_divisor_sql() -> str:
         if not isinstance(v, dict) or not v.get('shop_label'):
             continue
         div = v.get('pos_money_divisor')
+        if div is None and v.get('status') == 'sap_chay':
+            continue  # nước sắp chạy: chưa có đơn, chưa đo số chia — không sinh dòng
         if div is None:
             raise SystemExit(
                 f"❌ market {v['shop_label']} thiếu `pos_money_divisor` trong {RULES_FILE}. "

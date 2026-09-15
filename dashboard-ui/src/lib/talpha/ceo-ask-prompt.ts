@@ -19,7 +19,10 @@ const q = (t: Ids, table: string) => `\`${t.project}.${t.dataset}.${table}\``;
 /** Bảng thị trường ↔ shop_label ↔ tỷ giá ↔ số chia tiền POS, sinh từ rules.markets. */
 function marketTable(): string {
     return Object.entries(RULES.markets)
-        .map(([name, m]) => `  ${m.shop_label} = ${name} (${m.currency}) — 1 ${m.currency} = ${m.rate_vnd.toLocaleString("en-US")} VND · cod ÷ ${m.pos_money_divisor}`)
+        // Nước sắp chạy chưa có tỷ giá/số chia: nói rõ để LLM không tự bịa số quy đổi.
+        .map(([name, m]) => m.rate_vnd && m.pos_money_divisor
+            ? `  ${m.shop_label} = ${name} (${m.currency}) — 1 ${m.currency} = ${m.rate_vnd.toLocaleString("en-US")} VND · cod ÷ ${m.pos_money_divisor}`
+            : `  ${m.shop_label} = ${name} (${m.currency}) — SẮP CHẠY, chưa có đơn, chưa có tỷ giá: đừng quy đổi`)
         .join("\n");
 }
 

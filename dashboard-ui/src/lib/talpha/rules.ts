@@ -7,7 +7,13 @@
 import fs from "fs";
 import { RULES_JSON } from "./config-path";
 
-type MarketInfo = { shop_label: string; rate_vnd: number; currency: string; pos_money_divisor: number };
+type MarketStatus = "dang_ban" | "sap_chay";
+/** Một nước trong `markets`. Nước "sap_chay" chưa có shop/tỷ giá/số chia → các ô đó null. */
+type MarketInfo = {
+    shop_label: string; shop_id?: string; currency: string; currency_symbol?: string;
+    rate_vnd: number | null; pos_money_divisor: number | null;
+    display?: string; status?: MarketStatus;
+};
 type ScanRule = { key: string; substrings?: string[]; word_tokens?: string[]; regex?: string };
 type ShipFee = { partner?: string; packing: number; delivery: number; cod_pct: number; cod_flat: number };
 type Rules = {
@@ -35,21 +41,26 @@ type ProductCost = { name: string; cost_price_vnd: number };
 export const RULES: Rules = JSON.parse(fs.readFileSync(RULES_JSON(), "utf-8"));
 
 // ── Tỷ giá & thị trường ──
+// Nước sắp chạy (15/09/2026: Singapore, UAE) có tỷ giá null → 0 ở đây: doanh thu của nó
+// ra 0 chứ KHÔNG bị nhân với một tỷ giá đoán. Nước đang bán thiếu tỷ giá thì test chặn.
+const soDuong = (v: unknown): v is number => typeof v === "number" && v > 0;
+const MARKET_ENTRIES = Object.entries(RULES.markets).filter(([, v]) => v && typeof v === "object") as [string, MarketInfo][];
 export const EXCHANGE_RATES: Record<string, number> = Object.fromEntries(
-    Object.entries(RULES.markets).map(([m, v]) => [m, v.rate_vnd]));
+    MARKET_ENTRIES.map(([m, v]) => [m, soDuong(v.rate_vnd) ? v.rate_vnd : 0]));
 export const SHOP2MKT: Record<string, string> = Object.fromEntries(
-    Object.entries(RULES.markets).map(([m, v]) => [v.shop_label, m]));
+    MARKET_ENTRIES.map(([m, v]) => [v.shop_label, m]));
 
 // ── X13: số chia đưa tiền thô của POS về ĐƠN VỊ TIỀN THẬT của shop ──
 // 6 shop GCC nhập giá kiểu minor units (cod=9900 ⇒ 99,00 SAR) → 100; shop Đài nhập
 // NGUYÊN TWD (cod=950 ⇒ 950 TWD, verify bằng POS API 20/08) → 1. Trước 20/08 mọi chỗ
 // gõ thẳng `/100` ⇒ tiền Đài tụt đúng 100 lần trên cả Sheet lẫn dashboard mà không có
 // cảnh báo nào. Dùng posMoneyDivisor(), ĐỪNG gõ 100.
+// Nước sắp chạy chưa đo số chia (null) → 1: chưa có đơn nào để chia.
 export const MONEY_DIV: Record<string, number> = Object.fromEntries(
-    Object.entries(RULES.markets).flatMap(([m, v]) => [
-        [m, v.pos_money_divisor] as [string, number],
-        [v.shop_label, v.pos_money_divisor] as [string, number],
-    ]));
+    MARKET_ENTRIES.flatMap(([m, v]) => {
+        const d = soDuong(v.pos_money_divisor) ? v.pos_money_divisor : 1;
+        return [[m, d] as [string, number], [v.shop_label, d] as [string, number]];
+    }));
 
 /** Số chia tiền POS theo shop_label HOẶC tên market; shop lạ → 100 (mặc định minor units). */
 export function posMoneyDivisor(marketOrShopLabel?: string | null): number {
@@ -61,6 +72,43 @@ export const MARKET_CANON: Record<string, string> = Object.fromEntries(
     Object.entries(RULES.market_aliases).filter(([k]) => !k.startsWith("_")));
 export const DISPLAY: Record<string, string> = Object.fromEntries(
     Object.entries(RULES.marketers).map(([k, v]) => [k, v.display]));
+
+/** Nước dành cho campaign KHÔNG ghi nước (tên cũ) — Sỹ Anh chốt 15/09/2026: tính về Đài. */
+export const PRIMARY_MARKET: string | null = (RULES as unknown as { primary_market?: string }).primary_market || null;
+
+export type MarketSource = "o_dau" | "o_khac" | "mac_dinh";
+/**
+ * Tên campaign → nước + nguồn. Cùng luật với campaign_market() bên talpha_rules.py:
+ * 'o_dau' ô đầu là nước (đúng chuẩn) · 'o_khac' nước ở ô khác (tên kiểu cũ) ·
+ * 'mac_dinh' không ghi nước → PRIMARY_MARKET, và phải được liệt kê ra để sửa tên.
+ */
+export function campaignMarket(cn?: string | null): { market: string | null; source: MarketSource } {
+    const p = String(cn || "").split("/").map((x) => x.trim());
+    for (let i = 0; i < p.length; i++) {
+        const m = CAMP_MARKETS[p[i].toUpperCase()];
+        if (m) return { market: m, source: i === 0 ? "o_dau" : "o_khac" };
+    }
+    return { market: PRIMARY_MARKET, source: "mac_dinh" };
+}
+
+/** Thông tin ba nước cho giao diện (client không đọc được file config). */
+export type MarketPublic = {
+    key: string; code: string; display: string; currency: string; symbol: string;
+    rate_vnd: number; status: MarketStatus; tokens: string[];
+};
+export const MARKETS_PUBLIC: { primary: string | null; markets: MarketPublic[] } = {
+    primary: PRIMARY_MARKET,
+    markets: MARKET_ENTRIES.map(([key, v]) => ({
+        key,
+        code: v.shop_label,
+        display: v.display || key,
+        currency: v.currency,
+        symbol: v.currency_symbol || v.currency,
+        rate_vnd: soDuong(v.rate_vnd) ? v.rate_vnd : 0,
+        status: v.status || "dang_ban",
+        tokens: RULES.camp_market_tokens.filter((t) => RULES.market_aliases[t] === key),
+    })),
+};
 
 // ── KPI doanh số theo tháng ──
 // Khoá "YYYY-MM" → VND. Nguồn: khối `targets` trong talpha_rules.json (chép từ
@@ -314,12 +362,10 @@ export function isUnknownProduct(code?: string | null): boolean {
 export function parseCampaign(cn?: string | null): [string | null, string | null] {
     const p = String(cn || "").split("/").map((x) => x.trim());
     const mi = p.findIndex((s) => s.toUpperCase() in CAMP_MARKETS);
-    // Hệ thống chỉ có MỘT thị trường nên tên campaign không cần ghi. Không thấy
-    // token nào thì lấy thị trường chính — đây là suy ra từ cấu hình, không phải
-    // đoán mò. Thêm thị trường thứ hai thì phải bắt ghi rõ trong tên.
-    const market = mi >= 0
-        ? CAMP_MARKETS[p[mi].toUpperCase()]
-        : ((RULES as unknown as { primary_market?: string }).primary_market || null);
+    // Không thấy mã nước nào thì tính về PRIMARY_MARKET (tên cũ, Sỹ Anh chốt 15/09/2026).
+    // Có Singapore, UAE rồi thì campaign mới BẮT BUỘC ghi nước ở ô đầu — campaignMarket()
+    // trả nguồn 'mac_dinh' để nơi hiển thị liệt kê những tên cần sửa.
+    const market = campaignMarket(cn).market;
 
     // Ba cách tìm marketer, thử lần lượt. Đội đặt tên campaign theo hai quy ước
     // khác nhau qua các thời kỳ, và chỉ nhận một quy ước là mất hết số của quy

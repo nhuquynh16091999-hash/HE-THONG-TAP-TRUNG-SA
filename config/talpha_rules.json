@@ -1,36 +1,74 @@
 {
   "version": "2026-09-05",
-  "_readme": "NGUỒN RULE DUY NHẤT của hệ thống. Sửa rule = sửa file NÀY, mọi nơi khác đọc từ đây (view SQL sinh lúc deploy, route API dashboard, sync, bot). Hệ thống từ 05/09/2026: MỘT thị trường Đài Loan, 5 marketer + 2 sale + 1 giám đốc.",
+  "_readme": "NGUỒN RULE DUY NHẤT của hệ thống. Sửa rule = sửa file NÀY, mọi nơi khác đọc từ đây (view SQL sinh lúc deploy, route API dashboard, sync, bot). Hệ thống từ 05/09/2026 bán ở Đài Loan; từ 15/09/2026 mở khung ba thị trường — Đài Loan đang bán, Singapore và UAE sắp chạy (xem markets.*.status).",
   "_market_note": "X13 — pos_money_divisor là SỐ ĐƠN VỊ PHỤ trên 1 đơn vị tiền MÀ POS ĐANG LƯU. Shop Đài lưu NGUYÊN TWD (cod=950 ⇒ 950 TWD) nên chia 1, KHÔNG chia 100. Gõ /100 cứng ở bất kỳ đâu = tiền tụt đúng 100 lần.",
   "primary_market": "Taiwan",
+  "_primary_market_note": "CHỈ dùng cho campaign KHÔNG ghi nước ở tên (tên cũ kiểu 'Lộc/Philippine/…'): tính về Đài — Sỹ Anh chốt 15/09/2026. Campaign mới phải ghi nước ở ô đầu (TW/SG/AE); thiếu thì báo cáo vẫn tính Đài nhưng liệt kê ra để sửa tên. Không dùng primary_market để suy nước của ĐƠN — nước của đơn là shop POS.",
+  "_status_note": "markets.*.status: 'dang_ban' = đã nối shop POS, có tỷ giá và số chia, số tiền được tính; 'sap_chay' = mới nhận ra trong tên campaign (chi tiêu tách đúng nước) nhưng CHƯA kéo đơn, CHƯA tính tiền. Chuyển sang dang_ban khi khai đủ shop_id + key + rate_vnd + pos_money_divisor (đo trên đơn thật, không đoán).",
   "markets": {
     "Taiwan": {
       "shop_label": "TW",
       "shop_id": "1022091930",
       "currency": "TWD",
+      "currency_symbol": "NT$",
       "rate_vnd": 800,
       "pos_money_divisor": 1,
       "display": "Đài Loan",
-      "_note": "TWD→VND tạm 800 (thật 780–800). Đây là thị trường DUY NHẤT nên tỷ giá sai là sai toàn hệ — soát lại mỗi tháng.",
+      "status": "dang_ban",
+      "_note": "TWD→VND tạm 800 (thật 780–800) — soát lại mỗi tháng.",
       "_shop_id_note": "Shop POS \"TAIWAN SỸ ANH\" — đổi sang 1022091930 ngày 14/09/2026 (Sỹ Anh chỉ định; đơn từ 13/09 có sản phẩm, tiền, marketer). Shop cũ 408074608 dừng ở 281 đơn tới 11/09: đơn của nó còn trong sale_order_raw nhưng không vào báo cáo. Trước nữa là 1328343252 (hệ thống cũ). Mỗi shop một API key riêng — đổi shop là phải đổi TALPHA_POSCAKE_TW_KEY."
+    },
+    "Singapore": {
+      "shop_label": "SG",
+      "shop_id": "",
+      "currency": "SGD",
+      "currency_symbol": "S$",
+      "rate_vnd": null,
+      "pos_money_divisor": null,
+      "display": "Singapore",
+      "status": "sap_chay",
+      "_todo": "Mở khung 15/09/2026, CHƯA nối: cần shop POS + API key (TALPHA_POSCAKE_SG_KEY), tỷ giá SGD→VND, số chia tiền POS (đo trên đơn thật đầu tiên). 3PL dự kiến NAZA — bảng giá Singapore bản 28/09/2025 trong '18.10 COD TỪ TQ ĐI 8 NƯỚC.xlsx': chặng đầu 2,3 RMB/0,1kg; chặng cuối 24 RMB 2kg đầu, 4 RMB/kg sau; thu hộ COD 4% (tối thiểu 10 RMB); COD tối đa 2000 SGD/đơn."
+    },
+    "UAE": {
+      "shop_label": "AE",
+      "shop_id": "",
+      "currency": "AED",
+      "currency_symbol": "AED",
+      "rate_vnd": null,
+      "pos_money_divisor": null,
+      "display": "UAE",
+      "status": "sap_chay",
+      "_todo": "Mở khung 15/09/2026, CHƯA nối: cần chốt 3PL (bảng giá NAZA 8 nước KHÔNG có UAE; hệ GCC cũ dùng iMile), shop POS + API key (TALPHA_POSCAKE_AE_KEY), tỷ giá AED→VND, số chia. Shop UAE thời GCC là 1635200759 và lưu tiền ×100 — dùng lại thì vẫn phải đo số chia trên đơn thật."
     }
   },
   "market_aliases": {
-    "_note": "Mọi cách viết thị trường → tên chuẩn. Hệ thống MỘT thị trường: Đài Loan.",
+    "_note": "Mọi cách viết thị trường → tên chuẩn. Mã chuẩn ở ô đầu tên campaign: TW · SG · AE.",
     "TW": "Taiwan",
     "TAIWAN": "Taiwan",
     "TAIWAIN": "Taiwan",
     "ĐÀI": "Taiwan",
-    "DAI": "Taiwan"
+    "DAI": "Taiwan",
+    "SG": "Singapore",
+    "SING": "Singapore",
+    "SINGAPORE": "Singapore",
+    "AE": "UAE",
+    "UAE": "UAE",
+    "DUBAI": "UAE"
   },
   "camp_market_tokens": [
     "TW",
     "TAIWAN",
     "TAIWAIN",
     "ĐÀI",
-    "DAI"
+    "DAI",
+    "SG",
+    "SING",
+    "SINGAPORE",
+    "AE",
+    "UAE",
+    "DUBAI"
   ],
-  "_audience_note": "TỆP KHÁCH: cộng đồng người nước ngoài đang SỐNG Ở ĐÀI LOAN mà quảng cáo nhắm tới — lao động Philippines, Indonesia, Việt Nam, và người Đài bản địa. ĐÂY KHÔNG PHẢI THỊ TRƯỜNG. Hàng vẫn giao ở Đài, vẫn thu TWD, vẫn qua 7-Eleven. Ô thứ hai của tên campaign là tệp khách chứ không phải nước giao hàng — đọc nhầm chỗ này là tưởng công ty đang bán ở bốn nước khác nhau.",
+  "_audience_note": "TỆP KHÁCH: cộng đồng đang SỐNG Ở NƯỚC BÁN mà quảng cáo nhắm tới — lao động Philippines, Indonesia, Việt Nam, và người bản địa. ĐÂY KHÔNG PHẢI THỊ TRƯỜNG: campaign TW/…/PHI giao ở Đài, thu TWD; SG/…/PHI giao ở Singapore, thu SGD. Ô thứ hai của tên campaign là tệp khách chứ không phải nước giao hàng — đọc nhầm chỗ này là tưởng công ty đang bán ở bốn nước khác nhau.",
   "audiences": {
     "PHI": {
       "display": "Người Philippines",
@@ -838,9 +876,11 @@
   "test_campaign": {
     "pattern": "(?<![a-zA-Z])[Tt][Ee][Ss][Tt](?![a-zA-Z])",
     "exempt_markets": [
-      "Taiwan"
+      "Taiwan",
+      "Singapore",
+      "UAE"
     ],
-    "_note": "campaign chứa từ 'test' đứng riêng = test sản phẩm → tách khỏi báo cáo doanh số; Taiwan miễn rule vì cả market đang test"
+    "_note": "campaign chứa từ 'test' đứng riêng = test sản phẩm → tách khỏi báo cáo doanh số. Cả ba nước đều MIỄN: Đài vì cả nước đang thử, Singapore và UAE vì mới mở (Sỹ Anh chốt 15/09/2026)."
   },
   "targets": {
     "monthly_revenue_vnd": {

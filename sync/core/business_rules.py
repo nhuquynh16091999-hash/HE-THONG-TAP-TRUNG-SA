@@ -12,35 +12,44 @@ Dùng trong:
 import json
 from typing import Optional
 
-# ─── R2: Tỷ giá FX → VND ────────────────────────────────────────────────────
-# Cập nhật: 2026-02-01. Thay đổi tỷ giá → cập nhật đây + config/projects/talpha.yaml
+# ─── R2 · R1b · R3: Thị trường — ĐỌC TỪ config/talpha_rules.json → markets ──────
+# Trước 15/09/2026 ba bảng dưới gõ cứng đúng một nước (TW). Mở thêm Singapore, UAE mà
+# vẫn gõ tay ở đây là có hai nguồn tỷ giá — đổi JSON thì dashboard đổi, Python đứng yên.
+# Nay sinh từ JSON; chỉ nước ĐÃ có số mới vào bảng (nước "sap_chay" có tỷ giá null thì
+# không có dòng — to_vnd() với nước đó ném lỗi thay vì âm thầm nhân sai).
+#
+# X13 — số chia là số đơn vị phụ trên 1 đơn vị tiền MÀ POS ĐANG LƯU, không phải số thập
+# phân ISO 4217. Shop Đài lưu NGUYÊN TWD (cod=950 ⇒ 950 TWD) → 1; shop GCC cũ lưu minor
+# units (cod=9900 ⇒ 99,00 SAR) → 100. Trước 20/08 mọi nơi chia 100 ⇒ tiền Đài tụt 100 lần.
+def _doc_thi_truong() -> dict:
+    from pathlib import Path
+    duong = Path(__file__).resolve().parents[2] / "config" / "talpha_rules.json"
+    with open(duong, encoding="utf-8") as fh:
+        return {k: v for k, v in (json.load(fh).get("markets") or {}).items() if isinstance(v, dict)}
+
+
+def _so_duong(v):
+    return isinstance(v, (int, float)) and not isinstance(v, bool) and v > 0
+
+
+_THI_TRUONG = _doc_thi_truong()
+
 FX_RATES_TO_VND: dict[str, float] = {
-    # Hệ mới 05/09/2026: MỘT thị trường Đài Loan. Tỷ giá này là tỷ giá DUY NHẤT
-    # quy đổi doanh thu — sai một con số là sai toàn hệ, soát lại mỗi tháng.
-    "TW": 800,       # TWD → VND (Đài Loan)
-    "USD": 25700,    # USD → VND (Meta ads billing)
+    v["shop_label"]: v["rate_vnd"] for v in _THI_TRUONG.values() if _so_duong(v.get("rate_vnd"))
 }
+FX_RATES_TO_VND["USD"] = 25700    # USD → VND (Meta ads billing)
 
 # Key có trong FX_RATES_TO_VND nhưng KHÔNG phải shop_label của đơn (chỉ dùng cho
 # tiền quảng cáo) → loại khỏi CASE shop_label khi sinh SQL.
 _NON_SHOP_FX_KEYS: frozenset[str] = frozenset(["USD"])
 
-# ─── R1b: Đơn vị tiền POS lưu theo TỪNG SHOP (X13) ──────────────────────────
-# Số đơn vị phụ trên 1 đơn vị tiền MÀ POS ĐANG LƯU — không phải số thập phân ISO 4217.
-# 6 shop GCC nhập giá kiểu minor units (cod=9900 ⇒ 99,00 SAR) → 100.
-# Shop Đài nhập NGUYÊN TWD (cod=950 ⇒ 950 TWD, verify bằng POS API 20/08) → 1.
-# Trước 20/08 mọi nơi chia 100 cho mọi shop ⇒ tiền Đài tụt đúng 100 lần (AOV ra
-# 8.987đ/đơn trong khi 6 market kia 0,8–1,05tr) mà không có cảnh báo nào.
-# Nguồn duy nhất: config/talpha_rules.json → markets.*.pos_money_divisor.
 POS_MONEY_DIVISOR: dict[str, int] = {
-    "TW": 1,       # Đài lưu NGUYÊN TWD — không chia 100
+    v["shop_label"]: v["pos_money_divisor"] for v in _THI_TRUONG.values() if _so_duong(v.get("pos_money_divisor"))
 }
 DEFAULT_MONEY_DIVISOR = 100  # shop mới chưa khai: giữ mặc định minor units
 
-# Market code → display name
-MARKET_NAMES: dict[str, str] = {
-    "TW": "Taiwan",
-}
+# Market code → tên chuẩn (MỌI nước khai trong JSON, kể cả nước sắp chạy)
+MARKET_NAMES: dict[str, str] = {v["shop_label"]: ten for ten, v in _THI_TRUONG.items()}
 
 # Poscake status_name → (category, sub_category)
 STATUS_CATEGORY_MAP: dict[str, tuple[str, str]] = {
@@ -230,8 +239,12 @@ def calc_aov(revenue_vnd: float, order_count: int) -> Optional[float]:
 # TKQC META thường dùng timezone của market khi báo cáo.
 # Fix đã áp: string-slice bug ký tự 65 → 57 trong vw_orders_std.sql
 
+# Giờ ĐỊA PHƯƠNG của nước — chỉ để tham khảo. Đơn gom theo ngày bằng pos_timezone (giờ
+# Việt Nam) cho CẢ BA nước, Sỹ Anh chốt 15/09/2026: đội làm việc giờ Việt Nam.
 MARKET_TIMEZONES: dict[str, str] = {
     "TW": "Asia/Taipei",     # UTC+8
+    "SG": "Asia/Singapore",  # UTC+8
+    "AE": "Asia/Dubai",      # UTC+4
 }
 
 

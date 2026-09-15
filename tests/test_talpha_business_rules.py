@@ -11,6 +11,8 @@ Bài test này canh đúng những chỗ đã từng làm sai số thật:
 import sys
 from pathlib import Path
 
+import pytest
+
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from sync.core.business_rules import (  # noqa: E402
@@ -22,13 +24,34 @@ from sync.core.business_rules import (  # noqa: E402
 )
 
 
-class TestChiCoMotThiTruong:
-    def test_chi_khai_dai_loan(self):
-        assert set(MARKET_NAMES) == {"TW"}
+class TestBaThiTruong:
+    """15/09/2026: Đài Loan đang bán, Singapore và UAE sắp chạy."""
+
+    def test_khai_du_ba_nuoc(self):
+        assert set(MARKET_NAMES) == {"TW", "SG", "AE"}
+
+    def test_chi_nuoc_da_co_so_moi_co_ty_gia_va_so_chia(self):
+        # Nước sắp chạy chưa có tỷ giá: không được có dòng — nhân với số đoán là sai tiền.
+        assert set(FX_RATES_TO_VND) == {"TW", "USD"}
         assert set(POS_MONEY_DIVISOR) == {"TW"}
 
-    def test_fx_chi_con_twd_va_usd(self):
-        assert set(FX_RATES_TO_VND) == {"TW", "USD"}
+    def test_quy_doi_nuoc_chua_co_ty_gia_thi_bao_loi(self):
+        with pytest.raises(ValueError):
+            to_vnd(49, "SG")
+
+    def test_nuoc_dang_ban_phai_khai_du(self):
+        # Chuyển một nước sang "dang_ban" mà quên shop, tỷ giá hay số chia → đỏ trước deploy.
+        import json
+        cfg = json.load(open(Path(__file__).resolve().parent.parent / "config" / "talpha_rules.json", encoding="utf-8"))
+        for ten, v in cfg["markets"].items():
+            if not isinstance(v, dict):
+                continue
+            assert v.get("status") in ("dang_ban", "sap_chay"), f"{ten}: status lạ {v.get('status')!r}"
+            if v["status"] == "dang_ban":
+                assert str(v.get("shop_id", "")).strip(), f"{ten}: đang bán mà chưa có shop_id"
+                assert isinstance(v.get("rate_vnd"), (int, float)) and v["rate_vnd"] > 0, f"{ten}: thiếu tỷ giá"
+                assert isinstance(v.get("pos_money_divisor"), int) and v["pos_money_divisor"] > 0, f"{ten}: thiếu số chia"
+            assert v.get("currency_symbol"), f"{ten}: thiếu ký hiệu tiền"
 
 
 class TestX13SoChia:

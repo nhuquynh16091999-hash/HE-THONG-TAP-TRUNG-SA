@@ -102,8 +102,18 @@ t("campaign lạc quy ước → không đoán MARKETER, nhưng thị trường 
 });
 
 console.log("── Thị trường ──");
-t("chỉ còn Đài Loan", () => {
-    assert.deepStrictEqual(Object.keys(R.RULES.markets), ["Taiwan"]);
+t("ba nước, chỉ Đài đang bán (15/09/2026)", () => {
+    assert.deepStrictEqual(Object.keys(R.RULES.markets), ["Taiwan", "Singapore", "UAE"]);
+    const dangBan = Object.entries(R.RULES.markets).filter(([, v]) => v.status === "dang_ban").map(([k]) => k);
+    assert.deepStrictEqual(dangBan, ["Taiwan"]);
+});
+t("nước đang bán phải khai đủ shop, tỷ giá, số chia", () => {
+    for (const [ten, v] of Object.entries(R.RULES.markets)) {
+        if (v.status !== "dang_ban") continue;
+        assert.ok(String(v.shop_id || "").trim(), `${ten}: thiếu shop_id`);
+        assert.ok(v.rate_vnd > 0, `${ten}: thiếu tỷ giá`);
+        assert.ok(Number.isInteger(v.pos_money_divisor) && v.pos_money_divisor > 0, `${ten}: thiếu số chia`);
+    }
 });
 t("số chia của Đài là 1, không phải 100", () => {
     assert.strictEqual(R.RULES.markets.Taiwan.pos_money_divisor, 1);
@@ -275,5 +285,51 @@ t("chữ 'test' nằm trong tên trang KHÔNG bị nhận nhầm", () => {
     assert.strictEqual(R.isProductTesting("TW/LOC/PHI/042-BLACK/ContestShop/2808"), false);
 });
 
+
+console.log("── Ba thị trường: Đài Loan · Singapore · UAE (chốt 15/09/2026) ──");
+t("ô đầu là nước", () => {
+    assert.deepStrictEqual(R.campaignMarket("TW/LOC/PHI/042-BLACK/Trang/2808"), { market: "Taiwan", source: "o_dau" });
+    assert.deepStrictEqual(R.campaignMarket("SG/LOC/PHI/042-BLACK/LuxeGold/1509"), { market: "Singapore", source: "o_dau" });
+    assert.deepStrictEqual(R.campaignMarket("AE/THAI/PHI/040-VONGVANG1/Lumora/1509"), { market: "UAE", source: "o_dau" });
+});
+t("các cách viết nước khác vẫn nhận", () => {
+    assert.strictEqual(R.campaignMarket("Singapore/LOC/x").market, "Singapore");
+    assert.strictEqual(R.campaignMarket("Dubai/LOC/x").market, "UAE");
+    assert.strictEqual(R.campaignMarket("UAE/LOC/x").market, "UAE");
+});
+t("tên cũ không ghi nước: tính Đài nhưng đánh dấu để sửa", () => {
+    assert.deepStrictEqual(R.campaignMarket("Lộc/Philippine/050 - SET8/Catholic Essentials HK/3-9"),
+        { market: "Taiwan", source: "mac_dinh" });
+    // parseCampaign dùng CHUNG luật nước này — Sheet và dashboard không được lệch nhau.
+    assert.strictEqual(R.parseCampaign("SG/LOC/PHI/042-BLACK/LuxeGold/1509")[0], "Singapore");
+    assert.strictEqual(R.parseCampaign("SG/LOC/PHI/042-BLACK/LuxeGold/1509")[1], "Loc");
+});
+t("chữ TW nằm trong tên trang KHÔNG phải ô nước", () => {
+    assert.strictEqual(R.campaignMarket("Thainx/INDO/SET KC/Master Jewelry Gold - TW - 02/09").source, "mac_dinh");
+});
+t("tệp khách vẫn đọc đúng khi ô đầu là SG", () => {
+    assert.strictEqual(R.parseAudience("SG/LOC/PHI/042-BLACK/LuxeGold/1509"), "PHI");
+});
+t("nước sắp chạy: tỷ giá 0, số chia 1 — không đoán tiền", () => {
+    assert.strictEqual(R.EXCHANGE_RATES.Singapore, 0);
+    assert.strictEqual(R.EXCHANGE_RATES.UAE, 0);
+    assert.strictEqual(R.EXCHANGE_RATES.Taiwan, 800);
+    assert.strictEqual(R.posMoneyDivisor("SG"), 1);
+    assert.strictEqual(R.posMoneyDivisor("TW"), 1);
+});
+t("thông tin nước cho giao diện: mã, ký hiệu tiền, trạng thái, mã trong tên campaign", () => {
+    const m = Object.fromEntries(R.MARKETS_PUBLIC.markets.map((x) => [x.code, x]));
+    assert.deepStrictEqual(Object.keys(m).sort(), ["AE", "SG", "TW"]);
+    assert.strictEqual(m.TW.symbol, "NT$");
+    assert.strictEqual(m.SG.symbol, "S$");
+    assert.strictEqual(m.SG.status, "sap_chay");
+    assert.strictEqual(m.TW.status, "dang_ban");
+    assert.ok(m.SG.tokens.includes("SG") && m.AE.tokens.includes("UAE"));
+    assert.strictEqual(R.MARKETS_PUBLIC.primary, "Taiwan");
+});
+t("ba nước đều miễn luật campaign test", () => {
+    assert.strictEqual(R.isTestCampaign("SG/LOC/PHI/TEST/Trang/1509", "Singapore"), false);
+    assert.strictEqual(R.isTestCampaign("AE/LOC/PHI/TEST/Trang/1509", "UAE"), false);
+});
 
 console.log(`\n${pass} phép thử — tất cả đạt.`);

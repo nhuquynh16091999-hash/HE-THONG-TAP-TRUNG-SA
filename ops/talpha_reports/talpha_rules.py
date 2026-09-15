@@ -18,20 +18,41 @@ with open(RULES_PATH, encoding="utf-8") as _f:
     RULES = json.load(_f)
 
 # ── Thị trường & tỷ giá (tương đương RATE/LOCALCUR/ALLM/MARKETS/SHOP2MKT cũ) ──
-RATE     = {m: v["rate_vnd"] for m, v in RULES["markets"].items()}
-LOCALCUR = {m: v["currency"] for m, v in RULES["markets"].items()}
+# Nước "sap_chay" (15/09/2026: Singapore, UAE) chưa có tỷ giá và số chia — khai null
+# trong JSON. Ở đây null → tỷ giá 0 (doanh thu 0, KHÔNG đoán) và số chia 1 (chưa có đơn
+# nào để chia). Nước "dang_ban" thiếu hai số này là cấu hình sai — test chặn trước deploy.
+def _so_duong(v, mac_dinh):
+    return v if isinstance(v, (int, float)) and not isinstance(v, bool) and v > 0 else mac_dinh
+
+_MK = {m: v for m, v in RULES["markets"].items() if isinstance(v, dict)}
+RATE     = {m: _so_duong(v.get("rate_vnd"), 0) for m, v in _MK.items()}
+LOCALCUR = {m: v["currency"] for m, v in _MK.items()}
+CURRENCY_SYMBOL = {m: v.get("currency_symbol") or v["currency"] for m, v in _MK.items()}
+STATUS   = {m: v.get("status", "dang_ban") for m, v in _MK.items()}
+DANG_BAN = [m for m in _MK if STATUS[m] == "dang_ban"]
 # X13 — số chia đưa cod/phí thô của POS về ĐƠN VỊ TIỀN THẬT của shop. 6 shop GCC lưu
 # minor units (cod=9900 ⇒ 99,00 SAR) nên 100; shop Đài lưu NGUYÊN TWD (cod=950 ⇒
 # 950 TWD) nên 1. Trước 20/08 mọi chỗ gõ thẳng "/100" ⇒ tiền Đài tụt 100 lần trên cả
 # Sheet lẫn dashboard. Dùng MONEY_DIV[market] / MONEY_DIV_SHOP[shop_label], ĐỪNG gõ 100.
-MONEY_DIV      = {m: v["pos_money_divisor"] for m, v in RULES["markets"].items()}
-MONEY_DIV_SHOP = {v["shop_label"]: v["pos_money_divisor"] for m, v in RULES["markets"].items()}
-ALLM     = list(RULES["markets"].keys())
-# Thị trường mặc định khi tên campaign KHÔNG ghi thị trường (chuẩn từ 09/2026:
-# hệ chỉ còn một thị trường nên ô thị trường bị bỏ khỏi tên campaign).
+MONEY_DIV      = {m: _so_duong(v.get("pos_money_divisor"), 1) for m, v in _MK.items()}
+MONEY_DIV_SHOP = {v["shop_label"]: _so_duong(v.get("pos_money_divisor"), 1) for m, v in _MK.items()}
+ALLM     = list(_MK.keys())
+# Nước dành cho campaign KHÔNG ghi nước ở tên (tên cũ). Sỹ Anh chốt 15/09/2026: tên cũ
+# vẫn tính Đài, nhưng báo cáo liệt kê ra để sửa — xem campaign_market().
 PRIMARY_MARKET = RULES.get("primary_market") or (ALLM[0] if ALLM else None)
 MARKETS  = {tok: RULES["market_aliases"][tok] for tok in RULES["camp_market_tokens"]}
-SHOP2MKT = {v["shop_label"]: m for m, v in RULES["markets"].items()}
+SHOP2MKT = {v["shop_label"]: m for m, v in _MK.items()}
+
+def campaign_market(cn):
+    """Tên campaign → (nước, nguồn). Nguồn: 'o_dau' (ô đầu là nước — đúng chuẩn),
+    'o_khac' (nước nằm ô khác, tên kiểu cũ 'Tặng/TW/…'), 'mac_dinh' (không ghi nước →
+    PRIMARY_MARKET). Cùng luật với parseCampaign/campaignMarketSource bên rules.ts."""
+    p = [x.strip() for x in (cn or "").split("/")]
+    for i, s in enumerate(p):
+        m = MARKETS.get(s.upper())
+        if m:
+            return m, ("o_dau" if i == 0 else "o_khac")
+    return PRIMARY_MARKET, "mac_dinh"
 
 GTC_CAT = RULES["status"]["gtc_category"]
 POS_TZ  = RULES["pos_timezone"]

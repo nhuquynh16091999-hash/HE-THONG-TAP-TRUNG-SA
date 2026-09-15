@@ -60,9 +60,17 @@ def _pos_shops():
         rules = json.load(fh)
 
     out = []
-    for _, m in (rules.get("markets") or {}).items():
+    for ten, m in (rules.get("markets") or {}).items():
+        if not isinstance(m, dict):
+            continue
         label = m.get("shop_label", "")
         if not label:
+            continue
+        # Nước "sắp chạy" (15/09/2026: Singapore, UAE) chưa có shop POS: bỏ qua, KHÔNG
+        # đưa vào danh sách. Để shop_id rỗng lọt vào là bộ lọc shop_ids của bảng đơn
+        # coi như "không lọc" — đơn shop Đài cũ 408074608 sẽ quay lại báo cáo.
+        if not str(m.get("shop_id", "")).strip():
+            print(f"[pos] {ten} ({label}): chưa có shop POS — chưa kéo đơn")
             continue
         out.append({
             "key": os.environ.get(f"TALPHA_POSCAKE_{label}_KEY", ""),
