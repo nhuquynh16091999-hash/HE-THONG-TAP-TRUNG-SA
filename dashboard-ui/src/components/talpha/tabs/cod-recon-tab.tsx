@@ -72,7 +72,7 @@ type TienVe = {
     da_gui_ve_vnd: number; phai_nhan_theo_file_vnd: number;
     so_ky: number; ky_da_doi_chieu_bank: number; thuc_nhan_vnd: number;
     ty_gia: { twd_rmb: number | null; rmb_vnd: number | null; ngay_sao_ke: string | null };
-    con_lai_da_giao: UocTinh; con_lai_tat_ca: UocTinh;
+    con_lai_da_giao: UocTinh; con_lai_chua_giao: UocTinh;
     khong_tinh: { hoan: number; huy: number; cod_twd: number };
     tien_hang: { loi: string | null; so_dot: number; doc_luc: string };
 };
@@ -1144,6 +1144,8 @@ function KhoiTienVe({ t }: { t: TienVe }) {
         : "chưa có tỷ giá";
     const lechFile = t.phai_nhan_theo_file_vnd - t.da_gui_ve_vnd;
     const COD = "text-sky-700 dark:text-sky-300";
+    const tongDon = t.con_lai_da_giao.so_don + t.con_lai_chua_giao.so_don;
+    const tongCod = t.con_lai_da_giao.cod_twd + t.con_lai_chua_giao.cod_twd;
     return (
         <Khoi so="Σ" ten="Tiền về" phamVi="all" phu="NAZA đã gửi bao nhiêu, còn phải gửi bao nhiêu">
             <div className="grid gap-3 p-4 lg:grid-cols-3">
@@ -1161,17 +1163,19 @@ function KhoiTienVe({ t }: { t: TienVe }) {
                         { so: TWD(t.con_lai_da_giao.cod_twd), ten: "COD", cls: COD },
                     ]}
                     ghi={`${t.con_lai_da_giao.don_chua_tru_phi} đơn chưa bị trừ phí ship`} />
-                <TheTien mau="cam" Icon={Boxes} nhan="Còn phải gửi — tất cả đơn còn lại" uoc
-                    so={t.con_lai_tat_ca.vnd_uoc != null ? VND(t.con_lai_tat_ca.vnd_uoc) : "—"}
+                <TheTien mau="cam" Icon={Boxes} nhan="Đơn còn lại — chưa giao xong" uoc
+                    so={t.con_lai_chua_giao.vnd_uoc != null ? VND(t.con_lai_chua_giao.vnd_uoc) : "—"}
                     chiSo={[
-                        { so: formatNumber(t.con_lai_tat_ca.so_don), ten: "đơn" },
-                        { so: TWD(t.con_lai_tat_ca.cod_twd), ten: "COD", cls: COD },
+                        { so: formatNumber(t.con_lai_chua_giao.so_don), ten: "đơn" },
+                        { so: TWD(t.con_lai_chua_giao.cod_twd), ten: "COD", cls: COD },
                     ]}
-                    ghi={`trừ ${t.khong_tinh.hoan} đơn hoàn + ${t.khong_tinh.huy} đơn huỷ (${TWD(t.khong_tinh.cod_twd)}) vì không bao giờ trả tiền`} />
+                    ghi={`tiền chưa thu từ khách · đã trừ ${t.khong_tinh.hoan} đơn hoàn + ${t.khong_tinh.huy} đơn huỷ (${TWD(t.khong_tinh.cod_twd)}) vì không bao giờ trả tiền`} />
             </div>
             <p className="flex items-start gap-2 border-t border-border/70 bg-muted/30 px-5 py-3 text-[12.5px] leading-relaxed text-muted-foreground">
                 <Info className="mt-0.5 h-4 w-4 flex-none" />
                 <span>
+                    <b className="font-semibold text-foreground">Hai ô bên phải không trùng nhau</b> — cộng lại là {formatNumber(tongDon)} đơn
+                    ({TWD(tongCod)}) chưa thấy tiền trên sao kê nào: đơn đã giao là tiền NAZA đang giữ, đơn chưa giao là tiền còn ở ngoài đường.{" "}
                     Số dự tính đi đúng luồng NAZA: COD × {gia} − phí. Đơn đã bị NAZA trừ phí ship ở kỳ trước thì không trừ lại;
                     đơn chưa bị trừ thì trừ phí ship theo bảng giá kênh giao (kg đầu) + phí thao tác.
                     <b className="font-semibold text-foreground"> Chưa trừ tiền hàng các kỳ tới</b> — chưa biết trước được.

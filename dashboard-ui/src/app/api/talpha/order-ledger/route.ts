@@ -894,8 +894,14 @@ export async function GET(req: NextRequest) {
                     ky_da_doi_chieu_bank: kyDaDoiChieu.length,
                     thuc_nhan_vnd: kyDaDoiChieu.reduce((a, p) => a + (p.bank?.thuc_nhan_vnd ?? 0), 0),
                     ty_gia: { twd_rmb: tw, rmb_vnd: rv, ngay_sao_ke: kyGia?.ngay_sao_ke ?? null },
+                    // HAI Ô RỜI NHAU, cộng lại không đếm hai lần (Sỹ Anh chốt 16/09/2026).
+                    // Trước đó ô thứ hai là TẬP LỚN gồm cả đơn đã giao, nên nhìn tưởng hai
+                    // khoản tách biệt rồi cộng nhầm: 82 đơn đã giao bị đếm ở cả hai ô.
+                    //   · đã giao  = khách trả tiền rồi, NAZA đang giữ → họ NỢ mình;
+                    //   · chưa giao = tiền còn ở ngoài đường, chưa tới lượt NAZA nợ.
                     con_lai_da_giao: uocTinh(chuaTra.filter((r) => r.status === "Delivered")),
-                    con_lai_tat_ca: uocTinh(chuaTra.filter((r) => !KHONG_BAO_GIO_TRA.has(r.status || ""))),
+                    con_lai_chua_giao: uocTinh(chuaTra.filter(
+                        (r) => r.status !== "Delivered" && !KHONG_BAO_GIO_TRA.has(r.status || ""))),
                     khong_tinh: {
                         hoan: hoan.length, huy: huy.length,
                         cod_twd: [...hoan, ...huy].reduce((a, r) => a + r.cod_twd, 0),
