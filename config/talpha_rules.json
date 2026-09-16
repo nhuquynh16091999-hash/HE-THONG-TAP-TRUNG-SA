@@ -418,7 +418,9 @@
       "VND = RMB_ròng × tỷ_giá_RMB_VND",
       "VND_phải_trả = VND − phí mua hàng kỳ này ± điều chỉnh kỳ trước"
     ],
-    "_carry_note": "Kỳ ÂM được mang sang kỳ sau. Thật: kỳ 24/07 ra −163,29 RMB, kỳ 31/07 trừ lại đúng −636.831 VND (−163,29 × 3.900).",
+    "statement_cycle_days": 7,
+  "_statement_cycle_note": "NAZA gửi sao kê đều mỗi 7 ngày — đo trên 8 kỳ 24/07 → 11/09/2026 (thứ Năm hằng tuần). Quá hạn này mà chưa tải file lên thì màn Đối soát COD nhắc trong mục Việc hôm nay. Đổi nhịp gửi thì sửa số ở đây.",
+  "_carry_note": "Kỳ ÂM được mang sang kỳ sau. Thật: kỳ 24/07 ra −163,29 RMB, kỳ 31/07 trừ lại đúng −636.831 VND (−163,29 × 3.900).",
     "statement_sheets": {
       "summary": [
         "汇总",

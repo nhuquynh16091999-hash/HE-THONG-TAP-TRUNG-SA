@@ -245,4 +245,40 @@ t("tiền còn lại tách riêng: đã trừ giá vốn vs chưa", () => {
     assert.strictEqual(s.cogs_missing_orders, 1);
 });
 
+// ── Nhắc sao kê: NAZA gửi đều mỗi 7 ngày, trễ thì phải kêu ────────────────
+// Sao kê là thứ DUY NHẤT phải tải lên bằng tay. Không nhắc thì cả tháng không ai
+// tải mà màn hình vẫn trông "sạch" — số cũ không tự xấu đi.
+const KY = ["2026-08-28", "2026-09-04", "2026-09-11"];
+
+t("đúng nhịp thì im", () => {
+    assert.strictEqual(L.saoKeTreHan(KY, "2026-09-16").tre, false);   // kỳ tới dự kiến 18/09
+    assert.strictEqual(L.saoKeTreHan(KY, "2026-09-18").tre, false);   // đúng ngày dự kiến
+    assert.strictEqual(L.saoKeTreHan(KY, "2026-09-19").tre, false);   // trễ 1 ngày: còn ân hạn
+});
+
+t("trễ quá ân hạn thì kêu, kèm số ngày trễ", () => {
+    const r = L.saoKeTreHan(KY, "2026-09-22");
+    assert.strictEqual(r.tre, true);
+    assert.strictEqual(r.ky_gan_nhat, "2026-09-11");
+    assert.strictEqual(r.du_kien, "2026-09-18");
+    assert.strictEqual(r.tre_ngay, 4);
+});
+
+t("bỏ qua kỳ thiếu ngày, vẫn lấy kỳ mới nhất", () => {
+    const r = L.saoKeTreHan([null, "2026-09-11", undefined, "rác", "2026-08-28"], "2026-09-25");
+    assert.strictEqual(r.ky_gan_nhat, "2026-09-11");
+    assert.strictEqual(r.tre, true);
+});
+
+t("chưa có kỳ nào thì KHÔNG kêu — không biết nhịp bắt đầu từ đâu", () => {
+    assert.deepStrictEqual(L.saoKeTreHan([], "2026-09-25"),
+        { tre: false, tre_ngay: 0, ky_gan_nhat: null, du_kien: null });
+});
+
+t("đổi nhịp gửi thì đổi luôn ngày dự kiến", () => {
+    const r = L.saoKeTreHan(["2026-09-11"], "2026-09-30", { chuKy: 14 });
+    assert.strictEqual(r.du_kien, "2026-09-25");
+    assert.strictEqual(r.tre_ngay, 5);
+});
+
 console.log(`\n${pass} phép thử — tất cả đạt.`);

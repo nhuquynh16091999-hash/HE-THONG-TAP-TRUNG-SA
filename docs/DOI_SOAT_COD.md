@@ -5,6 +5,29 @@
 
 ---
 
+## Số trên màn cập nhật lúc nào
+
+Màn Đối soát COD **không đọc POS hay BigQuery**. Mọi con số của nó — "Tiền về",
+"Việc hôm nay", bảng từng kỳ — dựng từ đúng hai kho file trên máy chủ:
+
+| Kho | Nội dung | Ai làm nó đổi |
+|---|---|---|
+| `data/tracking.json` | Bảng đơn của đối tác: đơn, khách, COD, trạng thái giao | **Việc nền 6h sáng** (`talpha-tracking.timer`), hoặc bấm “Đọc bảng đối tác” ở tab Theo dõi vận đơn |
+| `data/cod_statements.json` | Sao kê NAZA từng kỳ | **Kéo file .xlsx** vào ô trên cùng của tab — NAZA gửi qua chat, máy không có chỗ nào tự lấy |
+
+Hai timer còn lại (`talpha-sync`, `talpha-report`) **không đụng** hai kho này.
+
+Hệ quả phải nhớ:
+
+* Không nạp bảng đơn thì phần "còn phải gửi" đứng im — đơn giao xong hôm nay không tự
+  chui vào. Ngày 16/09/2026 Sỹ Anh mở màn này và hỏi vì sao nó đứng yên: số khi đó nạp
+  từ 09/09, đã bảy ngày, vì lúc ấy chưa có việc nền.
+* Đầu màn giờ có dòng **"Bảng đơn đối tác: nạp lúc …"**, quá 24 giờ thì đỏ.
+* Tới kỳ mà chưa tải sao kê thì mục "Việc hôm nay" tự mọc việc **"Chưa có sao kê kỳ mới"**
+  (chu kỳ 7 ngày, khai ở `talpha_rules.json → cod_settlement.statement_cycle_days`).
+
+---
+
 ## Tiền đi đường nào
 
 ```

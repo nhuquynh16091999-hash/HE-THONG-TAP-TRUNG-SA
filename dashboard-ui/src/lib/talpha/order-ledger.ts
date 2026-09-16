@@ -52,11 +52,44 @@ function unitCostVnd(code: string, rateRmbVnd: number | null): number | null {
 }
 
 const CFG = (RULES as unknown as {
-    cod_settlement?: { pending_alert_days?: number; amount_tolerance_local?: number };
+    cod_settlement?: {
+        pending_alert_days?: number; amount_tolerance_local?: number; statement_cycle_days?: number;
+    };
 }).cod_settlement || {};
 
 export const OVERDUE_DAYS = Number(CFG.pending_alert_days ?? 30);
 export const TOLERANCE_TWD = Number(CFG.amount_tolerance_local ?? 1);
+/** NAZA gửi sao kê đều đặn mỗi 7 ngày (đo trên 8 kỳ: 24/07 → 11/09/2026). */
+export const CHU_KY_SAO_KE_NGAY = Number(CFG.statement_cycle_days ?? 7);
+
+const NGAY = 86_400_000;
+const LA_NGAY = (s?: string | null): s is string => !!s && /^\d{4}-\d{2}-\d{2}$/.test(s);
+const themNgay = (ngay: string, n: number) => new Date(Date.parse(`${ngay}T00:00:00Z`) + n * NGAY).toISOString().slice(0, 10);
+const cachNgay = (a: string, b: string) => Math.round((Date.parse(`${a}T00:00:00Z`) - Date.parse(`${b}T00:00:00Z`)) / NGAY);
+
+/**
+ * Tới kỳ sao kê mới mà chưa thấy file — sao kê là thứ DUY NHẤT phải tải lên bằng tay
+ * (NAZA gửi file qua chat, máy không có chỗ nào tự lấy). Không ai nhắc thì cả tháng
+ * không tải, và màn đối soát đứng im mà trông vẫn "sạch".
+ *
+ * `an` = số ngày ân hạn: NAZA gửi trễ một ngày là chuyện thường, kêu ngay thì nhàm.
+ * Chưa có kỳ nào (mới dựng) → không kêu: không biết chu kỳ bắt đầu từ đâu.
+ */
+export function saoKeTreHan(
+    ngayCacKy: (string | null | undefined)[],
+    homNay: string,
+    opts: { chuKy?: number; an?: number } = {},
+): { tre: boolean; tre_ngay: number; ky_gan_nhat: string | null; du_kien: string | null } {
+    const chuKy = opts.chuKy ?? CHU_KY_SAO_KE_NGAY;
+    const an = opts.an ?? 1;
+    const ngay = ngayCacKy.filter(LA_NGAY).sort();
+    const ganNhat = ngay.length ? ngay[ngay.length - 1] : null;
+    if (!ganNhat || !LA_NGAY(homNay)) return { tre: false, tre_ngay: 0, ky_gan_nhat: ganNhat, du_kien: null };
+
+    const duKien = themNgay(ganNhat, chuKy);
+    const treNgay = cachNgay(homNay, duKien);
+    return { tre: treNgay > an, tre_ngay: Math.max(treNgay, 0), ky_gan_nhat: ganNhat, du_kien: duKien };
+}
 /** Tỷ giá dự phòng khi bản sao kê không nói tỷ giá của kỳ đó. */
 export const FALLBACK_TWD_VND = Number(TW.rate_vnd ?? 800);
 /** Tỷ giá RMB→VND dự phòng, chỉ dùng khi bản sao kê không nói tỷ giá kỳ đó — talpha_rules.json → cost_rate_rmb_vnd. */

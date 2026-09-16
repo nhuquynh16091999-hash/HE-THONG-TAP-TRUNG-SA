@@ -113,7 +113,7 @@ Ba màn hình **không đụng BigQuery lẫn POS**, chạy được cả khi ha
 |:--|:--|:--|
 | Đối soát COD | Sao kê NAZA (xlsx) + Google Sheet tiền hàng (chỉ đọc) | `data/cod_statements.json` |
 | Đối soát chi phí QC | Chi phí TKQC + sao kê thẻ | `data/ads_recon.json`, `data/ads_recon_kho.json` |
-| Theo dõi vận đơn | Bảng đơn của đối tác (Google Sheet) | `data/tracking.json` |
+| Theo dõi vận đơn · Sổ đơn hàng | Bảng đơn của đối tác (Google Sheet) — **tự nạp 6h sáng**, hoặc bấm “Đọc bảng đối tác” | `data/tracking.json` |
 
 `data/` nằm **ngoài git** (có số tiền thật). `ops/deploy/from-mac.sh` chép nó lên
 máy chủ, và **dừng lại báo lỗi** nếu chép trượt.
@@ -211,6 +211,7 @@ Bảng thô dashboard đọc thẳng: `sale_order`, `order_items`, `fb_ads_data`
 | Dashboard | VPS `139.180.131.21:3000`, `/opt/talpha` | pm2 `talpha-dashboard` — `ops/pm2/ecosystem.vps.config.js` |
 | Kéo số vào BigQuery | VPS, mỗi giờ phút :00 | systemd `talpha-sync.timer` → `sync/talpha/talpha_sync.py` |
 | Ghi Google Sheets | VPS, mỗi giờ phút :20 | systemd `talpha-report.timer` → `/root/talpha_reports/daily_guarded.sh` |
+| Nạp bảng đơn đối tác | VPS, 6h sáng mỗi ngày | systemd `talpha-tracking.timer` → `ops/deploy/tracking-import.sh` (gọi route `tracking/import`) |
 | Bot báo cáo ads Zalo | VPS — tự gửi 08:30, còn lại khi có người gõ `/baocao`, `/canhbao` trong nhóm "BOT AI NHẬN THÔNG BÁO" | pm2 `talpha-zalo-alerts` — nick Zalo phụ ghép 15/09/2026; ghép lại, đổi nhóm: `ops/zalo-alerts/README.md` |
 | Bot cảnh báo WhatsApp | — | **Tắt**. Code ở `ops/whatsapp-alerts/`, cách bật trong `ops/pm2/README.md` |
 | Máy Mac | Máy dev | `cd dashboard-ui && npm run dev`. Không job nền nào. |

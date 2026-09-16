@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { readStoreFresh } from "@/lib/talpha/store";
 import {
-    buildLedger, summarise,
+    buildLedger, summarise, saoKeTreHan, CHU_KY_SAO_KE_NGAY,
     type OrderSource, type PaidLine, type FeeLine,
 } from "@/lib/talpha/order-ledger";
 import type { StatementRow } from "@/lib/talpha/cod-recon";
@@ -44,6 +44,8 @@ type TrackingStore = {
     statuses: Record<string, { status: string | null; raw_status?: string | null;
         order_date?: string | null; ship_date?: string | null }>;
     partner?: Record<string, PartnerMeta>;
+    /** Lần nạp bảng đơn đối tác gần nhất — do route tracking/import ghi. */
+    partner_import?: { filename?: string; imported_at?: string; rows?: number } | null;
 };
 
 type Statement = {
@@ -668,6 +670,22 @@ export async function GET(req: NextRequest) {
             });
         }
 
+        // Sao kê là thứ DUY NHẤT phải tải lên bằng tay — NAZA gửi file qua chat, máy
+        // không có chỗ nào tự lấy. Không nhắc thì cả tháng không ai tải, mà màn hình
+        // vẫn trông "sạch" vì số cũ không tự xấu đi.
+        const treKy = saoKeTreHan(byPeriod.map((p) => p.ngay_sao_ke), asOf);
+        if (treKy.tre) {
+            viec.push({
+                id: "thieu-sao-ke", muc: "soat",
+                tieu_de: "Chưa có sao kê kỳ mới",
+                so: treKy.tre_ngay, don_vi: "ngày",
+                chi_tiet: `Kỳ gần nhất là ${dmy(treKy.ky_gan_nhat || "")}. NAZA gửi đều mỗi ` +
+                    `${CHU_KY_SAO_KE_NGAY} ngày nên kỳ tiếp theo đáng lẽ có từ ${dmy(treKy.du_kien || "")}. ` +
+                    "Xin NAZA file .xlsx rồi kéo vào ô trên cùng — chưa có nó thì tiền kỳ này chưa soát được.",
+                done_key: "", nut: [], ghi_chu: "",
+            });
+        }
+
         // ── Cảnh báo — KÈM CHI TIẾT ĐỦ ĐỂ SỬA NGAY ────────────────────
         //
         // Bản trước chỉ nói "thiếu 6 mã: 002, 011…" rồi bảo mở file JSON ra sửa.
@@ -815,6 +833,14 @@ export async function GET(req: NextRequest) {
 
         return NextResponse.json({
             as_of: asOf,
+            // Bảng đơn đối tác nạp lúc nào — màn hình PHẢI nói ra. Kho này chỉ đổi khi
+            // việc nền 6h sáng chạy hoặc có người bấm "Đọc bảng đối tác"; không nói thì
+            // số của tuần trước trông y hệt số hôm nay.
+            nhap_bang_don: {
+                luc: track.partner_import?.imported_at ?? null,
+                nguon: track.partner_import?.filename ?? null,
+                so_don: Object.keys(partner).length,
+            },
             rows,
             summary,
             extra,

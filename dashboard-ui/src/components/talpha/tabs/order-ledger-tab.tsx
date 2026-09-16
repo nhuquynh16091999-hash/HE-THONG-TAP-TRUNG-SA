@@ -6,6 +6,7 @@ import { AlertTriangle, Download, Search, RefreshCw, ChevronDown } from "lucide-
 import TabSkeleton, { ErrorState } from "@/components/ui/tab-skeleton";
 import { formatNumber, cn } from "../utils";
 import { TWD, VND, RMB, d6, STRIPE, ROWBG, statusCls, mkCls, type Light, type LedgerRowUI } from "./ledger-shared";
+import ThanhNhapBangDon, { type NhapBangDon } from "@/components/talpha/nhap-bang-don";
 
 interface Props { dateRange?: { from: Date; to: Date }; projectId?: string }
 
@@ -53,6 +54,7 @@ export default function TALPHAOrderLedgerTab({ dateRange }: Props) {
     const [error, setError] = useState("");
     const [rows, setRows] = useState<LedgerRowUI[]>([]);
     const [notes, setNotes] = useState<Note[]>([]);
+    const [nhapBangDon, setNhapBangDon] = useState<NhapBangDon | null>(null);
     const [mo, setMo] = useState<Record<string, boolean>>({});
     const [filter, setFilter] = useState<Light | "all">("all");
     const [q, setQ] = useState("");
@@ -67,6 +69,7 @@ export default function TALPHAOrderLedgerTab({ dateRange }: Props) {
             if (!res.ok) throw new Error(d.error || "Không dựng được sổ");
             setRows(d.rows || []);
             setNotes(d.warnings || []);
+            setNhapBangDon(d.nhap_bang_don || null);
         } catch (e) {
             setError(e instanceof Error ? e.message : "Lỗi không rõ");
         } finally { setLoading(false); }
@@ -112,6 +115,8 @@ export default function TALPHAOrderLedgerTab({ dateRange }: Props) {
             <p className="text-xs text-muted-foreground">
                 Cơ sở dữ liệu chung — mọi đơn, mọi cột. Việc phải làm nằm bên tab <b>Đối soát COD</b>.
             </p>
+
+            <ThanhNhapBangDon n={nhapBangDon} />
 
             {notes.map((n) => {
                 const open = mo[n.id] ?? (n.items ? n.items.length <= 8 : false);

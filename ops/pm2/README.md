@@ -50,12 +50,13 @@ deploy là `ops/deploy/from-mac.sh`.
 
 ## Job theo giờ không nằm trong pm2
 
-Hai việc chạy nền trên máy chủ là **systemd timer**, không phải pm2:
+Ba việc chạy nền trên máy chủ là **systemd timer**, không phải pm2:
 
 | Timer | Làm gì | Xem |
 |---|---|---|
 | `talpha-sync.timer` | Kéo đơn POS + chi tiêu Meta vào BigQuery | `ops/deploy/vps-sync-setup.sh` |
 | `talpha-report.timer` | Đọc BigQuery rồi ghi báo cáo Google Sheets | `ops/deploy/vps-reports-setup.sh` |
+| `talpha-tracking.timer` | 6h sáng: nạp bảng đơn đối tác (Google Sheet NAZA) vào kho `tracking` | `ops/deploy/vps-tracking-setup.sh` |
 
 ```bash
 systemctl list-timers 'talpha-*'

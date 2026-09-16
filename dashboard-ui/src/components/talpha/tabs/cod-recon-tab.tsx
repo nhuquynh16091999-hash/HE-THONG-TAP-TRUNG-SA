@@ -11,6 +11,7 @@ import {
 import TabSkeleton, { ErrorState } from "@/components/ui/tab-skeleton";
 import { formatNumber, cn } from "../utils";
 import { TWD, VND } from "./ledger-shared";
+import ThanhNhapBangDon, { type NhapBangDon } from "@/components/talpha/nhap-bang-don";
 
 interface Props { dateRange?: { from: Date; to: Date }; projectId?: string }
 
@@ -157,6 +158,7 @@ export default function TALPHACodReconTab({ dateRange }: Props) {
     const [fx, setFx] = useState<Fx | null>(null);
     const [tq, setTq] = useState<TongQuan | null>(null);
     const [tienVe, setTienVe] = useState<TienVe | null>(null);
+    const [nhapBangDon, setNhapBangDon] = useState<NhapBangDon | null>(null);
     const [stms, setStms] = useState<StatementMeta[]>([]);
     const [pid, setPid] = useState("");
     const [copied, setCopied] = useState("");
@@ -179,6 +181,7 @@ export default function TALPHACodReconTab({ dateRange }: Props) {
             setViec(a.viec || []); setChecks(a.checks || []);
             setPeriods(a.periods || []); setPending(a.chua_ve_tien || []);
             setFx(a.fx || null); setTq(a.tong_quan || null); setTienVe(a.tien_ve || null);
+            setNhapBangDon(a.nhap_bang_don || null);
             setStms(b.statements || []);
             if (a.periods?.length) setPid((p) => p || a.periods[0].id);
         } catch (e) {
@@ -333,6 +336,9 @@ export default function TALPHACodReconTab({ dateRange }: Props) {
                     </p>
                 )}
             </div>
+
+            {/* Số của màn này cũ hay mới — nói ngay, đừng để nhìn nhầm số tuần trước */}
+            <ThanhNhapBangDon n={nhapBangDon} />
 
             {/* ═══ Σ TIỀN VỀ — NAZA đã gửi bao nhiêu, còn phải gửi bao nhiêu ═══ */}
             {tienVe && <KhoiTienVe t={tienVe} />}
