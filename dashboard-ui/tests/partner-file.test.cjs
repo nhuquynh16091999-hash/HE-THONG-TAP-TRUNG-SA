@@ -128,4 +128,22 @@ t("tỷ lệ hoàn tính cả đơn ĐANG hoàn — đó cũng là tiền đã m
     assert.strictEqual(P.summarise(r.rows).return_rate, 0.5);
 });
 
+// ── TIÊU HỦY: hàng hoàn nằm kho Đài 30 ngày, quá hạn thì 3PL huỷ ──────────
+// Tiền không bao giờ về, nên phải là trạng thái KẾT THÚC. Giữ mã riêng chứ không
+// gộp vào Cancelled: đơn huỷ là chưa từng giao, tiêu huỷ là mất hàng thật ở kho.
+t("TIÊU HỦY thành Destroyed, viết hoa hay thường, có dấu hay không đều nhận", () => {
+    assert.strictEqual(P.mapPartnerStatus("TIÊU HỦY"), "Destroyed");
+    assert.strictEqual(P.mapPartnerStatus("Tiêu huỷ"), "Destroyed");
+    assert.strictEqual(P.mapPartnerStatus("tieu huy"), "Destroyed");
+    assert.strictEqual(P.mapPartnerStatus("Đã tiêu huỷ"), "Destroyed");
+});
+
+t("ba trạng thái không bao giờ trả tiền đều là điểm kết thúc", () => {
+    for (const s of ["Returned", "Cancelled", "Destroyed"]) {
+        assert.ok(P.PARTNER_TERMINAL.has(s), s);
+    }
+    assert.ok(!P.PARTNER_TERMINAL.has("Delivered"), "đơn đã giao CHƯA kết thúc — còn chờ tiền về");
+    assert.strictEqual(P.PARTNER_STATUS_VI.Destroyed, "Đã tiêu huỷ");
+});
+
 console.log(`\n${pass} phép thử — tất cả đạt.`);

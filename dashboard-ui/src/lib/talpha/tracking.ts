@@ -66,18 +66,19 @@ export const STATUS_VI: Record<MainStatus, string> = {
 /**
  * Đơn đã đi tới đích cuối — không theo dõi tiếp, không cảnh báo.
  *
- * "Returned" và "Cancelled" chỉ có ở file đối tác, không có trong bảng của
- * 17TRACK. Đơn đã hoàn về kho thì tiền mất rồi, nhắc nữa chỉ làm loãng những
- * đơn còn cứu được — nhưng vẫn ĐẾM để báo cáo tỷ lệ hoàn.
+ * "Returned", "Cancelled" và "Destroyed" chỉ có ở file đối tác, không có trong
+ * bảng của 17TRACK. Đơn đã hoàn về kho thì tiền mất rồi, nhắc nữa chỉ làm loãng
+ * những đơn còn cứu được — nhưng vẫn ĐẾM để báo cáo tỷ lệ hoàn.
  */
 export const TERMINAL: ReadonlySet<string> = new Set([
-    "Delivered", "Expired", "Returned", "Cancelled",
+    "Delivered", "Expired", "Returned", "Cancelled", "Destroyed",
 ]);
 
 /** Nhãn cho trạng thái chỉ có ở file đối tác. */
 export const EXTRA_STATUS_VI: Record<string, string> = {
     Returned: "Đã hoàn về kho",
     Cancelled: "Đã huỷ",
+    Destroyed: "Đã tiêu huỷ",
 };
 
 export function statusLabel(s?: string | null): string {

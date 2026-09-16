@@ -860,7 +860,7 @@
           "mã đơn mới"
         ]
       },
-      "_status_note": "Cột NOTE của đối tác → trạng thái chuẩn (dùng chung bảng với 17TRACK). Giá trị lạ KHÔNG bị nuốt: hiện nguyên văn lên dashboard để người khai bổ sung.",
+      "_status_note": "Cột NOTE của đối tác → trạng thái chuẩn (dùng chung bảng với 17TRACK). Giá trị lạ KHÔNG bị nuốt: hiện nguyên văn lên dashboard để người khai bổ sung. TIÊU HỦY khai 16/09/2026 (Sỹ Anh giải thích): hàng hoàn về kho Đài nằm 30 ngày, quá hạn thì bị tiêu huỷ và ra khỏi hệ thống — tiền KHÔNG BAO GIỜ về, nên đối soát loại nó ra như đơn hoàn và đơn huỷ. Giữ mã riêng Destroyed chứ không gộp vào Cancelled: đơn huỷ là chưa từng giao, còn tiêu huỷ là mất hàng thật ở kho — đếm chung thì không biết mất bao nhiêu.",
       "status_map": {
         "Đợi khách đến lấy hàng": "AvailableForPickup",
         "Đã giao thành công": "Delivered",
@@ -873,7 +873,10 @@
         "Đang hoàn về kho": "DeliveryFailure",
         "Đã hoàn về kho": "Returned",
         "Hủy đơn": "Cancelled",
-        "Huỷ đơn": "Cancelled"
+        "Huỷ đơn": "Cancelled",
+        "TIÊU HỦY": "Destroyed",
+        "Tiêu huỷ": "Destroyed",
+        "Đã tiêu huỷ": "Destroyed"
       },
       "_code_note": "Sinh mã tra cứu 17TRACK từ mã vận đơn: 8 số (7-Eleven) → thêm tiền tố '73N'; 10–11 số (Family Mart, giao tại nhà) → giữ nguyên. Suy từ 289 dòng đối tác đã điền tay, sai đúng 1 dòng. Đối tác chỉ điền tay ~một nửa, phần còn lại sinh tự động.",
       "track17_code_rules": [

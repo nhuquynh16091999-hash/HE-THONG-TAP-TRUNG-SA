@@ -73,7 +73,7 @@ type TienVe = {
     so_ky: number; ky_da_doi_chieu_bank: number; thuc_nhan_vnd: number;
     ty_gia: { twd_rmb: number | null; rmb_vnd: number | null; ngay_sao_ke: string | null };
     con_lai_da_giao: UocTinh; con_lai_chua_giao: UocTinh;
-    khong_tinh: { hoan: number; huy: number; cod_twd: number };
+    khong_tinh: { hoan: number; huy: number; tieu_huy: number; cod_twd: number };
     tien_hang: { loi: string | null; so_dot: number; doc_luc: string };
 };
 type Period = {
@@ -1169,7 +1169,9 @@ function KhoiTienVe({ t }: { t: TienVe }) {
                         { so: formatNumber(t.con_lai_chua_giao.so_don), ten: "đơn" },
                         { so: TWD(t.con_lai_chua_giao.cod_twd), ten: "COD", cls: COD },
                     ]}
-                    ghi={`tiền chưa thu từ khách · đã trừ ${t.khong_tinh.hoan} đơn hoàn + ${t.khong_tinh.huy} đơn huỷ (${TWD(t.khong_tinh.cod_twd)}) vì không bao giờ trả tiền`} />
+                    ghi={`tiền chưa thu từ khách · đã trừ ${t.khong_tinh.hoan} đơn hoàn + ${t.khong_tinh.huy} đơn huỷ`
+                        + `${t.khong_tinh.tieu_huy ? ` + ${t.khong_tinh.tieu_huy} đơn tiêu huỷ` : ""}`
+                        + ` (${TWD(t.khong_tinh.cod_twd)}) vì không bao giờ trả tiền`} />
             </div>
             <p className="flex items-start gap-2 border-t border-border/70 bg-muted/30 px-5 py-3 text-[12.5px] leading-relaxed text-muted-foreground">
                 <Info className="mt-0.5 h-4 w-4 flex-none" />

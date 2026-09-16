@@ -872,7 +872,9 @@ export async function GET(req: NextRequest) {
                 const tw = kyGia?.luong?.ty_gia_twd_rmb ?? null;
                 const rv = kyGia?.luong?.ty_gia_rmb_vnd ?? null;
                 const chuaTra = rows.filter((r) => r.paid_twd === null);
-                const KHONG_BAO_GIO_TRA = new Set(["Returned", "Cancelled"]);
+                // Hàng hoàn nằm kho Đài 30 ngày rồi bị tiêu huỷ — cùng nhóm "không bao giờ
+                // trả tiền" với đơn hoàn và đơn huỷ (Sỹ Anh giải thích 16/09/2026).
+                const KHONG_BAO_GIO_TRA = new Set(["Returned", "Cancelled", "Destroyed"]);
                 const uocTinh = (ds: typeof rows) => {
                     let cod = 0, phi = 0, chuaTruPhi = 0;
                     for (const r of ds) {
@@ -887,6 +889,7 @@ export async function GET(req: NextRequest) {
                 };
                 const hoan = chuaTra.filter((r) => r.status === "Returned");
                 const huy = chuaTra.filter((r) => r.status === "Cancelled");
+                const tieuHuy = chuaTra.filter((r) => r.status === "Destroyed");
                 return {
                     da_gui_ve_vnd: daGuiVe,
                     phai_nhan_theo_file_vnd: phaiNhanTheoFile,
@@ -903,8 +906,8 @@ export async function GET(req: NextRequest) {
                     con_lai_chua_giao: uocTinh(chuaTra.filter(
                         (r) => r.status !== "Delivered" && !KHONG_BAO_GIO_TRA.has(r.status || ""))),
                     khong_tinh: {
-                        hoan: hoan.length, huy: huy.length,
-                        cod_twd: [...hoan, ...huy].reduce((a, r) => a + r.cod_twd, 0),
+                        hoan: hoan.length, huy: huy.length, tieu_huy: tieuHuy.length,
+                        cod_twd: [...hoan, ...huy, ...tieuHuy].reduce((a, r) => a + r.cod_twd, 0),
                     },
                     tien_hang: { loi: tienHang.loi, so_dot: tienHang.dot.length, doc_luc: tienHang.doc_luc },
                 };

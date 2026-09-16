@@ -31,15 +31,18 @@ const COLUMN_MAP = CFG.column_map || {};
 const STATUS_MAP = CFG.status_map || {};
 const CODE_RULES = CFG.track17_code_rules || [];
 
-/** Trạng thái nội bộ: 9 mã của 17TRACK cộng hai trạng thái chỉ file đối tác mới có. */
-export type PartnerStatus = MainStatus | "Returned" | "Cancelled";
+/** Trạng thái nội bộ: 9 mã của 17TRACK cộng ba trạng thái chỉ file đối tác mới có. */
+export type PartnerStatus = MainStatus | "Returned" | "Cancelled" | "Destroyed";
 
 /** Đơn đã kết thúc — không cảnh báo nữa, nhưng vẫn đếm để báo cáo. */
-export const PARTNER_TERMINAL: ReadonlySet<string> = new Set(["Returned", "Cancelled"]);
+export const PARTNER_TERMINAL: ReadonlySet<string> = new Set(["Returned", "Cancelled", "Destroyed"]);
 
 export const PARTNER_STATUS_VI: Record<string, string> = {
     Returned: "Đã hoàn về kho",
     Cancelled: "Đã huỷ",
+    // Hàng hoàn nằm kho Đài 30 ngày, quá hạn thì 3PL tiêu huỷ (Sỹ Anh giải thích 16/09/2026).
+    // Mất hàng thật, khác hẳn đơn huỷ — đơn huỷ là chưa từng giao đi.
+    Destroyed: "Đã tiêu huỷ",
 };
 
 // ─────────────────────────────────────────────────────────────────────────

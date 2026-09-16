@@ -367,13 +367,16 @@ export function buildLedger(
         const kyDaQua = dGiao ? periodEnds.filter((d) => d > dGiao).length : 0;
         const diff = hit ? hit.amount_twd - o.cod_twd : null;
         const delivered = o.status === "Delivered";
-        const dead = o.status === "Returned" || o.status === "Cancelled";
+        // Ba đường chết: hoàn về kho, huỷ đơn, và hàng hoàn quá 30 ngày bị tiêu huỷ.
+        const dead = o.status === "Returned" || o.status === "Cancelled" || o.status === "Destroyed";
 
         let light: Light = "xam";
         let note = "Chưa giao xong — 3PL chưa có lý do trả tiền.";
         if (dead) {
             light = "xam";
-            note = o.status === "Returned" ? "Hàng đã hoàn về kho." : "Đơn đã huỷ.";
+            note = o.status === "Returned" ? "Hàng đã hoàn về kho."
+                : o.status === "Destroyed" ? "Hàng hoàn quá 30 ngày, 3PL đã tiêu huỷ — tiền không về nữa."
+                    : "Đơn đã huỷ.";
         } else if (hit && diff !== null && Math.abs(diff) > TOLERANCE_TWD) {
             light = "do";
             note = `Lệch ${diff > 0 ? "+" : ""}${Math.round(diff)} TWD so với số ghi trên đơn.`;
