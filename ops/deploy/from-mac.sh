@@ -30,8 +30,13 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 # cài khoá deploy riêng lên GitHub. Khoá không bao giờ nằm lại trên máy chủ —
 # hết phiên là hết quyền.
 GH_KEY="${GH_KEY:-$HOME/.ssh/id_ed25519_hethong}"
-SSH=(ssh -A -i "$KEY" -o IdentitiesOnly=yes -o ConnectTimeout=15 "root@$HOST")
-SCP=(scp -i "$KEY" -o IdentitiesOnly=yes -q)
+# ServerAlive*: máy chủ im quá 20s × 15 = 5 phút thì ssh tự bỏ cuộc thay vì treo mãi.
+# 16/09/2026 một lượt deploy treo 25 phút: việc trên máy chủ ĐÃ XONG lúc 11:09 (dashboard
+# khởi động lại, HTTP 200) nhưng kênh ssh không đóng, nên ở máy Mac trông như đang build.
+# Bước dài nhất là `next build` (~90 giây không in gì), nên 5 phút là dư an toàn.
+SSH=(ssh -A -i "$KEY" -o IdentitiesOnly=yes -o ConnectTimeout=15
+     -o ServerAliveInterval=20 -o ServerAliveCountMax=15 "root@$HOST")
+SCP=(scp -i "$KEY" -o IdentitiesOnly=yes -o ServerAliveInterval=20 -o ServerAliveCountMax=15 -q)
 
 say() { printf '\n\033[1;33m▸ %s\033[0m\n' "$*"; }
 die() { printf '\n\033[1;31m✗ %s\033[0m\n' "$*" >&2; exit 1; }
