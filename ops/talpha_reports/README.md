@@ -40,11 +40,39 @@ khác nhau cùng ghi một bộ bảng mỗi giờ, bản nào chạy sau thì �
 | `report_account_health.py` | Health theo TỪNG TKQC/shop — bắt lỗi âm thầm khi một mục rơi khỏi sync mà vòng vẫn rc=0 |
 | `check_meta_token.py` | Kiểm token Meta TRƯỚC khi tin vào Sheet. Exit 0 = mọi TKQC đọc được |
 | `team_report.py` | Báo cáo ADS gộp TEAM + từng marketer (chạy tay) |
-| `new_month_files.py` | Quét thư mục Drive tháng mới → sinh sẵn map cho `format_all.py`. CHỈ ĐỌC |
+| `new_month_files.py` | Quét thư mục Drive tháng mới → in sẵn `GRAND_KEY` + map từng nước. CHỈ ĐỌC. Người và nước đọc từ `talpha_rules.json` |
 | `deploy_runtime.sh` | Deploy MỘT CHIỀU repo → runtime (checksum diff, backup, giữ lock) |
 | `snapshot_cron.sh` | Gọi `/api/talpha/sync-inventory` để làm tươi `inventory_snapshot` — dự phòng cho tab Kho. **Chưa hẹn giờ** |
 | `catalog_cron.sh` | Đồng bộ danh mục sản phẩm từ POS |
-| `ad_accounts.json` · `taiwan_files.json` · `test_files.json` | Bảng tra, đã version-control |
+| `<nước>_files.json` — `taiwan_files.json` · `singapore_files.json` · `uae_files.json` | ID file Sheet riêng của từng marketer **theo nước**: `{key marketer: ID}`. Xem mục dưới |
+| `ad_accounts.json` · `test_files.json` | Bảng tra, đã version-control |
+
+## File riêng: mỗi marketer × mỗi nước MỘT file
+
+Chốt 16/09/2026. Thư mục Drive tháng có một thư mục con cho mỗi người (ANH, LOC, THAI…);
+trong đó mỗi nước người đó chạy là một file: `TAIWAN T9`, `SINGAPORE T9`, `UAE T9`. File nào
+cũng chỉ một nước — tab `Tổng` (tiền địa phương + tỷ giá) rồi mỗi sản phẩm một tab. Tổng MỌI
+nước của một người nằm ở tab của người đó trong file **TỔNG TEAM THÁNG n**.
+
+(15/09 từng gộp mọi nước vào một file, mỗi nước một tab. Tên file vẫn là "TAIWAN T9" nên
+mở thư mục tưởng thiếu Singapore — bỏ ngay hôm sau.)
+
+**Thêm file cho một người chạy nước mới:**
+
+1. **Người** tạo Google Sheet trống trong thư mục của marketer, đặt tên `<NƯỚC> T<tháng>`.
+   Service account KHÔNG tự tạo được — quota Drive của nó bằng 0. File tạo trong thư mục
+   tự thừa hưởng quyền Editor của service account (thư mục đã share sẵn), không cần share lại.
+2. Thêm ID vào `<nước>_files.json` (tên nước = key trong `talpha_rules.json`, viết thường).
+   Khoá là **key** marketer (`Loc`), không phải tên hiển thị (`Lộc`).
+3. `python3 -m pytest tests/test_talpha_file_theo_nuoc.py` — chặn gõ nhầm key, tên file map
+   sai, một ID dùng cho hai báo cáo.
+4. Deploy (`deploy_runtime.sh` tự mang mọi `*_files.json` theo).
+
+Có số mà thiếu file thì số **không mất** (vẫn nằm trong TỔNG TEAM); log vòng chạy in
+`CANH BAO: … CHUA CO FILE`. File trong map mà đã bị xoá hẳn thì vòng chạy bỏ qua riêng file
+đó và in `CANH BAO: … KHONG MO DUOC` — không làm đứng file TỔNG TEAM.
+
+Soát bố cục bằng số thật mà không ghi gì: `TALPHA_FORMAT_DRY=1 python format_all.py`.
 
 ## ĐÃ XOÁ — không hồi sinh
 

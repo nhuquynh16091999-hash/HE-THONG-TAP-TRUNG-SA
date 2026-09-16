@@ -9,7 +9,7 @@ os.environ['GOOGLE_APPLICATION_CREDENTIALS']=KEY
 from google.cloud import bigquery
 import gspread
 from google.oauth2.service_account import Credentials
-from gspread.exceptions import APIError
+from gspread.exceptions import APIError, SpreadsheetNotFound
 import calendar as _cal
 _T=datetime.date.today()
 PROJECT='cty-507710'; DS='TALPHA_Dataset'
@@ -55,11 +55,11 @@ def parse_camp(cn):
         # page_id (nếu có) nằm cuối, ô sau nó là ngày chứ không phải tên trang.
         prod=(p[ci] if len(p)>ci and p[ci] else None) or page_of(p) or "(khác)"
     return mkt,nv,prod
-MARKET_MAP={}  # 09/09/2026 — hệ chỉ còn MỘT thị trường (Đài Loan, xem talpha_rules.markets)
-# nên KHÔNG còn file theo thị trường. Bộ 30 file GCC (Saudi/UAE/Kuwait/Oman/Qatar/Bahrain)
-# của team cũ (ChuThuy/Nhung/Chinh) đã bỏ — mỗi marketer giờ chỉ có 1 file TAIWAN.
-TONG_MAP={}  # Không còn file "TỔNG ADS" riêng từng người: file TAIWAN đã là tổng của họ.
-# Vòng lặp TAIWAN + TEST bên dưới duyệt theo TWFILES/TESTMAP, KHÔNG theo TONG_MAP nữa.
+# File theo nước của từng marketer: map đọc từ <nước>_files.json — xem FILE_NUOC bên dưới.
+# (MARKET_MAP gõ tay trong code — bộ 30 file GCC của team cũ — bỏ 09/09/2026.)
+TONG_MAP={}  # Không còn file "TỔNG ADS" riêng từng người. Tổng MỌI nước của một người nằm ở
+# tab của người đó trong file TỔNG TEAM.
+# Vòng lặp file riêng + TEST bên dưới duyệt theo FILE_NUOC/TESTMAP, KHÔNG theo TONG_MAP nữa.
 GRAND_KEY="1Ur-U71lxBvnb0ysRbzYhRPcgyLp3P78o2bvIJ9hIs8s"  # "TỔNG TEAM THÁNG 9" — bản Google
 # Sheets trong thư mục Drive "Tháng 9" (1PQBdfGS2n…). Bản .xlsx cùng tên (1P5UfXCOD2…) là file
 # CEO tải lên, job KHÔNG ghi vào được (Sheets API chỉ mở file Google Sheets native).
@@ -229,7 +229,12 @@ def do(fn):
             if any(x in es for x in ('429','500','502','503','RATE','unavailable','Internal','[-1]','DOCTYPE')): time.sleep(15); continue
             raise
     return fn()
+# TALPHA_FORMAT_DRY=1: chỉ IN file nào sẽ nhận tab nào, KHÔNG mở Sheets — để soát bố cục
+# bằng số thật trước khi đổi cách ghi (đổi bố cục là write_file xoá sạch tab cũ của file).
+DRY=os.environ.get("TALPHA_FORMAT_DRY")=="1"
 def write_file(key, tabs, title=None, month_suffix=False):
+    if DRY:
+        print(f"    [DRY] {key}: {len(tabs)} tab — " + " · ".join(t for t,_ in tabs)); return
     # 20/08 FIX: `sh.sheet1` CŨNG gọi API (fetch_sheet_metadata). Bản cũ để nó NGOÀI do()
     # nên 1 lần Google trả 503 là chết cả chain → file thị trường mang số mới, file TỔNG
     # mang số cũ (báo cáo nửa vời, đã xảy ra 18/344 vòng). Nay bọc chung trong do().
@@ -260,14 +265,6 @@ def write_file(key, tabs, title=None, month_suffix=False):
     for t,_ in tabs: fr+=freq(wm[t],nr)
     do(lambda: sh.batch_update({"requests":fr}))
 n=0
-# 48 market files
-for (emp,mkt),key in MARKET_MAP.items():
-    rate=RATE[mkt];local=LOCALCUR[mkt];div=MONEY_DIV[mkt];sub={k:v for k,v in cell.items() if k[0]==emp and k[1]==mkt}
-    prods=sorted({k[2] for k in sub}, key=lambda p:(-sum(sub[x]["spend"] for x in sub if x[2]==p), str(p)))
-    used=set(); tabs=[("Tổng",market_tab(sub,rate,local,div))]; used.add("tổng")
-    for prod in prods:
-        psub={k:v for k,v in sub.items() if k[2]==prod}; tabs.append((safe(prod,used),market_tab(psub,rate,local,div)))
-    write_file(key,tabs); n+=1; print(f"[{n}] MKT {emp}/{mkt}: {len(tabs)} tab"); time.sleep(1.0)
 # 8 TỔNG files
 for emp,key in TONG_MAP.items():
     used=set(); tabs=[("Tổng",combined_tab(emp))]; used.add("tổng")
@@ -276,53 +273,57 @@ for emp,key in TONG_MAP.items():
         tabs.append((safe(mkt.upper(),used),market_tab(sub,RATE[mkt],LOCALCUR[mkt],MONEY_DIV[mkt])))
     # title: trước đây chỉ file GRAND được đổi tên → 7 file này kẹt tên 'THÁNG 7' suốt tháng 8.
     write_file(key,tabs,title=f"TỔNG ADS THÁNG {_T.month}"); n+=1; print(f"[{n}] TỔNG {emp}: {len(tabs)} tab"); time.sleep(1.0)
-# File báo cáo riêng mỗi marketer (tên file "TAIWAN T9" do CEO đặt — code không đổi tên).
-# ID ở taiwan_files.json (user tạo sheet + share SA rồi thêm ID; thiếu → bỏ qua, không crash).
-# 15/09/2026 — BA thị trường, Sỹ Anh chốt "thêm tab theo nước":
-#   • marketer có số ở MỘT nước  → giữ NGUYÊN bố cục cũ: "Tổng" = bảng của nước đó (có cột
-#     tiền địa phương + tỷ giá), rồi mỗi sản phẩm một tab. File Đài hiện có không đổi gì.
-#   • có số ở từ HAI nước trở lên → "Tổng" cộng mọi nước quy VND, mỗi nước một tab
-#     "<Nước> · Tổng" (tiền địa phương), tab sản phẩm mang tiền tố mã nước.
+# ── FILE RIÊNG: MỖI MARKETER × MỖI NƯỚC MỘT FILE ──
+# 16/09/2026 — Sỹ Anh chốt: mỗi nước một file ("TAIWAN T9", "SINGAPORE T9", "UAE T9"… trong
+# thư mục của từng người). Bản 15/09 gộp mọi nước vào MỘT file, mỗi nước một tab — nhưng tên
+# file vẫn là "TAIWAN T9", mở thư mục ra tưởng thiếu Singapore.
+# Nên file nào cũng chỉ MỘT nước, bố cục như trước giờ: "Tổng" = bảng của nước đó (tiền địa
+# phương + tỷ giá), rồi mỗi sản phẩm một tab. Tên file do CEO đặt — code không đổi tên.
+# ID ở <key thị trường viết thường>_files.json cạnh script — taiwan_files.json,
+# singapore_files.json, uae_files.json — dạng {key marketer: ID}. Service account KHÔNG tự
+# tạo được file (quota Drive của nó = 0): người tạo sheet trong thư mục marketer, rồi thêm ID.
 _HERE=os.path.dirname(os.path.abspath(__file__))
 def _mapping_path(ten):  # chạy được ở CẢ repo lẫn runtime: file cạnh script thắng
     canh=os.path.join(_HERE,ten)
     return canh if os.path.exists(canh) else os.path.join(os.path.expanduser('~/talpha_reports'),ten)
-TWFILES_PATH=_mapping_path('taiwan_files.json')
-try: TWFILES=json.load(open(TWFILES_PATH))
-except Exception: TWFILES={}
-_SHOP_LABEL={m: v.get("shop_label", m) for m, v in RULES_MARKETS.items()}
+def _doc_map(ten):
+    # Chưa có file map = nước đó chưa ai có file → {}. Có file mà JSON hỏng thì CHO NỔ: nuốt
+    # lỗi là cả một nước ngừng ghi mà không ai hay (vòng lỗi thì tin Zalo 8h30 báo số cũ).
+    p=_mapping_path(ten)
+    return json.load(open(p)) if os.path.exists(p) else {}
+FILE_NUOC={mkt: _doc_map(f"{mkt.lower()}_files.json") for mkt in ALLM}
 _TEN_NUOC={m: v.get("display", m) for m, v in RULES_MARKETS.items()}
 def nuoc_co_so(cells, loc=lambda k: True):
     """Các nước có số (chi tiêu hoặc đơn) trong tập ô, xếp Đài trước rồi theo thứ tự cấu hình."""
     co={k[1] for k,c in cells.items() if loc(k) and (c["spend"] or c["orders"] or c["msg"])}
     return [m for m in ALLM if m in co]
-def tabs_mot_marketer(emp):
-    ds_nuoc=nuoc_co_so(cell, lambda k: k[0]==emp) or [PRIMARY_MARKET]
+def tabs_mot_nuoc(emp, mkt):
+    sub={k:v for k,v in cell.items() if k[0]==emp and k[1]==mkt}
     used=set(); used.add("tổng")
-    if len(ds_nuoc)==1:
-        mkt=ds_nuoc[0]
-        sub={k:v for k,v in cell.items() if k[0]==emp and k[1]==mkt}
-        tabs=[("Tổng",market_tab(sub,RATE[mkt],LOCALCUR[mkt],MONEY_DIV[mkt]))]
-        prods=sorted({k[2] for k in sub}, key=lambda p:(-sum(sub[x]["spend"] for x in sub if x[2]==p), str(p)))
-        for prod in prods:
-            psub={k:v for k,v in sub.items() if k[2]==prod}; tabs.append((safe(prod,used),market_tab(psub,RATE[mkt],LOCALCUR[mkt],MONEY_DIV[mkt])))
-        return tabs
-    tabs=[("Tổng",combined_tab(emp))]
-    for mkt in ds_nuoc:
-        sub={k:v for k,v in cell.items() if k[0]==emp and k[1]==mkt}
-        tabs.append((safe(f"{_TEN_NUOC[mkt]} · Tổng",used),market_tab(sub,RATE[mkt],LOCALCUR[mkt],MONEY_DIV[mkt])))
-    for mkt in ds_nuoc:
-        sub={k:v for k,v in cell.items() if k[0]==emp and k[1]==mkt}
-        prods=sorted({k[2] for k in sub}, key=lambda p:(-sum(sub[x]["spend"] for x in sub if x[2]==p), str(p)))
-        for prod in prods:
-            psub={k:v for k,v in sub.items() if k[2]==prod}
-            tabs.append((safe(f"{_SHOP_LABEL[mkt]} · {prod}",used),market_tab(psub,RATE[mkt],LOCALCUR[mkt],MONEY_DIV[mkt])))
+    tabs=[("Tổng",market_tab(sub,RATE[mkt],LOCALCUR[mkt],MONEY_DIV[mkt]))]
+    prods=sorted({k[2] for k in sub}, key=lambda p:(-sum(sub[x]["spend"] for x in sub if x[2]==p), str(p)))
+    for prod in prods:
+        psub={k:v for k,v in sub.items() if k[2]==prod}; tabs.append((safe(prod,used),market_tab(psub,RATE[mkt],LOCALCUR[mkt],MONEY_DIV[mkt])))
     return tabs
-for emp in TWFILES:
-    key=TWFILES.get(emp)
-    if not key: continue
-    tabs=tabs_mot_marketer(emp)
-    write_file(key,tabs); n+=1; print(f"[{n}] FILE {emp}: {len(tabs)} tab — https://docs.google.com/spreadsheets/d/{key}")
+MAT_FILE=[]
+for mkt in ALLM:
+    for emp,key in FILE_NUOC[mkt].items():
+        if not key: continue
+        tabs=tabs_mot_nuoc(emp,mkt)
+        # File đã bị xoá HẲN (thùng rác Drive tự dọn sau 30 ngày) hoặc bị gỡ quyền: bỏ qua riêng
+        # file đó, KHÔNG làm chết cả vòng — nổ ở đây là file TỔNG TEAM ghi phía sau đứng số, và
+        # tin Zalo 8h30 đọc đúng file đó. Dính thật 16/09/2026: thư mục ANH nằm trong thùng rác
+        # từ trước, job vẫn ghi vào file trong đó mỗi giờ — tới ngày thùng rác dọn là nổ.
+        try: write_file(key,tabs)
+        except SpreadsheetNotFound:
+            MAT_FILE.append((emp,mkt,key)); print(f"[SKIP] FILE {emp}/{mkt}: không mở được {key} — đã xoá hẳn hoặc mất quyền"); continue
+        n+=1; print(f"[{n}] FILE {emp}/{mkt}: {len(tabs)} tab — https://docs.google.com/spreadsheets/d/{key}")
+# Người CÓ SỐ ở một nước mà chưa có file nước đó: số KHÔNG mất — vẫn nằm trong file TỔNG TEAM
+# (tab của người đó + tab nước) — nhưng thư mục riêng của họ thiếu file. Cảnh báo ở cuối log.
+THIEU_FILE=sorted({(k[0],k[1]) for k,c in cell.items()
+                   if (c["spend"] or c["orders"] or c["msg"]) and k[0] in DISPLAY and k[0] not in UNASSIGN
+                   and not FILE_NUOC.get(k[1],{}).get(k[0])})
+CO_FILE={emp for m in FILE_NUOC.values() for emp,key in m.items() if key}
 # 1 file TỔNG THÁNG — gộp tất cả marketer: tab "Tổng" (all mkt) + 1 tab mỗi marketer
 if GRAND_KEY and not GRAND_KEY.endswith("placeholder"):
     used=set(); tabs=[("Tổng",grand_tab())]; used.add("tổng")
@@ -330,13 +331,13 @@ if GRAND_KEY and not GRAND_KEY.endswith("placeholder"):
     # là có tab ngay, không cần chờ tạo file Sheet riêng cho họ.
     # 01/09: người ĐÃ NGHỈ vẫn nằm trong roster (để đơn rơi rớt của họ không biến mất
     # vào "(không gán)") nhưng KHÔNG nên chiếm một tab trống trong báo cáo tháng sau.
-    # Quy tắc: hiện tab nếu đang là thành viên chạy số (có file TAIWAN trong taiwan_files.json)
+    # Quy tắc: hiện tab nếu đang là thành viên chạy số (có file riêng ở một nước nào đó)
     # HOẶC tháng này còn phát sinh số. Người nghỉ mà hết đơn thì tab tự biến mất.
     for emp in DISPLAY:
         # Người đã nghỉ (unassign_marketers): KHÔNG tab — số của họ nằm ở "(không gán)".
-        # Chặn tường minh ở đây để dù có ai thêm lại vào taiwan_files.json cũng không mọc tab rỗng.
+        # Chặn tường minh ở đây để dù có ai thêm lại vào một <nước>_files.json cũng không mọc tab rỗng.
         if emp in UNASSIGN: continue
-        if emp not in TWFILES and not any(k[0] == emp for k in cell): continue
+        if emp not in CO_FILE and not any(k[0] == emp for k in cell): continue
         tabs.append((safe(emp,used),combined_tab(emp)))
     # Người NGOÀI TEAM: KHÔNG có tab trong báo cáo của team (CEO chốt 10/08).
     # Số của họ vẫn bị loại khỏi tab Tổng nhờ EXT_PREFIX ở grand_tab() — chỉ là
@@ -371,6 +372,14 @@ for emp in TESTMAP:
     write_file(key,tabs,month_suffix=True); n+=1
     print(f"[{n}] TEST {emp}: {len(tabs)} tab — https://docs.google.com/spreadsheets/d/{key}")
 print("ALL DONE", n)
+if MAT_FILE:
+    print(f"CANH BAO: {len(MAT_FILE)} file rieng KHONG MO DUOC (da xoa han hoac mat quyen) — bo khoi <nuoc>_files.json hoac tao lai file.")
+    for _e,_m,_k in MAT_FILE:
+        print(f"    {_e:8s} {_m:10s} {_k}")
+if THIEU_FILE:
+    print(f"CANH BAO: {len(THIEU_FILE)} cap nguoi/nuoc CO SO nhung CHUA CO FILE rieng — so van nam trong TONG TEAM. Tao sheet '<NUOC> T{_T.month}' trong thu muc nguoi do, them ID vao <nuoc>_files.json.")
+    for _e,_m in THIEU_FILE:
+        print(f"    {_e:8s} {_m:10s} -> {_m.lower()}_files.json")
 if THIEU_NUOC:
     _tn=sum(THIEU_NUOC.values())
     print(f"CANH BAO: {len(THIEU_NUOC)} campaign KHONG GHI NUOC o dau ten — {_tn:,.0f} d dang tinh ve {PRIMARY_MARKET}. Doi ten thanh TW/… SG/… AE/… de khoi nham nuoc.")

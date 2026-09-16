@@ -31,10 +31,14 @@ PAIRS=(
   "config/projects/talpha.yaml|runtime/config/talpha.yaml"
   "ops/talpha_reports/report_health.py|report_health.py"
   "ops/talpha_reports/report_account_health.py|report_account_health.py"
-  "ops/talpha_reports/test_files.json|test_files.json"
-  "ops/talpha_reports/taiwan_files.json|taiwan_files.json"
   "ops/talpha_reports/ad_accounts.json|runtime/config/ad_accounts.json"
 )
+# Map ID file Sheet: test_files.json + MỖI NƯỚC một <nước>_files.json (taiwan, singapore,
+# uae…). Quét theo mẫu tên chứ không liệt kê tay: thêm nước mới mà quên thêm dòng ở đây thì
+# file map không lên máy chủ, cả nước đó im lặng không được ghi.
+for f in "$REPO"/ops/talpha_reports/*_files.json; do
+  PAIRS+=("ops/talpha_reports/$(basename "$f")|$(basename "$f")")
+done
 
 echo "── Diff checksum (repo vs runtime):"
 CHANGED=()
