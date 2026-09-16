@@ -154,11 +154,18 @@ def main():
     if test:
         print('# test_files.json:\n' + json.dumps(test, ensure_ascii=False, indent=1))
 
-    # Nước CHÍNH ai cũng phải có file. Nước khác chỉ cần khi người đó có số — format_all.py
-    # tự in "CANH BAO … CHUA CO FILE" khi thiếu, nên ở đây không kêu.
-    thieu = [k for k in RULES['marketers'] if k not in theo_nuoc.get(PRIMARY_MARKET, {})]
-    if thieu:
-        print(f'\nTHIẾU FILE {PRIMARY_MARKET.upper()}: ' + ', '.join(thieu))
+    # So với map ĐANG DÙNG (tháng trước) chứ không so cả roster: người ngừng chạy vẫn nằm
+    # trong talpha_rules.json để đơn rơi rớt còn gán được (Sỹ Anh ngừng 16/09/2026), nhưng
+    # không còn file — kêu "thiếu" họ mỗi tháng là báo nhầm. Người tháng trước CÓ file mà
+    # tháng này không thấy thì mới đáng hỏi. Map nào chưa có (nước mới) thì bỏ qua.
+    here = os.path.dirname(os.path.abspath(__file__))
+    for m in ALLM:
+        p = os.path.join(here, f'{m.lower()}_files.json')
+        if not os.path.exists(p):
+            continue
+        thieu = [k for k in json.load(open(p, encoding='utf-8')) if k not in theo_nuoc[m]]
+        if thieu:
+            print(f'\nTHIẾU FILE {m.upper()} (tháng trước có): ' + ', '.join(thieu))
     if excel:
         print('\nFILE EXCEL (.xlsx) — job KHÔNG ghi được. Mở file → File → Save as Google Sheets:')
         for f, ctx in excel:
