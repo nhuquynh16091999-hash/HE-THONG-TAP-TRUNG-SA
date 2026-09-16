@@ -475,7 +475,7 @@ export default function TALPHACodReconTab({ dateRange }: Props) {
                                         <tr key={p.id} id={`ky-${p.id}`} onClick={() => setPid(p.id)}
                                             className={cn("cursor-pointer transition-colors",
                                                 chon ? "bg-orange-50/70 dark:bg-orange-500/[0.07]" : "hover:bg-muted/40")}>
-                                            <td className={cn("px-5 py-3", chon && "shadow-[inset_3px_0_0_0_#f97316]")}>
+                                            <td className={cn("px-5 py-3", chon && "shadow-[inset_3px_0_0_0_#FF7312]")}>
                                                 <div className="font-semibold tabular-nums text-foreground">{dmy(p.period_date)}</div>
                                                 <div className="text-[12px] text-muted-foreground">{shortFile(p.filename)}</div>
                                             </td>

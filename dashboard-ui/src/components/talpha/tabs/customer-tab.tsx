@@ -12,7 +12,7 @@ import { BQ_PROJECT, DATASET } from "../constants";
 import { formatVNDCompact, marketName } from "../utils";
 import { useMarkets } from "../markets-context";
 
-const PIE_COLORS = ["#6366f1", "#34d399", "#fbbf24", "#f43f5e", "#a78bfa", "#67e8f9"];
+const PIE_COLORS = ["#6E695E", "#00E27A", "#FF9042", "#FF3131", "#BDBAB2", "#51ECC2"];
 
 interface Props { dateRange?: { from: Date; to: Date }; projectId?: string }
 
@@ -207,12 +207,12 @@ export default function TALPHACustomerTab({ dateRange }: Props) {
                     <h3 className="text-sm font-semibold text-foreground mb-4">🌍 KH theo thị trường</h3>
                     <ResponsiveContainer width="100%" height={200}>
                         <BarChart data={shopCustomers}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#94a3b8" strokeOpacity={0.25} />
-                            <XAxis dataKey="shop_name" tick={{ fill: "#94a3b8", fontSize: 12 }} />
-                            <YAxis tick={{ fill: "#94a3b8", fontSize: 12 }} />
+                            <CartesianGrid strokeDasharray="3 3" stroke="#B1AEA0" strokeOpacity={0.25} />
+                            <XAxis dataKey="shop_name" tick={{ fill: "#B1AEA0", fontSize: 12 }} />
+                            <YAxis tick={{ fill: "#B1AEA0", fontSize: 12 }} />
                             <Tooltip contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", color: "hsl(var(--foreground))", borderRadius: 8 }} />
-                            <Bar dataKey="customers" name="Khách hàng" fill="#6366f1" radius={[4, 4, 0, 0]} />
-                            <Bar dataKey="orders" name="Đơn hàng" fill="#34d399" radius={[4, 4, 0, 0]} />
+                            <Bar dataKey="customers" name="Khách hàng" fill="#6E695E" radius={[4, 4, 0, 0]} />
+                            <Bar dataKey="orders" name="Đơn hàng" fill="#00E27A" radius={[4, 4, 0, 0]} />
                         </BarChart>
                     </ResponsiveContainer>
                     <p className="text-xs text-slate-600 italic mt-2">🇶🇦 Qatar • 🇧🇭 Bahrain — sẵn sàng khi có data</p>

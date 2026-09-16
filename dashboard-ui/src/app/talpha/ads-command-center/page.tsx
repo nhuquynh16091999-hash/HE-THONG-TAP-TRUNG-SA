@@ -33,7 +33,7 @@ function KpiCard({ icon: Icon, label, value, sub, accent, valueClass }: {
     const a = ACCENT[accent];
     return (
         <div className={cn(
-            "relative overflow-hidden rounded-2xl border bg-[#111a2e]/80 p-3.5 transition-all duration-200",
+            "relative overflow-hidden rounded-2xl border bg-[#1B1A17]/80 p-3.5 transition-all duration-200",
             "hover:-translate-y-0.5 hover:shadow-lg hover:shadow-black/40", a.ring
         )}>
             <div className={cn("pointer-events-none absolute -right-6 -top-8 h-24 w-24 rounded-full bg-gradient-to-b to-transparent blur-2xl", a.glow)} />
@@ -248,16 +248,16 @@ export default function TALPHAAdsCommandCenterPage() {
     useEffect(() => () => { if (exportPollRef.current) clearInterval(exportPollRef.current); }, []);
 
     return (
-        <div className="flex h-screen flex-col overflow-hidden bg-gradient-to-b from-[#0b1120] via-[#0f172a] to-[#0b1120] font-sans text-slate-100">
+        <div className="flex h-screen flex-col overflow-hidden bg-gradient-to-b from-[#0F0E0B] via-[#28261F] to-[#0F0E0B] font-sans text-slate-100">
 
             {/* ═══ HEADER ═══ */}
-            <header className="z-50 flex h-14 shrink-0 items-center justify-between border-b border-white/5 bg-[#0d1426]/90 px-5 backdrop-blur-xl">
+            <header className="z-50 flex h-14 shrink-0 items-center justify-between border-b border-white/5 bg-[#16140F]/90 px-5 backdrop-blur-xl">
                 <div className="flex items-center gap-3">
                     <h1 className="flex items-center gap-2 text-lg font-extrabold tracking-tight">
                         <span className="grid h-7 w-7 place-items-center rounded-lg bg-gradient-to-br from-amber-500 to-orange-600 shadow-lg shadow-amber-500/30">
                             <Satellite className="h-4 w-4 text-white" />
                         </span>
-                        <span className="bg-gradient-to-r from-amber-300 to-orange-400 bg-clip-text text-transparent">TALPHA ADS COMMAND</span>
+                        <span className="bg-gradient-to-r from-orange-400 to-red-500 bg-clip-text text-transparent">ANTALO ADS COMMAND</span>
                     </h1>
 
                     {/* Account dropdown */}
@@ -269,7 +269,7 @@ export default function TALPHAAdsCommandCenterPage() {
                             <ChevronDown className={`h-3 w-3 transition ${isAccountDropdownOpen ? 'rotate-180' : ''}`} />
                         </button>
                         {isAccountDropdownOpen && (
-                            <div className="absolute left-0 top-full z-50 mt-1 max-h-96 w-64 overflow-y-auto overflow-hidden rounded-xl border border-white/10 bg-[#0d1426] shadow-2xl">
+                            <div className="absolute left-0 top-full z-50 mt-1 max-h-96 w-64 overflow-y-auto overflow-hidden rounded-xl border border-white/10 bg-[#16140F] shadow-2xl">
                                 <button onClick={() => { setSelectedAccount("all"); setIsAccountDropdownOpen(false); }}
                                     className={`flex w-full items-center justify-between px-4 py-2.5 text-sm hover:bg-white/5 ${selectedAccount === "all" ? "bg-amber-600/20 text-amber-300" : "text-slate-300"}`}>
                                     <span>🌐 All ({accountIds.length} TKQC)</span>
@@ -297,7 +297,7 @@ export default function TALPHAAdsCommandCenterPage() {
                             <ChevronDown className={`h-3 w-3 transition ${showDatePicker ? 'rotate-180' : ''}`} />
                         </button>
                         {showDatePicker && (
-                            <div className="absolute left-0 top-full z-50 mt-1 w-72 overflow-hidden rounded-xl border border-white/10 bg-[#0d1426] shadow-2xl">
+                            <div className="absolute left-0 top-full z-50 mt-1 w-72 overflow-hidden rounded-xl border border-white/10 bg-[#16140F] shadow-2xl">
                                 <div className="border-b border-white/5 p-2">
                                     <div className="mb-1.5 px-1 text-[10px] font-bold uppercase text-slate-500">Khoảng thời gian</div>
                                     <div className="grid grid-cols-3 gap-1">
@@ -457,9 +457,9 @@ export default function TALPHAAdsCommandCenterPage() {
                         const accRoas = accSpend > 0 ? accRevenue / accSpend : 0;
 
                         return (
-                            <div key={accId} className="overflow-hidden rounded-2xl border border-white/10 bg-[#111a2e]/80 shadow-xl shadow-black/30">
+                            <div key={accId} className="overflow-hidden rounded-2xl border border-white/10 bg-[#1B1A17]/80 shadow-xl shadow-black/30">
                                 {/* Account header */}
-                                <div className="sticky top-0 z-20 flex flex-wrap items-center justify-between gap-2 border-b border-white/10 bg-gradient-to-r from-[#16203a] to-[#111a2e] px-4 py-2.5">
+                                <div className="sticky top-0 z-20 flex flex-wrap items-center justify-between gap-2 border-b border-white/10 bg-gradient-to-r from-[#201E19] to-[#1B1A17] px-4 py-2.5">
                                     <div className="flex items-center gap-3">
                                         <div className="h-8 w-1.5 rounded-full bg-gradient-to-b from-amber-400 to-orange-500" />
                                         <div>
@@ -480,7 +480,7 @@ export default function TALPHAAdsCommandCenterPage() {
                                 {/* Campaign table */}
                                 <div className="max-h-[600px] overflow-auto">
                                     <table className="w-full text-left text-sm">
-                                        <thead className="sticky top-0 z-10 bg-[#0d1426]/95 text-[10px] font-semibold uppercase text-slate-400 backdrop-blur">
+                                        <thead className="sticky top-0 z-10 bg-[#16140F]/95 text-[10px] font-semibold uppercase text-slate-400 backdrop-blur">
                                             <tr>
                                                 <th className="w-6 px-2 py-2.5"></th>
                                                 <th className="px-2 py-2.5">Campaign</th>
@@ -536,7 +536,7 @@ export default function TALPHAAdsCommandCenterPage() {
 
                                                         {/* Expanded ads detail */}
                                                         {isExpanded && c.ads.map((ad: AdDetail) => (
-                                                            <tr key={ad.ad_id} className="border-l-2 border-amber-500/40 bg-[#0b1120]/80">
+                                                            <tr key={ad.ad_id} className="border-l-2 border-amber-500/40 bg-[#0F0E0B]/80">
                                                                 <td className="px-2 py-1.5"></td>
                                                                 <td className="px-2 py-1.5 pl-6">
                                                                     <div className="max-w-[260px] whitespace-normal text-[10px] leading-tight text-slate-300">{ad.ad_name}</div>
@@ -575,7 +575,7 @@ export default function TALPHAAdsCommandCenterPage() {
 
                 {/* Unmatched Orders */}
                 {data && data.unmatched_by_shop && Object.keys(data.unmatched_by_shop).length > 0 && (
-                    <div className="rounded-2xl border border-white/10 bg-[#111a2e]/80 p-3">
+                    <div className="rounded-2xl border border-white/10 bg-[#1B1A17]/80 p-3">
                         <h3 className="mb-2 flex items-center gap-1.5 text-xs font-bold text-amber-400">
                             <AlertTriangle className="h-3.5 w-3.5" />
                             Đơn CHƯA MAP được (không gán bừa) — {data.summary.unmatched_orders} đơn • {formatVNDCompact(data.summary.unmatched_revenue_vnd)}

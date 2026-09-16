@@ -318,7 +318,7 @@ export default function UserManagementTab() {
             {/* Create/Edit Form Modal */}
             {showForm && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-                    <div className="w-full max-w-lg mx-4 rounded-2xl bg-[#1a1f36] border border-white/10 shadow-2xl">
+                    <div className="w-full max-w-lg mx-4 rounded-2xl bg-[#24211C] border border-white/10 shadow-2xl">
                         <div className="flex items-center justify-between px-6 py-4 border-b border-white/[0.06]">
                             <h3 className="text-lg font-bold text-white">
                                 {editingUser

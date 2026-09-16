@@ -121,19 +121,17 @@ export default function TALPHADashboardShell() {
         <MarketsProvider>
         <div className="flex h-screen overflow-hidden bg-background">
             {/* ═══ Sidebar ═══ */}
-            <aside className="flex w-64 flex-col border-r border-border bg-white shadow-sm backdrop-blur-xl dark:bg-[#0d1117] dark:shadow-none">
+            <aside className="flex w-64 flex-col border-r border-border bg-white shadow-sm backdrop-blur-xl dark:bg-[#131210] dark:shadow-none">
                 <div className="flex flex-col border-b border-border p-4">
                     <div className="mb-2 flex items-center justify-between">
                         <Link href="/" className="flex items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground">
                             <ArrowLeft className="h-3 w-3" /> Trang chủ
                         </Link>
                     </div>
-                    <div className="flex items-center gap-3">
-                        <img src="/logo.png" alt="Level Up" className="h-10 w-10 object-contain" />
-                        <div>
-                            <span className="text-lg font-bold brand-gradient-text">TALPHA</span>
-                            <span className="ml-2 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-400">Active</span>
-                        </div>
+                    {/* Logo ANTALO nằm trên nền kem của chính nó (brand-logo-box): chữ "LO"
+                        và dải "MINI MARKET" màu đen, để trên nền tối là mất chữ. */}
+                    <div className="brand-logo-box p-2.5">
+                        <img src="/antalo-logo.png" alt="ANTALO Mini Market" className="h-9 w-full object-contain" />
                     </div>
                     <NhanThiTruong />
                 </div>
@@ -158,15 +156,15 @@ export default function TALPHADashboardShell() {
 
                 <div className="border-t border-border p-3">
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                        <img src="/logo.png" alt="" className="h-5 w-5 opacity-40" />
-                        <span>Level Up Analytics</span>
+                        <img src="/antalo-mark.png" alt="" className="h-5 w-5 object-contain opacity-60" />
+                        <span>ANTALO Mini Market</span>
                     </div>
                 </div>
             </aside>
 
             {/* ═══ Nội dung ═══ */}
             <main className="flex-1 overflow-y-auto bg-background">
-                <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b border-border bg-white/80 px-6 shadow-sm backdrop-blur-xl dark:bg-[#0d1117]/80 dark:shadow-none">
+                <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b border-border bg-white/80 px-6 shadow-sm backdrop-blur-xl dark:bg-[#131210]/80 dark:shadow-none">
                     <h1 className="flex items-center gap-2 text-xl font-semibold text-foreground">
                         <span aria-hidden>{group.emoji}</span>
                         {group.label}
@@ -228,11 +226,11 @@ function NhanThiTruong() {
     const sapChay = markets.filter((m) => m.status === "sap_chay").map((m) => m.display);
     return (
         <>
-            <span className="ml-[52px] mt-1 text-xs text-muted-foreground">
-                Tiểu Alpha — {dangBan.length ? dangBan.join(" · ") : "…"}
+            <span className="mt-2 text-xs text-muted-foreground">
+                {dangBan.length ? dangBan.join(" · ") : "…"}
             </span>
             {sapChay.length > 0 && (
-                <span className="ml-[52px] mt-0.5 text-[10px] text-muted-foreground">Sắp chạy: {sapChay.join(" · ")}</span>
+                <span className="mt-0.5 text-[10px] text-muted-foreground">Sắp chạy: {sapChay.join(" · ")}</span>
             )}
         </>
     );

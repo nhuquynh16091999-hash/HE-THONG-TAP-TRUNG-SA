@@ -11,7 +11,7 @@ import TabSkeleton from "@/components/ui/tab-skeleton";
 import { BQ_PROJECT, DATASET } from "../constants";
 import { formatVNDCompact, shippingVNDFromRevVnd } from "../utils";
 
-const COLORS_MAP = { emerald: "#34d399", rose: "#f43f5e", amber: "#f59e0b", slate: "#94a3b8", indigo: "#818cf8" };
+const COLORS_MAP = { emerald: "#00E27A", rose: "#FF3131", amber: "#FF7312", slate: "#B1AEA0", indigo: "#958F83" };
 
 interface Props { dateRange?: { from: Date; to: Date }; projectId?: string }
 
@@ -134,12 +134,12 @@ export default function TALPHAPnLTab({ dateRange }: Props) {
                 <p className="text-xs text-muted-foreground mb-3">Đã trừ Ads + Shipping. Chưa gồm COGS (order_items chưa có giá vốn).</p>
                 <ResponsiveContainer width="100%" height={200}>
                     <BarChart data={waterfall}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#94a3b8" strokeOpacity={0.25} />
-                        <XAxis dataKey="name" tick={{ fill: "#94a3b8", fontSize: 12 }} />
-                        <YAxis tick={{ fill: "#94a3b8", fontSize: 12 }} tickFormatter={v => formatVNDCompact(v)} />
+                        <CartesianGrid strokeDasharray="3 3" stroke="#B1AEA0" strokeOpacity={0.25} />
+                        <XAxis dataKey="name" tick={{ fill: "#B1AEA0", fontSize: 12 }} />
+                        <YAxis tick={{ fill: "#B1AEA0", fontSize: 12 }} tickFormatter={v => formatVNDCompact(v)} />
                         <Tooltip contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", color: "hsl(var(--foreground))", borderRadius: 8 }}
                             formatter={(v: number) => [formatVNDCompact(Math.abs(v)), ""]} />
-                        <ReferenceLine y={0} stroke="#94a3b8" />
+                        <ReferenceLine y={0} stroke="#B1AEA0" />
                         <Bar dataKey="value" radius={[4, 4, 0, 0]}>
                             {waterfall.map((entry, i) => <Cell key={i} fill={entry.fill} />)}
                         </Bar>
@@ -151,14 +151,14 @@ export default function TALPHAPnLTab({ dateRange }: Props) {
                 <h3 className="text-sm font-semibold text-foreground mb-4">📊 P&L theo ngày (VND)</h3>
                 <ResponsiveContainer width="100%" height={250}>
                     <ComposedChart data={[...daily].reverse()}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#94a3b8" strokeOpacity={0.25} />
-                        <XAxis dataKey="date" tick={{ fill: "#94a3b8", fontSize: 10 }} />
-                        <YAxis tick={{ fill: "#94a3b8", fontSize: 11 }} tickFormatter={v => formatVNDCompact(v)} />
+                        <CartesianGrid strokeDasharray="3 3" stroke="#B1AEA0" strokeOpacity={0.25} />
+                        <XAxis dataKey="date" tick={{ fill: "#B1AEA0", fontSize: 10 }} />
+                        <YAxis tick={{ fill: "#B1AEA0", fontSize: 11 }} tickFormatter={v => formatVNDCompact(v)} />
                         <Tooltip contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", color: "hsl(var(--foreground))", borderRadius: 8 }}
                             formatter={(v: number) => [formatVNDCompact(v), ""]} />
-                        <Bar dataKey="revenue" name="DS Giao TC" fill="#34d399" radius={[2, 2, 0, 0]} />
-                        <Bar dataKey="ads" name="Ads" fill="#f59e0b" radius={[2, 2, 0, 0]} />
-                        <Line dataKey="profit" name="Lợi nhuận" stroke="#818cf8" strokeWidth={2} dot={false} />
+                        <Bar dataKey="revenue" name="DS Giao TC" fill="#00E27A" radius={[2, 2, 0, 0]} />
+                        <Bar dataKey="ads" name="Ads" fill="#FF7312" radius={[2, 2, 0, 0]} />
+                        <Line dataKey="profit" name="Lợi nhuận" stroke="#958F83" strokeWidth={2} dot={false} />
                     </ComposedChart>
                 </ResponsiveContainer>
             </div>

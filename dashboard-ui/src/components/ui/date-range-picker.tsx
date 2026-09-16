@@ -146,7 +146,7 @@ export default function DateRangePicker({ value, onChange }: DateRangePickerProp
                 <div
                     className="absolute right-0 top-full mt-2 z-50 w-72
                                rounded-xl border border-border bg-card/95 
-                               dark:bg-[#1a1f2e]/95 dark:border-white/[0.08]
+                               dark:bg-[#1B1A17]/95 dark:border-white/[0.08]
                                backdrop-blur-xl
                                shadow-2xl shadow-black/10 dark:shadow-black/40 p-3 space-y-3
                                animate-in fade-in-0 slide-in-from-top-2 duration-200"

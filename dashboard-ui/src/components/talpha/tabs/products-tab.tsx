@@ -57,7 +57,7 @@ function Thumb({ src, name }: { src?: string; name: string }) {
     );
 }
 
-const CHART_COLORS = ["#34d399", "#3b82f6", "#f59e0b", "#a855f7", "#ec4899", "#06b6d4", "#f43f5e", "#14b8a6", "#eab308", "#8b5cf6"];
+const CHART_COLORS = ["#00E27A", "#09AE82", "#FF7312", "#958F83", "#FF6161", "#12DEA7", "#FF3131", "#09AE82", "#FF9042", "#6E695E"];
 
 // Màu badge theo trạng thái
 const STATUS_STYLE: Record<string, string> = {
@@ -337,11 +337,11 @@ export default function TALPHAProductsTab(_props: Props) {
                 <h3 className="mb-3 text-sm font-semibold text-foreground">🔥 Top 10 SKU theo tốc độ bán (pcs/ngày)</h3>
                 <ResponsiveContainer width="100%" height={300}>
                     <BarChart data={chartData} layout="vertical" margin={{ left: 10, right: 20 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#94a3b8" strokeOpacity={0.25} />
-                        <XAxis type="number" tick={{ fill: "#94a3b8", fontSize: 11 }} />
-                        <YAxis type="category" dataKey="name" tick={{ fill: "#94a3b8", fontSize: 10 }} width={190} />
-                        <Tooltip cursor={{ fill: "#94a3b8", fillOpacity: 0.1 }}
-                            contentStyle={{ background: "#1e293b", border: "1px solid #475569", borderRadius: 8, color: "#f1f5f9" }}
+                        <CartesianGrid strokeDasharray="3 3" stroke="#B1AEA0" strokeOpacity={0.25} />
+                        <XAxis type="number" tick={{ fill: "#B1AEA0", fontSize: 11 }} />
+                        <YAxis type="category" dataKey="name" tick={{ fill: "#B1AEA0", fontSize: 10 }} width={190} />
+                        <Tooltip cursor={{ fill: "#B1AEA0", fillOpacity: 0.1 }}
+                            contentStyle={{ background: "#3E3B32", border: "1px solid #6E6B5E", borderRadius: 8, color: "#F6F5EE" }}
                             formatter={(v: number) => [`${v} pcs/ngày`, ""]} />
                         <Bar dataKey="perDay" name="Bán/ngày" radius={[0, 4, 4, 0]}>
                             {chartData.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}

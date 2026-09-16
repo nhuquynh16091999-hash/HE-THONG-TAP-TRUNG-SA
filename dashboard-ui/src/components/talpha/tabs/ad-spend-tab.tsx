@@ -127,8 +127,8 @@ export default function TALPHAAdSpendTab({ dateRange }: Props) {
                         <Tooltip
                             contentStyle={{ background: "var(--tooltip-bg, #fff)", border: "1px solid #ddd", borderRadius: 8, fontSize: 12 }}
                             formatter={(v: number, n: string) => n === "Chi tiêu" ? formatVNDCompact(v) : formatNumber(v)} />
-                        <Bar yAxisId="l" dataKey="spend_vnd" name="Chi tiêu" fill="#f97316" radius={[3, 3, 0, 0]} />
-                        <Line yAxisId="r" dataKey="messages" name="Tin nhắn" stroke="#0ea5e9" strokeWidth={2} dot={false} />
+                        <Bar yAxisId="l" dataKey="spend_vnd" name="Chi tiêu" fill="#FF7312" radius={[3, 3, 0, 0]} />
+                        <Line yAxisId="r" dataKey="messages" name="Tin nhắn" stroke="#09AE82" strokeWidth={2} dot={false} />
                     </ComposedChart>
                 </ResponsiveContainer>
             </div>

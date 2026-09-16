@@ -12,12 +12,12 @@ import {
 
    Màu lấy từ design token trong globals.css (--background, --card, --border,
    --primary) thay vì gõ thẳng slate/indigo, để trang này đổi theme cùng lúc với
-   dashboard. Nhấn brand là gradient cam → đỏ, giống sidebar và tiêu đề TALPHA.
+   dashboard. Nút nhấn là dải cam → đỏ, đúng hai màu đậm nhất của logo ANTALO.
    ═══════════════════════════════════════════════════════════ */
 
 const DEPLOYMENT_MODE = (process.env.NEXT_PUBLIC_DEPLOYMENT_MODE || "talpha").toLowerCase();
 const FIXED_EMAIL = `${DEPLOYMENT_MODE}@levelup`;
-const APP_NAME = process.env.NEXT_PUBLIC_APP_NAME || "TALPHA";
+const APP_NAME = process.env.NEXT_PUBLIC_APP_NAME || "ANTALO";
 
 function LoginForm() {
     const router = useRouter();
@@ -124,21 +124,21 @@ function AuthPage() {
     return (
         <>
             <div className="mb-8 text-center">
-                <div className="mb-4 inline-flex items-center justify-center">
+                {/* Logo đã có sẵn tên ANTALO nên không lặp lại bằng chữ. Nền kem là
+                    của chính logo — chữ "LO" và "MINI MARKET" màu đen, nền tối là mất chữ. */}
+                <div className="brand-logo-box mx-auto mb-4 inline-block px-5 py-4 shadow-sm">
                     <img
-                        src="/logo.png"
-                        alt={APP_NAME}
-                        className="h-16 w-16 object-contain"
+                        src="/antalo-logo.png"
+                        alt={`${APP_NAME} Mini Market`}
+                        className="h-14 w-auto object-contain"
                         onError={(e) => {
                             (e.target as HTMLImageElement).style.display = "none";
                         }}
                     />
                 </div>
-                <h1 className="brand-gradient-text text-3xl font-extrabold tracking-tight">
-                    {APP_NAME}
-                </h1>
-                <p className="mt-1 text-sm text-muted-foreground">Tiểu Alpha — Middle East</p>
-                <p className="mt-1 text-[11px] text-muted-foreground/70">🇸🇦 🇦🇪 🇰🇼 🇴🇲 🇶🇦 🇧🇭</p>
+                <h1 className="sr-only">{APP_NAME} Dashboard</h1>
+                <p className="text-sm text-muted-foreground">Dashboard vận hành</p>
+                <p className="mt-1 text-[11px] text-muted-foreground/70">🇹🇼 Đài Loan · 🇸🇬 Singapore · 🇦🇪 UAE</p>
             </div>
 
             <div className="rounded-2xl border border-border bg-card/80 p-8 shadow-xl backdrop-blur-xl dark:bg-white/[0.04] dark:shadow-none">
@@ -147,7 +147,7 @@ function AuthPage() {
 
             <div className="mt-6 text-center">
                 <p className="text-xs text-muted-foreground/70">
-                    {APP_NAME} Dashboard · Level Up Analytics
+                    {APP_NAME} Mini Market
                 </p>
             </div>
         </>
@@ -157,11 +157,11 @@ function AuthPage() {
 export default function LoginPage() {
     return (
         <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-background">
-            {/* Vệt sáng nền — cùng dải cam/đỏ với brand gradient */}
+            {/* Vệt sáng nền — đỏ, cam, xanh lá của logo */}
             <div className="absolute inset-0 overflow-hidden" aria-hidden>
                 <div className="absolute -right-40 -top-40 h-80 w-80 rounded-full bg-orange-500/10 blur-3xl dark:bg-orange-500/[0.07]" />
                 <div className="absolute -bottom-40 -left-40 h-80 w-80 rounded-full bg-red-500/10 blur-3xl dark:bg-red-500/[0.07]" />
-                <div className="absolute left-1/2 top-1/2 h-96 w-96 -translate-x-1/2 -translate-y-1/2 rounded-full bg-amber-400/[0.07] blur-3xl" />
+                <div className="absolute left-1/2 top-1/2 h-96 w-96 -translate-x-1/2 -translate-y-1/2 rounded-full bg-emerald-400/[0.07] blur-3xl" />
             </div>
 
             <div className="relative mx-4 w-full max-w-md">

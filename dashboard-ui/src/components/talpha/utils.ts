@@ -85,9 +85,9 @@ export function formatNumberCompact(amount: number) {
 }
 
 export const COLORS = {
-    indigo: "#6366f1",
-    emerald: "#34d399",
-    rose: "#f43f5e",
-    amber: "#fbbf24",
-    slate: "#94a3b8",
+    indigo: "#6E695E",
+    emerald: "#00E27A",
+    rose: "#FF3131",
+    amber: "#FF9042",
+    slate: "#B1AEA0",
 };

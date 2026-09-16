@@ -222,13 +222,13 @@ export default function TALPHAMarketingTab({ dateRange }: Props) {
                     <h3 className="text-sm font-semibold text-foreground mb-4">📊 Tài khoản quảng cáo (VND)</h3>
                     <ResponsiveContainer width="100%" height={200}>
                         <BarChart data={accounts} layout="vertical">
-                            <CartesianGrid strokeDasharray="3 3" stroke="#94a3b8" strokeOpacity={0.25} />
-                            <XAxis type="number" tick={{ fill: "#64748b", fontSize: 11 }} tickFormatter={v => formatVNDCompact(v)} />
-                            <YAxis type="category" dataKey="account_id" tick={{ fill: "#64748b", fontSize: 10 }} width={140} />
+                            <CartesianGrid strokeDasharray="3 3" stroke="#B1AEA0" strokeOpacity={0.25} />
+                            <XAxis type="number" tick={{ fill: "#8A8675", fontSize: 11 }} tickFormatter={v => formatVNDCompact(v)} />
+                            <YAxis type="category" dataKey="account_id" tick={{ fill: "#8A8675", fontSize: 10 }} width={140} />
                             <Tooltip cursor={{ fill: "rgba(148,163,184,0.15)" }}
                                 contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, color: "hsl(var(--foreground))" }}
                                 formatter={(v: number) => [formatVNDCompact(v), ""]} />
-                            <Bar dataKey="spend" name="Spend (VND)" fill="#f59e0b" radius={[0, 4, 4, 0]} />
+                            <Bar dataKey="spend" name="Spend (VND)" fill="#FF7312" radius={[0, 4, 4, 0]} />
                         </BarChart>
                     </ResponsiveContainer>
                     <div className="mt-4 space-y-2">

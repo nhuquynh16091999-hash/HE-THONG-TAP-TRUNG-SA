@@ -12,7 +12,7 @@ import { BQ_PROJECT, DATASET } from "../constants";
 import { formatVNDCompact, marketName } from "../utils";
 import { useMarkets } from "../markets-context";
 
-const PIE_COLORS = ["#34d399", "#3b82f6", "#f59e0b", "#a855f7", "#ec4899", "#06b6d4"];
+const PIE_COLORS = ["#00E27A", "#09AE82", "#FF7312", "#958F83", "#FF6161", "#12DEA7"];
 
 interface Props { dateRange?: { from: Date; to: Date }; projectId?: string }
 
@@ -169,7 +169,7 @@ export default function TALPHAMarketIntelTab({ dateRange }: Props) {
                             <Pie data={markets} dataKey="revenue" nameKey="shop_name" cx="50%" cy="50%"
                                 outerRadius={90} innerRadius={50}
                                 label={({ shop_name, percent }: any) => `${shop_name} ${(percent * 100).toFixed(0)}%`}
-                                labelLine={{ stroke: "#64748b" }}>
+                                labelLine={{ stroke: "#8A8675" }}>
                                 {markets.map((_: any, i: number) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
                             </Pie>
                             <Tooltip contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", color: "hsl(var(--foreground))", borderRadius: 8 }}
@@ -184,9 +184,9 @@ export default function TALPHAMarketIntelTab({ dateRange }: Props) {
                     </h3>
                     <ResponsiveContainer width="100%" height={250}>
                         <BarChart data={topProducts} layout="vertical">
-                            <CartesianGrid strokeDasharray="3 3" stroke="#94a3b8" strokeOpacity={0.25} />
-                            <XAxis type="number" tick={{ fill: "#94a3b8", fontSize: 11 }} tickFormatter={v => formatVNDCompact(v)} />
-                            <YAxis type="category" dataKey="name" tick={{ fill: "#94a3b8", fontSize: 10 }} width={160} />
+                            <CartesianGrid strokeDasharray="3 3" stroke="#B1AEA0" strokeOpacity={0.25} />
+                            <XAxis type="number" tick={{ fill: "#B1AEA0", fontSize: 11 }} tickFormatter={v => formatVNDCompact(v)} />
+                            <YAxis type="category" dataKey="name" tick={{ fill: "#B1AEA0", fontSize: 10 }} width={160} />
                             <Tooltip contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", color: "hsl(var(--foreground))", borderRadius: 8 }}
                                 formatter={(v: number) => [formatVNDCompact(v), ""]} />
                             <Bar dataKey="revenue" name="Doanh thu (VND)" radius={[0, 4, 4, 0]}>

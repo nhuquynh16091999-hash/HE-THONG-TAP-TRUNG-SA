@@ -273,7 +273,7 @@ export default function TALPHACeoOverviewTab({ dateRange }: Props) {
             {/* ═══ 1. Hero — kỳ báo cáo + xuất xứ số ═══ */}
             <ReportHero
                 emoji="📊"
-                title={`Báo cáo TALPHA — ${period}`}
+                title={`Báo cáo ANTALO — ${period}`}
                 subtitle={
                     <>
                         Doanh thu chỉ tính đơn <strong>giao thành công</strong>, đã quy VND theo tỷ giá từng thị trường ·
