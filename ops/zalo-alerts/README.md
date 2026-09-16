@@ -5,7 +5,7 @@ Sỹ Anh chốt 15/09/2026: **tự động chỉ gửi mốc 8h30**, còn lại 
 
 | Khi nào | Tin |
 |---|---|
-| **08:30** mỗi ngày | TỔNG TEAM + mỗi marketer một tin — số **hôm qua** |
+| **08:30** mỗi ngày | **Một tin duy nhất**: số tổng + bảng xếp hạng + camp đáng xử — số **hôm qua** |
 | Có người gõ lệnh trong nhóm | Xem bảng lệnh dưới |
 
 Không tự gửi từ 23h đến 7h (lệnh gõ tay thì trả lời bất cứ lúc nào). Không có tồn kho,
@@ -15,15 +15,21 @@ thẻ/TKQC như bot WhatsApp cũ (`ops/whatsapp-alerts/`, đang tắt).
 
 | Gõ | Bot trả |
 |---|---|
-| `/baocao` | Số **đang chạy hôm nay**: TỔNG TEAM + từng marketer, dán nhãn `HÔM NAY dd/mm · giờ` |
+| `/baocao` | Số **đang chạy hôm nay**, gộp một tin, dán nhãn `HÔM NAY dd/mm · giờ` |
 | `/baocao homqua` · `/baocao 14/09` | Số hôm qua · số một ngày |
-| `/baocao Lộc` · `/baocao homqua Lộc` | Chỉ tin của một người |
-| `/baocao team` | Chỉ tin TỔNG TEAM |
+| `/baocao Lộc` · `/baocao homqua Lộc` | Chi tiết campaign + đề xuất của một người |
+| `/baocao team` | Chỉ số TỔNG TEAM, không kèm campaign |
 | `/canhbao` | Camp tiêu ≥ 300k mà 0 tin nhắn, chi tiêu hôm nay so với TB 7 ngày |
 | `/bot` | Cách dùng |
 
 Có dấu hay không dấu, hoa hay thường đều được; `/bc`, `/cb` là viết tắt. Chữ không bắt đầu
 bằng `/` bot bỏ qua. Cùng một lệnh gõ lại trong 60 giây thì bot bỏ lần sau.
+**Một tin, không phải năm** (Sỹ Anh chốt 16/09/2026). Bản đầu gửi tin TỔNG TEAM rồi thêm
+một tin cho mỗi marketer — 5–6 tin liền nhau, trong nhóm đọc thành loạn. Nay mốc 08:30 và
+`/baocao` gửi đúng một tin ~700–900 ký tự (khung Zalo 1800). Chi tiết từng campaign của
+từng người KHÔNG mất, gõ `/baocao <tên>` là ra — gộp cả vào một tin thì dài gấp ba khung,
+lại bị Zalo chia thành mấy tin, đúng cái đang tránh.
+
 **Chỉ nghe nhóm nhận tin**: nick phụ còn ở các nhóm COD có người của đối tác — gõ `/baocao`
 ở đó bot im, không lộ số ra ngoài.
 

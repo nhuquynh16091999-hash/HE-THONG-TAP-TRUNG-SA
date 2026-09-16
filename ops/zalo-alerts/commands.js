@@ -2,10 +2,10 @@
 // gửi "khi có ai đó yêu cầu". Hàm thuần — chữ người gõ → việc bot phải làm — không đụng
 // mạng, không đụng Zalo, để test được.
 //
-//   /baocao               số ĐANG CHẠY hôm nay: TỔNG TEAM + từng marketer
+//   /baocao               số ĐANG CHẠY hôm nay, gộp trong MỘT tin
 //   /baocao homqua        số hôm qua          /baocao 14/09   số ngày đó
-//   /baocao Lộc           chỉ tin của một người (ghép được với ngày: /baocao homqua Lộc)
-//   /baocao team          chỉ tin TỔNG TEAM
+//   /baocao Lộc           chi tiết campaign của một người (ghép ngày: /baocao homqua Lộc)
+//   /baocao team          chỉ số TỔNG TEAM, không kèm campaign
 //   /canhbao              camp đốt tiền 0 tin nhắn + chi tiêu bất thường, ngay lúc gõ
 //   /bot                  cách dùng
 // Có dấu hay không dấu, hoa hay thường đều được. Không bắt đầu bằng "/" → không phải lệnh,
@@ -80,13 +80,13 @@ function docLenh(text, { today, nguoi = [] }) {
 function huongDan({ at, nguoi = [] } = {}) {
     const vi = nguoi[0] ? nguoi[0].ten : "Lộc";
     return `🤖 ${B("Bot TALPHA — báo cáo ads")}\n`
-        + `Tự gửi lúc ${at || "08:30"}: số ads hôm qua, TỔNG TEAM + từng marketer.\n\n`
+        + `Tự gửi lúc ${at || "08:30"}: số ads hôm qua, gộp trong MỘT tin.\n\n`
         + `${B("Gõ trong nhóm để lấy số:")}\n`
-        + `• /baocao — số đang chạy hôm nay\n`
+        + `• /baocao — số đang chạy hôm nay (1 tin)\n`
         + `• /baocao homqua — số hôm qua\n`
         + `• /baocao 14/09 — số một ngày\n`
-        + `• /baocao ${vi} — chỉ tin của một người (ghép được: /baocao homqua ${vi})\n`
-        + `• /baocao team — chỉ tin TỔNG TEAM\n`
+        + `• /baocao ${vi} — chi tiết campaign của một người (ghép được: /baocao homqua ${vi})\n`
+        + `• /baocao team — chỉ số TỔNG TEAM\n`
         + `• /canhbao — camp đốt tiền không ra tin nhắn, chi tiêu bất thường\n`
         + `${I("Có dấu hay không dấu đều được.")}`;
 }

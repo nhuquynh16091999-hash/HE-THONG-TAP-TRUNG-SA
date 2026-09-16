@@ -27,6 +27,13 @@ const fmt = (n) => Number(n || 0).toLocaleString("vi-VN");
 const pct = (a, b) => (b > 0 ? (a / b) * 100 : 0);
 const p1 = (x) => Number(x || 0).toFixed(1).replace(".", ",");
 const ddmm = (d) => `${d.slice(8, 10)}/${d.slice(5, 7)}`;
+// Tiền viết gọn cho dòng camp: 327k · 1,2tr — tin gộp phải vừa MỘT tin nên không xài số đầy đủ.
+const gonTien = (n) => {
+    const x = Number(n || 0);
+    if (x >= 1_000_000) return `${(x / 1_000_000).toFixed(1).replace(".", ",").replace(",0", "")}tr`;
+    if (x >= 1_000) return `${Math.round(x / 1_000)}k`;
+    return `${Math.round(x)}đ`;
+};
 // Tỷ lệ chốt = đơn / tin nhắn. Chỉ có nghĩa khi CẢ HAI cùng đến từ quảng cáo của người
 // đó. Đơn gán theo tag POS nên người gần như không chạy ads vẫn nhận đơn → ra "chốt
 // 460%", vô nghĩa và trông như lỗi. Trường hợp đó trả "—".
@@ -169,7 +176,45 @@ async function buildMarketerReports(cfg, dateStr, opts = {}) {
         if (recs.length) m += `\n\n💡 ${B("Đề xuất:")}\n` + recs.map((r) => "• " + r).join("\n");
         return m;
     });
-    return { dateStr, teamMessage: buildTeamReport(dateStr, sheet, { ...opts, label }), messages, nguoi: names };
+    const teamMessage = buildTeamReport(dateStr, sheet, { ...opts, label });
+    return {
+        dateStr, teamMessage, messages, nguoi: names,
+        // MỘT tin duy nhất cho mốc tự gửi — Sỹ Anh chốt 16/09/2026: "nhiều tin quá bị loạn".
+        tinGop: buildTinGop({ dateStr, sheet, camps, cfg, canhBaoCamp, opts: { ...opts, label } }),
+    };
+}
+
+/**
+ * TIN GỘP — tất cả trong MỘT tin (Sỹ Anh chốt 16/09/2026: sáu tin một lượt là loạn nhóm).
+ *
+ * Lấy nguyên tin TỔNG TEAM (đã có số tổng + bảng xếp hạng từng người) rồi thêm hai dòng
+ * campaign đáng làm gì đó. CỐ Ý bỏ phần chi tiết từng campaign của từng người: gộp hết
+ * vào là tin dài gấp ba lần khung 1800 ký tự của Zalo, lại bị chia thành mấy tin — đúng
+ * cái đang muốn tránh. Ai cần chi tiết thì gõ /baocao <tên>.
+ */
+function buildTinGop({ dateStr, sheet, camps, cfg, canhBaoCamp, opts }) {
+    let m = "";
+    const ten = (c) => tenNganCamp(c.campaign_name);
+    const chu = (c) => { const k = marketerOf(c.campaign_name); return k ? ` (${k})` : ""; };
+
+    const dot = camps
+        .filter((c) => c.spend_vnd >= (cfg.recWasteSpend || 300000) && !(c.orders > 0))
+        .sort((a, b) => b.spend_vnd - a.spend_vnd);
+    if (dot.length) {
+        m += `\n\n🔥 ${B(`Đốt tiền không ra đơn (${dot.length})`)}: `
+            + dot.slice(0, 3).map((c) => `${ten(c)} ${gonTien(c.spend_vnd)}${chu(c)}`).join(" · ")
+            + (dot.length > 3 ? " …" : "");
+    }
+    const ngon = camps
+        .filter((c) => c.revenue_vnd > 0 && (c.orders || 0) >= 3 && pct(c.spend_vnd, c.revenue_vnd) < (cfg.recGoodAdsPct || 20))
+        .sort((a, b) => b.revenue_vnd - a.revenue_vnd);
+    if (ngon.length) {
+        m += `\n💡 ${B("Đang ngon")}: `
+            + ngon.slice(0, 2).map((c) => `${ten(c)} ${c.orders} đơn · %ads ${Math.round(pct(c.spend_vnd, c.revenue_vnd))}%${chu(c)}`).join(" · ");
+    }
+    if (canhBaoCamp) m += `\n\n${I("(chưa lấy được danh sách campaign lúc này — số đầu bài vẫn đúng theo Sheet)")}`;
+    return buildTeamReport(dateStr, sheet,
+        { ...opts, themVao: m, themCuoi: " · gõ /baocao <tên> để xem chi tiết campaign của một người" });
 }
 
 // Tin TỔNG TEAM — số lấy thẳng dòng TỔNG của Sheet, cùng bảng xếp hạng từng người. Ô
@@ -210,7 +255,9 @@ function buildTeamReport(dateStr, sheet, opts = {}) {
     if (un && (un.doanh_so > 0 || un.don > 0)) {
         m += `\n\n📍 Chưa gán được cho ai: ${fmt(Math.round(un.doanh_so))}đ · ${fmt(un.don)} đơn — nằm ngoài bảng trên.`;
     }
-    m += `\n${I(`số lấy thẳng từ file TỔNG TEAM THÁNG ${Number(dateStr.slice(5, 7))}`)}`;
+    if (opts.themVao) m += opts.themVao;           // tin gộp chèn phần campaign ở đây
+    // Chú thích nguồn số + (tin gộp) chỗ lấy chi tiết — GỘP một dòng, càng ít dòng càng dễ đọc.
+    m += `\n${I(`số lấy thẳng từ file TỔNG TEAM THÁNG ${Number(dateStr.slice(5, 7))}${opts.themCuoi || ""}`)}`;
     return m;
 }
 
@@ -227,4 +274,4 @@ function recommend(list, agg, cfg) {
     return r;
 }
 
-module.exports = { buildMarketerReports, buildTeamReport, recommend };
+module.exports = { buildMarketerReports, buildTeamReport, buildTinGop, recommend };

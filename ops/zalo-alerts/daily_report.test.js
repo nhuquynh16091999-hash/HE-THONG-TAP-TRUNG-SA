@@ -152,6 +152,61 @@ function fakeFetch({ sheet = SHEET, camps = CAMPS, realtimeStatus = 200, sheetSt
         assert.ok(!thai.includes("Trang Sức Vàng Thái"), "tên trang có chữ Thái không làm camp thành của Thái");
     });
 
+    await t("tin GỘP: đúng MỘT tin, có đủ người, có camp đáng xử, không kèm chi tiết từng camp", async () => {
+        const r = await buildMarketerReports(CFG, "2026-09-14", { fetch: fakeFetch() });
+        const g = tron(r.tinGop);
+
+        // Lý do cả thay đổi này tồn tại: 1 tin tổng + 4 tin riêng = 5 tin liền trong nhóm.
+        assert.strictEqual(chiaTin(toZalo(r.tinGop), 1800).length, 1,
+            `tin gộp bị chia thành nhiều tin (${g.length} ký tự) — mất đúng mục đích gộp`);
+
+        assert.ok(g.startsWith("🏆 TỔNG TEAM — 14/09\n"), g);
+        assert.ok(g.includes("Tiền ads: 3.000.000đ"));
+        for (const mk of ["Lộc", "Thương", "Thắng", "Thái"]) {
+            assert.ok(g.includes(mk), `tin gộp thiếu ${mk} — gộp không được phép làm mất ai`);
+        }
+        assert.ok(g.includes("📍 Chưa gán được cho ai: 900.000đ"));
+        // Camp đáng làm gì đó: chỉ tên + tiền gọn + chủ, một dòng mỗi loại.
+        assert.ok(g.includes("🔥 Đốt tiền không ra đơn (1): 072 - DENTAL 330k (Lộc)"), g);
+        assert.ok(g.includes("💡 Đang ngon: 042 - BLACK 5 đơn · %ads 19% (Lộc)"), g);
+        // Chú thích nguồn số phải ở CUỐI, không kẹp giữa tin.
+        const cuoi = g.trim().split("\n").pop();
+        assert.ok(cuoi.includes("số lấy thẳng từ file TỔNG TEAM THÁNG 9"), cuoi);
+        assert.ok(cuoi.includes("/baocao <tên>"), "phải chỉ đường lấy chi tiết");
+        // Chi tiết từng campaign của từng người CỐ Ý không nằm trong tin gộp.
+        assert.ok(!g.includes("Theo campaign:"), "gộp cả chi tiết vào là tin dài quá khung Zalo");
+        assert.ok(!g.includes("Tắt / đổi sản phẩm"), "khối Đề xuất dài chỉ dành cho tin riêng");
+        // Dấu * là cách WhatsApp in đậm — Zalo in ra nguyên chữ *, phải không còn.
+        // (Dấu "-" thì hợp lệ: tên camp có sẵn, ví dụ "072 - DENTAL".)
+        assert.ok(!/[*-]/.test(g), "còn sót ký tự cờ hoặc dấu *");
+        // Tin riêng vẫn dựng đủ để /baocao <tên> trả về được.
+        assert.strictEqual(r.messages.length, 4);
+    });
+
+    await t("tin GỘP: không có camp nào đáng xử thì bỏ hẳn dòng, không in dòng rỗng", async () => {
+        const r = await buildMarketerReports(CFG, "2026-09-14", { fetch: fakeFetch({ camps: [] }) });
+        const g = tron(r.tinGop);
+        assert.ok(!g.includes("🔥") && !g.includes("💡 Đang ngon"), g);
+        assert.ok(!/\n\n\n/.test(g), "có dòng trống thừa");
+        assert.ok(g.includes("Xếp hạng theo doanh số:"), "số Sheet vẫn phải còn");
+    });
+
+    await t("tin GỘP: realtime lỗi thì vẫn gửi, nói rõ thiếu phần campaign", async () => {
+        const r = await buildMarketerReports(CFG, "2026-09-14", { fetch: fakeFetch({ realtimeStatus: 502 }) });
+        const g = tron(r.tinGop);
+        assert.ok(g.includes("Tiền ads: 3.000.000đ"), "số đầu bài từ Sheet vẫn phải đủ");
+        assert.ok(g.includes("chưa lấy được danh sách campaign lúc này"), g);
+    });
+
+    await t("tin GỘP giữa ngày: vẫn một tin, vẫn nói số chưa chốt", async () => {
+        const r = await buildMarketerReports(CFG, "2026-09-15",
+            { fetch: fakeFetch(), intraday: true, label: "HÔM NAY 15/09 · 13:30" });
+        const g = tron(r.tinGop);
+        assert.strictEqual(chiaTin(toZalo(r.tinGop), 1800).length, 1);
+        assert.ok(g.startsWith("🏆 TỔNG TEAM — HÔM NAY 15/09 · 13:30"));
+        assert.ok(g.includes("(đơn hôm nay gần như chưa giao xong"));
+    });
+
     await t("realtime lỗi vẫn gửi đủ tin, chỉ thiếu phần campaign", async () => {
         const nhat = [];
         const r = await buildMarketerReports(CFG, "2026-09-14", { fetch: fakeFetch({ realtimeStatus: 502 }), log: (x) => nhat.push(x) });

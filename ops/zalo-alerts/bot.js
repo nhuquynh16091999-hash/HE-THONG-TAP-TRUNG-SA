@@ -163,11 +163,14 @@ async function dungBaoCao(ngay, homNay, label) {
         { intraday: homNay, label: label || (homNay ? slotLabel(vnHHMM()) : undefined), stale: await fetchStale(), log });
 }
 
+// MỘT tin cho mốc tự gửi (Sỹ Anh chốt 16/09/2026: trước đây 1 tin tổng + 1 tin mỗi
+// marketer = sáu tin liền, đọc trong nhóm thành loạn). Chi tiết campaign từng người vẫn
+// còn, lấy bằng /baocao <tên>.
 function guiBaoCao(ngay, { homNay = false, label } = {}) {
     return lanLuot(async () => {
         const r = await dungBaoCao(ngay, homNay, label);
-        const n = await guiLoat([r.teamMessage, ...r.messages]);
-        return { n, marketers: r.messages.length };
+        const n = await guiLoat([r.tinGop]);
+        return { n, marketers: r.nguoi.length };
     });
 }
 
@@ -195,7 +198,7 @@ async function lamLenh(text, ai = "dòng lệnh") {
                 const i = r.nguoi.indexOf(lenh.loc);
                 tin = [i >= 0 ? r.messages[i]
                     : `ℹ️ ${lenh.loc} chưa có số ${lenh.homNay ? "hôm nay" : "ngày " + ddmm(lenh.ngay)} — 0đ ads, 0 đơn.`];
-            } else tin = [r.teamMessage, ...r.messages];
+            } else tin = [r.tinGop];   // không lọc người → đúng MỘT tin, như mốc tự gửi
             log(`Đã trả lệnh: ${await guiLoat(tin)} tin.`);
         } catch (e) {
             log("Lệnh lỗi:", e.message);
@@ -262,7 +265,7 @@ async function chayMoc(khoa, moc, cuaSo, lamViec) {
     try {
         const r = await lamViec();
         danhDau();
-        log(`Đã gửi mốc ${moc}: TỔNG TEAM + ${r.marketers} marketer (${r.n} tin).`);
+        log(`Đã gửi mốc ${moc}: 1 tin gộp, ${r.marketers} marketer trong bảng.`);
     } catch (e) {
         if (e.daGui > 0) danhDau();
         log(`Mốc ${moc} lỗi${e.daGui > 0 ? ` sau ${e.daGui} tin — không gửi lại` : " — vòng sau thử lại"}:`, e.message);
@@ -349,7 +352,7 @@ async function main() {
         } else {
             const ngay = /^\d{4}-\d{2}-\d{2}$/.test(argAfter("--report")) ? argAfter("--report") : homQua(vnDateStr());
             const r = await guiBaoCao(ngay);
-            log(`${DRY ? "In thử" : "Đã gửi"} báo cáo ngày ${ngay}: TỔNG TEAM + ${r.marketers} marketer.`);
+            log(`${DRY ? "In thử" : "Đã gửi"} báo cáo ngày ${ngay}: 1 tin gộp, ${r.marketers} marketer trong bảng.`);
         }
         return true;
     }
