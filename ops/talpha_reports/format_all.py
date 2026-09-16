@@ -19,29 +19,19 @@ FROM=_T.replace(day=1).isoformat(); TO=_T.isoformat()  # ngày ĐỘNG: đầu t
 from talpha_rules import (RATE, LOCALCUR, MONEY_DIV, ALLM, MARKETS, SHOP2MKT, GTC_CAT, POS_TZ,
                           NUMID, norm_nv, norm_pos_nv, is_test, PRIMARY_MARKET,
                           DISPLAY, EXTERNAL_DISPLAY, norm_pos_external, norm_nv_external,
-                          UNASSIGN, bucket_nv, campaign_market)
-def page_of(p):
-    for i,seg in enumerate(p):
-        if NUMID.match(seg.replace(' ','')) and i+1<len(p) and p[i+1].strip(): return p[i+1].strip()
-    return None
-def page_id_of(p):  # trả (page_id, tên page) từ campaign — dùng build map page_id→tên page
-    for i,seg in enumerate(p):
-        s=seg.replace(' ','')
-        if NUMID.match(s) and i+1<len(p) and p[i+1].strip(): return s, p[i+1].strip()
-    return None,None
+                          UNASSIGN, bucket_nv, campaign_market,
+                          camp_san_pham, hoc_page_san_pham, san_pham_cua_don)
 # SHOP2MKT + norm_pos_nv: import từ talpha_rules (xem trên)
 def parse_camp(cn):
     p=[x.strip() for x in (cn or "").split("/")]
     if not p: return None,None,None
     # Tìm ô đầu tiên là tên thị trường (bất kể tiền tố như "Tặng/", "LADI/"...);
-    # marketer là ô ngay SAU thị trường, sản phẩm là ô kế tiếp.
+    # marketer là ô ngay SAU thị trường.
     mi=next((i for i,s in enumerate(p) if s.upper() in MARKETS), None)
     if mi is not None:
-        # KIỂU CŨ: .../TW/Marketer/SP/... — marketer là ô ngay SAU thị trường.
+        # CHUẨN: NƯỚC/MARKETER/TỆPKHÁCH/MÃSANPHAM/TENTRANG/NGAY — marketer là ô ngay SAU nước.
         mkt=MARKETS[p[mi].upper()]
         nv=norm_nv(p[mi+1]) if mi+1<len(p) else None
-        ci=mi+2
-        prod=page_of(p) or (p[ci] if len(p)>ci and p[ci] else "(khác)")
     else:
         # KIỂU MỚI (chuẩn 09/2026, xem talpha_rules._camp_naming_note):
         #   MARKETER/TỆPKHÁCH/SANPHAM/TRANG/NGAY — KHÔNG ghi thị trường nữa vì chỉ còn một.
@@ -50,10 +40,10 @@ def parse_camp(cn):
         # Quét ô đầu và ô hai để chịu được tiền tố lạ ("Tặng/", "LADI/").
         idx=next((i for i,s in enumerate(p[:2]) if norm_nv(s)), None)
         if idx is None: return None,None,None
-        nv=norm_nv(p[idx]); mkt=PRIMARY_MARKET; ci=idx+2
-        # Sản phẩm là ô NGAY SAU tệp khách. page_of() chỉ dùng khi thiếu ô đó — ở chuẩn mới
-        # page_id (nếu có) nằm cuối, ô sau nó là ngày chứ không phải tên trang.
-        prod=(p[ci] if len(p)>ci and p[ci] else None) or page_of(p) or "(khác)"
+        nv=norm_nv(p[idx]); mkt=PRIMARY_MARKET
+    # Sản phẩm = ô thứ HAI sau marketer (ô ngay sau là tệp khách) — cả tên có lẫn không có ô
+    # nước. Xem camp_san_pham trong talpha_rules.py: hai lỗi đọc ô sửa 16/09/2026 nằm ở đó.
+    prod=camp_san_pham(cn)[0] or "(khác)"
     return mkt,nv,prod
 # File theo nước của từng marketer: map đọc từ <nước>_files.json — xem FILE_NUOC bên dưới.
 # (MARKET_MAP gõ tay trong code — bộ 30 file GCC của team cũ — bỏ 09/09/2026.)
@@ -76,8 +66,9 @@ from talpha_rules import RULES as _RULES
 RULES_MARKETS={m: v for m, v in _RULES["markets"].items() if isinstance(v, dict)}
 cell_test=collections.defaultdict(lambda:{"spend":0.0,"msg":0,"pur":0,"orders":0,"cod":0.0,"cod_gtc":0.0})
 test_pages=set(); main_pages=set()  # page thuộc camp test / camp thường (để chia đơn không có ad_id)
-# ADS: spend/tin nhắn/purchases theo campaign (giữ nguyên). Đồng thời build map page_id → tên page (sản phẩm).
-pageid2name={}
+# ADS: spend/tin nhắn/purchases theo campaign (giữ nguyên). Tên camp nào GHI số page thì nhặt
+# luôn cặp (page, sản phẩm) — bằng chứng page ↔ sản phẩm có sẵn từ tên, dùng khi gán đơn.
+PAGE_TU_TEN=[]
 # 20/08: camp không parse được (typo thị trường 'TAIWAIN', tên không theo format 'tt 20/7')
 # trước đây bị bỏ IM LẶNG — spend biến mất khỏi mọi báo cáo mà không ai biết. Nay gom lại
 # và in cảnh báo ở cuối (report_health đọc tail log → bot WA thấy được).
@@ -101,16 +92,16 @@ for r in bq.query(f"SELECT date, campaign_name, SUM(spend) spend, SUM(messaging_
     if campaign_market(r.campaign_name)[1]=="mac_dinh": THIEU_NUOC[r.campaign_name or "(tên rỗng)"]+=r.spend or 0
     nv=bucket_nv(nv)
     t=is_test(r.campaign_name, mkt)
-    pid,_=page_id_of([x.strip() for x in (r.campaign_name or "").split("/")])
+    pid=camp_san_pham(r.campaign_name)[2]
     if pid:
-        pageid2name[pid]=prod  # để đơn tra tên page qua page_id
+        PAGE_TU_TEN.append((pid,prod))
         (test_pages if t else main_pages).add(pid)
     c=(cell_test if t else cell)[(nv,mkt,prod,str(r.date))]; c["spend"]+=r.spend or 0; c["msg"]+=r.msg or 0; c["pur"]+=r.pur or 0
 # ad_id → chủ campaign (marketer) — dùng cho FALLBACK đơn không tag (duyệt 06/07).
 # X9 (06/08): POS không phải lúc nào cũng ghi ad_id vào ô `ad_id` — 999 đơn/10.634 (9,4%)
 # mang ADSET id ở ô đó. Nạp CẢ adset vào chung bảng tra; ad_id nạp SAU để đè lên adset
 # nếu trùng (bản ad chính xác hơn). Trượt cả hai mới coi là không gán được.
-ad2nv={}; test_ads=set()
+ad2nv={}; test_ads=set(); ad2sp={}   # ad2sp: ad/adset → sản phẩm của campaign — học page ↔ sản phẩm
 for _tbl,_col in (("fb_adset_data","adset_id"), ("fb_ads_data","ad_id")):
     for r in bq.query(f"SELECT DISTINCT CAST({_col} AS STRING) ad_id, campaign_name FROM `{PROJECT}.{DS}.{_tbl}` WHERE date BETWEEN '{FROM}' AND '{TO}' AND {_col} IS NOT NULL").result():
         _m,_nv,_p=parse_camp(r.campaign_name)
@@ -118,6 +109,7 @@ for _tbl,_col in (("fb_adset_data","adset_id"), ("fb_ads_data","ad_id")):
         # chui ngược vào ô của họ, đúng thứ vừa bỏ đi.
         if _nv and _nv not in UNASSIGN and r.ad_id: ad2nv[r.ad_id]=_nv
         if r.ad_id and is_test(r.campaign_name, _m): test_ads.add(r.ad_id)
+        if r.ad_id and _p: ad2sp[r.ad_id]=_p
 purely_test_pages=test_pages-main_pages  # page CHỈ chạy camp test → đơn không ad_id trên page đó = test
 # ĐƠN HÀNG: ưu tiên TAG marketer trong POS (JSON $.name) + shop_label.
 # Đơn KHÔNG tag / tag người ngoài team nhưng ad_id thuộc campaign team → tính cho CHỦ CAMPAIGN
@@ -127,7 +119,14 @@ purely_test_pages=test_pages-main_pages  # page CHỈ chạy camp test → đơn
 UNASSIGNED="(không gán)"
 # Tiền tố đánh dấu người ngoài team — để grand_tab() loại khỏi TỔNG mà vẫn có tab riêng.
 EXT_PREFIX="~ngoai~"
-for r in bq.query(f"SELECT DATE(TIMESTAMP(inserted_at),'{POS_TZ}') d, JSON_EXTRACT_SCALAR(marketer,'$.name') nm, shop_label, page_id, CAST(ad_id AS STRING) ad_id, SUM(cod) cod, COUNT(*) n, SUM(IF(status_category='{GTC_CAT}', cod, 0)) cod_gtc FROM `{PROJECT}.{DS}.sale_order` WHERE DATE(TIMESTAMP(inserted_at),'{POS_TZ}') BETWEEN '{FROM}' AND '{TO}' AND status_category NOT IN ('HUY','DON_THO') GROUP BY d, nm, shop_label, page_id, ad_id").result():
+DON=list(bq.query(f"SELECT DATE(TIMESTAMP(inserted_at),'{POS_TZ}') d, JSON_EXTRACT_SCALAR(marketer,'$.name') nm, shop_label, page_id, CAST(ad_id AS STRING) ad_id, SUM(cod) cod, COUNT(*) n, SUM(IF(status_category='{GTC_CAT}', cod, 0)) cod_gtc FROM `{PROJECT}.{DS}.sale_order` WHERE DATE(TIMESTAMP(inserted_at),'{POS_TZ}') BETWEEN '{FROM}' AND '{TO}' AND status_category NOT IN ('HUY','DON_THO') GROUP BY d, nm, shop_label, page_id, ad_id").result())
+# SẢN PHẨM CỦA ĐƠN TÍNH THEO PAGE (luồng nghiệp vụ cũ — Sỹ Anh nhắc 16/09/2026). Luồng cũ nối
+# đơn → sản phẩm qua SỐ page ghi trong tên campaign; tên bây giờ chỉ ghi TÊN trang nên mối nối
+# đứt, cả tháng 9 mọi đơn rơi vào tab "(khác)", tab sản phẩm nào cũng 0 đơn. Nay học page ↔ sản
+# phẩm từ chính đơn POS (đơn có cả page_id lẫn ad_id), cộng các cặp đọc được từ tên camp.
+# Luật chia khi một page chạy nhiều sản phẩm: xem san_pham_cua_don (talpha_rules.py).
+page_sp=hoc_page_san_pham([(r.page_id, ad2sp.get(r.ad_id or ""), r.n) for r in DON] + [(pid,sp,1) for pid,sp in PAGE_TU_TEN])
+for r in DON:
     # Người NGOÀI TEAM (Kính, Thắng…) chạy chung TKQC + bán chung shop POS. Nhận diện
     # TRƯỚC bậc 2 để fallback ad_id không đẩy đơn của họ sang người trong team.
     nv = norm_pos_nv(r.nm)
@@ -139,7 +138,7 @@ for r in bq.query(f"SELECT DATE(TIMESTAMP(inserted_at),'{POS_TZ}') d, JSON_EXTRA
     nv=bucket_nv(nv)
     mkt=SHOP2MKT.get((r.shop_label or "").upper())
     if not mkt: continue
-    prod=pageid2name.get(str(r.page_id)) or "(khác)"
+    prod=san_pham_cua_don(r.page_id, ad2sp.get(r.ad_id or ""), page_sp)
     # Đơn từ camp TEST (ad_id thuộc camp test, hoặc page chỉ chạy test) → tách khỏi báo cáo doanh số.
     # Thị trường miễn rule test (Taiwan) → đơn LUÔN tính thật.
     t=(mkt not in NO_TEST_MARKETS) and ((r.ad_id in test_ads) or (str(r.page_id) in purely_test_pages))
@@ -234,7 +233,7 @@ def do(fn):
 DRY=os.environ.get("TALPHA_FORMAT_DRY")=="1"
 def write_file(key, tabs, title=None, month_suffix=False):
     if DRY:
-        print(f"    [DRY] {key}: {len(tabs)} tab — " + " · ".join(t for t,_ in tabs)); return
+        print(f"    [DRY] {key}: {len(tabs)} tab — " + " · ".join(f"{t} ({rows[-1][6]} đơn)" for t,rows in tabs)); return
     # 20/08 FIX: `sh.sheet1` CŨNG gọi API (fetch_sheet_metadata). Bản cũ để nó NGOÀI do()
     # nên 1 lần Google trả 503 là chết cả chain → file thị trường mang số mới, file TỔNG
     # mang số cũ (báo cáo nửa vời, đã xảy ra 18/344 vòng). Nay bọc chung trong do().

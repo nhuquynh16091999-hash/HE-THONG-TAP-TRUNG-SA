@@ -232,3 +232,69 @@ def attribute_order(pos_marketer=None, ad_id=None, adid_owner=None):
         if nv:
             return nv, "ad_id"
     return UNASSIGNED, "unassigned"
+
+
+# ═══ SẢN PHẨM + PAGE CỦA CAMPAIGN, VÀ GÁN ĐƠN → SẢN PHẨM THEO PAGE ═══════════════════
+# Chuẩn tên (docs/CHUAN_DAT_TEN_CAMPAIGN.md): NƯỚC/MARKETER/TỆPKHÁCH/MÃSANPHAM/TENTRANG/NGAY.
+# Tên cũ bỏ ô nước: MARKETER/TỆPKHÁCH/MÃSANPHAM/TENTRANG/NGAY. Hai kiểu cùng một luật:
+# SẢN PHẨM = ô thứ HAI sau ô marketer, TÊN TRANG = ô thứ ba (ô ngay sau marketer là tệp khách).
+# Cùng luật với tenNganCamp của bot Zalo (ops/zalo-alerts/rules.js).
+#
+# 16/09/2026 sửa hai lỗi đọc ô của format_all.py:
+#   · tên có ô nước lấy ô NGAY SAU marketer làm sản phẩm → ra tệp khách: file Lộc có tab
+#     "PHI" 4,98tr và "INDO" 1,64tr tiền ads, không phải sản phẩm nào;
+#   · tên có số page lấy ô SAU con số làm sản phẩm — kiểu GCC cũ số page đứng trước tên
+#     trang, nay đứng sau → ra NGÀY: file Thắng có tab "4-9 TEST", file Thương có tab "7-9".
+def camp_san_pham(cn):
+    """Tên campaign → (sản phẩm, tên trang, page_id). Không nhận ra marketer → (None, None, None)."""
+    p = [x.strip() for x in (cn or "").split("/")]
+    mi = next((i for i, s in enumerate(p) if s.upper() in MARKETS), None)
+    if mi is not None:
+        k = mi + 1
+    else:
+        k = next((i for i, s in enumerate(p[:2]) if norm_nv(s)), None)
+        if k is None:
+            return None, None, None
+    sp = p[k + 2] if len(p) > k + 2 else ""
+    trang = p[k + 3] if len(p) > k + 3 else ""
+    # Số page (6+ chữ số) ở bất kỳ ô nào sau marketer — kiểu GCC cũ đứng trước tên trang,
+    # kiểu hiện tại đứng sau. Ngày "2808" chỉ 4 số nên không lẫn.
+    page_id = next((s.replace(" ", "") for s in p[k + 1:] if NUMID.match(s.replace(" ", ""))), None)
+    if page_id and NUMID.match(sp.replace(" ", "")):
+        sp = trang                                   # kiểu GCC: số page chiếm ô sản phẩm → sản phẩm là tên trang (luồng cũ)
+    if sp.upper() == "TEST":
+        sp = f"TEST · {trang}" if trang else "TEST"  # camp thử: tách theo trang, không dồn chung một tab "TEST"
+    return (sp or "(khác)"), (trang or None), page_id
+
+
+def hoc_page_san_pham(cap):
+    """[(page_id, sản phẩm, số đơn), …] → {page_id: {sản phẩm: số đơn}}.
+
+    Tên campaign bây giờ ghi TÊN trang chứ không ghi SỐ page, nên mối nối page ↔ campaign
+    phải học từ chính đơn POS: đơn nào có CẢ page_id lẫn ad_id (tháng 9/2026: 126/131 đơn
+    Đài) là một bằng chứng "page này đang chạy sản phẩm này"."""
+    out = {}
+    for page_id, sp, n in cap:
+        if page_id and sp:
+            d = out.setdefault(str(page_id), {})
+            d[sp] = d.get(sp, 0) + (n or 0)
+    return out
+
+
+def san_pham_cua_don(page_id, sp_quang_cao, page_sp):
+    """Đơn → sản phẩm, TÍNH THEO PAGE (luồng nghiệp vụ cũ, Sỹ Anh nhắc 16/09/2026): sản phẩm
+    của đơn là sản phẩm đang chạy trên page của đơn.
+      · page chạy MỘT sản phẩm        → sản phẩm đó, kể cả đơn không ghi quảng cáo;
+      · page chạy NHIỀU sản phẩm      → tách theo quảng cáo của chính đơn; đơn không ghi
+                                        quảng cáo → sản phẩm nhiều đơn nhất của page;
+      · page chưa nối được camp nào   → quảng cáo của đơn; không có → "(khác)".
+    Trước bản này đơn chỉ nối được qua SỐ page trong tên campaign — tên hiện tại không ghi
+    số nên toàn bộ đơn rơi vào tab "(khác)", tab sản phẩm nào cũng 0 đơn."""
+    ung = page_sp.get(str(page_id)) if page_id else None
+    if ung:
+        if len(ung) == 1:
+            return next(iter(ung))
+        if sp_quang_cao in ung:
+            return sp_quang_cao
+        return sorted(ung.items(), key=lambda x: (-x[1], x[0]))[0][0]
+    return sp_quang_cao or "(khác)"

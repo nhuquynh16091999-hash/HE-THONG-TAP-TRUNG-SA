@@ -72,7 +72,9 @@ Có số mà thiếu file thì số **không mất** (vẫn nằm trong TỔNG T
 `CANH BAO: … CHUA CO FILE`. File trong map mà đã bị xoá hẳn thì vòng chạy bỏ qua riêng file
 đó và in `CANH BAO: … KHONG MO DUOC` — không làm đứng file TỔNG TEAM.
 
-Soát bố cục bằng số thật mà không ghi gì: `TALPHA_FORMAT_DRY=1 python format_all.py`.
+Đơn vào tab sản phẩm **theo page** — luật ở `docs/TALPHA_METRIC_RULES.md` (dòng *Gán đơn → sản phẩm*).
+
+Soát bố cục bằng số thật mà không ghi gì: `TALPHA_FORMAT_DRY=1 python format_all.py` — in từng file, từng tab kèm số đơn.
 
 ## ĐÃ XOÁ — không hồi sinh
 
