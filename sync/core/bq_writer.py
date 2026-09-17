@@ -188,12 +188,21 @@ def _loc_shop(shop_ids, cot: str) -> str:
     return f"WHERE {cot} IN (" + ", ".join(f"'{s}'" for s in ids) + ")"
 
 
+# Đơn bị XOÁ trên POS (17/09/2026: 10 đơn Singapore #59–#81 — ngày 14/09 Sheet ra 6 đơn, POS thật 3).
+# Raw chỉ ghi thêm, nên đơn đã xoá cứ nằm lại mãi ở bản cuối cùng từng thấy. Vòng sync nào kéo ĐỦ
+# cửa sổ của một shop mà không còn thấy đơn đó thì nối vào raw một dòng "bia mộ": y bản cuối, trạng
+# thái = dấu này, sync_time mới hơn → thắng khi dựng lại → bảng sạch bỏ đơn đó. Raw vẫn giữ nguyên
+# lịch sử (không DML, không xoá gì). Đơn hiện lại trên POS thì vòng sau nối bản mới → sống lại.
+DA_XOA_TREN_POS = "__da_xoa_tren_pos__"
+
+
 def sql_rebuild_orders(project: str, dataset: str, order_table: str, shop_ids=None) -> str:
     """SQL dựng bảng đơn sạch từ raw: mỗi (shop_id, id) giữ bản mới nhất.
 
     KHOÁ LÀ shop_id, không phải shop_label: 14/09/2026 đổi shop Đài 408074608 →
     1022091930, hai shop cùng nhãn "TW" và dùng chung 41 mã đơn (1…281). Khoá theo
     nhãn là nhập đơn của hai shop khác nhau làm một.
+    Bản mới nhất là dòng đánh dấu đã xoá trên POS → đơn không vào bảng sạch.
     """
     return f"""
         SELECT * EXCEPT(_rn) FROM (
@@ -202,7 +211,7 @@ def sql_rebuild_orders(project: str, dataset: str, order_table: str, shop_ids=No
             ) AS _rn
             FROM `{project}.{dataset}.{order_table}_raw` t
             {_loc_shop(shop_ids, "t.shop_id")}
-        ) WHERE _rn = 1
+        ) WHERE _rn = 1 AND IFNULL(status_name, '') != '{DA_XOA_TREN_POS}'
     """
 
 
@@ -230,14 +239,46 @@ def chon_don_can_ghi(orders, known, thieu_cot=False, trong=None, cot=COT_DIEN_NG
     return out
 
 
+def chon_don_da_xoa(trong_bang, da_thay, toi_thieu=20, ty_le=0.3):
+    """Đơn bị XOÁ trên POS: đang có trong bảng sạch, thuộc cửa sổ vừa kéo ĐỦ của shop, mà POS
+    không trả về nữa.
+    trong_bang: [(shop_id, id, inserted_at), …] · da_thay: {shop_id: (mốc inserted_at, {id POS trả})}
+    Trả ([(shop_id, id), …], [cảnh báo]). Hai chốt để không xoá oan đơn thật:
+      · POS trả 0 đơn cho shop → không đánh dấu gì ở shop đó (key hỏng, API lỗi câm…);
+      · một lượt "mất" > max(toi_thieu, ty_le × số đơn POS trả) → nghi POS trả thiếu, bỏ qua shop."""
+    theo_shop = {}
+    for shop, id_, ins in trong_bang:
+        shop = str(shop)
+        if shop not in da_thay:
+            continue
+        moc, thay = da_thay[shop]
+        if str(ins or "") >= str(moc or "") and str(id_) not in thay:
+            theo_shop.setdefault(shop, []).append((shop, str(id_)))
+    xoa, canh_bao = [], []
+    for shop, ds in sorted(theo_shop.items()):
+        thay = da_thay[shop][1]
+        if not thay:
+            canh_bao.append(f"shop {shop}: POS trả 0 đơn — không đánh dấu xoá {len(ds)} đơn đang có trong bảng")
+        elif len(ds) > max(toi_thieu, ty_le * len(thay)):
+            canh_bao.append(f"shop {shop}: {len(ds)} đơn không còn trên POS trong khi POS trả {len(thay)} đơn "
+                            f"— nghi POS trả thiếu, KHÔNG đánh dấu xoá")
+        else:
+            xoa += ds
+    return xoa, canh_bao
+
+
 def append_and_rebuild_orders(
     client, project: str, dataset: str,
     orders: list[dict], items: list[dict],
     order_schema, item_schema,
     order_table: str = "sale_order", item_table: str = "order_items",
     shop_ids=None,
+    da_thay=None,
 ) -> tuple[int, int]:
     """Ghi đơn + item theo cơ chế raw/rebuild. Trả (số dòng bảng đơn, bảng item).
+
+    da_thay: {shop_id: (mốc inserted_at, {id POS trả})} của những shop kéo ĐỦ ở vòng này — dùng
+    để nhận ra đơn đã bị xoá trên POS (xem DA_XOA_TREN_POS).
 
     Chỉ append đơn MỚI hoặc có `updated_at` mới hơn bản đang có, kèm toàn bộ item
     của những đơn đó. Sau đó dựng lại 2 bảng sạch từ raw:
@@ -276,6 +317,31 @@ def append_and_rebuild_orders(
         load_append(client, project, dataset, f"{order_table}_raw", changed, order_schema, them_cot=True)
         if changed_items:
             load_append(client, project, dataset, f"{item_table}_raw", changed_items, item_schema)
+
+    if da_thay and co_cot:
+        shops = [str(x) for x in da_thay if str(x).isdigit()]
+        if shops:
+            dang_co = client.query(
+                f"SELECT shop_id, id, inserted_at FROM `{fqn}` WHERE shop_id IN ({', '.join(repr(x) for x in shops)})").result()
+            xoa, canh_bao = chon_don_da_xoa([(r.shop_id, r.id, r.inserted_at) for r in dang_co], da_thay)
+            for c in canh_bao:
+                log.warning(f"  {order_table}: {c}")
+            if xoa:
+                from google.cloud import bigquery as bq
+                from datetime import datetime
+                khoa = [f"{a}|{b}" for a, b in xoa]
+                ten_cot = {f.name for f in order_schema}
+                bay_gio = max((str(o.get("sync_time") or "") for o in orders), default="") or datetime.utcnow().isoformat()
+                bia = []
+                for r in client.query(
+                        f"SELECT * FROM `{fqn}` WHERE CONCAT(shop_id, '|', id) IN UNNEST(@khoa)",
+                        job_config=bq.QueryJobConfig(query_parameters=[bq.ArrayQueryParameter("khoa", "STRING", khoa)])).result():
+                    d = {k: (v.isoformat() if hasattr(v, "isoformat") else v) for k, v in r.items() if k in ten_cot}
+                    d["status_name"] = DA_XOA_TREN_POS
+                    d["sync_time"] = bay_gio
+                    bia.append(d)
+                load_append(client, project, dataset, f"{order_table}_raw", bia, order_schema, them_cot=True)
+                log.info(f"  {order_table}: {len(bia)} đơn không còn trên POS → bỏ khỏi bảng: {', '.join(khoa[:20])}")
 
     # KHOÁ ĐƠN = (shop, id), KHÔNG phải id. POS đánh số đơn riêng từng shop nên id=18
     # tồn tại ở cả 7 shop (05/08: 20.257 id dùng chung). Gom theo mình id là nhập các

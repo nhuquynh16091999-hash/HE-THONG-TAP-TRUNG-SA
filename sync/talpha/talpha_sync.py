@@ -289,6 +289,7 @@ def sync_all_orders(window_start=None) -> tuple[int, int]:
         kéo hụt không còn xoá được dữ liệu đã có.
     """
     all_orders, all_items = [], []
+    da_thay = {}   # shop kéo ĐỦ → (mốc, {id POS trả}) — để nhận ra đơn đã bị xoá trên POS
 
     failed_shops = []
     for shop in POS_SHOPS:
@@ -320,6 +321,8 @@ def sync_all_orders(window_start=None) -> tuple[int, int]:
             failed_shops.append(shop["label"])
             continue
 
+        # Lấy TRƯỚC khi lọc ngoại tệ: "POS còn trả" là đơn còn tồn tại, không phải đơn được tính.
+        da_thay[str(shop.get("shop_id") or pos.shop_id)] = (tu or "", {str(o.get("id")) for o in orders})
         orders, items = _drop_foreign_currency(orders, items, shop)
         all_orders.extend(orders)
         all_items.extend(items)
@@ -338,6 +341,7 @@ def sync_all_orders(window_start=None) -> tuple[int, int]:
             # 408074608 → 1022091930) thì đơn shop cũ vẫn nằm trong *_raw, không xoá,
             # nhưng không lọt vào báo cáo để bị đếm chung với shop mới.
             shop_ids=[s["shop_id"] for s in POS_SHOPS],
+            da_thay=da_thay,
         )
     else:
         log.warning("  Không fetch được order từ bất kỳ shop nào!")
