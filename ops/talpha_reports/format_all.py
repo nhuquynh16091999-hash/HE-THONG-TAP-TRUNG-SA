@@ -21,7 +21,7 @@ from talpha_rules import (RATE, LOCALCUR, MONEY_DIV, ALLM, MARKETS, SHOP2MKT, GT
                           DISPLAY, EXTERNAL_DISPLAY, norm_pos_external, norm_nv_external,
                           UNASSIGN, bucket_nv, campaign_market,
                           camp_san_pham, tao_chi_muc_page, tim_camp_theo_page,
-                          tao_ten_tab_page, ten_tab_cua_don)
+                          tao_ten_tab_page, ten_tab_cua_don, sql_la_don_trong)
 # SHOP2MKT + norm_pos_nv: import từ talpha_rules (xem trên)
 def parse_camp(cn):
     p=[x.strip() for x in (cn or "").split("/")]
@@ -141,7 +141,13 @@ DON=list(bq.query(f"""SELECT CAST(id AS STRING) id, DATE(TIMESTAMP(inserted_at),
     IFNULL(cod,0) cod, IF(status_category='{GTC_CAT}', IFNULL(cod,0), 0) cod_gtc
   FROM `{PROJECT}.{DS}.sale_order`
   WHERE DATE(TIMESTAMP(inserted_at),'{POS_TZ}') BETWEEN '{FROM}' AND '{TO}' AND status_category NOT IN ('HUY','DON_THO')
+    AND NOT {sql_la_don_trong()}
   ORDER BY d DESC, shop_label, id""").result())
+# Đơn TRỐNG (không sản phẩm, 0 tiền) KHÔNG tính vào số đơn — Sỹ Anh chốt 17/09/2026, xem la_don_trong.
+# Không bỏ lặng lẽ: đếm lại để in cuối log.
+DON_TRONG=list(bq.query(f"""SELECT shop_label, COUNT(*) n FROM `{PROJECT}.{DS}.sale_order`
+  WHERE DATE(TIMESTAMP(inserted_at),'{POS_TZ}') BETWEEN '{FROM}' AND '{TO}' AND status_category NOT IN ('HUY','DON_THO')
+    AND {sql_la_don_trong()} GROUP BY 1 ORDER BY 1""").result())
 DEM_KHOP=collections.Counter()
 for r in DON:
     mkt=SHOP2MKT.get((r.shop_label or "").upper())
@@ -396,6 +402,8 @@ for emp in TESTMAP:
     print(f"[{n}] TEST {emp}: {len(tabs)} tab — https://docs.google.com/spreadsheets/d/{key}")
 print("ALL DONE", n)
 print("NOI NGUON DON: " + " · ".join(f"{k} {v}" for k,v in sorted(DEM_KHOP.items())))
+if DON_TRONG:
+    print("BO DON TRONG (khong san pham, 0 tien — khong tinh vao so don): " + " · ".join(f"{r.shop_label} {r.n}" for r in DON_TRONG))
 if MAT_FILE:
     print(f"CANH BAO: {len(MAT_FILE)} file rieng KHONG MO DUOC (da xoa han hoac mat quyen) — bo khoi <nuoc>_files.json hoac tao lai file.")
     for _e,_m,_k in MAT_FILE:

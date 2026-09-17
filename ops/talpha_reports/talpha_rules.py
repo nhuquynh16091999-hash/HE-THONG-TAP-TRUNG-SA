@@ -427,3 +427,28 @@ def ten_tab_cua_don(ten_page, pos_ten):
     """Tên tab của một đơn = tên page trên POS (cách viết chuẩn trong bảng); không có nguồn → None."""
     k = chuan_ten_page(ten_page)
     return pos_ten.get(k, str(ten_page).strip()) if k else None
+
+
+# ═══ ĐƠN TRỐNG — KHÔNG TÍNH VÀO SỐ ĐƠN (Sỹ Anh chốt 17/09/2026) ═══════════════════════════════
+# Đơn không có sản phẩm nào VÀ tổng tiền = 0 VÀ cod = 0. Tháng 9 shop Đài: đơn có tag marketer trên
+# POS đều có tiền, đơn KHÔNG tag đều là đơn trống (Lộc 16 đơn thật + 45 đơn trống; Thương 11 + 19;
+# Thái 2 + 18; Thắng 1 + 4). Đếm cả vào là số đơn thổi lên ~4 lần, CPO và tỷ lệ chốt đẹp giả —
+# ngày 15/09 Lộc ra 3 đơn trong khi POS 2 (đơn #381 trống, không tag, gán theo page).
+# Đơn được điền sản phẩm sau đó thì vòng sync kế tiếp tự tính lại. Doanh thu không đổi (đơn trống 0 đồng).
+def la_don_trong(total_quantity, total_price, cod):
+    """True khi đơn không sản phẩm, tổng tiền 0, cod 0. Ô trống/None coi như 0."""
+    def so(x):
+        s = str(x).strip() if x is not None else ""
+        try:
+            return float(s) if s and s.lower() != "none" else 0.0
+        except ValueError:
+            return None
+    q, p, c = so(total_quantity), so(total_price), so(cod)
+    return q == 0 and p == 0 and c == 0
+
+
+def sql_la_don_trong(bang=""):
+    """Cùng điều kiện la_don_trong, viết bằng SQL cho bảng sale_order (total_quantity là STRING)."""
+    t = f"{bang}." if bang else ""
+    return (f"(IFNULL(SAFE_CAST({t}total_quantity AS FLOAT64), 0) = 0 "
+            f"AND IFNULL({t}total_price, 0) = 0 AND IFNULL({t}cod, 0) = 0)")
