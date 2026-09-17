@@ -72,22 +72,13 @@ Có số mà thiếu file thì số **không mất** (vẫn nằm trong TỔNG T
 `CANH BAO: … CHUA CO FILE`. File trong map mà đã bị xoá hẳn thì vòng chạy bỏ qua riêng file
 đó và in `CANH BAO: … KHONG MO DUOC` — không làm đứng file TỔNG TEAM.
 
-## Nối đơn → campaign theo nguồn đơn · tab CHƯA MAP · tab MAP TAY
+## Nối đơn → campaign theo nguồn đơn
 
 Sỹ Anh chốt 17/09/2026: đơn POS → cột **Nguồn đơn** (tên page) → khớp ô tên page trong tên camp
 Meta → ra camp → ra sản phẩm, marketer, tiền ads. Luật chi tiết: `docs/TALPHA_METRIC_RULES.md`
-(dòng *Nối đơn → campaign*).
-
-File **TỔNG TEAM THÁNG n** có thêm hai tab:
-
-* **CHƯA MAP** — đơn trong tháng không nối được camp nào: ngày, shop, mã đơn, nguồn đơn, marketer
-  POS, sale, trạng thái, tiền, đang tính cho ai / sản phẩm nào, camp gợi ý theo quảng cáo, lý do.
-  Ghi lại mỗi vòng.
-* **MAP TAY** — người điền để gán: `Shop | Mã đơn | Nguồn đơn | Marketer | Sản phẩm | Ghi chú`.
-  Có mã đơn → đúng đơn đó (phải ghi Shop); để trống mã đơn → mọi đơn từ page đó. Ô trống = giữ
-  máy tự gán. **Job không bao giờ ghi đè tab này** (`write_file(..., giu=...)`), chỉ đọc rồi áp
-  ở vòng sau. Dòng lỗi (marketer lạ, thiếu Shop…) hiện ở đầu tab CHƯA MAP.
-  Sang tháng mới là file mới — tab MAP TAY bắt đầu trống.
+(dòng *Nối đơn → campaign*). Đơn không ra được marketer nằm ở tab **"(không gán)"** của file
+TỔNG TEAM. (17/09 từng thêm tab CHƯA MAP + MAP TAY — gỡ ngay hôm đó vì trùng việc với tab
+"(không gán)".)
 
 Soát bố cục bằng số thật mà không ghi gì: `TALPHA_FORMAT_DRY=1 python format_all.py` — in từng file, từng tab kèm số đơn.
 

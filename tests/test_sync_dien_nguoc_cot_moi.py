@@ -4,8 +4,8 @@
 Chạy: python3 -m pytest tests/test_sync_dien_nguoc_cot_moi.py -q
 
 Bảng đơn chỉ nối vào raw những đơn đổi `updated_at`. Thêm cột mà không điền ngược thì đơn cũ
-không đổi trạng thái mang NULL mãi — báo cáo nối đơn → campaign bằng tên page sẽ đẩy cả loạt
-đơn đầu tháng vào tab CHƯA MAP dù POS có đủ tên page.
+không đổi trạng thái mang NULL mãi — báo cáo nối đơn → campaign bằng tên page sẽ coi cả loạt
+đơn đầu tháng là "không có nguồn đơn" dù POS có đủ tên page.
 """
 import sys
 from pathlib import Path

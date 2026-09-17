@@ -16,7 +16,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "ops" / "talpha_
 
 from talpha_rules import (  # noqa: E402
     camp_san_pham, chuan_ten_page, tao_chi_muc_page, tim_camp_theo_page,
-    nhan_marketer, doc_map_tay, tra_map_tay,
 )
 
 
@@ -112,47 +111,3 @@ class TestKhopNguonDonVoiTenPageTrongCamp:
         assert tim_camp_theo_page("HongKong Golden Bracelet", "2026-09-10", self.CM) == (None, "khong_khop")
         assert tim_camp_theo_page("", "2026-09-10", self.CM) == (None, "khong_co_nguon")
         assert tim_camp_theo_page(None, "2026-09-10", self.CM) == (None, "khong_co_nguon")
-
-
-class TestMapTay:
-    def test_nhan_marketer_theo_key_ten_hien_thi_va_ten_pos(self):
-        assert nhan_marketer("Loc") == "Loc"
-        assert nhan_marketer("Lộc") == "Loc"
-        assert nhan_marketer("lộc") == "Loc"
-        assert nhan_marketer("Chun Ho") == "Loc"            # tên Lộc trên POS
-        assert nhan_marketer("Thương") == "Thuong"
-        assert nhan_marketer("Ông Nào Đó") is None
-        assert nhan_marketer("") is None
-
-    def test_doc_dong_theo_don_va_theo_page(self):
-        theo_don, theo_page, loi = doc_map_tay([
-            ["TW", "93", "", "Thái", "", ""],
-            ["", "", "HongKong Golden Bracelet", "Lộc", "040 - VONGVANG1", "page mới của Lộc"],
-            ["SG", "", "Lucky Charm Store SG", "", "TEST · Lucky Charm", ""],
-        ])
-        assert loi == []
-        assert theo_don == {("TW", "93"): ("Thai", None)}
-        assert theo_page == {("", "hongkong golden bracelet"): ("Loc", "040 - VONGVANG1"),
-                             ("SG", "lucky charm store sg"): (None, "TEST · Lucky Charm")}
-
-    def test_dong_hong_bao_loi_khong_chan_dong_khac(self):
-        theo_don, theo_page, loi = doc_map_tay([
-            ["", "93", "", "Thái", "", ""],                 # thiếu Shop
-            ["TW", "", "Page A", "Ông Nào Đó", "", ""],       # marketer lạ
-            ["TW", "", "Page B", "", "", ""],                 # không điền gì để map
-            ["", "", "", "", "", "dòng trống"],               # bỏ qua lặng lẽ
-            ["TW", "", "Page C", "Lộc", "", ""],
-        ])
-        assert theo_page == {("TW", "page c"): ("Loc", None)} and theo_don == {}
-        assert [x.split(":")[0] for x in loi] == ["MAP TAY dòng 2", "MAP TAY dòng 3", "MAP TAY dòng 4"]
-
-    def test_tra_map_theo_don_thang_theo_page_va_dung_shop_thang_shop_trong(self):
-        theo_don, theo_page, _ = doc_map_tay([
-            ["TW", "93", "", "Thái", "", ""],
-            ["", "", "Page X", "Lộc", "A", ""],
-            ["TW", "", "Page X", "Thương", "B", ""],
-        ])
-        assert tra_map_tay("TW", "93", "Page X", theo_don, theo_page) == ("Thai", None)
-        assert tra_map_tay("tw", "94", "page x", theo_don, theo_page) == ("Thuong", "B")
-        assert tra_map_tay("SG", "94", "Page X", theo_don, theo_page) == ("Loc", "A")
-        assert tra_map_tay("SG", "94", "Page Y", theo_don, theo_page) is None
