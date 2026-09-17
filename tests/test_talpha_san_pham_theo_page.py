@@ -16,6 +16,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "ops" / "talpha_
 
 from talpha_rules import (  # noqa: E402
     camp_san_pham, chuan_ten_page, tao_chi_muc_page, tim_camp_theo_page,
+    o_trang_cua_camp, tao_ten_tab_page, ten_tab_cua_don,
 )
 
 
@@ -111,3 +112,58 @@ class TestKhopNguonDonVoiTenPageTrongCamp:
         assert tim_camp_theo_page("HongKong Golden Bracelet", "2026-09-10", self.CM) == (None, "khong_khop")
         assert tim_camp_theo_page("", "2026-09-10", self.CM) == (None, "khong_co_nguon")
         assert tim_camp_theo_page(None, "2026-09-10", self.CM) == (None, "khong_co_nguon")
+
+
+class TestTenTabTheoPage:
+    """Sỹ Anh chốt 17/09/2026: mỗi page một tab, đặt theo tên page (tab "040" gộp hai page khác nhau)."""
+    POS = ["Lucky Silver Philippines", "Lucky Silver Philippines", "𝑺𝒂𝒖𝒅𝒊 𝑮𝒐𝒍𝒅𝒆𝒏 𝑩𝒓𝒂𝒄𝒆𝒍𝒆𝒕",
+           "Lumora Jewelry Store", "Jewelry GJ International", "Master Jewelry Gold - TW",
+           "Master Jewelry Gold&Diamond"]
+    POS_TEN, CAMP_TAB = tao_ten_tab_page(POS, [
+        "SGP/LOC/PHI/040/Lucky Silver Philippines/13-9",
+        "SGP/LOC/PHI/040/𝑺𝒂𝒖𝒅𝒊 𝑮𝒐𝒍𝒅𝒆𝒏 𝑩𝒓𝒂𝒄𝒆𝒍𝒆𝒕/15-9",
+        "TW/THAI/INDO/040 - VONGVANG1/Lumora Jewelry Store - 05/9 - 2",
+        "TW/THÁI/INDO/040 - VONGVANG1/ Lumora Jewelry Store/31/08 vd2",
+        "TW/THAI/PHI/Jewelry GJ International - TW - 05/09",
+        "Thainx/INDO/SET KC/Master Jewelry Gold - TW - 02/09",
+        "Thainx/INDO/SET 13/Master Jewelry Gold&Diamond - 03/09 -02",
+        "Thainx/Philippine/SET KIM CƯƠNG/ LuxeGold Jewelry - 27/08",
+        "TW/THÁI/Philippine/SET KIM CƯƠNG/ LuxeGold Jewelry/ 01/09",
+        "TW/LOC/PHI/𝑻𝒉𝒆 𝑳𝒆𝒂𝒕𝒉𝒆𝒓 𝑨𝒕𝒆𝒍𝒊𝒆𝒓 𝑺𝒉𝒐𝒑/13-9/TEST",
+        "TW/Loc/1303370732848505/Taiwan Prime Leather/2808",
+        "TW/THÁI/VIỆT/Vòng/Vượng Khí Các - TW - 25/09",
+        "Ai do/khong ro/xyz",
+    ])
+
+    def test_hai_page_cung_ma_san_pham_la_hai_tab(self):
+        assert self.CAMP_TAB["SGP/LOC/PHI/040/Lucky Silver Philippines/13-9"] == "Lucky Silver Philippines"
+        assert self.CAMP_TAB["SGP/LOC/PHI/040/𝑺𝒂𝒖𝒅𝒊 𝑮𝒐𝒍𝒅𝒆𝒏 𝑩𝒓𝒂𝒄𝒆𝒍𝒆𝒕/15-9"] == "𝑺𝒂𝒖𝒅𝒊 𝑮𝒐𝒍𝒅𝒆𝒏 𝑩𝒓𝒂𝒄𝒆𝒍𝒆𝒕"
+
+    def test_ten_page_dinh_ngay_ve_tab_cua_page_tren_pos(self):
+        assert self.CAMP_TAB["TW/THAI/INDO/040 - VONGVANG1/Lumora Jewelry Store - 05/9 - 2"] == "Lumora Jewelry Store"
+        assert self.CAMP_TAB["TW/THÁI/INDO/040 - VONGVANG1/ Lumora Jewelry Store/31/08 vd2"] == "Lumora Jewelry Store"
+
+    def test_nhieu_page_pos_cung_khop_lay_ten_cu_the_nhat(self):
+        assert self.CAMP_TAB["Thainx/INDO/SET KC/Master Jewelry Gold - TW - 02/09"] == "Master Jewelry Gold - TW"
+        assert self.CAMP_TAB["Thainx/INDO/SET 13/Master Jewelry Gold&Diamond - 03/09 -02"] == "Master Jewelry Gold&Diamond"
+
+    def test_ten_page_ghi_lech_sang_o_san_pham(self):
+        assert self.CAMP_TAB["TW/THAI/PHI/Jewelry GJ International - TW - 05/09"] == "Jewelry GJ International"
+        assert self.CAMP_TAB["TW/LOC/PHI/𝑻𝒉𝒆 𝑳𝒆𝒂𝒕𝒉𝒆𝒓 𝑨𝒕𝒆𝒍𝒊𝒆𝒓 𝑺𝒉𝒐𝒑/13-9/TEST"] == "𝑻𝒉𝒆 𝑳𝒆𝒂𝒕𝒉𝒆𝒓 𝑨𝒕𝒆𝒍𝒊𝒆𝒓 𝑺𝒉𝒐𝒑"
+
+    def test_page_chua_co_don_pos_thi_dung_ten_trong_camp_va_gop_bien_the(self):
+        assert self.CAMP_TAB["Thainx/Philippine/SET KIM CƯƠNG/ LuxeGold Jewelry - 27/08"] == "LuxeGold Jewelry"
+        assert self.CAMP_TAB["TW/THÁI/Philippine/SET KIM CƯƠNG/ LuxeGold Jewelry/ 01/09"] == "LuxeGold Jewelry"
+        assert self.CAMP_TAB["TW/Loc/1303370732848505/Taiwan Prime Leather/2808"] == "Taiwan Prime Leather"
+        # ngày "25/09" bị dấu / cắt, "25" dính đuôi tên page
+        assert self.CAMP_TAB["TW/THÁI/VIỆT/Vòng/Vượng Khí Các - TW - 25/09"] == "Vượng Khí Các - TW"
+
+    def test_camp_khong_nhan_ra_marketer(self):
+        assert self.CAMP_TAB["Ai do/khong ro/xyz"] is None
+        assert o_trang_cua_camp("Ai do/khong ro/xyz") == (None, [])
+
+    def test_ten_tab_cua_don_theo_cach_viet_pho_bien_tren_pos(self):
+        assert ten_tab_cua_don(" lucky silver PHILIPPINES", self.POS_TEN) == "Lucky Silver Philippines"
+        assert ten_tab_cua_don("Page Lạ Chưa Gặp", self.POS_TEN) == "Page Lạ Chưa Gặp"
+        assert ten_tab_cua_don("", self.POS_TEN) is None
+        assert ten_tab_cua_don(None, self.POS_TEN) is None

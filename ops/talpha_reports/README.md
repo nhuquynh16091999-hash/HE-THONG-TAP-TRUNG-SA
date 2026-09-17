@@ -51,7 +51,8 @@ khác nhau cùng ghi một bộ bảng mỗi giờ, bản nào chạy sau thì �
 
 Chốt 16/09/2026. Thư mục Drive tháng có một thư mục con cho mỗi người (ANH, LOC, THAI…);
 trong đó mỗi nước người đó chạy là một file: `TAIWAN T9`, `SINGAPORE T9`, `UAE T9`. File nào
-cũng chỉ một nước — tab `Tổng` (tiền địa phương + tỷ giá) rồi mỗi sản phẩm một tab. Tổng MỌI
+cũng chỉ một nước — tab `Tổng` (tiền địa phương + tỷ giá) rồi **mỗi page một tab, đặt theo tên
+page** (17/09/2026, trước đó theo mã sản phẩm — `042` và `042 - BLACK` thành hai tab). Tổng MỌI
 nước của một người nằm ở tab của người đó trong file **TỔNG TEAM THÁNG n**.
 
 (15/09 từng gộp mọi nước vào một file, mỗi nước một tab. Tên file vẫn là "TAIWAN T9" nên

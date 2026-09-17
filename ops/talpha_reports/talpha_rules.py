@@ -342,3 +342,88 @@ def tim_camp_theo_page(ten_page, ngay, chi_muc, camp_quang_cao=None):
         nd = co_tien[-1]
         return max(ung, key=lambda cn: (ung[cn].get(nd, 0), cn)), cach
     return max(ung, key=lambda cn: (sum(ung[cn].values()), cn)), cach
+
+
+# ═══ TÊN TAB THEO PAGE (Sỹ Anh chốt 17/09/2026) ═══════════════════════════════════════
+# File báo cáo riêng của từng người: MỖI PAGE MỘT TAB, đặt theo tên page — không theo mã sản
+# phẩm nữa (mã sản phẩm hay bị gõ mỗi camp một kiểu: "042" và "042 - BLACK" thành hai tab).
+# Tên tab lấy theo cách viết TRÊN POS (cột Nguồn đơn) để tiền ads của camp và đơn của page rơi
+# đúng cùng một tab; page chưa có đơn nào trên POS thì lấy tên ghi trong camp.
+_LA_NGAY = re.compile(r"[\d\s./\-]*(\s*vd\s*\d*)?(\s*test)?", re.I)
+_DUOI_NGAY = re.compile(r"\s*-\s*\d{1,2}\s*$")
+
+
+def o_trang_cua_camp(cn):
+    """(tên page ghi trong camp, [các ô sau marketer]). Ô tên page trống, là NGÀY hay số page
+    — tên page bị viết vào ô sản phẩm, kiểu TW/THAI/PHI/Jewelry GJ International - TW - 05/09,
+    hoặc kiểu GCC số page đứng trước tên — thì lấy ô sản phẩm. Không nhận ra marketer → (None, [])."""
+    p = [x.strip() for x in (cn or "").split("/")]
+    mi = next((i for i, s in enumerate(p) if s.upper() in MARKETS), None)
+    k = mi + 1 if mi is not None else next((i for i, s in enumerate(p[:2]) if norm_nv(s)), None)
+    if k is None:
+        return None, []
+    sp = p[k + 2] if len(p) > k + 2 else ""
+    trang = p[k + 3] if len(p) > k + 3 else ""
+    khong_phai_ten = lambda x: not x or _LA_NGAY.fullmatch(x) or NUMID.match(x.replace(" ", ""))
+    if khong_phai_ten(trang):
+        trang = "" if (khong_phai_ten(sp) or sp.upper() == "TEST") else sp
+    return (trang or None), [x for x in p[k + 1:] if x]
+
+
+def tao_ten_tab_page(ten_page_pos, ten_camp):
+    """Bảng tên tab theo page.
+    ten_page_pos: tên page trong bảng đơn POS (lặp lại được — chọn cách viết gặp nhiều nhất).
+    ten_camp: tên các campaign cần xếp tab.
+    Trả (pos_ten {tên chuẩn: tên tab}, camp_tab {campaign: tên tab hoặc None}).
+
+    Camp → page POS theo cùng thứ tự khớp với tim_camp_theo_page: trùng tên → tên page trong camp
+    BẮT ĐẦU bằng tên POS (ngày dính vào) → tên POS nằm ở ô khác; nhiều tên POS cùng khớp thì lấy
+    tên DÀI nhất (cụ thể nhất). Camp không khớp page POS nào: dùng tên trong camp, các biến thể
+    chỉ khác đuôi ("LuxeGold Jewelry - 27" / "LuxeGold Jewelry") gộp về tên ngắn nhất."""
+    dem = {}
+    for t in ten_page_pos:
+        k = chuan_ten_page(t)
+        if k:
+            d = dem.setdefault(k, {})
+            d[str(t).strip()] = d.get(str(t).strip(), 0) + 1
+    pos_ten = {k: max(d.items(), key=lambda x: (x[1], x[0]))[0] for k, d in dem.items()}
+
+    def khop(chuoi):
+        if chuoi in pos_ten:
+            return chuoi
+        ung = [k for k in pos_ten if chuoi.startswith(k + " ")]
+        return max(ung, key=len) if ung else None
+
+    camp_tab, le = {}, {}
+    for cn in dict.fromkeys(ten_camp):
+        trang, cac_o = o_trang_cua_camp(cn)
+        if trang is None and not cac_o:
+            camp_tab[cn] = None
+            continue
+        k = khop(chuan_ten_page(trang)) if trang else None
+        for o in ([] if k else cac_o):
+            k = khop(chuan_ten_page(o))
+            if k:
+                break
+        if k:
+            camp_tab[cn] = pos_ten[k]
+        elif trang:
+            # "DD/MM" viết trong tên camp bị dấu / cắt đôi, nửa ngày dính vào đuôi tên page.
+            trang = _DUOI_NGAY.sub("", trang) or trang
+            le.setdefault(chuan_ten_page(trang), trang)
+            camp_tab[cn] = ("__le__", chuan_ten_page(trang))
+        else:
+            camp_tab[cn] = None
+    goc = {}
+    for k in sorted(le, key=len):                       # ngắn trước: tên gốc trước biến thể dính đuôi
+        goc[k] = next((goc[g] for g in goc if k.startswith(g + " ")), le[k])
+    for cn, v in camp_tab.items():
+        if isinstance(v, tuple):
+            camp_tab[cn] = goc[v[1]]
+    return pos_ten, camp_tab
+
+
+def ten_tab_cua_don(ten_page, pos_ten):
+    """Tên tab của một đơn = tên page trên POS (cách viết chuẩn trong bảng); không có nguồn → None."""
+    k = chuan_ten_page(ten_page)
+    return pos_ten.get(k, str(ten_page).strip()) if k else None

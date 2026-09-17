@@ -20,7 +20,8 @@ from talpha_rules import (RATE, LOCALCUR, MONEY_DIV, ALLM, MARKETS, SHOP2MKT, GT
                           NUMID, norm_nv, norm_pos_nv, is_test, PRIMARY_MARKET,
                           DISPLAY, EXTERNAL_DISPLAY, norm_pos_external, norm_nv_external,
                           UNASSIGN, bucket_nv, campaign_market,
-                          camp_san_pham, tao_chi_muc_page, tim_camp_theo_page)
+                          camp_san_pham, tao_chi_muc_page, tim_camp_theo_page,
+                          tao_ten_tab_page, ten_tab_cua_don)
 # SHOP2MKT + norm_pos_nv: import từ talpha_rules (xem trên)
 def parse_camp(cn):
     p=[x.strip() for x in (cn or "").split("/")]
@@ -60,13 +61,32 @@ bq=bigquery.Client(project=PROJECT)
 cell=collections.defaultdict(lambda:{"spend":0.0,"msg":0,"pur":0,"orders":0,"cod":0.0,"cod_gtc":0.0})
 # ── CAMP TEST (duyệt 06/07): campaign chứa từ "test/TEST/Test" = test sản phẩm →
 # TÁCH khỏi mọi báo cáo doanh số (file thị trường + TỔNG marketer + TỔNG TEAM),
-# gom vào 1 file Test riêng cho mỗi marketer (chung mọi thị trường, tab theo sản phẩm).
+# gom vào 1 file Test riêng cho mỗi marketer (chung mọi thị trường, tab theo page).
 from talpha_rules import NO_TEST_MARKETS  # is_test đã import ở đầu file; rule test nằm trong talpha_rules.json
 from talpha_rules import RULES as _RULES
 RULES_MARKETS={m: v for m, v in _RULES["markets"].items() if isinstance(v, dict)}
 cell_test=collections.defaultdict(lambda:{"spend":0.0,"msg":0,"pur":0,"orders":0,"cod":0.0,"cod_gtc":0.0})
 test_pages=set(); main_pages=set()  # page thuộc camp test / camp thường (để chia đơn không có ad_id)
-# ADS: spend/tin nhắn/purchases theo campaign (giữ nguyên).
+# ── NỐI ĐƠN → CAMPAIGN THEO NGUỒN ĐƠN (Sỹ Anh chốt 17/09/2026) ──
+# Đơn lấy từ POS → cột "Nguồn đơn" (tên page) → khớp ô tên page trong tên camp Meta → ra camp
+# đó → ra marketer, tiền ads. Luật khớp và chọn camp khi một page chạy nhiều camp nằm ở
+# tim_camp_theo_page (talpha_rules.py, có test). Chỉ mục lấy thêm 30 ngày trước đầu tháng:
+# đơn đầu tháng hay đến từ camp chạy cuối tháng trước.
+ADS_CHI_MUC=list(bq.query(
+    f"SELECT date, campaign_name, SUM(spend) spend FROM `{PROJECT}.{DS}.fb_ads_data` "
+    f"WHERE date BETWEEN DATE_SUB(DATE '{FROM}', INTERVAL 30 DAY) AND '{TO}' GROUP BY 1, 2").result())
+CHI_MUC=tao_chi_muc_page([(r.campaign_name, str(r.date), r.spend or 0) for r in ADS_CHI_MUC])
+# Cột page_name/seller_name có từ 17/09/2026. Vòng sync đầu tiên sau deploy mới thêm cột — trước
+# đó query vẫn chạy, chỉ là chưa có nguồn đơn (đơn nối theo quảng cáo như cũ, không nổ).
+_COT_DON={f.name for f in bq.get_table(f"{PROJECT}.{DS}.sale_order").schema}
+_cot=lambda c: c if c in _COT_DON else f"CAST(NULL AS STRING) AS {c}"
+# ── TAB THEO PAGE (Sỹ Anh chốt 17/09/2026) ── file riêng của từng người: MỖI PAGE MỘT TAB, đặt
+# theo tên page. Tên lấy theo cách viết trên POS (cột Nguồn đơn) để tiền ads của camp và đơn của
+# page rơi cùng một tab; page chưa có đơn trên POS thì lấy tên ghi trong camp. Xem tao_ten_tab_page.
+POS_TEN, CAMP_TAB = tao_ten_tab_page(
+    [r.page_name for r in bq.query(f"SELECT {_cot('page_name')} FROM `{PROJECT}.{DS}.sale_order`").result() if r.page_name],
+    [r.campaign_name for r in ADS_CHI_MUC])
+# ADS: spend/tin nhắn/purchases theo campaign (giữ nguyên) — tab = page của campaign.
 # 20/08: camp không parse được (typo thị trường 'TAIWAIN', tên không theo format 'tt 20/7')
 # trước đây bị bỏ IM LẶNG — spend biến mất khỏi mọi báo cáo mà không ai biết. Nay gom lại
 # và in cảnh báo ở cuối (report_health đọc tail log → bot WA thấy được).
@@ -93,12 +113,13 @@ for r in bq.query(f"SELECT date, campaign_name, SUM(spend) spend, SUM(messaging_
     pid=camp_san_pham(r.campaign_name)[2]
     if pid:
         (test_pages if t else main_pages).add(pid)
-    c=(cell_test if t else cell)[(nv,mkt,prod,str(r.date))]; c["spend"]+=r.spend or 0; c["msg"]+=r.msg or 0; c["pur"]+=r.pur or 0
+    tab=CAMP_TAB.get(r.campaign_name) or "(khác)"
+    c=(cell_test if t else cell)[(nv,mkt,tab,str(r.date))]; c["spend"]+=r.spend or 0; c["msg"]+=r.msg or 0; c["pur"]+=r.pur or 0
 # ad_id → chủ campaign (marketer) — dùng cho FALLBACK đơn không tag (duyệt 06/07).
 # X9 (06/08): POS không phải lúc nào cũng ghi ad_id vào ô `ad_id` — 999 đơn/10.634 (9,4%)
 # mang ADSET id ở ô đó. Nạp CẢ adset vào chung bảng tra; ad_id nạp SAU để đè lên adset
 # nếu trùng (bản ad chính xác hơn). Trượt cả hai mới coi là không gán được.
-ad2nv={}; test_ads=set(); ad2sp={}; ad2camp={}   # ad/adset → sản phẩm / tên campaign — dự phòng khi nguồn đơn không khớp
+ad2nv={}; test_ads=set(); ad2camp={}   # ad/adset → tên campaign — dự phòng khi nguồn đơn không khớp
 for _tbl,_col in (("fb_adset_data","adset_id"), ("fb_ads_data","ad_id")):
     for r in bq.query(f"SELECT DISTINCT CAST({_col} AS STRING) ad_id, campaign_name FROM `{PROJECT}.{DS}.{_tbl}` WHERE date BETWEEN '{FROM}' AND '{TO}' AND {_col} IS NOT NULL").result():
         _m,_nv,_p=parse_camp(r.campaign_name)
@@ -106,7 +127,6 @@ for _tbl,_col in (("fb_adset_data","adset_id"), ("fb_ads_data","ad_id")):
         # chui ngược vào ô của họ, đúng thứ vừa bỏ đi.
         if _nv and _nv not in UNASSIGN and r.ad_id: ad2nv[r.ad_id]=_nv
         if r.ad_id and is_test(r.campaign_name, _m): test_ads.add(r.ad_id)
-        if r.ad_id and _p: ad2sp[r.ad_id]=_p
         if r.ad_id: ad2camp[r.ad_id]=r.campaign_name
 purely_test_pages=test_pages-main_pages  # page CHỈ chạy camp test → đơn không ad_id trên page đó = test
 # ĐƠN HÀNG — MARKETER: ưu tiên TAG marketer trong POS (JSON $.name) (rule CEO, không đổi).
@@ -115,18 +135,6 @@ purely_test_pages=test_pages-main_pages  # page CHỈ chạy camp test → đơn
 UNASSIGNED="(không gán)"
 # Tiền tố đánh dấu người ngoài team — để grand_tab() loại khỏi TỔNG mà vẫn có tab riêng.
 EXT_PREFIX="~ngoai~"
-# ── NỐI ĐƠN → CAMPAIGN THEO NGUỒN ĐƠN (Sỹ Anh chốt 17/09/2026) ──
-# Đơn lấy từ POS → cột "Nguồn đơn" (tên page) → khớp ô tên page trong tên camp Meta → ra camp
-# đó → ra sản phẩm, marketer, tiền ads. Luật khớp và chọn camp khi một page chạy nhiều camp nằm
-# ở tim_camp_theo_page (talpha_rules.py, có test). Chỉ mục lấy thêm 30 ngày trước đầu tháng:
-# đơn đầu tháng hay đến từ camp chạy cuối tháng trước.
-CHI_MUC=tao_chi_muc_page([(r.campaign_name, str(r.date), r.spend or 0) for r in bq.query(
-    f"SELECT date, campaign_name, SUM(spend) spend FROM `{PROJECT}.{DS}.fb_ads_data` "
-    f"WHERE date BETWEEN DATE_SUB(DATE '{FROM}', INTERVAL 30 DAY) AND '{TO}' GROUP BY 1, 2").result()])
-# Cột page_name/seller_name có từ 17/09/2026. Vòng sync đầu tiên sau deploy mới thêm cột — trước
-# đó query vẫn chạy, chỉ là chưa có nguồn đơn (đơn nối theo quảng cáo như cũ, không nổ).
-_COT_DON={f.name for f in bq.get_table(f"{PROJECT}.{DS}.sale_order").schema}
-_cot=lambda c: c if c in _COT_DON else f"CAST(NULL AS STRING) AS {c}"
 DON=list(bq.query(f"""SELECT CAST(id AS STRING) id, DATE(TIMESTAMP(inserted_at),'{POS_TZ}') d,
     JSON_EXTRACT_SCALAR(marketer,'$.name') nm, shop_label, page_id, {_cot('page_name')}, {_cot('seller_name')},
     CAST(ad_id AS STRING) ad_id, CAST(adset_id AS STRING) adset_id, status_name,
@@ -141,14 +149,14 @@ for r in DON:
     cqc=ad2camp.get(r.ad_id or "") or ad2camp.get(r.adset_id or "")
     camp,cach=tim_camp_theo_page(r.page_name, str(r.d), CHI_MUC, cqc)
     DEM_KHOP[cach]+=1
-    _m,nv_camp,sp_camp=parse_camp(camp) if camp else (None,None,None)
+    nv_camp=parse_camp(camp)[1] if camp else None
     # Người NGOÀI TEAM chạy chung TKQC + bán chung shop POS. Nhận diện TRƯỚC bậc 2 để
     # camp/ad_id không đẩy đơn của họ sang người trong team.
     nv = norm_pos_nv(r.nm)
     if not nv:
         ex = norm_pos_external(r.nm)
         nv = EXT_PREFIX + ex if ex else (nv_camp or ad2nv.get(r.ad_id or "") or ad2nv.get(r.adset_id or "") or UNASSIGNED)
-    prod = sp_camp or ad2sp.get(r.ad_id or "") or ad2sp.get(r.adset_id or "") or "(khác)"
+    prod = ten_tab_cua_don(r.page_name, POS_TEN) or CAMP_TAB.get(camp or cqc or "") or "(khác)"   # tab = page
     # Đã nghỉ → "(không gán)" (bucket_nv), kể cả khi tag POS ghi đúng tên họ.
     nv=bucket_nv(nv)
     # Đơn từ camp TEST (ad_id thuộc camp test, hoặc page chỉ chạy test) → tách khỏi báo cáo doanh số.
@@ -289,7 +297,8 @@ for emp,key in TONG_MAP.items():
 # thư mục của từng người). Bản 15/09 gộp mọi nước vào MỘT file, mỗi nước một tab — nhưng tên
 # file vẫn là "TAIWAN T9", mở thư mục ra tưởng thiếu Singapore.
 # Nên file nào cũng chỉ MỘT nước, bố cục như trước giờ: "Tổng" = bảng của nước đó (tiền địa
-# phương + tỷ giá), rồi mỗi sản phẩm một tab. Tên file do CEO đặt — code không đổi tên.
+# phương + tỷ giá), rồi MỖI PAGE MỘT TAB đặt theo tên page (17/09/2026; trước đó theo mã sản
+# phẩm). Tên file do CEO đặt — code không đổi tên.
 # ID ở <key thị trường viết thường>_files.json cạnh script — taiwan_files.json,
 # singapore_files.json, uae_files.json — dạng {key marketer: ID}. Service account KHÔNG tự
 # tạo được file (quota Drive của nó = 0): người tạo sheet trong thư mục marketer, rồi thêm ID.
@@ -312,7 +321,10 @@ def tabs_mot_nuoc(emp, mkt):
     sub={k:v for k,v in cell.items() if k[0]==emp and k[1]==mkt}
     used=set(); used.add("tổng")
     tabs=[("Tổng",market_tab(sub,RATE[mkt],LOCALCUR[mkt],MONEY_DIV[mkt]))]
-    prods=sorted({k[2] for k in sub}, key=lambda p:(-sum(sub[x]["spend"] for x in sub if x[2]==p), str(p)))
+    # Page không có gì trong tháng (0 tiền, 0 tin nhắn, 0 đơn) thì không mọc tab: camp đã tắt vẫn
+    # để lại dòng 0 đồng trong dữ liệu Meta, thành tab trống như "Taiwan Savings Center".
+    co_so={k[2] for k,c in sub.items() if c["spend"] or c["msg"] or c["orders"]}
+    prods=sorted(co_so, key=lambda p:(-sum(sub[x]["spend"] for x in sub if x[2]==p), str(p)))
     for prod in prods:
         psub={k:v for k,v in sub.items() if k[2]==prod}; tabs.append((safe(prod,used),market_tab(psub,RATE[mkt],LOCALCUR[mkt],MONEY_DIV[mkt])))
     return tabs
@@ -363,7 +375,7 @@ if GRAND_KEY and not GRAND_KEY.endswith("placeholder"):
             sub={k:v for k,v in cell.items() if k[1]==mkt and k[0]!=UNASSIGNED and not str(k[0]).startswith(EXT_PREFIX)}
             tabs.append((safe(_TEN_NUOC[mkt],used),market_tab(sub,RATE[mkt],LOCALCUR[mkt],MONEY_DIV[mkt])))
     write_file(GRAND_KEY,tabs,title=f"TỔNG TEAM THÁNG {_T.month}"); n+=1; print(f"[{n}] GRAND TỔNG THÁNG: {len(tabs)} tab")
-# ── FILE TEST mỗi marketer (chung mọi thị trường, tab theo sản phẩm) ──
+# ── FILE TEST mỗi marketer (chung mọi thị trường, tab theo page) ──
 # ID file lưu ở test_files.json (tạo lần đầu qua service account, share anyone-link editor).
 TESTMAP_PATH=_mapping_path('test_files.json')
 try: TESTMAP=json.load(open(TESTMAP_PATH))
