@@ -3,7 +3,7 @@
 # Nguồn data: config/talpha_rules.json (repo) / ~/talpha_reports/talpha_rules.json (runtime)
 # Consumer: format_all.py (+ script báo cáo khác). Sửa rule → sửa JSON, không sửa file này.
 # ═══════════════════════════════════════════════════════════════════
-import os, re, json
+import os, re, json, unicodedata
 
 _CANDIDATES = [
     os.environ.get("TALPHA_RULES", ""),
@@ -267,34 +267,134 @@ def camp_san_pham(cn):
     return (sp or "(khác)"), (trang or None), page_id
 
 
-def hoc_page_san_pham(cap):
-    """[(page_id, sản phẩm, số đơn), …] → {page_id: {sản phẩm: số đơn}}.
-
-    Tên campaign bây giờ ghi TÊN trang chứ không ghi SỐ page, nên mối nối page ↔ campaign
-    phải học từ chính đơn POS: đơn nào có CẢ page_id lẫn ad_id (tháng 9/2026: 126/131 đơn
-    Đài) là một bằng chứng "page này đang chạy sản phẩm này"."""
-    out = {}
-    for page_id, sp, n in cap:
-        if page_id and sp:
-            d = out.setdefault(str(page_id), {})
-            d[sp] = d.get(sp, 0) + (n or 0)
-    return out
+def chuan_ten_page(s):
+    """Tên page để SO KHỚP: bỏ kiểu chữ trang trí (𝑻𝒂𝒊𝒘𝒂𝒏 → taiwan), hoa thường, dấu câu,
+    khoảng trắng thừa. POS và tên camp thường cùng kiểu chữ, nhưng gõ tay thì không chắc."""
+    s = unicodedata.normalize("NFKC", str(s or "")).casefold()
+    return " ".join(re.sub(r"[^\w]+", " ", s).split())
 
 
-def san_pham_cua_don(page_id, sp_quang_cao, page_sp):
-    """Đơn → sản phẩm, TÍNH THEO PAGE (luồng nghiệp vụ cũ, Sỹ Anh nhắc 16/09/2026): sản phẩm
-    của đơn là sản phẩm đang chạy trên page của đơn.
-      · page chạy MỘT sản phẩm        → sản phẩm đó, kể cả đơn không ghi quảng cáo;
-      · page chạy NHIỀU sản phẩm      → tách theo quảng cáo của chính đơn; đơn không ghi
-                                        quảng cáo → sản phẩm nhiều đơn nhất của page;
-      · page chưa nối được camp nào   → quảng cáo của đơn; không có → "(khác)".
-    Trước bản này đơn chỉ nối được qua SỐ page trong tên campaign — tên hiện tại không ghi
-    số nên toàn bộ đơn rơi vào tab "(khác)", tab sản phẩm nào cũng 0 đơn."""
-    ung = page_sp.get(str(page_id)) if page_id else None
-    if ung:
-        if len(ung) == 1:
-            return next(iter(ung))
-        if sp_quang_cao in ung:
-            return sp_quang_cao
-        return sorted(ung.items(), key=lambda x: (-x[1], x[0]))[0][0]
-    return sp_quang_cao or "(khác)"
+def tao_chi_muc_page(dong_ads):
+    """[(campaign_name, ngày 'YYYY-MM-DD', tiền), …] → chỉ mục page để khớp NGUỒN ĐƠN của POS.
+
+    Trả {"trang": {tên page chuẩn: {camp: {ngày: tiền}}},
+         "o_khac": {ô khác sau marketer: {camp: {ngày: tiền}}}}.
+    "o_khac" đỡ tên camp đặt lệch ô — tên page nằm ở ô sản phẩm, kiểu
+    TW/THAI/PHI/Jewelry GJ International - TW - 05/09 (10 đơn tháng 9)."""
+    trang, o_khac = {}, {}
+    for cn, ngay, tien in dong_ads:
+        p = [x.strip() for x in (cn or "").split("/")]
+        mi = next((i for i, x in enumerate(p) if x.upper() in MARKETS), None)
+        k = mi + 1 if mi is not None else next((i for i, x in enumerate(p[:2]) if norm_nv(x)), None)
+        if k is None:
+            continue
+        _sp, ten_trang, _pid = camp_san_pham(cn)
+        dich = [(trang, chuan_ten_page(ten_trang))] if ten_trang else []
+        dich += [(o_khac, chuan_ten_page(x)) for x in p[k + 1:] if x]
+        for bang, khoa in dich:
+            if khoa:
+                ngay_tien = bang.setdefault(khoa, {}).setdefault(cn, {})
+                ngay_tien[str(ngay)] = ngay_tien.get(str(ngay), 0) + (tien or 0)
+    return {"trang": trang, "o_khac": o_khac}
+
+
+def tim_camp_theo_page(ten_page, ngay, chi_muc, camp_quang_cao=None):
+    """NGUỒN ĐƠN của POS (tên page) → campaign. Luật Sỹ Anh chốt 17/09/2026:
+    đơn lấy từ POS → cột "Nguồn đơn" → khớp ô tên page trong tên camp Meta → ra camp đó →
+    ra sản phẩm, marketer, tiền ads.
+
+    Thứ tự khớp, dừng ở bậc đầu tiên có kết quả:
+      dung_ten  ô tên page trong camp TRÙNG tên nguồn đơn;
+      dau_ten   ô tên page BẮT ĐẦU bằng tên nguồn đơn (ngày viết kiểu 05/09 dính vào tên page);
+      lech_o    tên page nằm ở ô khác của tên camp (trùng, hoặc là phần đầu).
+    Page có NHIỀU camp: camp là quảng cáo của chính đơn nếu nằm trong số đó; không thì camp
+    tiêu tiền trên page vào NGÀY đơn về, thiếu thì ngày có tiền gần nhất TRƯỚC đó (một page
+    có thể chuyển từ camp người này sang người khác giữa tháng — 𝐁𝐢𝐲𝐚𝐲𝐚 𝐓𝐖: Thắng rồi Thương);
+    vẫn không có thì camp tiêu nhiều nhất trên page.
+    Trả (campaign_name, cách khớp) · (None, "khong_co_nguon") · (None, "khong_khop")."""
+    p = chuan_ten_page(ten_page)
+    if not p:
+        return None, "khong_co_nguon"
+    dau = p + " "
+    bac = (
+        ("dung_ten", [chi_muc["trang"].get(p, {})]),
+        ("dau_ten", [v for k, v in chi_muc["trang"].items() if k.startswith(dau)]),
+        ("lech_o", [chi_muc["o_khac"].get(p, {})] + [v for k, v in chi_muc["o_khac"].items() if k.startswith(dau)]),
+    )
+    for cach, nhom in bac:
+        ung = {}
+        for d in nhom:
+            for cn, ngay_tien in d.items():
+                g = ung.setdefault(cn, {})
+                for nd, t in ngay_tien.items():
+                    g[nd] = max(g.get(nd, 0), t)
+        if ung:
+            break
+    else:
+        return None, "khong_khop"
+    if len(ung) == 1:
+        return next(iter(ung)), cach
+    if camp_quang_cao in ung:
+        return camp_quang_cao, cach
+    ngay = str(ngay)
+    co_tien = sorted({nd for v in ung.values() for nd, t in v.items() if t > 0 and nd <= ngay})
+    if co_tien:
+        nd = co_tien[-1]
+        return max(ung, key=lambda cn: (ung[cn].get(nd, 0), cn)), cach
+    return max(ung, key=lambda cn: (sum(ung[cn].values()), cn)), cach
+
+
+MAP_TAY_COT = ["Shop", "Mã đơn", "Nguồn đơn", "Marketer", "Sản phẩm", "Ghi chú"]
+
+
+def nhan_marketer(ten):
+    """Chữ người gõ tay → key marketer: nhận key (Loc), tên hiển thị (Lộc), tên trên POS (Chun Ho)."""
+    t = str(ten or "").strip()
+    if not t:
+        return None
+    theo_ten = {chuan_ten_page(v): k for k, v in DISPLAY.items()}
+    theo_ten.update({chuan_ten_page(k): k for k in DISPLAY})
+    return theo_ten.get(chuan_ten_page(t)) or norm_pos_nv(t) or norm_nv(t)
+
+
+def doc_map_tay(dong):
+    """Các dòng tab MAP TAY (không gồm dòng tiêu đề) → (theo_don, theo_page, loi).
+
+    Mỗi dòng: Shop | Mã đơn | Nguồn đơn | Marketer | Sản phẩm | Ghi chú.
+      · có Mã đơn  → áp cho ĐÚNG đơn đó (cần Shop: mã đơn POS đánh riêng từng shop);
+      · không Mã đơn, có Nguồn đơn → áp cho MỌI đơn từ page đó (Shop trống = mọi shop).
+    Marketer/Sản phẩm để trống = giữ kết quả máy tự gán. Dòng hỏng không làm hỏng dòng khác:
+    ghi vào `loi` để hiện lên tab CHƯA MAP."""
+    theo_don, theo_page, loi = {}, {}, []
+    for i, r in enumerate(dong, start=2):
+        r = [str(x or "").strip() for x in list(r) + [""] * 6][:6]
+        shop, ma, nguon, mk, sp, _ghi = r
+        if not (ma or nguon):
+            continue
+        nv = nhan_marketer(mk) if mk else None
+        if mk and not nv:
+            loi.append(f"MAP TAY dòng {i}: không hiểu marketer '{mk}'")
+            continue
+        if not (nv or sp):
+            loi.append(f"MAP TAY dòng {i}: chưa điền Marketer hoặc Sản phẩm")
+            continue
+        if ma:
+            if not shop:
+                loi.append(f"MAP TAY dòng {i}: có Mã đơn thì phải ghi Shop (TW/SG/AE)")
+                continue
+            theo_don[(shop.upper(), ma)] = (nv, sp or None)
+        else:
+            theo_page[(shop.upper(), chuan_ten_page(nguon))] = (nv, sp or None)
+    return theo_don, theo_page, loi
+
+
+def tra_map_tay(shop, ma_don, ten_page, theo_don, theo_page):
+    """(marketer, sản phẩm) gõ tay cho một đơn, hoặc None. Theo đơn thắng theo page;
+    page ghi đúng shop thắng page để trống shop."""
+    shop = str(shop or "").upper()
+    if (shop, str(ma_don or "")) in theo_don:
+        return theo_don[(shop, str(ma_don))]
+    p = chuan_ten_page(ten_page)
+    if not p:
+        return None
+    return theo_page.get((shop, p)) or theo_page.get(("", p))

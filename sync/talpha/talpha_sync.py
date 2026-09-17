@@ -158,6 +158,9 @@ ORDER_SCHEMA = [
     F('time_send_partner','STRING'), F('estimate_delivery_date','STRING'),
     F('note','STRING'), F('tags','STRING'), F('order_link','STRING'),
     F('sync_time','STRING'),
+    # Thêm 17/09/2026 (xem pos_client): tên page = cột "Nguồn đơn" trên POS, sale = người được
+    # gán bán. Để CUỐI — BigQuery luôn thêm cột mới vào cuối bảng; bq_writer điền ngược đơn cũ.
+    F('page_name','STRING'), F('seller_name','STRING'),
 ]
 ITEM_SCHEMA = [
     F('item_id','STRING'), F('order_id','STRING'), F('shop_id','STRING'),

@@ -62,8 +62,12 @@ def load_append(
     table: str,
     rows: list[dict],
     schema=None,
+    them_cot: bool = False,
 ) -> int:
-    """Append rows via LOAD JOB (WRITE_APPEND). Dùng cho audit/log tables."""
+    """Append rows via LOAD JOB (WRITE_APPEND). Dùng cho audit/log tables.
+
+    them_cot=True: schema có cột bảng chưa có thì THÊM cột (dòng cũ mang NULL) thay vì lỗi
+    400 "Provided Schema does not match". Chỉ bật cho bảng đơn — nơi code chủ động thêm cột."""
     from google.cloud import bigquery as bq
 
     if not rows:
@@ -78,6 +82,8 @@ def load_append(
         jc_kwargs["schema"] = schema
     else:
         jc_kwargs["autodetect"] = True
+    if them_cot:
+        jc_kwargs["schema_update_options"] = [bq.SchemaUpdateOption.ALLOW_FIELD_ADDITION]
 
     client.load_table_from_file(
         io.BytesIO(ndjson.encode("utf-8")),
@@ -200,6 +206,30 @@ def sql_rebuild_orders(project: str, dataset: str, order_table: str, shop_ids=No
     """
 
 
+# Cột thêm SAU khi bảng đơn đã có dữ liệu (17/09/2026: tên page + sale). Đơn cũ không đổi
+# `updated_at` thì không bao giờ được nối lại → mãi mang NULL ở cột mới. Vòng sync nào thấy
+# POS đã có giá trị mà bảng còn trống thì nối lại đơn đó MỘT lần — tự lành, sync theo giờ
+# hay sync cả tháng chạy trước cũng được.
+COT_DIEN_NGUOC = ("page_name", "seller_name")
+
+
+def chon_don_can_ghi(orders, known, thieu_cot=False, trong=None, cot=COT_DIEN_NGUOC):
+    """Đơn phải nối vào raw:
+      · đơn mới, hoặc `updated_at` mới hơn bản đang có (luật cũ);
+      · bảng sạch CHƯA có cột mới (thieu_cot) → mọi đơn trong cửa sổ, để điền ngược;
+      · bảng đang TRỐNG cột mới ở đơn đó (trong[cột] chứa khoá) mà POS đã có giá trị.
+    known: {"shop_id|id": updated_at} · trong: {tên cột: {"shop_id|id", …}}."""
+    trong = trong or {}
+    out = []
+    for o in orders:
+        k = f"{o.get('shop_id', '')}|{o.get('id', '')}"
+        if (thieu_cot
+                or str(o.get("updated_at", "")) > known.get(k, "")
+                or any(o.get(c) and k in trong.get(c, ()) for c in cot)):
+            out.append(o)
+    return out
+
+
 def append_and_rebuild_orders(
     client, project: str, dataset: str,
     orders: list[dict], items: list[dict],
@@ -219,10 +249,19 @@ def append_and_rebuild_orders(
     seed_raw_from_table(client, project, dataset, item_table)
 
     known = get_existing_versions(client, project, dataset, order_table, key_cols=("shop_id", "id"))
-    changed = [
-        o for o in orders
-        if str(o.get("updated_at", "")) > known.get(f"{o.get('shop_id','')}|{o.get('id','')}", "")
-    ]
+    fqn = f"{project}.{dataset}.{order_table}"
+    co_cot = {f.name for f in client.get_table(fqn).schema} if _table_exists(client, fqn) else set()
+    can = [c for c in COT_DIEN_NGUOC if c in {f.name for f in order_schema}]
+    thieu_cot = bool(co_cot) and any(c not in co_cot for c in can)
+    trong = {}
+    if co_cot and not thieu_cot:
+        for c in can:
+            trong[c] = {f"{r.shop_id}|{r.id}" for r in client.query(
+                f"SELECT shop_id, id FROM `{fqn}` WHERE IFNULL({c}, '') = ''").result()}
+    changed = chon_don_can_ghi(orders, known, thieu_cot=thieu_cot, trong=trong, cot=can)
+    if thieu_cot:
+        log.info(f"  {order_table}: bảng chưa có cột {[c for c in can if c not in co_cot]} "
+                 f"— nối lại cả cửa sổ một lần để điền ngược")
     changed_keys = {(str(o.get("shop_id", "")), str(o.get("id", ""))) for o in changed}
     changed_items = [
         it for it in items
@@ -234,7 +273,7 @@ def append_and_rebuild_orders(
         f"({len(orders) - len(changed)} đơn không đổi, bỏ qua)"
     )
     if changed:
-        load_append(client, project, dataset, f"{order_table}_raw", changed, order_schema)
+        load_append(client, project, dataset, f"{order_table}_raw", changed, order_schema, them_cot=True)
         if changed_items:
             load_append(client, project, dataset, f"{item_table}_raw", changed_items, item_schema)
 

@@ -20,7 +20,8 @@ from talpha_rules import (RATE, LOCALCUR, MONEY_DIV, ALLM, MARKETS, SHOP2MKT, GT
                           NUMID, norm_nv, norm_pos_nv, is_test, PRIMARY_MARKET,
                           DISPLAY, EXTERNAL_DISPLAY, norm_pos_external, norm_nv_external,
                           UNASSIGN, bucket_nv, campaign_market,
-                          camp_san_pham, hoc_page_san_pham, san_pham_cua_don)
+                          camp_san_pham, tao_chi_muc_page, tim_camp_theo_page,
+                          doc_map_tay, tra_map_tay, MAP_TAY_COT)
 # SHOP2MKT + norm_pos_nv: import từ talpha_rules (xem trên)
 def parse_camp(cn):
     p=[x.strip() for x in (cn or "").split("/")]
@@ -66,9 +67,7 @@ from talpha_rules import RULES as _RULES
 RULES_MARKETS={m: v for m, v in _RULES["markets"].items() if isinstance(v, dict)}
 cell_test=collections.defaultdict(lambda:{"spend":0.0,"msg":0,"pur":0,"orders":0,"cod":0.0,"cod_gtc":0.0})
 test_pages=set(); main_pages=set()  # page thuộc camp test / camp thường (để chia đơn không có ad_id)
-# ADS: spend/tin nhắn/purchases theo campaign (giữ nguyên). Tên camp nào GHI số page thì nhặt
-# luôn cặp (page, sản phẩm) — bằng chứng page ↔ sản phẩm có sẵn từ tên, dùng khi gán đơn.
-PAGE_TU_TEN=[]
+# ADS: spend/tin nhắn/purchases theo campaign (giữ nguyên).
 # 20/08: camp không parse được (typo thị trường 'TAIWAIN', tên không theo format 'tt 20/7')
 # trước đây bị bỏ IM LẶNG — spend biến mất khỏi mọi báo cáo mà không ai biết. Nay gom lại
 # và in cảnh báo ở cuối (report_health đọc tail log → bot WA thấy được).
@@ -94,14 +93,13 @@ for r in bq.query(f"SELECT date, campaign_name, SUM(spend) spend, SUM(messaging_
     t=is_test(r.campaign_name, mkt)
     pid=camp_san_pham(r.campaign_name)[2]
     if pid:
-        PAGE_TU_TEN.append((pid,prod))
         (test_pages if t else main_pages).add(pid)
     c=(cell_test if t else cell)[(nv,mkt,prod,str(r.date))]; c["spend"]+=r.spend or 0; c["msg"]+=r.msg or 0; c["pur"]+=r.pur or 0
 # ad_id → chủ campaign (marketer) — dùng cho FALLBACK đơn không tag (duyệt 06/07).
 # X9 (06/08): POS không phải lúc nào cũng ghi ad_id vào ô `ad_id` — 999 đơn/10.634 (9,4%)
 # mang ADSET id ở ô đó. Nạp CẢ adset vào chung bảng tra; ad_id nạp SAU để đè lên adset
 # nếu trùng (bản ad chính xác hơn). Trượt cả hai mới coi là không gán được.
-ad2nv={}; test_ads=set(); ad2sp={}   # ad2sp: ad/adset → sản phẩm của campaign — học page ↔ sản phẩm
+ad2nv={}; test_ads=set(); ad2sp={}; ad2camp={}   # ad/adset → sản phẩm / tên campaign — dự phòng khi nguồn đơn không khớp
 for _tbl,_col in (("fb_adset_data","adset_id"), ("fb_ads_data","ad_id")):
     for r in bq.query(f"SELECT DISTINCT CAST({_col} AS STRING) ad_id, campaign_name FROM `{PROJECT}.{DS}.{_tbl}` WHERE date BETWEEN '{FROM}' AND '{TO}' AND {_col} IS NOT NULL").result():
         _m,_nv,_p=parse_camp(r.campaign_name)
@@ -110,39 +108,85 @@ for _tbl,_col in (("fb_adset_data","adset_id"), ("fb_ads_data","ad_id")):
         if _nv and _nv not in UNASSIGN and r.ad_id: ad2nv[r.ad_id]=_nv
         if r.ad_id and is_test(r.campaign_name, _m): test_ads.add(r.ad_id)
         if r.ad_id and _p: ad2sp[r.ad_id]=_p
+        if r.ad_id: ad2camp[r.ad_id]=r.campaign_name
 purely_test_pages=test_pages-main_pages  # page CHỈ chạy camp test → đơn không ad_id trên page đó = test
-# ĐƠN HÀNG: ưu tiên TAG marketer trong POS (JSON $.name) + shop_label.
-# Đơn KHÔNG tag / tag người ngoài team nhưng ad_id thuộc campaign team → tính cho CHỦ CAMPAIGN
-# (chứng cứ cứng, không đoán — audit 06/07: ~338 đơn/6 ngày kiểu này, trước đây bị bỏ rơi).
+gc=gspread.authorize(Credentials.from_service_account_file(KEY,scopes=['https://www.googleapis.com/auth/spreadsheets','https://www.googleapis.com/auth/drive']))
+def do(fn):
+    for a in range(7):
+        try: return fn()
+        except APIError as e:
+            es=str(e)
+            # 20/08: thêm '-1]'/'DOCTYPE' — Google có lúc trả trang HTML lỗi thay vì JSON
+            # (log 09/08: APIError [-1]: <!DOCTYPE html>), bản cũ không retry → chết cả chain.
+            if any(x in es for x in ('429','500','502','503','RATE','unavailable','Internal','[-1]','DOCTYPE')): time.sleep(15); continue
+            raise
+    return fn()
+# ĐƠN HÀNG — MARKETER: ưu tiên TAG marketer trong POS (JSON $.name) (rule CEO, không đổi).
+# Đơn KHÔNG tag → chủ CAMPAIGN nối được theo nguồn đơn → chủ campaign của quảng cáo (ad_id).
 # Vẫn không gán được → gom "(không gán)" (chỉ hiện ở file TỔNG THÁNG, không bỏ lặng lẽ).
-# Sản phẩm = tên page tra từ page_id (map ở trên); không tra được → "(khác)".
 UNASSIGNED="(không gán)"
 # Tiền tố đánh dấu người ngoài team — để grand_tab() loại khỏi TỔNG mà vẫn có tab riêng.
 EXT_PREFIX="~ngoai~"
-DON=list(bq.query(f"SELECT DATE(TIMESTAMP(inserted_at),'{POS_TZ}') d, JSON_EXTRACT_SCALAR(marketer,'$.name') nm, shop_label, page_id, CAST(ad_id AS STRING) ad_id, SUM(cod) cod, COUNT(*) n, SUM(IF(status_category='{GTC_CAT}', cod, 0)) cod_gtc FROM `{PROJECT}.{DS}.sale_order` WHERE DATE(TIMESTAMP(inserted_at),'{POS_TZ}') BETWEEN '{FROM}' AND '{TO}' AND status_category NOT IN ('HUY','DON_THO') GROUP BY d, nm, shop_label, page_id, ad_id").result())
-# SẢN PHẨM CỦA ĐƠN TÍNH THEO PAGE (luồng nghiệp vụ cũ — Sỹ Anh nhắc 16/09/2026). Luồng cũ nối
-# đơn → sản phẩm qua SỐ page ghi trong tên campaign; tên bây giờ chỉ ghi TÊN trang nên mối nối
-# đứt, cả tháng 9 mọi đơn rơi vào tab "(khác)", tab sản phẩm nào cũng 0 đơn. Nay học page ↔ sản
-# phẩm từ chính đơn POS (đơn có cả page_id lẫn ad_id), cộng các cặp đọc được từ tên camp.
-# Luật chia khi một page chạy nhiều sản phẩm: xem san_pham_cua_don (talpha_rules.py).
-page_sp=hoc_page_san_pham([(r.page_id, ad2sp.get(r.ad_id or ""), r.n) for r in DON] + [(pid,sp,1) for pid,sp in PAGE_TU_TEN])
+# ── NỐI ĐƠN → CAMPAIGN THEO NGUỒN ĐƠN (Sỹ Anh chốt 17/09/2026) ──
+# Đơn lấy từ POS → cột "Nguồn đơn" (tên page) → khớp ô tên page trong tên camp Meta → ra camp
+# đó → ra sản phẩm, marketer, tiền ads. Luật khớp và chọn camp khi một page chạy nhiều camp nằm
+# ở tim_camp_theo_page (talpha_rules.py, có test). Chỉ mục lấy thêm 30 ngày trước đầu tháng:
+# đơn đầu tháng hay đến từ camp chạy cuối tháng trước.
+CHI_MUC=tao_chi_muc_page([(r.campaign_name, str(r.date), r.spend or 0) for r in bq.query(
+    f"SELECT date, campaign_name, SUM(spend) spend FROM `{PROJECT}.{DS}.fb_ads_data` "
+    f"WHERE date BETWEEN DATE_SUB(DATE '{FROM}', INTERVAL 30 DAY) AND '{TO}' GROUP BY 1, 2").result()])
+# TAB "MAP TAY" trong file TỔNG TEAM: người tự gán đơn/page chưa nối được. Job KHÔNG BAO GIỜ ghi
+# đè tab này (write_file giữ nguyên nó) — mỗi vòng chỉ đọc và áp. Chưa có tab → vòng này tạo.
+MAP_TAY="MAP TAY"; CHUA_MAP_TAB="CHƯA MAP"
+THEO_DON, THEO_PAGE, LOI_MAP = {}, {}, []
+if GRAND_KEY and not GRAND_KEY.endswith("placeholder"):
+    try:
+        _ws=do(lambda: gc.open_by_key(GRAND_KEY).worksheet(MAP_TAY))
+        THEO_DON, THEO_PAGE, LOI_MAP = doc_map_tay(do(lambda: _ws.get_all_values())[1:])
+    except gspread.exceptions.WorksheetNotFound:
+        pass
+# Cột page_name/seller_name có từ 17/09/2026. Vòng sync đầu tiên sau deploy mới thêm cột — trước
+# đó query vẫn chạy, chỉ là chưa có nguồn đơn (đơn nào cũng vào CHƯA MAP, không nổ).
+_COT_DON={f.name for f in bq.get_table(f"{PROJECT}.{DS}.sale_order").schema}
+_cot=lambda c: c if c in _COT_DON else f"CAST(NULL AS STRING) AS {c}"
+DON=list(bq.query(f"""SELECT CAST(id AS STRING) id, DATE(TIMESTAMP(inserted_at),'{POS_TZ}') d,
+    JSON_EXTRACT_SCALAR(marketer,'$.name') nm, shop_label, page_id, {_cot('page_name')}, {_cot('seller_name')},
+    CAST(ad_id AS STRING) ad_id, CAST(adset_id AS STRING) adset_id, status_name,
+    IFNULL(cod,0) cod, IF(status_category='{GTC_CAT}', IFNULL(cod,0), 0) cod_gtc
+  FROM `{PROJECT}.{DS}.sale_order`
+  WHERE DATE(TIMESTAMP(inserted_at),'{POS_TZ}') BETWEEN '{FROM}' AND '{TO}' AND status_category NOT IN ('HUY','DON_THO')
+  ORDER BY d DESC, shop_label, id""").result())
+CHUA_MAP_DON=[]; DEM_KHOP=collections.Counter()
+LY_DO={"khong_co_nguon":"POS không ghi nguồn đơn", "khong_khop":"Nguồn đơn không khớp tên page trong camp nào"}
+def _ten_nv(nv): return nv[len(EXT_PREFIX):]+" (ngoài team)" if str(nv).startswith(EXT_PREFIX) else DISPLAY.get(nv, nv)
 for r in DON:
-    # Người NGOÀI TEAM (Kính, Thắng…) chạy chung TKQC + bán chung shop POS. Nhận diện
-    # TRƯỚC bậc 2 để fallback ad_id không đẩy đơn của họ sang người trong team.
+    mkt=SHOP2MKT.get((r.shop_label or "").upper())
+    if not mkt: continue
+    cqc=ad2camp.get(r.ad_id or "") or ad2camp.get(r.adset_id or "")
+    camp,cach=tim_camp_theo_page(r.page_name, str(r.d), CHI_MUC, cqc)
+    DEM_KHOP[cach]+=1
+    _m,nv_camp,sp_camp=parse_camp(camp) if camp else (None,None,None)
+    # Người NGOÀI TEAM chạy chung TKQC + bán chung shop POS. Nhận diện TRƯỚC bậc 2 để
+    # camp/ad_id không đẩy đơn của họ sang người trong team.
     nv = norm_pos_nv(r.nm)
     if not nv:
         ex = norm_pos_external(r.nm)
-        nv = EXT_PREFIX + ex if ex else (ad2nv.get(r.ad_id or "") or UNASSIGNED)
-    # Đã nghỉ → "(không gán)" ngay ở bậc 1, KHÔNG rơi xuống fallback ad_id: tag POS là
-    # bằng chứng đơn này của họ, để ad_id đẩy sang người khác là gán sai người.
+        nv = EXT_PREFIX + ex if ex else (nv_camp or ad2nv.get(r.ad_id or "") or ad2nv.get(r.adset_id or "") or UNASSIGNED)
+    prod = sp_camp or ad2sp.get(r.ad_id or "") or ad2sp.get(r.adset_id or "") or "(khác)"
+    tay = tra_map_tay(r.shop_label, r.id, r.page_name, THEO_DON, THEO_PAGE)
+    if tay:                                   # người gán tay thắng máy, ô nào điền mới thắng ô đó
+        if tay[0]: nv = tay[0]
+        if tay[1]: prod = tay[1]
+    # Đã nghỉ → "(không gán)" (bucket_nv), kể cả khi tag POS ghi đúng tên họ.
     nv=bucket_nv(nv)
-    mkt=SHOP2MKT.get((r.shop_label or "").upper())
-    if not mkt: continue
-    prod=san_pham_cua_don(r.page_id, ad2sp.get(r.ad_id or ""), page_sp)
     # Đơn từ camp TEST (ad_id thuộc camp test, hoặc page chỉ chạy test) → tách khỏi báo cáo doanh số.
     # Thị trường miễn rule test (Taiwan) → đơn LUÔN tính thật.
     t=(mkt not in NO_TEST_MARKETS) and ((r.ad_id in test_ads) or (str(r.page_id) in purely_test_pages))
-    c=(cell_test if t else cell)[(nv,mkt,prod,str(r.d))]; c["orders"]+=r.n or 0; c["cod"]+=r.cod or 0; c["cod_gtc"]+=r.cod_gtc or 0
+    c=(cell_test if t else cell)[(nv,mkt,prod,str(r.d))]; c["orders"]+=1; c["cod"]+=r.cod or 0; c["cod_gtc"]+=r.cod_gtc or 0
+    if not camp and not tay:
+        CHUA_MAP_DON.append([r.d.strftime("%d/%m"), r.shop_label, r.id, r.page_name or "", r.nm or "", r.seller_name or "",
+                             r.status_name or "", f"{(r.cod or 0)/MONEY_DIV[mkt]:,.0f} {LOCALCUR[mkt]}".replace(",", "."),
+                             _ten_nv(nv), prod, cqc or "", LY_DO.get(cach, cach)])
 def H(local): return ["Ngày","TỔNG TIỀN ADS","SỐ TIN NHẮN","Giá Tiền/TN","CPO","Tỷ lệ chốt","Số đơn",local,"Tỉ giá","Doanh Số","DS Giao TC","% Ads/DT","% Ads/DT giao","TB đơn"]
 def drow(day,c,rate,div):
     # X13: `div` là số chia của CHÍNH thị trường đó (MONEY_DIV) — GCC 100, Đài 1.
@@ -217,27 +261,16 @@ def freq(sid,nr):
         R.append({"repeatCell":{"range":{"sheetId":sid,"startRowIndex":1,"endRowIndex":nr,"startColumnIndex":ci,"endColumnIndex":ci+1},"cell":{"userEnteredFormat":cf},"fields":fl}})
     R.append({"repeatCell":{"range":{"sheetId":sid,"startRowIndex":t,"endRowIndex":t+1,"startColumnIndex":0,"endColumnIndex":14},"cell":{"userEnteredFormat":{"backgroundColor":cc(RED),"textFormat":{"bold":True,"foregroundColor":cc(WHT)}}},"fields":"userEnteredFormat.backgroundColor,userEnteredFormat.textFormat"}})
     return R
-gc=gspread.authorize(Credentials.from_service_account_file(KEY,scopes=['https://www.googleapis.com/auth/spreadsheets','https://www.googleapis.com/auth/drive']))
-def do(fn):
-    for a in range(7):
-        try: return fn()
-        except APIError as e:
-            es=str(e)
-            # 20/08: thêm '-1]'/'DOCTYPE' — Google có lúc trả trang HTML lỗi thay vì JSON
-            # (log 09/08: APIError [-1]: <!DOCTYPE html>), bản cũ không retry → chết cả chain.
-            if any(x in es for x in ('429','500','502','503','RATE','unavailable','Internal','[-1]','DOCTYPE')): time.sleep(15); continue
-            raise
-    return fn()
 # TALPHA_FORMAT_DRY=1: chỉ IN file nào sẽ nhận tab nào, KHÔNG mở Sheets — để soát bố cục
 # bằng số thật trước khi đổi cách ghi (đổi bố cục là write_file xoá sạch tab cũ của file).
 DRY=os.environ.get("TALPHA_FORMAT_DRY")=="1"
-def write_file(key, tabs, title=None, month_suffix=False):
+def write_file(key, tabs, title=None, month_suffix=False, giu=()):
     if DRY:
         print(f"    [DRY] {key}: {len(tabs)} tab — " + " · ".join(f"{t} ({rows[-1][6]} đơn)" for t,rows in tabs)); return
-    # 20/08 FIX: `sh.sheet1` CŨNG gọi API (fetch_sheet_metadata). Bản cũ để nó NGOÀI do()
-    # nên 1 lần Google trả 503 là chết cả chain → file thị trường mang số mới, file TỔNG
-    # mang số cũ (báo cáo nửa vời, đã xảy ra 18/344 vòng). Nay bọc chung trong do().
-    sh, first = do(lambda: (lambda s: (s, s.sheet1))(gc.open_by_key(key))); nr=len(tabs[0][1])
+    # 20/08 FIX: mở file CŨNG gọi API. Bản cũ để nó NGOÀI do() nên 1 lần Google trả 503 là
+    # chết cả chain → file thị trường mang số mới, file TỔNG mang số cũ (báo cáo nửa vời, đã
+    # xảy ra 18/344 vòng). Nay mọi lời gọi đều bọc trong do().
+    sh = do(lambda: gc.open_by_key(key)); nr=len(tabs[0][1])
     # Tên file tự đặt theo tháng đang chạy — trước đây gõ tay nên tháng 8 vẫn ghi
     # "THÁNG 7" suốt (CEO phát hiện 10/08).
     # month_suffix: giữ nguyên tên gốc, chỉ thay đuôi ' T<tháng>' (file [Test] mỗi người
@@ -248,7 +281,12 @@ def write_file(key, tabs, title=None, month_suffix=False):
         try: do(lambda: sh.update_title(title)); print(f'    đổi tên file → {title}')
         except Exception as e: print(f'    (không đổi được tên file: {e})')
     ex=do(lambda: sh.worksheets())
-    dr=[{"deleteSheet":{"sheetId":w.id}} for w in ex[1:]]
+    # giu: tab KHÔNG được xoá/ghi đè (17/09/2026: MAP TAY là chỗ người gõ tay, CHƯA MAP ghi riêng).
+    # Tab làm khung "Tổng" là tab đầu tiên KHÔNG nằm trong giu — lỡ ai kéo MAP TAY lên đầu thì
+    # cũng không bị đổi tên thành "Tổng" rồi ghi đè.
+    first=next((w for w in ex if w.title not in giu), None)
+    if first is None: first=do(lambda: sh.add_worksheet(title="Tổng", rows=nr, cols=14))
+    dr=[{"deleteSheet":{"sheetId":w.id}} for w in ex if w.id!=first.id and w.title not in giu]
     if dr: do(lambda: sh.batch_update({"requests":dr}))
     # 01/09 FIX: lưới phải ĐÚNG nr dòng, không phải nr+2. Bản cũ chừa 2 dòng thừa mà
     # values_batch_update chỉ ghi đè tới dòng nr → tháng ngắn hơn tháng trước thì dòng
@@ -263,6 +301,36 @@ def write_file(key, tabs, title=None, month_suffix=False):
     fr=[]
     for t,_ in tabs: fr+=freq(wm[t],nr)
     do(lambda: sh.batch_update({"requests":fr}))
+HUONG_DAN_MAP=("HƯỚNG DẪN (dòng này máy bỏ qua): có Mã đơn → áp cho ĐÚNG đơn đó, phải ghi Shop (TW/SG/AE). "
+               "Để trống Mã đơn, ghi Nguồn đơn (tên page như trên POS) → áp cho MỌI đơn từ page đó. "
+               "Marketer: Lộc, Thương, Thái… Sản phẩm: đúng tên tab muốn tính vào. Ô để trống = giữ máy tự gán. "
+               "Vòng ghi mỗi giờ (phút 20) tự áp; job KHÔNG BAO GIỜ ghi đè tab này.")
+COT_CHUA_MAP=["Ngày","Shop","Mã đơn","Nguồn đơn","Marketer (POS)","Sale","Trạng thái","Tiền",
+              "Đang tính cho","Sản phẩm đang tính","Gợi ý: camp theo quảng cáo","Lý do"]
+def ghi_tab_map(key):
+    """Tab CHƯA MAP (ghi lại mỗi vòng) + tab MAP TAY (chỉ tạo khi chưa có, không bao giờ ghi đè)."""
+    rows=[COT_CHUA_MAP]+[[""]*11+[l] for l in LOI_MAP]+CHUA_MAP_DON
+    if DRY:
+        print(f"    [DRY] {key}: tab {CHUA_MAP_TAB} {len(CHUA_MAP_DON)} đơn, {len(LOI_MAP)} lỗi MAP TAY"); return
+    sh=do(lambda: gc.open_by_key(key))
+    co={w.title:w for w in do(lambda: sh.worksheets())}
+    ws=co.get(CHUA_MAP_TAB) or do(lambda: sh.add_worksheet(title=CHUA_MAP_TAB, rows=len(rows), cols=len(COT_CHUA_MAP)))
+    do(lambda: ws.clear())
+    do(lambda: ws.resize(rows=max(len(rows),2), cols=len(COT_CHUA_MAP)))
+    do(lambda: ws.update(values=rows, range_name="A1", value_input_option="RAW"))
+    mt=co.get(MAP_TAY)
+    if not mt:
+        mt=do(lambda: sh.add_worksheet(title=MAP_TAY, rows=300, cols=len(MAP_TAY_COT)))
+        do(lambda: mt.update(values=[MAP_TAY_COT,[""]*(len(MAP_TAY_COT)-1)+[HUONG_DAN_MAP]], range_name="A1", value_input_option="RAW"))
+    n_tab=len(do(lambda: sh.worksheets()))
+    rq=[]
+    for w in (ws, mt):
+        rq.append({"updateSheetProperties":{"properties":{"sheetId":w.id,"gridProperties":{"frozenRowCount":1}},"fields":"gridProperties.frozenRowCount"}})
+        rq.append({"repeatCell":{"range":{"sheetId":w.id,"startRowIndex":0,"endRowIndex":1},"cell":{"userEnteredFormat":{"backgroundColor":cc(DG),"textFormat":{"bold":True,"foregroundColor":cc(WHT)}}},"fields":"userEnteredFormat.backgroundColor,userEnteredFormat.textFormat"}})
+    rq.append({"updateSheetProperties":{"properties":{"sheetId":ws.id,"index":n_tab-1},"fields":"index"}})
+    rq.append({"updateSheetProperties":{"properties":{"sheetId":mt.id,"index":n_tab-1},"fields":"index"}})
+    do(lambda: sh.batch_update({"requests":rq}))
+    print(f"    tab {CHUA_MAP_TAB}: {len(CHUA_MAP_DON)} đơn chưa map · MAP TAY: {len(THEO_DON)} đơn + {len(THEO_PAGE)} page gán tay, {len(LOI_MAP)} dòng lỗi")
 n=0
 # 8 TỔNG files
 for emp,key in TONG_MAP.items():
@@ -350,7 +418,8 @@ if GRAND_KEY and not GRAND_KEY.endswith("placeholder"):
         for mkt in ds_nuoc:
             sub={k:v for k,v in cell.items() if k[1]==mkt and k[0]!=UNASSIGNED and not str(k[0]).startswith(EXT_PREFIX)}
             tabs.append((safe(_TEN_NUOC[mkt],used),market_tab(sub,RATE[mkt],LOCALCUR[mkt],MONEY_DIV[mkt])))
-    write_file(GRAND_KEY,tabs,title=f"TỔNG TEAM THÁNG {_T.month}"); n+=1; print(f"[{n}] GRAND TỔNG THÁNG: {len(tabs)} tab")
+    write_file(GRAND_KEY,tabs,title=f"TỔNG TEAM THÁNG {_T.month}",giu=(MAP_TAY,CHUA_MAP_TAB)); n+=1; print(f"[{n}] GRAND TỔNG THÁNG: {len(tabs)} tab")
+    ghi_tab_map(GRAND_KEY)
 # ── FILE TEST mỗi marketer (chung mọi thị trường, tab theo sản phẩm) ──
 # ID file lưu ở test_files.json (tạo lần đầu qua service account, share anyone-link editor).
 TESTMAP_PATH=_mapping_path('test_files.json')
@@ -371,6 +440,9 @@ for emp in TESTMAP:
     write_file(key,tabs,month_suffix=True); n+=1
     print(f"[{n}] TEST {emp}: {len(tabs)} tab — https://docs.google.com/spreadsheets/d/{key}")
 print("ALL DONE", n)
+print("NOI NGUON DON: " + " · ".join(f"{k} {v}" for k,v in sorted(DEM_KHOP.items())) + f" | CHUA MAP {len(CHUA_MAP_DON)} don | MAP TAY {len(THEO_DON)} don + {len(THEO_PAGE)} page")
+if LOI_MAP:
+    print(f"CANH BAO: {len(LOI_MAP)} dong MAP TAY khong doc duoc — xem dau tab CHUA MAP")
 if MAT_FILE:
     print(f"CANH BAO: {len(MAT_FILE)} file rieng KHONG MO DUOC (da xoa han hoac mat quyen) — bo khoi <nuoc>_files.json hoac tao lai file.")
     for _e,_m,_k in MAT_FILE:

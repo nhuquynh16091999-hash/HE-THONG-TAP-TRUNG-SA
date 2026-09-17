@@ -230,6 +230,11 @@ class PoscakeClient:
             "adset_id":        str(o.get("adset_id", "") or ""),
             "ads_source":      str(o.get("ads_source", "") or ""),
             "page_id":         str(o.get("page_id", "") or ""),
+            # Tên page = cột "Nguồn đơn" trên màn POS. Báo cáo nối đơn → campaign bằng tên này
+            # (ô tên page trong tên camp Meta) — Sỹ Anh chốt 17/09/2026.
+            "page_name":       str((o.get("page") or {}).get("name") or o.get("account_name") or ""),
+            # Sale = người được gán bán đơn trên POS (assigning_seller).
+            "seller_name":     str((o.get("assigning_seller") or {}).get("name") or ""),
             "post_id":         str(o.get("post_id", "") or ""),
             "p_utm_source":    str(o.get("p_utm_source", "") or ""),
             "p_utm_campaign":  str(o.get("p_utm_campaign", "") or ""),

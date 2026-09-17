@@ -1,5 +1,5 @@
 """
-Tab sản phẩm trong file Sheet: đọc sản phẩm từ tên campaign, gán đơn về sản phẩm THEO PAGE.
+Tab sản phẩm trong file Sheet: đọc tên campaign, nối đơn POS → camp THEO NGUỒN ĐƠN (tên page).
 
 Chạy: python3 -m pytest tests/test_talpha_san_pham_theo_page.py -q
 
@@ -14,7 +14,10 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "ops" / "talpha_reports"))
 
-from talpha_rules import camp_san_pham, hoc_page_san_pham, san_pham_cua_don  # noqa: E402
+from talpha_rules import (  # noqa: E402
+    camp_san_pham, chuan_ten_page, tao_chi_muc_page, tim_camp_theo_page,
+    nhan_marketer, doc_map_tay, tra_map_tay,
+)
 
 
 class TestDocSanPhamTuTenCampaign:
@@ -56,37 +59,100 @@ class TestDocSanPhamTuTenCampaign:
         assert camp_san_pham("Ai do/khong ro/xyz") == (None, None, None)
 
 
-class TestGanDonVeSanPhamTheoPage:
-    # page A chạy một sản phẩm; page B chạy hai; page C chưa nối được camp nào
-    PAGE_SP = hoc_page_san_pham([
-        ("A", "040 - VONGVANG1", 3),
-        ("B", "042 - BLACK", 5), ("B", "Ví", 2),
-        (None, "036 - BROWN", 9),          # đơn không có page: không dạy được gì
-        ("A", None, 4),                     # đơn không nối được quảng cáo: không dạy được gì
-    ])
+class TestKhopNguonDonVoiTenPageTrongCamp:
+    """Luật Sỹ Anh chốt 17/09/2026: nguồn đơn POS → ô tên page trong tên camp → camp."""
+    ADS = [
+        ("SGP/LOC/PHI/040/Lucky Silver Philippines/13-9", "2026-09-13", 300000),
+        ("SGP/LOC/PHI/040/𝑺𝒂𝒖𝒅𝒊 𝑮𝒐𝒍𝒅𝒆𝒏 𝑩𝒓𝒂𝒄𝒆𝒍𝒆𝒕/15-9", "2026-09-15", 200000),
+        ("TW/THAI/INDO/SET KC/Master Jewelry Gold - TW - 02/09", "2026-09-02", 100000),
+        ("TW/THAI/PHI/Jewelry GJ International - TW - 05/09", "2026-09-05", 500000),
+        # một page, hai người nối nhau: Thắng đầu tháng, Thương từ 14/09
+        ("TW/THẮNG /TỆP PHI/VÒNG MAY MẮN/𝐁𝐢𝐲𝐚𝐲𝐚 𝐓𝐖/1258963223972395/4-9 TEST", "2026-09-04", 400000),
+        ("TW/THẮNG /TỆP PHI/VÒNG MAY MẮN/𝐁𝐢𝐲𝐚𝐲𝐚 𝐓𝐖/1258963223972395/4-9 TEST", "2026-09-10", 300000),
+        ("TW/THUONG/PHI/071/𝐁𝐢𝐲𝐚𝐲𝐚 𝐓𝐖/14-9", "2026-09-14", 250000),
+        ("Ai do/khong ro/xyz", "2026-09-14", 999),
+    ]
+    CM = tao_chi_muc_page(ADS)
 
-    def test_hoc_bo_qua_dong_thieu_page_hoac_san_pham(self):
-        assert self.PAGE_SP == {"A": {"040 - VONGVANG1": 3}, "B": {"042 - BLACK": 5, "Ví": 2}}
+    def test_chuan_hoa_ten_page(self):
+        assert chuan_ten_page("𝑺𝒂𝒖𝒅𝒊 𝑮𝒐𝒍𝒅𝒆𝒏 𝑩𝒓𝒂𝒄𝒆𝒍𝒆𝒕") == "saudi golden bracelet"
+        assert chuan_ten_page("  Master Jewelry Gold&Diamond - TW ") == "master jewelry gold diamond tw"
+        assert chuan_ten_page(None) == ""
 
-    def test_page_mot_san_pham_thi_don_khong_ghi_quang_cao_van_ve_dung_tab(self):
-        assert san_pham_cua_don("A", None, self.PAGE_SP) == "040 - VONGVANG1"
+    def test_trung_ten_page(self):
+        assert tim_camp_theo_page("Lucky Silver Philippines", "2026-09-16", self.CM) == \
+            ("SGP/LOC/PHI/040/Lucky Silver Philippines/13-9", "dung_ten")
+        # POS và camp khác kiểu chữ vẫn khớp
+        assert tim_camp_theo_page("Saudi Golden Bracelet", "2026-09-16", self.CM)[1] == "dung_ten"
 
-    def test_page_theo_page_thang_quang_cao_ghi_lech(self):
-        # Page chỉ chạy MỘT sản phẩm thì tính theo page, kể cả ô ad_id POS ghi lạc sang camp khác.
-        assert san_pham_cua_don("A", "042 - BLACK", self.PAGE_SP) == "040 - VONGVANG1"
+    def test_ngay_dinh_vao_ten_page(self):
+        assert tim_camp_theo_page("Master Jewelry Gold - TW", "2026-09-03", self.CM) == \
+            ("TW/THAI/INDO/SET KC/Master Jewelry Gold - TW - 02/09", "dau_ten")
 
-    def test_page_nhieu_san_pham_tach_theo_quang_cao_cua_don(self):
-        assert san_pham_cua_don("B", "Ví", self.PAGE_SP) == "Ví"
-        assert san_pham_cua_don("B", "042 - BLACK", self.PAGE_SP) == "042 - BLACK"
+    def test_ten_page_nam_lech_o_san_pham(self):
+        assert tim_camp_theo_page("Jewelry GJ International", "2026-09-06", self.CM) == \
+            ("TW/THAI/PHI/Jewelry GJ International - TW - 05/09", "lech_o")
 
-    def test_page_nhieu_san_pham_don_khong_quang_cao_ve_san_pham_nhieu_don_nhat(self):
-        assert san_pham_cua_don("B", None, self.PAGE_SP) == "042 - BLACK"
+    def test_page_nhieu_camp_chon_camp_chay_dung_ngay_don(self):
+        thang = "TW/THẮNG /TỆP PHI/VÒNG MAY MẮN/𝐁𝐢𝐲𝐚𝐲𝐚 𝐓𝐖/1258963223972395/4-9 TEST"
+        thuong = "TW/THUONG/PHI/071/𝐁𝐢𝐲𝐚𝐲𝐚 𝐓𝐖/14-9"
+        assert tim_camp_theo_page("𝐁𝐢𝐲𝐚𝐲𝐚 𝐓𝐖", "2026-09-10", self.CM)[0] == thang
+        assert tim_camp_theo_page("𝐁𝐢𝐲𝐚𝐲𝐚 𝐓𝐖", "2026-09-12", self.CM)[0] == thang    # ngày có tiền gần nhất trước đó
+        assert tim_camp_theo_page("𝐁𝐢𝐲𝐚𝐲𝐚 𝐓𝐖", "2026-09-15", self.CM)[0] == thuong
 
-    def test_hoa_so_don_thi_chon_theo_ten_cho_co_dinh(self):
-        ps = hoc_page_san_pham([("D", "Y", 2), ("D", "X", 2)])
-        assert san_pham_cua_don("D", None, ps) == "X"
+    def test_page_nhieu_camp_uu_tien_quang_cao_cua_don(self):
+        thuong = "TW/THUONG/PHI/071/𝐁𝐢𝐲𝐚𝐲𝐚 𝐓𝐖/14-9"
+        assert tim_camp_theo_page("𝐁𝐢𝐲𝐚𝐲𝐚 𝐓𝐖", "2026-09-10", self.CM, camp_quang_cao=thuong)[0] == thuong
 
-    def test_page_chua_noi_duoc_thi_dung_quang_cao_roi_moi_toi_khac(self):
-        assert san_pham_cua_don("C", "036 - BROWN", self.PAGE_SP) == "036 - BROWN"
-        assert san_pham_cua_don("C", None, self.PAGE_SP) == "(khác)"
-        assert san_pham_cua_don(None, None, self.PAGE_SP) == "(khác)"
+    def test_don_truoc_moi_camp_lay_camp_tieu_nhieu_nhat(self):
+        thang = "TW/THẮNG /TỆP PHI/VÒNG MAY MẮN/𝐁𝐢𝐲𝐚𝐲𝐚 𝐓𝐖/1258963223972395/4-9 TEST"
+        assert tim_camp_theo_page("𝐁𝐢𝐲𝐚𝐲𝐚 𝐓𝐖", "2026-09-01", self.CM)[0] == thang
+
+    def test_khong_khop_va_khong_co_nguon(self):
+        assert tim_camp_theo_page("HongKong Golden Bracelet", "2026-09-10", self.CM) == (None, "khong_khop")
+        assert tim_camp_theo_page("", "2026-09-10", self.CM) == (None, "khong_co_nguon")
+        assert tim_camp_theo_page(None, "2026-09-10", self.CM) == (None, "khong_co_nguon")
+
+
+class TestMapTay:
+    def test_nhan_marketer_theo_key_ten_hien_thi_va_ten_pos(self):
+        assert nhan_marketer("Loc") == "Loc"
+        assert nhan_marketer("Lộc") == "Loc"
+        assert nhan_marketer("lộc") == "Loc"
+        assert nhan_marketer("Chun Ho") == "Loc"            # tên Lộc trên POS
+        assert nhan_marketer("Thương") == "Thuong"
+        assert nhan_marketer("Ông Nào Đó") is None
+        assert nhan_marketer("") is None
+
+    def test_doc_dong_theo_don_va_theo_page(self):
+        theo_don, theo_page, loi = doc_map_tay([
+            ["TW", "93", "", "Thái", "", ""],
+            ["", "", "HongKong Golden Bracelet", "Lộc", "040 - VONGVANG1", "page mới của Lộc"],
+            ["SG", "", "Lucky Charm Store SG", "", "TEST · Lucky Charm", ""],
+        ])
+        assert loi == []
+        assert theo_don == {("TW", "93"): ("Thai", None)}
+        assert theo_page == {("", "hongkong golden bracelet"): ("Loc", "040 - VONGVANG1"),
+                             ("SG", "lucky charm store sg"): (None, "TEST · Lucky Charm")}
+
+    def test_dong_hong_bao_loi_khong_chan_dong_khac(self):
+        theo_don, theo_page, loi = doc_map_tay([
+            ["", "93", "", "Thái", "", ""],                 # thiếu Shop
+            ["TW", "", "Page A", "Ông Nào Đó", "", ""],       # marketer lạ
+            ["TW", "", "Page B", "", "", ""],                 # không điền gì để map
+            ["", "", "", "", "", "dòng trống"],               # bỏ qua lặng lẽ
+            ["TW", "", "Page C", "Lộc", "", ""],
+        ])
+        assert theo_page == {("TW", "page c"): ("Loc", None)} and theo_don == {}
+        assert [x.split(":")[0] for x in loi] == ["MAP TAY dòng 2", "MAP TAY dòng 3", "MAP TAY dòng 4"]
+
+    def test_tra_map_theo_don_thang_theo_page_va_dung_shop_thang_shop_trong(self):
+        theo_don, theo_page, _ = doc_map_tay([
+            ["TW", "93", "", "Thái", "", ""],
+            ["", "", "Page X", "Lộc", "A", ""],
+            ["TW", "", "Page X", "Thương", "B", ""],
+        ])
+        assert tra_map_tay("TW", "93", "Page X", theo_don, theo_page) == ("Thai", None)
+        assert tra_map_tay("tw", "94", "page x", theo_don, theo_page) == ("Thuong", "B")
+        assert tra_map_tay("SG", "94", "Page X", theo_don, theo_page) == ("Loc", "A")
+        assert tra_map_tay("SG", "94", "Page Y", theo_don, theo_page) is None

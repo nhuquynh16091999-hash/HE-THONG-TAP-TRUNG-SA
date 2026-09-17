@@ -339,7 +339,7 @@
     "THAINX": "Thai"
   },
   "unassigned_label": "(không gán)",
-  "_sale_note": "POS KHÔNG có trường 'sale'. Đơn gán cho sale theo 3 bậc: (1) bảng gán tay `manual`, khoá là order_uid dạng 'TW-<id>'; (2) page_id → `by_page`; (3) từ khoá trong ô tags → `by_tag`. Trượt hết ⇒ '(chưa gán sale)'. CỐ Ý để trống cả ba: Thương vừa chạy ads vừa chốt đơn, nên KHÔNG thể suy 'đơn do Thương chạy ads = Thương chốt' — làm vậy là gán bừa. Chốt được quy tắc thật (theo page, theo tag, hay gán tay) thì khai vào đây.",
+  "_sale_note": "POS CÓ trường người bán `assigning_seller` — từ 17/09/2026 đồng bộ vào sale_order.seller_name và hiện ở tab CHƯA MAP; dashboard CHƯA dùng nó để gán sale (vẫn theo 3 bậc dưới). Trước đó ghi chú này viết 'POS KHÔNG có trường sale' — sai. Đơn gán cho sale theo 3 bậc: (1) bảng gán tay `manual`, khoá là order_uid dạng 'TW-<id>'; (2) page_id → `by_page`; (3) từ khoá trong ô tags → `by_tag`. Trượt hết ⇒ '(chưa gán sale)'. CỐ Ý để trống cả ba: Thương vừa chạy ads vừa chốt đơn, nên KHÔNG thể suy 'đơn do Thương chạy ads = Thương chốt' — làm vậy là gán bừa. Chốt được quy tắc thật (theo page, theo tag, hay gán tay) thì khai vào đây.",
   "sale_assignment": {
     "by_tag": {},
     "by_page": {},

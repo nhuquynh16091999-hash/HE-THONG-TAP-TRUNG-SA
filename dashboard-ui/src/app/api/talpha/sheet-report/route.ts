@@ -64,6 +64,10 @@ export async function GET(req: NextRequest) {
             const rows: string[][] = vr.values || [];
             if (!rows.length) return;
             const head = rows[0].map((h) => String(h || "").trim());
+            // Chỉ tab SỐ LIỆU (có cột tiền ads). File TỔNG TEAM từ 17/09/2026 có thêm tab
+            // "CHƯA MAP" và "MAP TAY" — danh sách đơn, không phải người; đọc nhầm là tin Zalo
+            // mọc thêm một "marketer" tên CHƯA MAP.
+            if (!head.includes("TỔNG TIỀN ADS")) return;
             const r = rows.slice(1).find((x) => String(x?.[0] || "").trim() === nhan);
             if (!r) return;
             const g = (ten: string) => soVN(r[head.indexOf(ten)]);
