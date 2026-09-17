@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { readStoreFresh } from "@/lib/talpha/store";
 import {
     buildLedger, summarise, saoKeTreHan, CHU_KY_SAO_KE_NGAY,
+    maGocGiaoLai, maGocNaza, orderKey, trackKey,
     type OrderSource, type PaidLine, type FeeLine,
 } from "@/lib/talpha/order-ledger";
 import type { StatementRow } from "@/lib/talpha/cod-recon";
@@ -32,6 +33,8 @@ export const dynamic = "force-dynamic";
 // ═══════════════════════════════════════════════════════════════════
 
 type PartnerMeta = {
+    /** Mã vận đơn đúng như Sheet ghi. Kho cũ chưa có trường này thì khoá chính là mã. */
+    tracking?: string;
     order_no: string; ship_method: string; cod_local: number; marketer: string;
     recon: string; store_name: string; store_code: string;
     ship_date: string | null; track17_code: string | null;
@@ -147,11 +150,13 @@ export async function GET(req: NextRequest) {
 
         // ── Đơn ────────────────────────────────────────────────────────
         const partner = track.partner || {};
-        const orders: OrderSource[] = Object.entries(partner).map(([tracking, p]) => {
-            const st = track.statuses[tracking];
+        // Khoá kho thường là mã vận đơn, nhưng dòng dùng chung mã với dòng khác thì
+        // khoá theo mã đơn (xem khoaChoDong) — nên mã vận đơn đọc từ trường riêng.
+        const orders: OrderSource[] = Object.entries(partner).map(([khoa, p]) => {
+            const st = track.statuses[khoa];
             return {
-                order_no: p.order_no || tracking,
-                tracking,
+                order_no: p.order_no || khoa,
+                tracking: p.tracking ?? khoa,
                 track17_code: p.track17_code,
                 return_order_no: p.return_order_no || "",
                 order_date: st?.order_date || p.order_date || null,
@@ -220,37 +225,10 @@ export async function GET(req: NextRequest) {
         //
         // Tính theo TỪNG KỲ chứ không gộp: một tuần một file, và câu hỏi luôn là
         // "kỳ NÀY có vấn đề gì", không phải "từ đầu tới giờ".
-        // ── ĐƠN GIAO LẠI: vì sao một đơn trông như bị trả thiếu ──────
         //
-        // Đơn hoàn rồi gửi lại cho khách khác thì NAZA cấp MÃ VẬN ĐƠN MỚI, và
-        // đặt mã đơn = mã vận đơn CŨ + "-Z" (转寄 = chuyển tiếp). Sổ đơn của
-        // mình làm ngược: giữ mã vận đơn CŨ ở cột mã vận đơn, rồi nhét mã cũ
-        // vào ngoặc ở cột mã đơn — "T1467 (7564042426-z)".
-        //
-        // Hệ quả: dashboard ghép theo mã vận đơn nên lấy ra dòng sao kê của một
-        // đơn KHÁC đang dùng lại mã đó, rồi kết luận "trả thiếu 650". Trong khi
-        // tiền thật đã về đủ, nằm ở nhóm "3PL trả cho đơn mình không có" ngay
-        // bên dưới, dưới mã vận đơn mới.
-        //
-        // Đã dính 3 đơn trong kỳ 2026.9.11: T1467 · T1468 · T1471, tổng 4.097 NT$
-        // bị đếm hai lần theo hai chiều ngược nhau.
-        //
-        // Hàm này KHÔNG sửa một con số nào — chỉ tìm ra khoản tiền tương ứng để
-        // nói đúng bản chất: lỗi gán mã vận đơn trong sổ, không phải mất tiền.
-        const maTrongNgoac = (s?: string | null): string | null =>
-            String(s ?? "").match(/\((\d+)\s*-\s*z\)/i)?.[1] ?? null;
-
-        function giaiThichGiaoLai(
-            r: { order_no: string; cod_twd: number },
-            thuaKy: { order_no: string; tracking: string; amount_twd: number }[],
-        ): { tracking: string; amount_twd: number } | null {
-            const maCu = maTrongNgoac(r.order_no);
-            if (!maCu) return null;
-            const hit = thuaKy.find((e) =>
-                String(e.order_no).replace(/[-\s]*z$/i, "").trim() === maCu
-                && e.amount_twd === r.cod_twd);
-            return hit ? { tracking: hit.tracking, amount_twd: hit.amount_twd } : null;
-        }
+        // Đơn GIAO LẠI không còn lọt vào loại 1 vì Sheet ghi sai mã vận đơn:
+        // buildLedger ghép chúng bằng mã gốc trong ngoặc (xem maGocGiaoLai). Mã vận
+        // đơn bị hai dòng Sheet dùng chung thì nêu ở cảnh báo "trung-van-don".
 
         // File tiền hàng: đọc một lần mỗi 5 phút, lỗi không làm sập màn.
         const tienHang = await docTienHang();
@@ -285,8 +263,6 @@ export async function GET(req: NextRequest) {
                 lech_tien: lech.map((r) => ({
                     order_no: r.order_no, tracking: r.tracking,
                     cod_twd: r.cod_twd, paid_twd: r.paid_twd, diff_twd: r.diff_twd,
-                    // Đơn GIAO LẠI bị gán sai mã vận đơn — tiền KHÔNG thiếu.
-                    da_tra_o_ma_khac: giaiThichGiaoLai(r, thua),
                 })),
                 phi_sai: phiSai.map((r) => ({
                     order_no: r.order_no, tracking: r.tracking, ship_fee_rmb: r.ship_fee_rmb,
@@ -475,25 +451,13 @@ export async function GET(req: NextRequest) {
                       dups.slice(0, 3).map((d) => `${d.order_ids.join("/")} · ${d.tracking}`).join(" · "),
             });
 
-            // Tách hai loại: MẤT TIỀN THẬT, và GÁN SAI MÃ VẬN ĐƠN (tiền đã về
-            // đủ, chỉ nằm dưới mã khác). Gộp chung là người đọc đi đòi NAZA một
-            // khoản họ đã trả rồi.
-            const lechThat = moiNhat.lech_tien.filter((l) => !l.da_tra_o_ma_khac);
-            const lechDoMa = moiNhat.lech_tien.filter((l) => l.da_tra_o_ma_khac);
             checks.push({
                 nhom: "B", ten: "3PL trả khác số trên đơn",
                 ok: moiNhat.lech_tien.length === 0,
                 chi_tiet: moiNhat.lech_tien.length === 0 ? "Mọi đơn trả đúng số."
-                    : [
-                        ...lechThat.slice(0, 3).map((l) =>
-                            `${l.order_no}: đơn ghi ${vnd(l.cod_twd)} · họ trả ${vnd(l.paid_twd ?? 0)} NT$ ` +
-                            `(${(l.diff_twd ?? 0) > 0 ? "dư" : "thiếu"} ${vnd(Math.abs(l.diff_twd ?? 0))})`),
-                        ...lechDoMa.slice(0, 3).map((l) =>
-                            `${l.order_no}: KHÔNG thiếu tiền — NAZA đã trả đủ ` +
-                            `${vnd(l.da_tra_o_ma_khac!.amount_twd)} NT$ dưới mã vận đơn ` +
-                            `${l.da_tra_o_ma_khac!.tracking}. Đơn giao lại được cấp mã vận đơn MỚI, ` +
-                            `sổ đơn còn ghi mã cũ ${l.tracking} — sửa mã vận đơn trong Google Sheet đối tác`),
-                    ].join(" · "),
+                    : moiNhat.lech_tien.slice(0, 3).map((l) =>
+                        `${l.order_no}: đơn ghi ${vnd(l.cod_twd)} · họ trả ${vnd(l.paid_twd ?? 0)} NT$ ` +
+                        `(${(l.diff_twd ?? 0) > 0 ? "dư" : "thiếu"} ${vnd(Math.abs(l.diff_twd ?? 0))})`).join(" · "),
             });
             // Soát 0 dòng thì KHÔNG phải "đúng": kỳ 9.11 hiện "0/0 dòng đúng bảng giá"
             // với dấu tích xanh, trong khi NAZA trừ 2.573¥ mà bộ đọc không thấy dòng nào.
@@ -799,22 +763,46 @@ export async function GET(req: NextRequest) {
             });
         }
 
-        // Sáu mã trùng mã vận đơn trong file đơn — lỗi dữ liệu của mình.
-        const dupTrk = new Map<string, string[]>();
+        // Mã vận đơn nhiều đơn cùng mang — gõ nhầm mã của đơn bên cạnh trong Sheet.
+        // Trước 17/09/2026 cảnh báo này không bao giờ nổ đúng: bộ nạp để dòng sau đè
+        // dòng trước, nên trong kho chẳng còn hai đơn nào chung mã để mà thấy.
+        // Khoá so đã chuẩn hoá (bỏ số 0 đầu), nhưng hiện mã NGUYÊN VĂN như Sheet ghi
+        // để dán thẳng vào ô tìm kiếm của Sheet.
+        const dupTrk = new Map<string, { ma: string; dons: string[] }>();
         for (const r of rows) {
-            const k = r.tracking.replace(/\D/g, "").replace(/^0+/, "");
+            const k = trackKey(r.tracking);
             if (!k) continue;
-            (dupTrk.get(k) || dupTrk.set(k, []).get(k)!).push(r.order_no);
+            (dupTrk.get(k) || dupTrk.set(k, { ma: r.tracking, dons: [] }).get(k)!).dons.push(r.order_no);
         }
-        const dups = [...dupTrk.entries()].filter(([, v]) => v.length > 1);
+        // Cùng MỘT đơn nằm ở hai khoá là bản cũ trong kho (lần nạp sau tự gỡ), không
+        // phải lỗi của Sheet — không kêu người đi sửa Sheet vì nó.
+        const dups = [...dupTrk.entries()].filter(([, v]) => new Set(v.dons).size > 1);
         if (dups.length) {
+            // Nói luôn phải sửa thành gì, lấy từ chính sao kê: dòng NAZA mang mã này
+            // ghi mã đơn nào, và đơn còn lại NAZA gửi dưới mã vận đơn nào.
+            const dongNaza: { tracking: string; order_no: string }[] = [...paid, ...fees];
+            const cuaDon = (don: string, l: { order_no: string }) => {
+                const g = maGocGiaoLai(don);
+                return g ? maGocNaza(l.order_no) === g : orderKey(l.order_no) === orderKey(don);
+            };
+            const nazaNoi = (ma: string, dons: string[]) => {
+                const chu = dongNaza.find((l) => trackKey(l.tracking) === ma);
+                const dung = chu && dons.find((d) => cuaDon(d, chu));
+                const sua = dons.filter((d) => d !== dung).flatMap((d) => {
+                    const l = dongNaza.find((x) => cuaDon(d, x) && trackKey(x.tracking) !== ma);
+                    return l ? [`sửa ${d} thành ${l.tracking}`] : [];
+                });
+                const dau = dung ? `Mã của ${dung}` : chu ? `NAZA ghi mã này cho ${chu.order_no}` : "";
+                return [dau, ...sua].filter(Boolean).join(" · ") || "Chưa có trên sao kê nào — chưa biết đơn nào đúng.";
+            };
             notes.push({
-                id: "trung-van-don", level: "nhac",
-                title: `${dups.length} mã vận đơn bị gán cho nhiều đơn khác nhau`,
-                detail: "Một mã vận đơn chỉ được thuộc về một đơn. Trùng thì đối soát có thể khớp nhầm đơn.",
-                cols: ["Mã vận đơn", "Các đơn cùng mang mã này"],
-                items: dups.map(([t, os]) => [t, os.join(" · ")]),
-                fix: "Sửa trong Google Sheet đơn hàng.",
+                id: "trung-van-don", level: "canh_bao",
+                title: `${dups.length} mã vận đơn bị nhiều dòng trong Sheet dùng chung`,
+                detail: "Một mã vận đơn chỉ thuộc về một đơn — thường là gõ nhầm mã của đơn bên cạnh. " +
+                    "Máy đã dựa vào mã đơn NAZA ghi để ghép tiền cho đúng đơn, nhưng Sheet vẫn cần sửa.",
+                cols: ["Mã vận đơn", "Các đơn cùng mang mã này", "Sao kê NAZA nói"],
+                items: dups.map(([k, { ma, dons }]) => [ma, dons.join(" · "), nazaNoi(k, dons)]),
+                fix: "Sửa mã vận đơn trong Google Sheet đối tác theo cột cuối — lần nạp sau cảnh báo tự hết.",
             });
         }
 
@@ -840,6 +828,8 @@ export async function GET(req: NextRequest) {
                 luc: track.partner_import?.imported_at ?? null,
                 nguon: track.partner_import?.filename ?? null,
                 so_don: Object.keys(partner).length,
+                // Hiện ở cả màn Đối soát COD — màn đó không có danh sách cảnh báo.
+                ma_trung: dups.length,
             },
             rows,
             summary,

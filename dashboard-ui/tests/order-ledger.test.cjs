@@ -71,6 +71,72 @@ t("dòng sao kê không ghép được đơn nào → trả về ở `extra`", (
     assert.strictEqual(extra.length, 1);
 });
 
+console.log("── Đơn giao lại và mã vận đơn Sheet ghi sai ──");
+t("đọc mã gốc của đơn giao lại ở cả hai phía", () => {
+    assert.strictEqual(L.maGocGiaoLai("T1467 (7564042426-z)"), "7564042426");
+    assert.strictEqual(L.maGocGiaoLai("T1471 ( 06722436439 - Z )"), "6722436439");
+    assert.strictEqual(L.maGocGiaoLai("T1465"), "");
+    assert.strictEqual(L.maGocNaza("7564042426-Z"), "7564042426");
+    assert.strictEqual(L.maGocNaza("T1465"), "");
+});
+
+// Kỳ 9.11 thật: T1467 là hàng hoàn của T1020 gửi cho khách khác. NAZA cấp mã
+// mới 18010780 và ghi mã đơn "7564042426-Z"; Sheet lại chép nhầm mã vận đơn
+// 18008693 của T1465 sang dòng T1467.
+const t1465 = () => ord({ order_no: "T1465", tracking: "18008693", cod_twd: 749 });
+const t1467 = () => ord({ order_no: "T1467 (7564042426-z)", tracking: "18008693", cod_twd: 1399 });
+const tra1465 = () => pay({ order_no: "T1465", tracking: "18008693", amount_twd: 749 });
+const tra1467 = () => pay({ order_no: "7564042426-Z", tracking: "18010780", amount_twd: 1399 });
+const theoMa = (rows) => Object.fromEntries(rows.map((r) => [r.order_no, r]));
+
+t("BẪY THẬT T1467: mang nhầm mã của đơn khác → ghép qua mã gốc, KHÔNG báo thiếu 650", () => {
+    // Thứ tự dòng không được đổi kết quả.
+    for (const orders of [[t1465(), t1467()], [t1467(), t1465()]]) {
+        const { rows, extra } = one(orders, [tra1465(), tra1467()]);
+        const by = theoMa(rows);
+        assert.strictEqual(by["T1467 (7564042426-z)"].paid_twd, 1399);
+        assert.strictEqual(by["T1467 (7564042426-z)"].diff_twd, 0);
+        assert.strictEqual(by["T1467 (7564042426-z)"].matched_by, "order_id_giao_lai");
+        assert.strictEqual(by.T1465.paid_twd, 749);
+        assert.strictEqual(by.T1465.diff_twd, 0);
+        assert.strictEqual(extra.length, 0, "tiền của T1467 không được rơi vào nhóm 'đơn mình không có'");
+    }
+});
+t("BẪY THẬT T1468: mã Sheet ghi không có trên sao kê → vẫn về tiền, không thành 'chưa về'", () => {
+    const { rows, extra } = one(
+        [ord({ order_no: "T1468 (17898044-z)", tracking: "18009095", cod_twd: 1299 })],
+        [pay({ order_no: "17898044-Z", tracking: "18010779", amount_twd: 1299 })],
+    );
+    assert.strictEqual(rows[0].paid_twd, 1299);
+    assert.strictEqual(rows[0].light, "xanh");
+    assert.strictEqual(extra.length, 0);
+});
+t("BẪY THẬT T1127 · T1131: hai đơn chung mã → mã đơn NAZA ghi chỉ ra đơn nào nhận tiền", () => {
+    // Sheet chép mã của T1127 sang T1131, và dòng mang nhầm mã đứng TRƯỚC.
+    const { rows, extra } = one(
+        [ord({ order_no: "T1131", tracking: "06722405677", cod_twd: 1799, status: "Returned" }),
+         ord({ order_no: "T1127", tracking: "06722405677", cod_twd: 799 })],
+        [pay({ order_no: "T1127", tracking: "06722405677", amount_twd: 799 })],
+        [fee({ order_no: "T1127", tracking: "06722405677", ship_fee_rmb: 27 }),
+         fee({ order_no: "T1131", tracking: "06722402201", ship_fee_rmb: 32, expected_ship_fee: 32 })],
+    );
+    const by = theoMa(rows);
+    assert.strictEqual(by.T1127.paid_twd, 799);
+    assert.strictEqual(by.T1131.paid_twd, null);
+    assert.strictEqual(extra.length, 0);
+    assert.strictEqual(by.T1127.ship_fee_rmb, 27);
+    assert.strictEqual(by.T1131.ship_fee_rmb, 32, "phí của đơn mang nhầm mã phải là phí của chính nó");
+});
+t("phí của đơn giao lại lấy theo mã gốc — không cộng phí của đơn bị mang nhầm mã", () => {
+    const { rows } = one([t1465(), t1467()], [tra1465(), tra1467()], [
+        fee({ order_no: "T1465", tracking: "18008693", ship_fee_rmb: 27 }),
+        fee({ order_no: "7564042426-Z", tracking: "18010780", ship_fee_rmb: 32, expected_ship_fee: 32 }),
+    ]);
+    const by = theoMa(rows);
+    assert.strictEqual(by.T1465.ship_fee_rmb, 27);
+    assert.strictEqual(by["T1467 (7564042426-z)"].ship_fee_rmb, 32);
+});
+
 console.log("── Giá vốn ──");
 t("đủ giá vốn → tích Trừ tiền hàng", () => {
     const { rows } = one([ord({ sku: "040 - X", quantity: 1 })], [pay()], [fee()]);

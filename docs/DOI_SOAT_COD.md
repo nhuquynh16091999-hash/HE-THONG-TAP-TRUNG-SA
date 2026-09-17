@@ -90,12 +90,32 @@ Kỳ âm được mang sang kỳ sau. Thật: kỳ 24/07 ra −163,29 RMB, kỳ 
 
 ---
 
-## Khoá đối chiếu — hai tầng, không được đảo
+## Khoá đối chiếu — ba tầng, không được đảo
+
+### Tầng 0: MÃ GỐC của đơn giao lại (转寄)
+
+Hàng hoàn gửi cho khách KHÁC thì NAZA cấp mã vận đơn mới và ghi mã đơn = **mã vận
+đơn của đơn gốc + `-Z`**; Sheet ghi mã gốc đó trong ngoặc: `T1467 (7564042426-z)`.
+Mã gốc là thứ duy nhất hai bên cùng ghi, còn mã vận đơn Sheet ghi cho loại đơn này
+thì không tin được — cả ba đơn kỳ 9.11 đều sai:
+
+| Mã đơn | Sheet ghi | NAZA trả trên |
+|---|---|---|
+| T1467 (7564042426-z) | 18008693 — mã của **T1465** | 18010780 |
+| T1468 (17898044-z) | 18009095 | 18010779 |
+| T1471 (17904603-z) | 06722435455 | 06722436439 |
+
+Trước 17/09/2026 không có tầng này: T1467 ăn nhầm 749 TWD của T1465 thành "trả
+thiếu 650", còn T1468 · T1471 nằm ở "chưa về tiền" dù NAZA đã trả đủ.
 
 ### Tầng 1: MÃ VẬN ĐƠN (转单号)
 
 Đo trên **784 dòng sao kê thật: duy nhất tuyệt đối**, không một mã nào lặp.
 Đây là khoá chính.
+
+Phía Sheet thì KHÔNG duy nhất (xem "lỗi trong file đơn tổng" bên dưới). Mã nào nhiều
+đơn trong sổ cùng mang thì khoản tiền về đơn có **mã đơn trùng mã đơn NAZA ghi**;
+dòng phí cũng phải đúng mã đơn mới nhận.
 
 ### Tầng 2: MÃ ĐƠN (原单号) — chỉ khi tầng 1 trượt
 
@@ -263,19 +283,28 @@ không giả vờ là số POS. Có key Poscake thì tự đổi sang POS, khôn
 Đây là lỗi **dữ liệu của mình**, không phải của NAZA — sửa file nguồn, không đi
 đòi 3PL:
 
-**1. Sáu mã vận đơn đang gán cho hai đơn khác nhau:**
+**1. Mã vận đơn gán cho hai đơn khác nhau** (đo trên Sheet ngày 17/09/2026):
 
-| Mã vận đơn | Hai đơn cùng mang |
-|---|---|
-| 6722405677 | T1127 (799đ, đã giao) · T1131 (1.799đ, đã hoàn) |
-| 17961048 | T1200 · T1200 (dòng lặp) |
-| 18007240 | T1453 · T1464 |
-| 1870459566 | T1455 · T1458 |
-| 18008693 | T1465 · T1467 |
-| 1870478046 | T1476 · T1477 |
+| Mã vận đơn | Hai đơn cùng mang | Sao kê NAZA nói |
+|---|---|---|
+| 06722405677 | T1127 (799đ, đã giao) · T1131 (1.799đ, đã hoàn) | mã của T1127 · T1131 là 06722402201 |
+| 1870459566 | T1455 · T1458 | mã của T1458 · T1455 là 18006393 |
+| 18008693 | T1465 · T1467 (7564042426-z) | mã của T1465 · T1467 là 18010780 |
+| 18024614 | T1564 · T1646 | chưa có trên sao kê |
 
-Cặp đầu từng làm phân tích ra "lệch 1.000 TWD" — **báo động giả**: NAZA trả 799
-cho T1127, còn file mình gán mã đó cho T1131 giá 1.799.
+(`17961048` có hai dòng T1200 giống hệt nhau — Sheet chép đôi, vẫn tính MỘT đơn.)
+
+Trước 17/09/2026 bộ nạp để dòng sau **đè** dòng trước, nên T1127 · T1455 · T1465 ·
+T1564 biến hẳn khỏi sổ đơn, còn đơn đè lên thì ghép nhầm tiền: T1131 ra "lệch
+1.000 TWD", T1467 ra "thiếu 650" — cả hai là **báo động giả**. Nay bộ nạp giữ đủ
+hai đơn (dòng sau khoá theo mã đơn), màn Sổ đơn hàng liệt kê cặp trùng kèm mã đúng
+theo NAZA, và thanh "Bảng đơn đối tác" ở cả hai màn nhắc số cặp còn phải sửa.
+
+Cùng lần sửa đó: kho `tracking` chỉ ghi thêm chứ không xoá, nên đơn nào đổi khoá
+(nạp lúc chưa có mã vận đơn rồi mới có, được sửa mã, mất số 0 đầu) thành **hai đơn**.
+Kho máy chủ ngày 17/09/2026 có 52 bản cũ như thế — 764 đơn trong khi Sheet có 716,
+thổi ô "Đơn còn lại — chưa giao xong" lên thêm 52 đơn · 57.498 TWD. Bộ nạp nay gỡ bản cũ khi mã đơn
+của nó xuất hiện ở khoá khác; đơn biến mất khỏi Sheet thì vẫn giữ.
 
 **2. 39 dòng không có mã vận đơn** — chỉ khớp được bằng mã đơn, kém chắc hơn hẳn.
 

@@ -136,6 +136,8 @@ export default function TALPHATrackingTab({ dateRange }: Props) {
                 `${s.waiting_pickup.orders} đơn đang chờ khách lấy (${Math.round(s.waiting_pickup.cod).toLocaleString("vi-VN")} NT$) · ` +
                 `tỷ lệ hoàn ${(s.return_rate * 100).toFixed(1)}%` +
                 (d.kept_from_17track ? ` · giữ ${d.kept_from_17track} đơn theo số 17TRACK mới hơn` : "")
+                + (d.bo_ban_cu ? ` · gỡ ${d.bo_ban_cu} bản cũ của đơn đã đổi mã vận đơn` : "")
+                + (d.ma_trung?.length ? ` · ${d.ma_trung.length} mã vận đơn bị nhiều dòng dùng chung, xem tab Sổ đơn hàng` : "")
                 + (d.via ? ` · nguồn: ${d.via}` : ""));
             setUnknownStatuses(d.unknown_statuses || []);
             setPublicWarning(d.public_link_warning || "");

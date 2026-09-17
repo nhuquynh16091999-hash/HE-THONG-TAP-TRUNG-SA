@@ -111,6 +111,27 @@ export function orderKey(v?: string | null): string {
     return s.trim();
 }
 
+/**
+ * Mã vận đơn GỐC của một ĐƠN GIAO LẠI (hàng hoàn gửi cho khách khác, 转寄).
+ * Hai bên ghi hai kiểu, và mã gốc là thứ DUY NHẤT cả hai cùng ghi:
+ *
+ *   Sheet:  mã đơn "T1467 (7564042426-z)"  → mã gốc nằm trong ngoặc
+ *   NAZA:   mã đơn "7564042426-Z"           → kèm mã vận đơn MỚI do NAZA cấp
+ *
+ * Mã vận đơn Sheet ghi cho loại đơn này thì không tin được: cả ba đơn giao lại
+ * của kỳ 9.11 đều ghi sai, T1467 còn chép nhầm mã của T1465.
+ */
+export function maGocGiaoLai(orderNo?: string | null): string {
+    const m = String(orderNo ?? "").match(/\(\s*([0-9A-Z]+)\s*-\s*Z\s*\)/i);
+    return m ? trackKey(m[1]) : "";
+}
+
+/** Phía NAZA của cùng loại đơn: "7564042426-Z" → "7564042426". */
+export function maGocNaza(orderNo?: string | null): string {
+    const m = String(orderNo ?? "").trim().replace(/^TAIWAN[-\s]*/i, "").match(/^([0-9A-Z]+)\s*-\s*Z$/i);
+    return m ? trackKey(m[1]) : "";
+}
+
 /** Mã sản phẩm trong chuỗi SKU. Một đơn có thể GHÉP nhiều mã:
  *  "042 - BLACK + 043 - COFFEE" là hai sản phẩm, phải cộng cả hai giá vốn. */
 export function productCodes(sku?: string | null): string[] {
@@ -246,9 +267,10 @@ export type LedgerRow = {
 /**
  * Ghép bốn nguồn thành sổ đơn hàng.
  *
- * KHOÁ HAI TẦNG, thứ tự không đảo được: mã vận đơn trước (duy nhất tuyệt đối
- * trên dữ liệu thật), mã đơn sau — vì đơn GIAO LẠI đổi mã vận đơn nhưng giữ
- * mã đơn. Bỏ tầng hai là 6 đơn thật bị báo nhầm thành mất tiền.
+ * KHOÁ BA TẦNG, thứ tự không đảo được: mã gốc của đơn giao lại, rồi mã vận đơn,
+ * rồi mã đơn — vì đơn GIAO LẠI đổi mã vận đơn nhưng giữ mã đơn. Bỏ tầng mã đơn
+ * là 6 đơn thật bị báo nhầm thành mất tiền; thiếu tầng mã gốc là T1467 bị báo
+ * thiếu 650 NT$ trong khi đã về đủ.
  */
 export function buildLedger(
     orders: OrderSource[],
@@ -269,22 +291,40 @@ export function buildLedger(
 
     const paidByTrack = new Map<string, PaidLine>();
     const paidByOrder = new Map<string, PaidLine>();
+    const paidByMaGoc = new Map<string, PaidLine>();
     for (const p of paid) {
         const t = trackKey(p.tracking);
         if (t && !paidByTrack.has(t)) paidByTrack.set(t, p);
         const o = orderKey(p.order_no);
         if (o && !paidByOrder.has(o)) paidByOrder.set(o, p);
+        const g = maGocNaza(p.order_no);
+        if (g && !paidByMaGoc.has(g)) paidByMaGoc.set(g, p);
     }
     const feeByTrack = new Map<string, FeeLine>();
     const feeByOrder = new Map<string, FeeLine>();
+    const feeByMaGoc = new Map<string, FeeLine>();
     for (const f of fees) {
         const t = trackKey(f.tracking);
         if (t && !feeByTrack.has(t)) feeByTrack.set(t, f);
         const o = orderKey(f.order_no);
         if (o && !feeByOrder.has(o)) feeByOrder.set(o, f);
+        const g = maGocNaza(f.order_no);
+        if (g && !feeByMaGoc.has(g)) feeByMaGoc.set(g, f);
     }
 
-    // GHÉP HAI LƯỢT, không phải một vòng lặp.
+    const tks = orders.map((o) => trackKey(o.tracking));
+    const oks = orders.map((o) => orderKey(o.order_no));
+    // Mã vận đơn mà nhiều đơn trong sổ cùng mang — Sheet gõ nhầm mã của đơn bên
+    // cạnh. Với những mã này, mã vận đơn một mình không nói được tiền của đơn nào.
+    const soDonMang = new Map<string, number>();
+    for (const t of tks) if (t) soDonMang.set(t, (soDonMang.get(t) || 0) + 1);
+    const maChung = (t: string) => (soDonMang.get(t) || 0) > 1;
+
+    // GHÉP BA LƯỢT, không phải một vòng lặp.
+    //
+    // Lượt 0 ghép ĐƠN GIAO LẠI bằng mã gốc, trước cả mã vận đơn: T1467 mang mã
+    // vận đơn của T1465 nên lượt mã vận đơn ăn nhầm 749 NT$ của T1465 rồi báo
+    // "thiếu 650", trong khi 1.399 của chính nó nằm ở "3PL trả cho đơn mình không có".
     //
     // Lượt 1 nhận hết các cặp khớp bằng MÃ VẬN ĐƠN. Lượt 2 mới lấy phần còn dư
     // để khớp bằng mã đơn.
@@ -297,13 +337,27 @@ export function buildLedger(
     const matched = new Map<number, { line: PaidLine; how: LedgerRow["matched_by"] }>();
 
     orders.forEach((o, i) => {
-        const t = trackKey(o.tracking);
-        const p = t ? paidByTrack.get(t) : undefined;
-        if (p && !claimed.has(p)) { claimed.add(p); matched.set(i, { line: p, how: "tracking" }); }
+        const g = maGocGiaoLai(o.order_no);
+        const p = g ? paidByMaGoc.get(g) : undefined;
+        if (p && !claimed.has(p)) { claimed.add(p); matched.set(i, { line: p, how: "order_id_giao_lai" }); }
     });
     orders.forEach((o, i) => {
         if (matched.has(i)) return;
-        const k = orderKey(o.order_no);
+        const p = tks[i] ? paidByTrack.get(tks[i]) : undefined;
+        if (!p || claimed.has(p)) return;
+        // Mã nhiều đơn cùng mang thì mã đơn NAZA ghi chỉ ra đơn nào đúng. Không
+        // đơn nào trùng mã đơn thì giữ lối cũ: đơn đứng trước nhận.
+        let j = i;
+        if (maChung(tks[i])) {
+            const k = orderKey(p.order_no);
+            const dung = orders.findIndex((_, x) => !matched.has(x) && tks[x] === tks[i] && oks[x] === k);
+            if (dung >= 0) j = dung;
+        }
+        claimed.add(p); matched.set(j, { line: p, how: "tracking" });
+    });
+    orders.forEach((o, i) => {
+        if (matched.has(i)) return;
+        const k = oks[i];
         const p = k ? paidByOrder.get(k) : undefined;
         if (p && !claimed.has(p)) { claimed.add(p); matched.set(i, { line: p, how: "order_id_giao_lai" }); }
     });
@@ -311,8 +365,8 @@ export function buildLedger(
     const rows: LedgerRow[] = [];
 
     orders.forEach((o, idx) => {
-        const tk = trackKey(o.tracking);
-        const ok = orderKey(o.order_no);
+        const tk = tks[idx];
+        const ok = oks[idx];
 
         // ── tiền vào ───────────────────────────────────────────────────
         const m = matched.get(idx);
@@ -320,7 +374,14 @@ export function buildLedger(
         const how: LedgerRow["matched_by"] = m?.how ?? null;
 
         // ── tiền ra ────────────────────────────────────────────────────
-        const fee = (tk ? feeByTrack.get(tk) : undefined) || (ok ? feeByOrder.get(ok) : undefined);
+        // Cùng thứ tự như tiền vào: đơn giao lại tìm theo mã gốc trước. Mã vận
+        // đơn nhiều đơn cùng mang thì dòng phí phải đúng mã đơn mới nhận — không
+        // thì một khoản phí bị cộng cho cả hai đơn.
+        const g = maGocGiaoLai(o.order_no);
+        const feeTk = tk ? feeByTrack.get(tk) : undefined;
+        const fee = (g ? feeByMaGoc.get(g) : undefined)
+            || (feeTk && (!maChung(tk) || orderKey(feeTk.order_no) === ok) ? feeTk : undefined)
+            || (ok ? feeByOrder.get(ok) : undefined);
 
         // ── quy đổi ────────────────────────────────────────────────────
         // Tính tỷ giá TRƯỚC giá vốn: giá vốn ghi bằng tệ nên cũng cần tỷ giá,

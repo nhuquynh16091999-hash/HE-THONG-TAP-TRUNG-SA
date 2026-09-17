@@ -146,4 +146,43 @@ t("ba trạng thái không bao giờ trả tiền đều là điểm kết thúc
     assert.strictEqual(P.PARTNER_STATUS_VI.Destroyed, "Đã tiêu huỷ");
 });
 
+console.log("── Khoá kho: mỗi dòng Sheet là đúng một đơn ──");
+const dong = (no, tracking) => ({ order_no: no, tracking });
+
+t("BẪY THẬT: hai dòng chung mã vận đơn → giữ CẢ HAI đơn, dòng sau khoá theo mã đơn, và nêu ra", () => {
+    const { khoa, trung } = P.khoaChoDong([
+        dong("T1465", "18008693"), dong("T1466", "06722435584"), dong("T1467 (7564042426-z)", "18008693"),
+    ]);
+    assert.deepStrictEqual(khoa, ["18008693", "06722435584", "T1467 (7564042426-z)"]);
+    assert.deepStrictEqual(trung, [{ tracking: "18008693", don: ["T1465", "T1467 (7564042426-z)"] }]);
+});
+t("dòng chép đôi y hệt (cùng mã, cùng đơn) vẫn là MỘT đơn, không báo trùng", () => {
+    const { khoa, trung } = P.khoaChoDong([dong("T1200", "17961048"), dong("T1200", "17961048")]);
+    assert.deepStrictEqual(khoa, ["17961048", "17961048"]);
+    assert.deepStrictEqual(trung, []);
+});
+t("chưa có mã vận đơn thì khoá theo mã đơn; trống cả hai thì bỏ", () => {
+    assert.deepStrictEqual(P.khoaChoDong([dong("T1720", ""), dong("", "")]).khoa, ["T1720", null]);
+});
+t("dòng trùng mã mà không có mã đơn vẫn được khoá riêng, không đè", () => {
+    const { khoa } = P.khoaChoDong([dong("T1", "111"), dong("", "111")]);
+    assert.strictEqual(new Set(khoa).size, 2);
+});
+t("BẪY THẬT: đơn đổi khoá → gỡ bản cũ; đơn không còn trong Sheet → GIỮ", () => {
+    // Bốn kiểu có thật trong kho máy chủ 17/09/2026.
+    const kho = {
+        "T1604": { order_no: "T1604" },                    // nạp lúc chưa có mã vận đơn
+        "06722444931": { order_no: "T1485" },               // mã trước khi được sửa
+        "6722446382": { order_no: "T1585" },                // mất số 0 đầu
+        "18008693": { order_no: "T1467 (7564042426-z)" },   // khoá bị đè, nay trả về cho T1465
+        "17000001": { order_no: "T999" },                   // không còn trong Sheet
+    };
+    const rows = [
+        dong("T1604", "18029770"), dong("T1485", "06722445669"), dong("T1585", "06722446382"),
+        dong("T1465", "18008693"), dong("T1467 (7564042426-z)", "18008693"),
+    ];
+    const { khoa } = P.khoaChoDong(rows);
+    assert.deepStrictEqual(P.khoaCuBiThay(kho, rows, khoa).sort(), ["06722444931", "6722446382", "T1604"]);
+});
+
 console.log(`\n${pass} phép thử — tất cả đạt.`);

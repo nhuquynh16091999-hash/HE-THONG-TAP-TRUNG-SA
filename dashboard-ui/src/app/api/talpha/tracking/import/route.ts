@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { parsePartnerFile, summarise } from "@/lib/talpha/partner-file";
+import { khoaChoDong, khoaCuBiThay, parsePartnerFile, summarise, type MaTrung } from "@/lib/talpha/partner-file";
 import { RULES } from "@/lib/talpha/rules";
 import { fetchSheetCsv, sheetIdFrom, serviceAccountEmail, SheetError } from "@/lib/talpha/sheet-source";
 import { readStoreFresh, updateStore } from "@/lib/talpha/store";
@@ -30,6 +30,8 @@ type Saved = {
     ship_date?: string | null; order_date?: string | null;
 };
 type PartnerMeta = {
+    /** Mã vận đơn đúng như Sheet ghi. Khác khoá khi hai dòng dùng chung một mã. */
+    tracking?: string;
     order_no: string; ship_method: string; cod_local: number; marketer: string;
     recon: string; store_name: string; store_code: string;
     ship_date: string | null; track17_code: string | null;
@@ -46,6 +48,10 @@ type Store = {
     partner_import?: {
         filename: string; imported_at: string; rows: number;
         unknown_statuses: { value: string; count: number }[];
+        /** Mã vận đơn bị nhiều dòng Sheet dùng chung — phải sửa trong Sheet. */
+        ma_trung?: MaTrung[];
+        /** Số bản cũ đã gỡ vì đơn của nó nay nằm ở khoá khác. */
+        bo_ban_cu?: number;
     };
 };
 
@@ -122,15 +128,28 @@ export async function POST(req: NextRequest) {
 
         const now = new Date();
         const nowIso = now.toISOString();
-        let changed = 0, kept17 = 0;
+        let changed = 0, kept17 = 0, boBanCu = 0;
+        // Mỗi dòng một khoá riêng — hai dòng cùng mã vận đơn không còn đè nhau.
+        const { khoa, trung } = khoaChoDong(parsed.rows);
 
         await updateStore<Store>(STORE, emptyStore(), (cur) => {
             cur.partner ||= {};
-            for (const r of parsed.rows) {
-                const key = r.tracking || r.order_no;
+
+            // Đơn đã đổi khoá thì gỡ bản cũ, kẻo một đơn thành hai. Trạng thái của
+            // bản cũ chỉ gỡ khi nó đến từ chính Sheet — số 17TRACK là của mã vận đơn
+            // thật, vẫn đúng.
+            for (const k of khoaCuBiThay(cur.partner, parsed.rows, khoa)) {
+                delete cur.partner[k];
+                if (cur.statuses[k]?.source === "doi_tac") delete cur.statuses[k];
+                boBanCu++;
+            }
+
+            for (const [i, r] of parsed.rows.entries()) {
+                const key = khoa[i];
                 if (!key) continue;
 
                 cur.partner[key] = {
+                    tracking: r.tracking,
                     order_no: r.order_no, ship_method: r.ship_method, cod_local: r.cod_local,
                     marketer: r.marketer, recon: r.recon, store_name: r.store_name,
                     store_code: r.store_code, ship_date: r.ship_date, track17_code: r.track17_code,
@@ -171,6 +190,7 @@ export async function POST(req: NextRequest) {
             cur.partner_import = {
                 filename: file.name, imported_at: nowIso, rows: parsed.rows.length,
                 unknown_statuses: parsed.unknown_statuses,
+                ma_trung: trung, bo_ban_cu: boBanCu,
             };
             return cur;
         });
@@ -193,6 +213,8 @@ export async function POST(req: NextRequest) {
             // Giá trị NOTE chưa khai — nêu thẳng thay vì nuốt, vì nuốt là mất đơn
             // khỏi mọi cảnh báo mà không ai biết.
             unknown_statuses: parsed.unknown_statuses,
+            ma_trung: trung,
+            bo_ban_cu: boBanCu,
             summary: {
                 total: s.total,
                 waiting_pickup: s.waiting_pickup,

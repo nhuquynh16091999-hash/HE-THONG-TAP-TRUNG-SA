@@ -217,6 +217,82 @@ export function parsePartnerFile(text: string): PartnerParse {
     };
 }
 
+// ─────────────────────────────────────────────────────────────────────────
+// Khoá kho — mỗi dòng Sheet là đúng một đơn trong kho
+// ─────────────────────────────────────────────────────────────────────────
+
+/** So mã đơn: bỏ khoảng trắng thừa, không phân biệt hoa thường. */
+const donKey = (s?: string | null) => String(s ?? "").trim().replace(/\s+/g, " ").toUpperCase();
+
+export type MaTrung = { tracking: string; don: string[] };
+
+/**
+ * Khoá lưu kho của từng dòng: mã vận đơn, chưa có thì mã đơn.
+ *
+ * Kho tra theo mã vận đơn, nên hai dòng CÙNG mã thì dòng sau đè mất dòng trước
+ * mà không báo gì. Sheet ngày 17/09/2026 có bốn cặp như thế, đều là gõ nhầm mã
+ * của đơn bên cạnh: T1467 đè T1465, T1131 đè T1127, T1458 đè T1455, T1646 đè
+ * T1564. Bốn đơn thật biến khỏi sổ đơn, còn đơn đè lên thì ghép nhầm vào tiền
+ * của đơn bị đè — ra dòng đỏ "T1467 trả thiếu 650" trong khi không thiếu đồng nào.
+ *
+ * Nay dòng đến sau lùi về khoá theo MÃ ĐƠN — đúng lối đang dùng cho dòng chưa có
+ * mã vận đơn — và mã bị dùng chung được nêu ra để sửa trong Sheet. Hai dòng giống
+ * hệt nhau (cùng mã vận đơn, cùng mã đơn: Sheet chép đôi một dòng) vẫn là MỘT đơn.
+ */
+export function khoaChoDong(rows: PartnerRow[]): { khoa: (string | null)[]; trung: MaTrung[] } {
+    const giu = new Map<string, string>();          // khoá → mã đơn đang giữ khoá đó
+    const trung = new Map<string, string[]>();      // mã vận đơn → các đơn cùng mang
+    const nhan = (k: string, don: string) => {
+        const chu = giu.get(k);
+        if (chu !== undefined && donKey(chu) !== donKey(don)) return false;
+        giu.set(k, don);
+        return true;
+    };
+
+    const khoa = rows.map((r) => {
+        const goc = r.tracking || r.order_no;
+        if (!goc) return null;
+        if (nhan(goc, r.order_no)) return goc;
+
+        // Mã này đã thuộc về một đơn KHÁC ngay trong Sheet.
+        const ds = trung.get(goc) || [giu.get(goc)!];
+        if (!ds.some((d) => donKey(d) === donKey(r.order_no))) ds.push(r.order_no);
+        trung.set(goc, ds);
+
+        const nen = r.order_no || goc;
+        for (let n = 1; ; n++) {
+            const k = n === 1 && r.order_no ? nen : `${nen}#${n}`;
+            if (nhan(k, r.order_no)) return k;
+        }
+    });
+
+    return { khoa, trung: [...trung].map(([tracking, don]) => ({ tracking, don })) };
+}
+
+/**
+ * Khoá cũ trong kho mà đơn của nó nay nằm ở khoá KHÁC — phải gỡ.
+ *
+ * Kho chỉ ghi thêm chứ không xoá, nên đơn nào đổi khoá là thành HAI đơn: nạp lúc
+ * chưa có mã vận đơn (khoá "T1604") rồi mới có mã (khoá "18029770"), được sửa mã
+ * vận đơn, hay mất số 0 đầu. Kho máy chủ ngày 17/09/2026 có 52 bản cũ như thế —
+ * mỗi bản là một đơn đếm hai lần, đứng im mãi ở trạng thái cũ vì không lần nạp
+ * nào còn chạm tới nó.
+ *
+ * Chỉ gỡ khi CHẮC: mã đơn của khoá cũ có mặt trong lần nạp này, ở khoá khác. Đơn
+ * không còn trong Sheet thì GIỮ — sổ đơn là cơ sở dữ liệu, không tự xoá.
+ */
+export function khoaCuBiThay(
+    kho: Record<string, { order_no?: string | null }>,
+    rows: PartnerRow[],
+    khoa: (string | null)[],
+): string[] {
+    const moi = new Set(khoa.filter((k): k is string => !!k));
+    const donMoi = new Set(rows.map((r) => donKey(r.order_no)).filter(Boolean));
+    return Object.entries(kho)
+        .filter(([k, p]) => !moi.has(k) && donMoi.has(donKey(p.order_no)))
+        .map(([k]) => k);
+}
+
 /** Tóm tắt để hiện ngay sau khi tải file lên. */
 export function summarise(rows: PartnerRow[]) {
     const byStatus: Record<string, { orders: number; cod: number }> = {};

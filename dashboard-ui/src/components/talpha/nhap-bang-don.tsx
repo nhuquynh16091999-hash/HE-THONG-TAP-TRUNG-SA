@@ -16,6 +16,8 @@ export type NhapBangDon = {
     luc: string | null;
     nguon?: string | null;
     so_don?: number;
+    /** Số mã vận đơn bị nhiều dòng Sheet dùng chung. */
+    ma_trung?: number;
 };
 
 const GIO = 3_600_000;
@@ -58,6 +60,14 @@ export default function ThanhNhapBangDon({ n, gioCanhBao = 24 }: { n?: NhapBangD
                     ? "Số dưới đây là của lần nạp đó, KHÔNG phải hôm nay. Máy tự nạp 6h sáng mỗi ngày — muốn có ngay thì sang tab Theo dõi vận đơn bấm “Đọc bảng đối tác”."
                     : "Máy tự nạp lúc 6h sáng mỗi ngày; cần ngay thì bấm “Đọc bảng đối tác” ở tab Theo dõi vận đơn."}
             </span>
+            {/* Lỗi nằm trong chính Sheet — chỉ người giữ Sheet sửa được, nên phải nói ở
+                mọi màn đọc từ Sheet, kể cả màn Đối soát COD vốn không có danh sách cảnh báo. */}
+            {!!n.ma_trung && (
+                <span className="flex basis-full items-start gap-1.5 font-medium text-amber-700 dark:text-amber-300">
+                    <AlertTriangle className="mt-0.5 h-3.5 w-3.5 flex-none" />
+                    {n.ma_trung} mã vận đơn bị nhiều dòng trong Sheet dùng chung — danh sách cần sửa ở tab Sổ đơn hàng.
+                </span>
+            )}
         </div>
     );
 }
