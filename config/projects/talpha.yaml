@@ -55,6 +55,24 @@ meta_ads:
     # 57,7 triệu dồn về Đài Loan và nằm ở "CHƯA MAP" cho tới khi đặt lại tên hoặc
     # map tay. Sỹ Anh biết vậy và vẫn chốt khai vào (18/09/2026).
     - "act_838409015631682"   # NEW - XT VIỆT — chưa thanh toán
+    #
+    # THÊM 20/09/2026 — token mới lại thấy thêm 4 tài khoản. Hai cái ANTALO là
+    # tài khoản đang chạy thật, tên campaign đúng chuẩn nên tiền tự về đúng người
+    # và đúng nước. Hai cái sau Sỹ Anh biết trước là số không dùng được và vẫn
+    # chốt khai vào:
+    #
+    #   · Sỹ Anh 5 - CANADA tính bằng USD. Engine ghi cứng "spend IS VND"
+    #     (sync/talpha/talpha_sync.py — hàm dựng dòng ads), nên 109,77 USD vào
+    #     bảng thành 110 ĐỒNG, sai 25.000 lần. Sai số tuyệt đối nhỏ vì tài khoản
+    #     này ngưng chi từ 10/2025 — nhưng nó chi lại là số hỏng ngay. Campaign
+    #     còn ghi nước CANADA/SAUDI, không có trong MARKETS (chỉ TW/SG/AE), nên
+    #     spend bị dồn về Đài Loan.
+    #   · TK CỦA XUYẾN: chi lần cuối 03/2025, quảng cáo xe BYD — không phải hàng
+    #     của team. 418.493đ sẽ nằm ở "(không gán)" trong chi phí Đài Loan.
+    - "act_191133507087352"   # ANTALO 1 - CHẠY ĐÀI (VIA Hồ Sỹ Aanh GL) — đang chạy
+    - "act_1285779533102675"  # ANTALO 2 - CHẠY SING (VIA Đông Quân Land) — đang chạy
+    - "act_2288460614931544"  # Sỹ Anh 5 - CANADA — USD, xem cảnh báo trên
+    - "act_4936675229754644"  # TK CỦA XUYẾN — chưa thanh toán, chi lần cuối 03/2025
   ad_account_names:
     act_2316553302504985: "TK CÁ NHÂN NEW 1"
     act_1025294735296964: "NEW3"
@@ -69,6 +87,10 @@ meta_ads:
     act_1637376841235385: "ATHAINX TK1"
     act_1570211464587435: "ATHAINX TK2"
     act_838409015631682: "NEW - XT VIỆT"
+    act_191133507087352: "ANTALO 1 - CHẠY ĐÀI"
+    act_1285779533102675: "ANTALO 2 - CHẠY SING"
+    act_2288460614931544: "Sỹ Anh 5 - CANADA"
+    act_4936675229754644: "TK CỦA XUYẾN"
   # Múi giờ từng tài khoản — lấy từ Meta API, KHÔNG đoán theo tên.
   # Cột `date` của spend đã theo múi giờ NÀY, nên 2 tài khoản Bangkok lệch ngày
   # so với 8 tài khoản còn lại; cả tháng mới khớp (rule #6 TALPHA_METRIC_RULES).
@@ -86,6 +108,12 @@ meta_ads:
     act_1637376841235385: "Asia/Bangkok"
     act_1570211464587435: "Asia/Bangkok"
     act_838409015631682: "Asia/Bangkok"
+    act_191133507087352: "Asia/Ho_Chi_Minh"
+    act_1285779533102675: "Asia/Ho_Chi_Minh"
+    # Etc/GMT-5 là múi giờ Meta khai cho tài khoản Canada — lệch ngày với 12 tài
+    # khoản còn lại, đúng bẫy của rule #6 (cột date đã theo múi giờ NÀY).
+    act_2288460614931544: "Etc/GMT-5"
+    act_4936675229754644: "Asia/Ho_Chi_Minh"
 
 # ─── 4. POS / ORDER MANAGEMENT ───
 pos_system: poscake

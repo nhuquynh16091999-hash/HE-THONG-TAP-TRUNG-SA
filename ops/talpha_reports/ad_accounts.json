@@ -67,6 +67,27 @@
           "id": "act_838409015631682",
           "name": "NEW - XT VIỆT",
           "status": "unsettled"
+        },
+        {
+          "id": "act_191133507087352",
+          "name": "ANTALO 1 - CHẠY ĐÀI",
+          "status": "active"
+        },
+        {
+          "id": "act_1285779533102675",
+          "name": "ANTALO 2 - CHẠY SING",
+          "status": "active"
+        },
+        {
+          "id": "act_2288460614931544",
+          "name": "Sỹ Anh 5 - CANADA",
+          "status": "active",
+          "_canh_bao": "Tài khoản tính bằng USD. Engine ads ghi cứng spend IS VND nên số của tài khoản này vào bảng SAI 25.000 lần (109,77 USD → 110 đồng). Ngưng chi từ 10/2025 nên sai số tuyệt đối còn nhỏ; chi lại là hỏng ngay."
+        },
+        {
+          "id": "act_4936675229754644",
+          "name": "TK CỦA XUYẾN",
+          "status": "unsettled"
         }
       ],
       "_note": "Danh sách này lấy THẲNG từ /me/adaccounts của token System User: lần đầu 08/09/2026, thêm ba tài khoản 18/09/2026 (ATHAINX TK1 · ATHAINX TK2 · NEW - XT VIỆT). Bản cũ khai 15 tài khoản của hệ thống trước (Mỹ phẩm, Nhật Bản, Dubai, Kuwait, Saudi) — token mới KHÔNG có quyền một cái nào, nên mỗi vòng sync đốt 24 phút thử lại vô ích rồi ghi 0 dòng.",
