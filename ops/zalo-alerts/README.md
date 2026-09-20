@@ -6,6 +6,7 @@ Sỹ Anh chốt 15/09/2026: **tự động chỉ gửi mốc 8h30**, còn lại 
 | Khi nào | Tin |
 |---|---|
 | **08:30** mỗi ngày | **Một tin duy nhất**: số tổng + bảng xếp hạng + camp đáng xử — số **hôm qua** |
+| **20:00** và **22:00** mỗi ngày | Cùng khuôn tin đó nhưng là số **ĐANG CHẠY HÔM NAY** (nhãn `HÔM NAY dd/mm · giờ`) — Sỹ Anh chốt 20/09/2026 |
 | Có người gõ lệnh trong nhóm | Xem bảng lệnh dưới |
 
 Không tự gửi từ 23h đến 7h (lệnh gõ tay thì trả lời bất cứ lúc nào). Không có tồn kho,
@@ -106,7 +107,7 @@ Chạy thử từ máy Mac: `TALPHA_DASHBOARD_URL=http://139.180.131.21:3000 nod
 | Khoá | Đang để | Nghĩa |
 |---|---|---|
 | `dailyReport.at` / `atCatchUpMinutes` | `08:30` / 210 | Giờ tin sáng; quá 210' (12:00) thì bỏ hôm đó |
-| `dailyReport.intradaySlots` | `[]` — **tắt** | Mốc tự gửi số giữa ngày, ví dụ `["13:30", "22:00"]` |
+| `dailyReport.intradaySlots` | `["20:00", "22:00"]` | Mốc tự gửi số ĐANG CHẠY HÔM NAY. Trễ quá `intradayCatchUpMinutes` (60') thì bỏ mốc đó, không dồn sang mốc sau |
 | `adsPollMinutes` | `0` — **tắt** | Tự gửi cảnh báo ads mỗi N phút (bot WhatsApp để 180) |
 | `adsWasteSpend` | 300000 | Camp tiêu từ mức này mà 0 tin nhắn là camp đốt tiền |
 | `adsSpikeRatio` / `adsMinTotalForSpike` | 1,5 / 3000000 | Chi tiêu hôm nay ≥ 1,5 lần TB 7 ngày VÀ ≥ 3tr là bất thường |

@@ -14,7 +14,7 @@
   "dailyReport": {
     "at": "08:30",
     "atCatchUpMinutes": 210,
-    "intradaySlots": [],
+    "intradaySlots": ["20:00", "22:00"],
     "intradayCatchUpMinutes": 60,
     "staleWarnMinutes": 120,
     "realtimeUrl": "/api/talpha/realtime",
