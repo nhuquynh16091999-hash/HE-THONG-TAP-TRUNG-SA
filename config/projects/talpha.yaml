@@ -26,6 +26,23 @@ meta_ads:
   # Thêm tài khoản mới: khai đủ ở CẢ BA mục dưới, thiếu một chỗ là spend bị đếm
   # thiếu mà không có cảnh báo nào.
   #
+  # TẠM NGƯNG 22/09/2026 — ba tài khoản dưới đây ĐÃ BỎ khỏi danh sách:
+  #   act_838409015631682   NEW - XT VIỆT
+  #   act_2288460614931544  Sỹ Anh 5 - CANADA
+  #   act_4936675229754644  TK CỦA XUYẾN
+  # Đêm 21→22/09 Meta thu quyền đọc cả ba (`#200 has NOT grant ads_management or ads_read`),
+  # và cả ba rơi khỏi `/me/adaccounts` của token — token vẫn sống, vẫn đọc được 12 tài khoản
+  # còn lại, nên đây là MẤT GÁN TÀI SẢN bên Meta, không phải token hỏng. Hôm trước đó mọi
+  # vòng vẫn `sync=0 format=0`.
+  # Để trong danh sách thì mỗi vòng sync rc=1 → luật "sync hỏng thì không ghi Sheet" làm
+  # báo cáo đứng im (sáng 22/09 Sheet đứng 13 giờ ở số 19:25 hôm trước, tin Zalo 08:30 báo
+  # 2,09tr/11 đơn trong khi ads thật đã 2,74tr). Cả ba đều 0đ chi tiêu tháng 9 (20·21·22/09
+  # đều 0đ) nên bỏ ra KHÔNG mất số nào của báo cáo. Sỹ Anh chốt bỏ 22/09/2026.
+  # Muốn dùng lại: Business Settings → System users → Gán tài sản, thêm TKQC với quyền tối
+  # thiểu "Xem hiệu quả", kiểm bằng `python3 ops/talpha_reports/check_meta_token.py`, rồi
+  # mới thêm id vào đây. Tên và múi giờ của cả ba VẪN GIỮ ở hai mục dưới — chi tiêu CŨ của
+  # chúng còn nằm trong fb_ads_data (NEW - XT VIỆT 57,7 triệu), bỏ tên đi là số cũ mất nhãn.
+  #
   # TẠM NGƯNG 14/09/2026 — hai tài khoản dưới đây ĐÃ BỎ khỏi danh sách:
   #   act_2316553302504985  TK CÁ NHÂN NEW 1 (đã tắt)
   #   act_1025294735296964  NEW3 (chưa duyệt)
@@ -54,7 +71,7 @@ meta_ads:
     # kiểu cũ (`TRI/27-7`, `DDVS/24-7`) nên KHÔNG ô nào ghi nước hay marketer: cả
     # 57,7 triệu dồn về Đài Loan và nằm ở "CHƯA MAP" cho tới khi đặt lại tên hoặc
     # map tay. Sỹ Anh biết vậy và vẫn chốt khai vào (18/09/2026).
-    - "act_838409015631682"   # NEW - XT VIỆT — chưa thanh toán
+    # → ĐÃ BỎ 22/09/2026: mất quyền ads_read, xem khối TẠM NGƯNG ở đầu mục.
     #
     # THÊM 20/09/2026 — token mới lại thấy thêm 4 tài khoản. Hai cái ANTALO là
     # tài khoản đang chạy thật, tên campaign đúng chuẩn nên tiền tự về đúng người
@@ -69,10 +86,10 @@ meta_ads:
     #     spend bị dồn về Đài Loan.
     #   · TK CỦA XUYẾN: chi lần cuối 03/2025, quảng cáo xe BYD — không phải hàng
     #     của team. 418.493đ sẽ nằm ở "(không gán)" trong chi phí Đài Loan.
+    # → Cả hai ĐÃ BỎ 22/09/2026 cùng NEW - XT VIỆT: mất quyền ads_read (khối TẠM NGƯNG
+    #   ở đầu mục). Hai cái ANTALO vẫn đọc được bình thường, vẫn trong danh sách.
     - "act_191133507087352"   # ANTALO 1 - CHẠY ĐÀI (VIA Hồ Sỹ Aanh GL) — đang chạy
     - "act_1285779533102675"  # ANTALO 2 - CHẠY SING (VIA Đông Quân Land) — đang chạy
-    - "act_2288460614931544"  # Sỹ Anh 5 - CANADA — USD, xem cảnh báo trên
-    - "act_4936675229754644"  # TK CỦA XUYẾN — chưa thanh toán, chi lần cuối 03/2025
   ad_account_names:
     act_2316553302504985: "TK CÁ NHÂN NEW 1"
     act_1025294735296964: "NEW3"
