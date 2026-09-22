@@ -46,6 +46,37 @@ Cùng máy chủ với dashboard, gọi `http://localhost:3000`:
 * **`/canhbao`**: `/api/talpha/ads-alerts` (BigQuery).
 * **Tuổi số**: `/api/talpha/sync-health` — sync đứng thì tin tự in `⚠️ SỐ CHƯA ĐỦ`.
 
+## Gửi tạm rồi tự đính chính (22/09/2026)
+
+Sỹ Anh chốt: **chưa có vòng sync nào lấy đủ số thì cứ gửi tạm theo đúng khung giờ**, và
+**khi có vòng sync đủ số thì bot tự gửi thêm một tin đính chính**.
+
+Vì sao cần: 21/09 máy chủ chết từ 19:25 tới 08:26 hôm sau, thêm 3 TKQC mất quyền `ads_read`
+nên mỗi vòng đều `SKIP format_all` → Sheet đứng ở số 19:25. Tin 08:30 vẫn gửi (đúng khung
+giờ, có dán nhãn `SỐ CHƯA ĐỦ`) nhưng người đọc lúc đó nhớ số sai và **không ai quay lại xem
+số đúng**.
+
+Cách chạy:
+
+1. Gửi tin tạm xong, thấy cờ `chuaDu` → bot ghi lại **số đã báo** vào `state.json → dinhChinh`
+   (ghi ra file nên pm2 restart / máy chủ reboot giữa lúc chờ không mất lịch — đúng ca hay
+   gặp, vì sync đứng thường đi kèm máy chủ vừa có sự cố).
+2. Vòng rà 5 phút hỏi `/api/talpha/sync-health`. "Đủ số" = có vòng **OK** (sync_rc 0 **và**
+   format_rc 0, tức đã ghi được xuống Sheet):
+   * tin về **ngày đã qua** (mốc 08:30): cần vòng OK chạy **sau khi hết ngày đó**;
+   * tin **giữa ngày** (20:00 / 22:00): cần vòng OK chạy **sau lúc gửi tin tạm**.
+3. Gửi tin `🔄 ĐÍNH CHÍNH` nêu đúng chỗ lệch (`Tiền ads · Đơn · Doanh số · Mess`, số cũ → số
+   đúng) rồi đính kèm bản báo cáo đủ số. **Số không lệch chỗ nào** thì chỉ gửi mấy dòng đầu,
+   không lặp lại cả bản báo cáo.
+4. **Hạn chờ** `dailyReport.dinhChinhHanGio` (24 giờ). Tin giữa ngày chỉ chờ **tới hết ngày
+   đó** — qua nửa đêm thì mốc 08:30 sáng sau đã là số cả ngày, đính chính "số hôm nay lúc
+   22:00" vào sáng hôm sau là tin rác. Quá hạn mà số vẫn chưa đủ → bỏ chờ, có log.
+5. Giờ im (23h–7h) thì đợi, không đánh thức nhóm giữa đêm.
+
+`node bot.js --report <ngày>` cũng xếp lịch đính chính (gửi lại tay lúc sync đang đứng là
+đúng ca cần); lệnh `/baocao` gõ trong nhóm thì **không** — đó là người ta hỏi số lúc này,
+gõ 10 lần mà 10 tin đính chính là loạn nhóm.
+
 ## Cách gửi — nick Zalo PHỤ, không chính thức
 
 Nick **"Hoàng Rin"**, ghép 15/09/2026. Dùng [zca-js](https://github.com/RFS-ADRENO/zca-js):

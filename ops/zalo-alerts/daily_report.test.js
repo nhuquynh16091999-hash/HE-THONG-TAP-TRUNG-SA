@@ -1,7 +1,7 @@
 // node daily_report.test.js   (không gọi mạng, không cần cài zca-js)
 // Số liệu dưới đây là số DỰNG cho test, không phải số thật của ngày nào.
 const assert = require("assert");
-const { buildMarketerReports } = require("./daily_report");
+const { buildMarketerReports, buildTinDinhChinh, dongLech } = require("./daily_report");
 const { buildAdsAlert, buildAdsStatus } = require("./ads_alerts");
 const { tenNganCamp, chuCamp, THU_TU, DISPLAY } = require("./rules");
 const { toZalo, chiaTin } = require("./zalo_text");
@@ -242,6 +242,56 @@ function fakeFetch({ sheet = SHEET, camps = CAMPS, realtimeStatus = 200, sheetSt
             { fetch: fakeFetch(), stale: { okAge: 1080, limit: 120, lastOkTs: syncChieuHomTruoc } });
         assert.ok(tron(sang.teamMessage).startsWith("⚠️ SỐ CHƯA ĐỦ — chưa có vòng sync nào chạy sau khi hết ngày 14/09."));
         assert.ok(tron(sang.teamMessage).includes("chốt lúc 14:27 ngày 14/09"));
+    });
+
+    await t("cờ chuaDu + số đầu bài trả ra cho bot xếp lịch đính chính", async () => {
+        const syncChieuHomTruoc = Date.parse("2026-09-14T14:27:00+07:00");
+        const thieu = await buildMarketerReports(CFG, "2026-09-14",
+            { fetch: fakeFetch(), stale: { okAge: 1080, limit: 120, lastOkTs: syncChieuHomTruoc } });
+        assert.strictEqual(thieu.chuaDu, true);
+        assert.deepStrictEqual(thieu.so, { ads: 3000000, don: 10, mess: 180, doanh_so: 6000000 });
+        assert.strictEqual(thieu.label, "14/09");
+
+        // Cờ phải khớp ĐÚNG chữ in trong tin — chuaDu=false mà tin vẫn kêu là hỏng cả vòng
+        // đính chính (bot tưởng số đủ, không ai đính chính).
+        const du = await buildMarketerReports(CFG, "2026-09-14", { fetch: fakeFetch(), stale: null });
+        assert.strictEqual(du.chuaDu, false);
+        assert.ok(!tron(du.tinGop).includes("SỐ CHƯA ĐỦ"));
+        for (const r of [thieu, du]) {
+            assert.strictEqual(tron(r.tinGop).includes("SỐ CHƯA ĐỦ"), r.chuaDu, "cờ chuaDu lệch với chữ trong tin");
+            assert.strictEqual(tron(r.messages[0]).includes("SỐ CHƯA ĐỦ"), r.chuaDu);
+        }
+    });
+
+    await t("tin đính chính: nêu đúng chỗ lệch rồi đính bản đủ số", async () => {
+        const r = await buildMarketerReports(CFG, "2026-09-14", { fetch: fakeFetch(), stale: null });
+        const tin = buildTinDinhChinh({
+            tin: r.tinGop, soCu: { ads: 2091476, don: 11, mess: 127, doanh_so: 12495200 }, soMoi: r.so,
+            label: "21/09", luc: Date.parse("2026-09-22T08:31:00+07:00"), intraday: false,
+        });
+        const chu = tron(tin);
+        assert.ok(chu.startsWith("🔄 ĐÍNH CHÍNH — 21/09\n"), chu.slice(0, 80));
+        assert.ok(chu.includes("Tin lúc 08:31 ngày 22/09 gửi khi sync còn đứng"));
+        assert.ok(chu.includes("dưới đây là số cả ngày"));
+        assert.ok(chu.includes("Tiền ads: 2.091.476đ → 3.000.000đ  (+908.524đ)"), chu);
+        assert.ok(chu.includes("Đơn: 11 → 10  (−1)"), "số tụt phải ghi dấu trừ");
+        assert.ok(chu.includes("Doanh số: 12.495.200đ → 6.000.000đ  (−6.495.200đ)"));
+        assert.ok(chu.includes("Mess: 127 → 180  (+53)"));
+        assert.ok(chu.includes("🏆 TỔNG TEAM — 14/09"), "phải đính kèm cả bản báo cáo đủ số");
+        assert.ok(!chu.includes("SỐ CHƯA ĐỦ"), "tin đính chính không được mang lại cảnh báo cũ");
+        // Chữ đậm: tên tin, nhãn khối lệch, rồi SỐ ĐÚNG của từng khoản (số cũ để thường).
+        assert.deepStrictEqual(dam(tin).slice(0, 4),
+            ["ĐÍNH CHÍNH — 21/09", "Lệch so với tin cũ:", "3.000.000đ", "10"]);
+
+        // Số không đổi → chỉ mấy dòng đầu, KHÔNG lặp lại cả bản báo cáo.
+        const khongDoi = tron(buildTinDinhChinh({
+            tin: r.tinGop, soCu: r.so, soMoi: r.so, label: "HÔM NAY 22/09 · 20:00",
+            luc: Date.parse("2026-09-22T20:00:00+07:00"), intraday: true,
+        }));
+        assert.ok(khongDoi.includes("số dưới đây đủ tới lúc này"));
+        assert.ok(khongDoi.includes("✅ Số không đổi — tin cũ đã đúng"));
+        assert.ok(!khongDoi.includes("TỔNG TEAM"), "không đổi thì đừng gửi lại cả bản báo cáo");
+        assert.deepStrictEqual(dongLech(r.so, r.so), []);
     });
 
     await t("mọi tin chia vừa khung Zalo, không còn ký tự cờ", async () => {

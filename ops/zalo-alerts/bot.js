@@ -4,8 +4,12 @@
 // Sỹ Anh chốt 15/09/2026: tự động CHỈ gửi mốc 8h30, còn lại gửi khi có người yêu cầu.
 // - 08:30: tin TỔNG TEAM + từng marketer, số HÔM QUA (đã chốt ngày).
 // - Lệnh gõ trong nhóm (commands.js): /baocao [homqua | dd/mm] [tên | team] · /canhbao · /bot
-// - Mốc giữa ngày (dailyReport.intradaySlots) và cảnh báo ads theo chu kỳ (adsPollMinutes)
-//   vẫn còn trong code nhưng đang TẮT ở config.json — bật lại là điền mốc / số phút.
+// - Mốc giữa ngày (dailyReport.intradaySlots): 20:00 + 22:00, số HÔM NAY đang chạy.
+// - Sync đang đứng thì tin vẫn gửi ĐÚNG KHUNG GIỜ (mang dòng "SỐ CHƯA ĐỦ") và bot NHỚ số
+//   đã báo; vòng sync nào lấy đủ số thì bot tự gửi thêm MỘT tin ĐÍNH CHÍNH nêu rõ chỗ lệch
+//   (Sỹ Anh chốt 22/09/2026). Hạn chờ: dailyReport.dinhChinhHanGio giờ, tin giữa ngày chỉ
+//   tới hết ngày đó. Lịch chờ nằm trong state.json → restart không mất.
+// - Cảnh báo ads theo chu kỳ (adsPollMinutes) còn trong code nhưng đang TẮT ở config.json.
 // Chỉ tin ADS — không tồn kho, không thẻ/TKQC như bot WhatsApp. Nguồn số: API dashboard
 // cùng máy (sheet-report = file TỔNG TEAM, realtime = Meta + POS live, ads-alerts =
 // BigQuery, sync-health = tuổi số). Gửi bằng nick Zalo PHỤ (zca-js) — xem README.md.
@@ -18,10 +22,10 @@
 const fs = require("fs");
 const path = require("path");
 const CFG = require("./config");
-const { buildMarketerReports } = require("./daily_report");
+const { buildMarketerReports, buildTinDinhChinh } = require("./daily_report");
 const { buildAdsAlert, buildAdsStatus } = require("./ads_alerts");
 const { docLenh, huongDan, homQua } = require("./commands");
-const { slotAction, toMin } = require("./schedule");
+const { slotAction, toMin, canDinhChinh, hanDinhChinh } = require("./schedule");
 const { toZalo, chiaTin } = require("./zalo_text");
 const { MARKETERS, DISPLAY } = require("./rules");
 
@@ -31,6 +35,7 @@ const ARGS = process.argv.slice(2);
 const DRY = ARGS.includes("--dry-run");
 const DR = CFG.dailyReport || {};
 const ADS_POLL = Number(CFG.adsPollMinutes) || 0;          // 0 = tắt cảnh báo theo chu kỳ
+const DC_GIO = Number(DR.dinhChinhHanGio) > 0 ? Number(DR.dinhChinhHanGio) : 24;   // hạn chờ đính chính
 const NGUOI = Object.keys(MARKETERS).map((key) => ({ key, ten: DISPLAY[key] }));
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const log = (...a) => console.log(new Date().toISOString(), ...a);
@@ -158,20 +163,67 @@ async function guiLoat(texts) {
     return da;
 }
 
-async function dungBaoCao(ngay, homNay, label) {
+async function dungBaoCao(ngay, homNay, label, staleCoSan) {
+    const stale = staleCoSan === undefined ? await fetchStale() : staleCoSan;
     return buildMarketerReports(DR, ngay,
-        { intraday: homNay, label: label || (homNay ? slotLabel(vnHHMM()) : undefined), stale: await fetchStale(), log });
+        { intraday: homNay, label: label || (homNay ? slotLabel(vnHHMM()) : undefined), stale, log });
 }
 
 // MỘT tin cho mốc tự gửi (Sỹ Anh chốt 16/09/2026: trước đây 1 tin tổng + 1 tin mỗi
 // marketer = sáu tin liền, đọc trong nhóm thành loạn). Chi tiết campaign từng người vẫn
 // còn, lấy bằng /baocao <tên>.
-function guiBaoCao(ngay, { homNay = false, label } = {}) {
+// theoDoi: khoá xếp lịch ĐÍNH CHÍNH. Chỉ mốc tự gửi và `--report` truyền vào — lệnh
+// /baocao gõ trong nhóm là người ta HỎI số lúc này, không phải bản tin chính thức, nên
+// không sinh tin đính chính (ai gõ 10 lần thì 10 tin đính chính là loạn nhóm).
+function guiBaoCao(ngay, { homNay = false, label, theoDoi } = {}) {
     return lanLuot(async () => {
         const r = await dungBaoCao(ngay, homNay, label);
         const n = await guiLoat([r.tinGop]);
-        return { n, marketers: r.nguoi.length };
+        if (theoDoi && r.chuaDu && !DRY) xepDinhChinh(theoDoi, r, ngay, homNay);
+        return { n, marketers: r.nguoi.length, chuaDu: r.chuaDu };
     });
+}
+
+// ─── Gửi TẠM đúng khung giờ, có số đủ thì tự ĐÍNH CHÍNH ───
+// Sỹ Anh chốt 22/09/2026. Trước đó tin tạm chỉ mang dòng "⚠️ SỐ CHƯA ĐỦ" rồi thôi: ai đọc
+// lúc đó nhớ số sai, không ai quay lại xem số đúng. Nay tin tạm vẫn gửi (giữ khung giờ),
+// nhưng bot NHỚ lại số đã báo; vòng rà sau thấy sync đã chạy đủ số thì gửi thêm một tin
+// nói rõ lệch bao nhiêu.
+// Ghi vào state.json nên pm2 restart / máy chủ reboot giữa lúc chờ vẫn không mất lịch —
+// đúng ca hay gặp, vì sync đứng thường đi kèm máy chủ vừa có sự cố.
+function xepDinhChinh(khoa, r, ngay, homNay) {
+    const cho = { ngay, intraday: !!homNay, label: r.label, luc: Date.now(), so: r.so };
+    cho.hanTs = hanDinhChinh(cho, DC_GIO);
+    markState((s) => { (s.dinhChinh = s.dinhChinh || {})[khoa] = cho; });
+    log(`Tin "${r.label}" gửi khi số CHƯA ĐỦ — chờ vòng sync đủ số để đính chính (hạn ${new Date(cho.hanTs).toISOString()}).`);
+}
+
+async function ratDinhChinh() {
+    const cho = loadState().dinhChinh || {};
+    const khoa = Object.keys(cho);
+    if (!khoa.length) return;                       // không có gì chờ → không hỏi sync-health
+    const stale = await fetchStale();
+    for (const k of khoa) {
+        const p = cho[k];
+        const act = canDinhChinh(p, stale);
+        if (!act) continue;
+        const xoa = () => markState((s) => { if (s.dinhChinh) delete s.dinhChinh[k]; });
+        if (act === "het-han") { xoa(); log(`Bỏ chờ đính chính "${p.label}" — quá hạn mà số vẫn chưa đủ.`); continue; }
+        if (inQuietHours()) return;                 // 23h–7h: không đánh thức nhóm, vòng sau gửi
+        try {
+            await lanLuot(async () => {
+                const r = await dungBaoCao(p.ngay, p.intraday, p.label, stale);
+                await guiLoat([buildTinDinhChinh({
+                    tin: r.tinGop, soCu: p.so, soMoi: r.so, label: p.label, luc: p.luc, intraday: p.intraday,
+                })]);
+            });
+            xoa();
+            log(`Đã gửi đính chính "${p.label}".`);
+        } catch (e) {
+            if (e.daGui > 0) { xoa(); log(`Đính chính "${p.label}" gửi được một phần — không gửi lại:`, e.message); }
+            else log(`Đính chính "${p.label}" lỗi — vòng sau thử lại:`, e.message);
+        }
+    }
 }
 
 // ─── Lệnh trong nhóm ───
@@ -273,11 +325,13 @@ async function chayMoc(khoa, moc, cuaSo, lamViec) {
 }
 
 async function ratMoc() {
+    const hq = homQua(vnDateStr());
     await chayMoc("sang", DAILY_AT, Number(DR.atCatchUpMinutes || 210),
-        () => guiBaoCao(homQua(vnDateStr())));
+        () => guiBaoCao(hq, { theoDoi: `sang:${hq}` }));
     for (const slot of INTRADAY_SLOTS) {
+        const nay = vnDateStr();
         await chayMoc(slot, slot, Number(DR.intradayCatchUpMinutes || 60),
-            () => guiBaoCao(vnDateStr(), { homNay: true, label: slotLabel(slot) }));
+            () => guiBaoCao(nay, { homNay: true, label: slotLabel(slot), theoDoi: `${slot}:${nay}` }));
     }
 }
 
@@ -332,7 +386,9 @@ async function chayDichVu() {
     const vongMoc = async () => {
         if (dangRa) return;
         dangRa = true;
-        try { await ratMoc(); } finally { dangRa = false; }
+        try { await ratMoc(); await ratDinhChinh(); }
+        catch (e) { log("Vòng rà lỗi:", e.message); }
+        finally { dangRa = false; }
     };
     await vongMoc();
     setInterval(vongMoc, 5 * 60 * 1000);
@@ -351,8 +407,9 @@ async function main() {
             if (!(await lamLenh(lenh))) log(`"${lenh}" không phải lệnh của bot.`);
         } else {
             const ngay = /^\d{4}-\d{2}-\d{2}$/.test(argAfter("--report")) ? argAfter("--report") : homQua(vnDateStr());
-            const r = await guiBaoCao(ngay);
-            log(`${DRY ? "In thử" : "Đã gửi"} báo cáo ngày ${ngay}: 1 tin gộp, ${r.marketers} marketer trong bảng.`);
+            const r = await guiBaoCao(ngay, { theoDoi: `report:${ngay}` });
+            log(`${DRY ? "In thử" : "Đã gửi"} báo cáo ngày ${ngay}: 1 tin gộp, ${r.marketers} marketer trong bảng.`
+                + (r.chuaDu ? " SỐ CHƯA ĐỦ — bot dịch vụ sẽ tự gửi tin đính chính khi sync đủ số." : ""));
         }
         return true;
     }

@@ -17,6 +17,7 @@
     "intradaySlots": ["20:00", "22:00"],
     "intradayCatchUpMinutes": 60,
     "staleWarnMinutes": 120,
+    "dinhChinhHanGio": 24,
     "realtimeUrl": "/api/talpha/realtime",
     "sheetReportUrl": "/api/talpha/sheet-report",
     "topCampaigns": 8,

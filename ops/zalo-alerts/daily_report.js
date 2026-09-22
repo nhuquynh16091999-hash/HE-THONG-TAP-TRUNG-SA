@@ -111,6 +111,21 @@ function canhBaoSoCu(stale, dateStr, intraday) {
         + `${I(`Số dưới đây chốt lúc ${gioVN(stale.lastOkTs)} — chưa phải số cả ngày. Đợi sync chạy lại rồi đọc lại.`)}\n\n`;
 }
 
+// Cảnh báo "số chưa đủ" của MỘT tin. buildMarketerReports tính một lần rồi truyền xuống
+// qua opts.canhBao: cờ chuaDu trả ra cho bot (để xếp lịch đính chính) và chữ in trong tin
+// phải là CÙNG một kết quả — tính lại hai nơi là sớm muộn lệch nhau.
+function canhBaoCuaTin(opts, dateStr) {
+    return opts.canhBao != null ? opts.canhBao : canhBaoSoCu(opts.stale, dateStr, opts.intraday);
+}
+
+// Số ĐẦU BÀI của tin — bốn con số người đọc nhớ. Tin đính chính so số cũ ↔ số đúng bằng đây.
+const soDauBai = (sheet) => ({
+    ads: Math.round(Number(sheet.team.ads || 0)),
+    don: Number(sheet.team.don || 0),
+    mess: Number(sheet.team.mess || 0),
+    doanh_so: Math.round(Number(sheet.team.doanh_so || 0)),
+});
+
 // opts.label    — chữ in trên đầu tin thay cho ngày thô ("HÔM NAY 02/09 · 13:30").
 // opts.intraday — số chưa chốt ngày: thêm dòng nhắc + đổi lời chú thích DS giao.
 // opts.stale    — tuổi số từ /api/talpha/sync-health (null = không biết, không cảnh báo).
@@ -119,6 +134,8 @@ async function buildMarketerReports(cfg, dateStr, opts = {}) {
     const f = opts.fetch || fetch;
     const label = opts.label || ddmm(dateStr);
     const sheet = await fetchSheetReport(cfg, dateStr, f);
+    const canhBao = canhBaoSoCu(opts.stale, dateStr, opts.intraday);
+    opts = { ...opts, canhBao };
     let camps = [], canhBaoCamp = "";
     try {
         const data = await fetchRealtime(cfg, dateStr, f);
@@ -156,7 +173,7 @@ async function buildMarketerReports(cfg, dateStr, opts = {}) {
         // dùng luôn tỷ lệ Sheet đã tính, không tự chia lại rồi lệch số lẻ
         const closeR = p.ty_le_chot, adsR = p.phan_tram_ads;
 
-        let m = canhBaoSoCu(opts.stale, dateStr, opts.intraday) + `📊 ${B(`ADS ${label} — ${mk}`)}\n`;
+        let m = canhBaoCuaTin(opts, dateStr) + `📊 ${B(`ADS ${label} — ${mk}`)}\n`;
         m += `💰 Tiền ads: ${B(fmt(spend) + "đ")}  ·  Doanh số: ${B(fmt(rev) + "đ")}  ·  %ads: ${B(rev > 0 ? p1(adsR) + "%" : "—")}\n`;
         m += `💬 Mess: ${fmt(mess)}  ·  🛒 Đơn: ${fmt(ord)}  ·  ✅ Chốt: ${B(chot(ord, mess))}\n`;
         if (opts.intraday) m += `${I("số đang chạy trong ngày — chưa chốt, còn lên tiếp")}\n`;
@@ -178,7 +195,9 @@ async function buildMarketerReports(cfg, dateStr, opts = {}) {
     });
     const teamMessage = buildTeamReport(dateStr, sheet, { ...opts, label });
     return {
-        dateStr, teamMessage, messages, nguoi: names,
+        dateStr, label, teamMessage, messages, nguoi: names,
+        // chuaDu: tin này gửi khi số CHƯA ĐỦ → bot xếp lịch đính chính khi sync đủ số.
+        chuaDu: canhBao !== "", so: soDauBai(sheet),
         // MỘT tin duy nhất cho mốc tự gửi — Sỹ Anh chốt 16/09/2026: "nhiều tin quá bị loạn".
         tinGop: buildTinGop({ dateStr, sheet, camps, cfg, canhBaoCamp, opts: { ...opts, label } }),
     };
@@ -225,7 +244,7 @@ function buildTeamReport(dateStr, sheet, opts = {}) {
     const marketers = tabMarketer(sheet);
     const ds = (r) => (r.doanh_so > 0 ? Math.round(r.phan_tram_ads) + "%" : "—");
 
-    let m = canhBaoSoCu(opts.stale, dateStr, opts.intraday) + `🏆 ${B(`TỔNG TEAM — ${label}`)}\n`;
+    let m = canhBaoCuaTin(opts, dateStr) + `🏆 ${B(`TỔNG TEAM — ${label}`)}\n`;
     m += `💰 Tiền ads: ${B(fmt(Math.round(T.ads)) + "đ")}  ·  Doanh số: ${B(fmt(Math.round(T.doanh_so)) + "đ")}  ·  %ads: ${B(T.doanh_so > 0 ? p1(T.phan_tram_ads) + "%" : "—")}\n`;
     m += `💬 Mess: ${fmt(T.mess)}  ·  🛒 Đơn: ${fmt(T.don)}  ·  ✅ Chốt: ${B(p1(T.ty_le_chot) + "%")}\n`;
     // Đơn COD vài ngày mới giao xong, nên DS giao của ngày vừa qua LUÔN thấp — ghi rõ để
@@ -274,4 +293,35 @@ function recommend(list, agg, cfg) {
     return r;
 }
 
-module.exports = { buildMarketerReports, buildTeamReport, buildTinGop, recommend };
+// ─── TIN ĐÍNH CHÍNH ───────────────────────────────────────────────────────────────
+// Gửi sau một tin tạm (gửi đúng khung giờ trong lúc sync còn đứng). Chỉ nêu ĐÚNG chỗ lệch
+// rồi đính kèm bản báo cáo đủ số — Sỹ Anh chốt 22/09/2026.
+// Số không lệch chỗ nào thì CHỈ gửi mấy dòng đầu: lặp lại cả bản báo cáo y nguyên chỉ để
+// nói "không đổi" là làm loãng nhóm.
+const KHOAN_LECH = [["ads", "Tiền ads", true], ["don", "Đơn", false],
+    ["doanh_so", "Doanh số", true], ["mess", "Mess", false]];
+
+function dongLech(soCu, soMoi) {
+    const ra = [];
+    for (const [k, ten, tien] of KHOAN_LECH) {
+        const a = Math.round(Number((soCu || {})[k] || 0)), b = Math.round(Number((soMoi || {})[k] || 0));
+        if (a === b) continue;
+        const v = (x) => (tien ? fmt(x) + "đ" : fmt(x));
+        ra.push(`${ten}: ${v(a)} → ${B(v(b))}  (${b > a ? "+" : "−"}${v(Math.abs(b - a))})`);
+    }
+    return ra;
+}
+
+function buildTinDinhChinh({ tin, soCu, soMoi, label, luc, intraday }) {
+    const lech = dongLech(soCu, soMoi);
+    let m = `🔄 ${B(`ĐÍNH CHÍNH — ${label}`)}\n`;
+    m += `${I(`Tin lúc ${gioVN(luc)} gửi khi sync còn đứng nên số chưa đủ. Vòng sync vừa chạy xong`
+        + `${intraday ? " — số dưới đây đủ tới lúc này." : " — dưới đây là số cả ngày."}`)}\n`;
+    if (!lech.length) return m + `\n✅ ${B("Số không đổi")} — tin cũ đã đúng, không phải xem lại.`;
+    return m + `\n${B("Lệch so với tin cũ:")}\n` + lech.map((x) => "• " + x).join("\n") + `\n\n` + tin;
+}
+
+module.exports = {
+    buildMarketerReports, buildTeamReport, buildTinGop, recommend,
+    buildTinDinhChinh, dongLech, soDauBai,
+};

@@ -38,4 +38,38 @@ function ngayChuaDu(lastOkTs, dateStr) {
     return lastOkTs < hetNgay(dateStr);
 }
 
-module.exports = { toMin, slotAction, hetNgay, ngayChuaDu };
+// ─── Đính chính: tin ĐÃ gửi khi số chưa đủ, chờ vòng sync đủ số rồi gửi lại số đúng ───
+// Sỹ Anh chốt 22/09/2026: "chưa có vòng sync nào chạy để gửi báo cáo thì cứ gửi tạm theo
+// đúng khung giờ, có vòng sync lấy đủ số rồi thì tự gửi thêm một tin đính chính".
+// Câu hỏi "đã đủ số chưa" khác nhau theo loại tin — đúng HAI câu canhBaoSoCu đang hỏi:
+//   - tin về NGÀY ĐÃ QUA (mốc 08:30): đủ khi có vòng OK chạy SAU KHI hết ngày đó;
+//   - tin GIỮA NGÀY: đủ khi có vòng OK chạy SAU LÚC gửi tin tạm — số nhích tới hiện tại.
+// "Vòng OK" = sync_rc 0 VÀ format_rc 0, tức số đã ghi được xuống Sheet; vòng bỏ ghi Sheet
+// (SKIP format_all) KHÔNG tính, vì tin đọc số từ chính file Sheet đó.
+//
+// cho   = { ngay, luc, hanTs, intraday } — luc/hanTs là epoch ms
+// stale = { lastOkTs } từ /api/talpha/sync-health; null = chưa biết → CHƯA kết luận
+// →  "gui"     số đã đủ, gửi tin đính chính
+//    "het-han" quá hạn mà số vẫn chưa đủ → bỏ chờ (đính chính muộn quá là tin rác)
+//    null      chờ tiếp
+function canDinhChinh(cho, stale, nowTs = Date.now()) {
+    if (!cho || !/^\d{4}-\d{2}-\d{2}$/.test(String(cho.ngay))) return "het-han";   // rác trong state → dọn
+    const han = Number(cho.hanTs);
+    if (Number.isFinite(han) && nowTs > han) return "het-han";
+    const ok = stale == null ? NaN : Number(stale.lastOkTs);
+    if (!Number.isFinite(ok)) return null;
+    if (cho.intraday) return ok > Number(cho.luc) ? "gui" : null;
+    return ngayChuaDu(ok, cho.ngay) ? null : "gui";
+}
+
+// Hạn chờ đính chính của một tin:
+//   - tin về NGÀY ĐÃ QUA: <gioHan> giờ kể từ lúc gửi (mặc định 24) — số cả ngày còn đáng
+//     đính chính cả buổi chiều hôm sau;
+//   - tin GIỮA NGÀY: chỉ tới HẾT NGÀY đó. Qua nửa đêm thì mốc 08:30 sáng sau đã là số cả
+//     ngày đầy đủ — đính chính "số hôm nay lúc 22:00" vào sáng hôm sau là tin rác.
+function hanDinhChinh({ ngay, luc, intraday }, gioHan = 24) {
+    const h = Number(luc) + Number(gioHan) * 3600000;
+    return intraday ? Math.min(h, hetNgay(ngay)) : h;
+}
+
+module.exports = { toMin, slotAction, hetNgay, ngayChuaDu, canDinhChinh, hanDinhChinh };

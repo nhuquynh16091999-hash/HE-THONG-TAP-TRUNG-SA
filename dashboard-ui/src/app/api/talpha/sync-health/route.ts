@@ -48,10 +48,15 @@ export async function GET() {
                 SELECT ts, host, ok, sync_rc, format_rc, detail,
                        TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), ts, MINUTE) AS age_min
                 FROM \`${BQ_PROJECT}.${BQ_DATASET}.sync_health\`
-                ORDER BY ts DESC LIMIT 5`,
+                ORDER BY ts DESC LIMIT 200`,
         });
         if (!rows?.length) return NextResponse.json({ status: "no-data", accounts });
         const last = rows[0];
+        // LIMIT 200 (≈8 ngày chạy mỗi giờ), KHÔNG phải 5: route chỉ dùng dòng mới nhất và
+        // dòng OK gần nhất, nhưng với 5 dòng thì sau 5 vòng hỏng liên tiếp lastOk thành
+        // undefined → last_ok_age_minutes = null → bot Zalo coi như "không biết tuổi số"
+        // và BỎ LUÔN dòng cảnh báo "SỐ CHƯA ĐỦ", đúng lúc số sai nhất. Dính thật 22/09/2026:
+        // 3 TKQC mất quyền ads_read từ đêm → mỗi vòng SKIP format_all, Sheet đứng 13 giờ.
         const lastOk = rows.find((r: any) => r.ok);
         return NextResponse.json({
             status: last.ok ? "ok" : "fail",

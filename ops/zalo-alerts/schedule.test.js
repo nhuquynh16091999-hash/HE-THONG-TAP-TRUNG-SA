@@ -55,4 +55,44 @@ t("sync 23:59 ngày 03/09 -> CHƯA đủ",
 t("lastOkTs null -> không kêu", ngayChuaDu(null, "2026-09-03"), false);
 t("ngày rác -> không kêu", ngayChuaDu(VN("2026-09-03T14:27:00"), "hom qua"), false);
 
+
+// ── Đính chính: tin tạm đã gửi, chờ vòng sync đủ số (Sỹ Anh chốt 22/09/2026) ──
+const { canDinhChinh, hanDinhChinh } = require("./schedule");
+const GIO = 3600000;
+const SANG = { ngay: "2026-09-03", intraday: false, luc: VN("2026-09-04T08:30:00") };
+const SANG_HAN = { ...SANG, hanTs: hanDinhChinh(SANG, 24) };
+const TOI = { ngay: "2026-09-03", intraday: true, luc: VN("2026-09-03T20:00:00") };
+const TOI_HAN = { ...TOI, hanTs: hanDinhChinh(TOI, 24) };
+
+// Tin 8h30 nói về NGÀY ĐÃ QUA: chỉ đủ khi có vòng OK chạy sau khi hết ngày đó.
+t("sáng: sync vẫn đứng từ chiều hôm trước → chờ",
+    canDinhChinh(SANG_HAN, { lastOkTs: VN("2026-09-03T14:27:00") }, VN("2026-09-04T09:00:00")), null);
+t("sáng: vòng sync 09:20 chạy xong → GỬI đính chính",
+    canDinhChinh(SANG_HAN, { lastOkTs: VN("2026-09-04T09:22:00") }, VN("2026-09-04T09:25:00")), "gui");
+t("sáng: quá 24 giờ mà số vẫn chưa đủ → bỏ chờ",
+    canDinhChinh(SANG_HAN, { lastOkTs: VN("2026-09-03T14:27:00") }, VN("2026-09-05T09:00:00")), "het-han");
+// Đọc sync-health lỗi → KHÔNG kết luận, cũng KHÔNG bỏ chờ (thà đính chính muộn còn hơn im).
+t("sáng: chưa đọc được sync-health → chờ tiếp",
+    canDinhChinh(SANG_HAN, null, VN("2026-09-04T09:00:00")), null);
+t("sáng: sync-health không có vòng OK nào → chờ tiếp",
+    canDinhChinh(SANG_HAN, { lastOkTs: null }, VN("2026-09-04T09:00:00")), null);
+
+// Tin giữa ngày nói về HÔM NAY: đủ khi có vòng OK chạy SAU LÚC gửi tin tạm.
+t("22h: vòng OK cũ hơn lúc gửi → chờ",
+    canDinhChinh(TOI_HAN, { lastOkTs: VN("2026-09-03T17:20:00") }, VN("2026-09-03T20:30:00")), null);
+t("22h: vòng OK 20:25 sau lúc gửi 20:00 → GỬI đính chính",
+    canDinhChinh(TOI_HAN, { lastOkTs: VN("2026-09-03T20:25:00") }, VN("2026-09-03T20:30:00")), "gui");
+// Hạn của tin giữa ngày = HẾT NGÀY đó: sang 0h05 thì mốc 08:30 sáng sau mới là số cả ngày.
+t("tin giữa ngày hết hạn lúc nửa đêm", hanDinhChinh(TOI, 24), hetNgay("2026-09-03"));
+t("22h: qua nửa đêm mới có số → bỏ chờ, để mốc 08:30 báo số cả ngày",
+    canDinhChinh(TOI_HAN, { lastOkTs: VN("2026-09-04T00:22:00") }, VN("2026-09-04T00:25:00")), "het-han");
+t("tin ngày đã qua hết hạn sau 24 giờ", hanDinhChinh(SANG, 24), SANG.luc + 24 * GIO);
+
+// state.json có rác (bản cũ, sửa tay) → dọn, không được ném lỗi làm chết vòng rà.
+t("state rác không có ngày → dọn", canDinhChinh({ luc: 1, hanTs: 9e15 }, { lastOkTs: 2 }, 3), "het-han");
+t("state rỗng → dọn", canDinhChinh(null, { lastOkTs: 2 }, 3), "het-han");
+// Bản cũ chưa có hanTs: không có hạn thì đừng tự bỏ chờ, cứ xét theo số liệu.
+t("chờ không có hanTs vẫn xét bình thường",
+    canDinhChinh({ ngay: "2026-09-03", intraday: false, luc: 1 }, { lastOkTs: VN("2026-09-04T09:00:00") }, VN("2026-09-04T09:01:00")), "gui");
+
 console.log(`schedule.test.js: ${ok}/${ok} PASS`);
