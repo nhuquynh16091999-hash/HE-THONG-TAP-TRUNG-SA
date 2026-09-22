@@ -152,8 +152,39 @@ fi
 # dòng đó nên bash kêu "$: command not found" — trông như dựng hỏng trong khi
 # thật ra đã xong. Chạy thẳng rồi tự kiểm bằng systemctl mới biết chắc.
 pm2 startup systemd -u root --hp /root >/dev/null 2>&1 || true
+
+# Unit do `pm2 startup` sinh ra là Type=forking + PIDFile=/root/.pm2/pm2.pid. Trên máy
+# SELinux Enforcing (CentOS/RHEL) systemd (init_t) KHÔNG đọc được file trong /root (nhãn
+# admin_home_t) → journal in "Can't convert PID files ... Permission denied", systemd chờ
+# mãi PID chính rồi "start operation timed out", GIẾT pm2 và dựng lại — MỖI 90 GIÂY.
+# Dính thật 22/09/2026 sau khi máy chủ reboot: NRestarts chạy tới 34, dashboard chết giữa
+# nhịp (bot báo cáo gọi API ra "fetch failed") và bot Zalo đăng nhập lại ~40 lần/giờ, rất
+# dễ bị Zalo đá phiên nick phụ.
+# Drop-in dưới đây bỏ PID file và chuyển sang oneshot: `pm2 resurrect` chạy xong là unit
+# coi như xong, không còn ai theo dõi PID để mà timeout. Ghi ở ĐÂY chứ không sửa tay trên
+# máy chủ: `pm2 startup` mỗi lần deploy lại ghi đè unit gốc, và máy dựng lại từ đầu thì
+# bản sửa tay mất sạch.
+install -d /etc/systemd/system/pm2-root.service.d
+cat > /etc/systemd/system/pm2-root.service.d/override.conf <<'PM2CONF'
+# Do ops/deploy/vps-setup.sh ghi — xem giải thích ở đó. Đừng sửa tay trên máy chủ.
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+PIDFile=
+TimeoutStartSec=120
+PM2CONF
+systemctl daemon-reload
+systemctl reset-failed pm2-root >/dev/null 2>&1 || true
+
 if systemctl is-enabled pm2-root >/dev/null 2>&1; then
     echo "   dịch vụ pm2-root đã bật — máy khởi động lại dashboard tự lên"
+    # Unit đang loop (kiểu lỗi SELinux ở trên) thì nạp lại cấu hình rồi dựng lại một lần.
+    if [ "$(systemctl show pm2-root -p ActiveState --value)" = "activating" ]; then
+        warn "pm2-root đang loop — dựng lại với drop-in vừa ghi"
+        systemctl restart pm2-root >/dev/null 2>&1 || true
+        sleep 5
+        pm2 resurrect >/dev/null 2>&1 || true
+    fi
 else
     warn "pm2-root CHƯA bật — máy reboot là dashboard không tự chạy lại"
 fi
