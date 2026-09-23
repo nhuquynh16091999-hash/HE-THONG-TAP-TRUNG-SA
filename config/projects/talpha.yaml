@@ -61,8 +61,11 @@ meta_ads:
     - "act_355509637365145"   # Sỹ Anh Taiwan 5 — đang chạy
     - "act_9429066663871702"  # TKQC Chạy Đài Loan — đã tắt
     - "act_1044243500995626"  # Sỹ Anh Taiwan 3 — đã tắt
-    - "act_1623263399046753"  # TK BM Thuyên ngu 02 — đang chạy
-    - "act_2033341657422931"  # TK BM Thuyên 01 — đang chạy
+    # TẮT 23/09/2026 — BM Thuyên gỡ quyền ads_read của token từ 10:22 sáng; hai tài
+    # khoản đã tiêu 0đ từ 21/09. Để trong danh sách thì mỗi vòng sync báo hỏng và Sheet
+    # đứng ở số 09:24. Dùng lại: cấp quyền trước, rồi mới bỏ dấu # hai dòng dưới.
+    # - "act_1623263399046753"  # TK BM Thuyên ngu 02
+    # - "act_2033341657422931"  # TK BM Thuyên 01
     - "act_1308534557829101"  # Sỹ Anh Taiwan 1 — đã tắt
     - "act_1637376841235385"  # ATHAINX TK1 — đang chạy, chi từ 09/09/2026
     - "act_1570211464587435"  # ATHAINX TK2 — đang chạy, chưa chi đồng nào
