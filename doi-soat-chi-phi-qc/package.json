@@ -1,0 +1,14 @@
+{
+  "name": "doi-soat-chi-phi-qc",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Bản dòng lệnh của đối soát chi phí quảng cáo — engine dùng chung với màn Đối soát chi phí QC trong dashboard",
+  "scripts": {
+    "doisoat": "node bin/doisoat.mjs",
+    "test": "node --test tests/*.test.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

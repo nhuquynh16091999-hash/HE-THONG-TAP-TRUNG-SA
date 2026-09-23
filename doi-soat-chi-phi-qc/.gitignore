@@ -1,0 +1,12 @@
+# Dữ liệu tài chính thật — KHÔNG bao giờ commit
+data/inbox/*
+!data/inbox/.gitkeep
+data/ky/*
+!data/ky/.gitkeep
+
+.DS_Store
+node_modules/
+*.log
+
+# File mẫu (dữ liệu giả) — repo cha chặn *.xlsx nên phải mở lại ở đây
+!data/mau/*.xlsx

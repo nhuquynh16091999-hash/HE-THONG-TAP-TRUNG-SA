@@ -1,0 +1,4 @@
+#!/bin/bash
+# Lối tắt: ./doisoat            → đối soát 2 file mới nhất trong data/inbox
+#          ./doisoat --web      → mở màn web
+cd "$(dirname "$0")" && exec node bin/doisoat.mjs "$@"
