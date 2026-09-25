@@ -6,11 +6,11 @@ import {
 } from "@/lib/talpha/rules";
 import { trackingFromLink } from "@/lib/talpha/cod-recon";
 import {
-    buildAlerts, countByStatus, mergeStatus, planRegister, planTrack, TERMINAL, TRACK_CFG,
+    buildAlerts, carrierFor, countByStatus, mergeStatus, planRegister, planTrack, TERMINAL, TRACK_CFG,
     type Shipment,
 } from "@/lib/talpha/tracking";
 import {
-    register, getTrackInfo, getQuota, hasApiKey, Track17Error,
+    register, changeCarrier, getTrackInfo, getQuota, hasApiKey, Track17Error,
     ERR_ALREADY_REGISTERED, ERR_QUOTA_OUT, type Quota,
 } from "@/lib/talpha/track17";
 import { track17CodeFor } from "@/lib/talpha/partner-file";
@@ -42,10 +42,14 @@ const BQ_DATASET = process.env.DATASET || "TALPHA_Dataset";
 const STORE = "tracking";
 
 /** `number` = mã đã đưa cho 17TRACK (7-Eleven có tiền tố 73N, khác khoá sổ). */
-type Registered = { order_uid: string | null; registered_at: string; carrier: number | null; number?: string };
+type Registered = {
+    order_uid: string | null; registered_at: string; carrier: number | null; number?: string;
+    /** Số lần đã đổi hãng vì 17TRACK đoán nhầm — chặn vòng đổi mãi không xong. */
+    carrier_changes?: number;
+};
 type LastSync = {
     at: string; ok: boolean; error?: string;
-    registered?: number; checked?: number; changed?: number;
+    registered?: number; checked?: number; changed?: number; carrier_fixed?: number;
     register_rejected?: number; over_cap?: number; quota_out?: boolean;
     quota?: Quota | null;
 };
@@ -311,6 +315,34 @@ export async function POST(req: NextRequest) {
             }
         }
 
+        // ── 1b. Đổi hãng cho mã 17TRACK đoán nhầm (không trừ quota) ──
+        // Lượt đầu 25/09/2026 để 17TRACK tự đoán: 7 mã FamilyMart thành Bưu điện Ý. Mã
+        // đăng ký rồi không đăng ký lại được, chỉ đổi hãng — thử tối đa 2 lần mỗi mã.
+        const MAX_DOI_HANG = 2;
+        const soDangKy = await readStoreFresh<Store>(STORE, emptyStore());
+        const doiHang = new Map<string, { number: string; carrier_old: number; carrier_new: number }>();
+        for (const r of Object.values(soDangKy.registered)) {
+            const want = carrierFor(r.number);
+            if (!r.number || !want || !r.carrier || r.carrier === want) continue;
+            if ((r.carrier_changes ?? 0) >= MAX_DOI_HANG) continue;
+            doiHang.set(r.number, { number: r.number, carrier_old: r.carrier, carrier_new: want });
+        }
+        let carrierFixed = 0;
+        if (doiHang.size) {
+            const r = await changeCarrier([...doiHang.values()]);
+            const ok = new Set(r.accepted.map((a) => clean(a.number)));
+            carrierFixed = ok.size;
+            await updateStore<Store>(STORE, emptyStore(), (cur) => {
+                for (const reg of Object.values(cur.registered)) {
+                    const d = reg.number ? doiHang.get(reg.number) : undefined;
+                    if (!d) continue;
+                    reg.carrier_changes = (reg.carrier_changes ?? 0) + 1;
+                    if (ok.has(d.number)) reg.carrier = d.carrier_new;
+                }
+                return cur;
+            });
+        }
+
         // ── 2. Hỏi trạng thái (miễn phí) ──
         const info = await getTrackInfo(planTrack(shipments, justRegistered));
         let changed = 0;
@@ -321,6 +353,10 @@ export async function POST(req: NextRequest) {
                 // nạp file sau cũng không sửa lại được vì nguồn đã thành 17track.
                 if (!t.status || t.status === "NotFound") continue;
                 for (const s of byNumber.get(clean(t.number)) || []) {
+                    // Sổ chưa biết hãng (mã đăng ký từ trước, 17TRACK báo "đã đăng ký") thì
+                    // học từ đây — lượt sau mới soát được hãng có đúng luật không.
+                    const reg = cur.registered[s.tracking];
+                    if (reg && !reg.carrier && t.carrier) reg.carrier = t.carrier;
                     const prev = cur.statuses[s.tracking];
                     // Đơn đối tác đã báo KẾT THÚC (hoàn, huỷ…) thì 17TRACK không kéo lùi.
                     if (prev?.status && TERMINAL.has(prev.status) && prev.source !== "17track") continue;
@@ -343,7 +379,7 @@ export async function POST(req: NextRequest) {
         // Hết quota = còn đơn cần đăng ký mà không đăng ký được (gói miễn phí: hết tháng).
         const quotaOut = rejected.some((x) => x.code === ERR_QUOTA_OUT) || plan.quota_limited;
         await ghiLuot({
-            at: nowIso, ok: true, registered, checked: info.found.length, changed,
+            at: nowIso, ok: true, registered, checked: info.found.length, changed, carrier_fixed: carrierFixed,
             register_rejected: rejected.length, over_cap: plan.over_cap, quota_out: quotaOut, quota,
         });
 
@@ -356,6 +392,7 @@ export async function POST(req: NextRequest) {
             quota_out: quotaOut,
             quota,
             checked: info.found.length,
+            carrier_fixed: carrierFixed,
             track_rejected: info.rejected.map((x) => ({ number: x.number, message: x.message })),
             status_changed: changed,
             alerts: buildAlerts(after, now),

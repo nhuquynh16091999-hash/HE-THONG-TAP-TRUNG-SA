@@ -305,6 +305,20 @@ t("cảnh báo ở cửa hàng mang theo số ngày còn lại", () => {
     assert.strictEqual(T.buildAlerts([s], NOW)[0].days_left, T.TRACK_CFG.pickup_expire_days - 6);
 });
 
+console.log("── 17TRACK: khai thẳng mã hãng, không để tự đoán ──");
+t("73N + 8 số → 7-ELEVEN (TW) 190456", () => {
+    // Để tự đoán: 36 mã 7-Eleven bị từ chối "Carrier cannot be detected" (25/09/2026).
+    assert.strictEqual(T.carrierFor("73N18053018"), 190456);
+});
+t("11 số → FamiPort (TW) 100227", () => {
+    // Để tự đoán: 7 mã FamilyMart thành Poste Italiane — tốn quota, không bao giờ có tin.
+    assert.strictEqual(T.carrierFor("06722435584"), 100227);
+});
+t("mã giao tận nhà (10 số) chưa biết hãng → để 17TRACK tự đoán", () => {
+    assert.strictEqual(T.carrierFor("1870459566"), T.TRACK_CFG.carrier);
+    assert.strictEqual(T.carrierFor(null), T.TRACK_CFG.carrier);
+});
+
 console.log("── 17TRACK: đọc kết quả gettrackinfo v2.4 ──");
 const K = require("../.test-build/track17.js");
 t("đọc đúng tên trường v2.4 (time_utc, description) và mốc milestone", () => {

@@ -10,7 +10,7 @@
  *
  * Khoá API đọc từ biến môi trường TRACK17_API_KEY, KHÔNG khai trong rules file.
  */
-import { TRACK_CFG, chunk } from "./tracking";
+import { TRACK_CFG, chunk, carrierFor } from "./tracking";
 
 export type RegisterResult = {
     accepted: { number: string; carrier: number }[];
@@ -124,7 +124,7 @@ export async function register(numbers: string[], tags: Record<string, string> =
         numbers, "register",
         (n) => ({
             number: n,
-            ...(TRACK_CFG.carrier ? { carrier: TRACK_CFG.carrier } : { auto_detection: true }),
+            ...(carrierFor(n) ? { carrier: carrierFor(n) } : { auto_detection: true }),
             ...(tags[n] ? { tag: tags[n].slice(0, 100) } : {}),
         }),
         (data) => ({
@@ -194,4 +194,28 @@ export async function getQuota(): Promise<Quota> {
         remain: Number(d.quota_remain ?? 0),
         today_used: Number(d.today_used ?? 0),
     };
+}
+
+/**
+ * Đổi hãng cho mã ĐÃ đăng ký (17TRACK đoán nhầm hãng). Không đăng ký lại, không trừ
+ * quota; 17TRACK cho đổi tối đa 5 lần mỗi mã.
+ */
+export async function changeCarrier(
+    items: { number: string; carrier_old: number; carrier_new: number }[],
+): Promise<RegisterResult> {
+    if (!items.length) return { accepted: [], rejected: [] };
+    const byNumber = new Map(items.map((x) => [x.number, x]));
+    return batched<RegisterResult>(
+        items.map((x) => x.number), "changecarrier",
+        (n) => byNumber.get(n),
+        (data) => ({
+            accepted: asArray(data.accepted).map((r) => ({
+                number: String(r.number ?? ""),
+                carrier: Number(r.carrier ?? r.carrier_new ?? 0),
+            })),
+            rejected: asArray(data.rejected).map((r) => ({ number: String(r.number ?? ""), ...errOf(r) })),
+        }),
+        (a, b) => ({ accepted: [...a.accepted, ...b.accepted], rejected: [...a.rejected, ...b.rejected] }),
+        { accepted: [], rejected: [] },
+    );
 }

@@ -782,7 +782,12 @@
     "provider": "17track",
     "api_base": "https://api.17track.net/track/v2.4",
     "carrier": null,
-    "_carrier_note": "Mã hãng vận chuyển của 17TRACK. Để null thì 17TRACK tự nhận diện — khai đúng mã thì nhận diện chắc hơn. Chốt được 3PL Đài thì điền vào.",
+    "_carrier_note": "Mã hãng vận chuyển của 17TRACK dùng khi mã vận đơn không khớp luật nào trong carrier_rules. Để null thì 17TRACK tự nhận diện.",
+    "carrier_rules": [
+      { "match": "^73N\\d{8}$", "carrier": 190456, "_name": "7-ELEVEN (TW)" },
+      { "match": "^\\d{11}$", "carrier": 100227, "_name": "FamiPort (TW) — FamilyMart" }
+    ],
+    "_carrier_rules_note": "Khai THẲNG mã hãng khi đăng ký 17TRACK, không để nó tự đoán. Lượt đầu 25/09/2026 để tự đoán: 36 mã 7-Eleven bị từ chối 'Carrier cannot be detected', và 7 mã FamilyMart bị đoán thành Poste Italiane (9071, Bưu điện Ý) — mã đó đã TỐN QUOTA mà không bao giờ có tin. Luật suy từ dữ liệu thật: 73N + 8 số = 7-Eleven (495 dòng 'ship_method 7 ELEVEN'), 11 số = FamilyMart (139 dòng). Mã 10/12 số là giao tận nhà — chưa biết hãng, để tự đoán. Mã hãng tra ở https://res.17track.net/asset/carrier/info/apicarrier.all.json. Mã nào đã đăng ký mà hãng lệch luật thì lượt đồng bộ sau tự đổi hãng (changecarrier, tối đa 5 lần/mã theo 17TRACK — hệ thống chỉ thử 2 lần).",
     "pickup_expire_days": 7,
     "_pickup_note": "Số ngày hàng nằm ở cửa hàng tiện lợi trước khi bị trả về. Đài thường 7 ngày — HỎI LẠI đơn vị vận chuyển rồi sửa cho đúng, vì mốc cảnh báo \"sắp mất hàng\" tính từ đây.",
     "warn_before_expire_days": 2,

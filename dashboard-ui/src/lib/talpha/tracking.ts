@@ -27,13 +27,14 @@ type TrackingConfig = {
     register_max_age_days?: number;
     register_max_per_run?: number;
     register_scope?: string;
+    carrier_rules?: { match: string; carrier: number }[];
 };
 
 /** "canh_bao": chỉ đăng ký đơn đang có cảnh báo Gấp/Cảnh báo · "tat_ca": mọi đơn chưa kết thúc. */
 export type RegisterScope = "canh_bao" | "tat_ca";
 
-export const TRACK_CFG: Required<Omit<TrackingConfig, "carrier" | "register_scope">>
-    & { carrier: number | null; register_scope: RegisterScope } = (() => {
+export const TRACK_CFG: Required<Omit<TrackingConfig, "carrier" | "register_scope" | "carrier_rules">>
+    & { carrier: number | null; register_scope: RegisterScope; carrier_rules: { match: RegExp; carrier: number }[] } = (() => {
     const c: TrackingConfig = (RULES as unknown as { tracking?: TrackingConfig }).tracking || {};
     return {
         provider: c.provider ?? "17track",
@@ -49,6 +50,9 @@ export const TRACK_CFG: Required<Omit<TrackingConfig, "carrier" | "register_scop
         register_max_per_run: Number(c.register_max_per_run ?? 300),
         // Khai sai chữ thì về "canh_bao" — hẹp hơn, tốn ít quota hơn.
         register_scope: c.register_scope === "tat_ca" ? "tat_ca" : "canh_bao",
+        carrier_rules: (c.carrier_rules || [])
+            .filter((r) => r && r.match && Number(r.carrier) > 0)
+            .map((r) => ({ match: new RegExp(r.match), carrier: Number(r.carrier) })),
     };
 })();
 
@@ -424,4 +428,15 @@ export function planTrack(shipments: Shipment[], justRegistered: ReadonlySet<str
         out.add(n);
     }
     return [...out];
+}
+
+/**
+ * Mã hãng 17TRACK cho một mã vận đơn — luật carrier_rules trước, rồi `carrier` chung,
+ * không khớp gì thì null (để 17TRACK tự đoán). Tự đoán hỏng thật: 7-Eleven bị từ chối,
+ * FamilyMart bị nhận thành Bưu điện Ý — nên khai thẳng được mã nào thì khai.
+ */
+export function carrierFor(number?: string | null): number | null {
+    const n = String(number || "");
+    for (const r of TRACK_CFG.carrier_rules) if (r.match.test(n)) return r.carrier;
+    return TRACK_CFG.carrier;
 }
