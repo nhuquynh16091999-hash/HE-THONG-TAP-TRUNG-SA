@@ -66,7 +66,7 @@ Ba câu hỏi tiền, ba màn hình khác nhau — **đừng trộn**:
 | Câu hỏi | Màn hình | Nguồn |
 |:--|:--|:--|
 | Bán được bao nhiêu? | Tổng quan | File Sheet **TỔNG TEAM** — doanh số đơn đã chốt + DS giao TC |
-| Lãi theo đơn đã giao? | P&L | BigQuery, đơn **GIAO THÀNH CÔNG** |
+| Lãi gộp tạm tính? | P&L | Sheet TỔNG TEAM + giá vốn (mã SP trên đơn POS × bảng Giá tới Taiwan) + phí ship ước tính (trung bình sao kê NAZA) |
 | Đang tiêu bao nhiêu, ngay lúc này? | Ads Command Center | Meta + POS **gọi thẳng**, đơn **ĐÃ ĐẶT** |
 | Tiền có về đủ không? | Đối soát COD · Đối soát chi phí QC | File sao kê người dùng tải lên |
 
@@ -128,7 +128,7 @@ Vào `/` → middleware kiểm đăng nhập → `/talpha` → `components/talph
 | Nhóm | Tab | Component | Số từ đâu |
 |:--|:--|:--|:--|
 | 📋 Báo cáo | Tổng quan | `tabs/ceo-overview-tab.tsx` | `/api/talpha/sheet-report?from&to` (đọc thẳng file TỔNG TEAM) + `targets` |
-| | P&L | `tabs/pnl-tab.tsx` | `/api/query` |
+| | P&L | `tabs/pnl-tab.tsx` | `sheet-report?from&to` + `pnl-costs` |
 | | P&L theo SP | `tabs/product-pnl-tab.tsx` | `/api/query` + `product-costs` |
 | 🧾 Đơn hàng & Đối soát | Sổ đơn hàng | `tabs/order-ledger-tab.tsx` | `/api/talpha/order-ledger` |
 | | Đối soát COD | `tabs/cod-recon-tab.tsx` | `/api/talpha/order-ledger` + `cod-recon` |
@@ -189,6 +189,7 @@ cookie `activeDataset` (shell đặt `TALPHA_Dataset`).
 | `ads-alerts` · `sync-health` | Cảnh báo spend, sức khoẻ sync | Bot Zalo · bot WA (đang tắt) |
 | `sheet-report` | Số từ file TỔNG TEAM — `?date=` một ngày, `?from&to=` cộng cả khoảng | Bot Zalo · tab Tổng quan |
 | `report-config` | Mốc gốc báo cáo cho bộ chọn ngày | Giao diện |
+| `pnl-costs` | Giá vốn + phí ship ước tính của đơn đã chốt, theo ngày và nước; liệt kê mã chưa có giá | Tab P&L |
 | `billing` | Hạn mức, số dư TKQC | Bot WA (đang tắt) |
 
 Hạ tầng: `auth/[...nextauth]`, `auth/validate`, `users`, `ad-accounts`.
