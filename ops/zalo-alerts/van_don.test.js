@@ -91,6 +91,15 @@ const dung = (d, o = {}) => tron(buildTinVanDon(d, { today: TODAY, nowTs: NOW, l
         assert.match(m, /Còn 1 đơn không in ở đây/);
     });
 
+    await t("lệch đối tác ↔ 17TRACK có mục riêng, tính vào Cảnh báo", () => {
+        const m = dung(DATA({ alerts: [
+            canh("lech_trang_thai", { level: "canh_bao", detail: "Đối tác ghi ĐÃ GIAO, 17TRACK ghi hàng đang/đã HOÀN — tiền COD có thể không về." }, { order_id: "T1400" }),
+        ] }));
+        assert.match(m, /Cảnh báo 1/);
+        assert.match(m, /LỆCH ĐỐI TÁC ↔ 17TRACK \(1\)/);
+        assert.match(m, /• T1400 · 1\.499 NT\$ · Đối tác ghi ĐÃ GIAO/);
+    });
+
     await t("17TRACK lỗi thì tin TỰ TỐ, không gửi số cũ như số mới", () => {
         const m = dung(DATA({
             last_sync: { at: "2026-09-25T23:05:00Z", ok: false, error: "17TRACK báo lỗi -18010001 — sai khoá" },

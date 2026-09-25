@@ -6,7 +6,7 @@ import {
 } from "@/lib/talpha/rules";
 import { trackingFromLink } from "@/lib/talpha/cod-recon";
 import {
-    buildAlerts, carrierFor, countByStatus, mergeStatus, planRegister, planTrack, TERMINAL, TRACK_CFG,
+    buildAlerts, carrierFor, countByStatus, fixTrack17Code, mergeStatus, planRegister, planTrack, TERMINAL, TRACK_CFG,
     type Shipment,
 } from "@/lib/talpha/tracking";
 import {
@@ -73,6 +73,8 @@ type Saved = {
     last_event_time: string | null; last_event: string | null;
     source?: "doi_tac" | "17track"; raw_status?: string | null;
     ship_date?: string | null; order_date?: string | null;
+    /** Đơn đối tác đã ghi kết thúc: trạng thái 17TRACK chỉ lưu ĐỂ ĐỐI CHIẾU, không đè. */
+    t17_status?: string | null; t17_sub_status?: string | null; t17_event?: string | null; t17_at?: string;
 };
 type PartnerMeta = {
     tracking?: string;
@@ -120,13 +122,16 @@ async function loadShipments(from: string, to: string): Promise<{ shipments: Shi
         const saved = store.statuses[tracking];
         const pm = partner[tracking];
         // Mã đối tác điền tay trước, không có thì sinh theo luật (8 số → 73N…).
-        const t17 = clean(pm?.track17_code) || track17CodeFor(clean(pm?.tracking || tracking)) || null;
+        // code_fixes sửa mã hỏng từ Sheet (FamilyMart mất số 0 đầu) — cả mã đối tác điền tay.
+        const t17 = fixTrack17Code(clean(pm?.track17_code) || track17CodeFor(clean(pm?.tracking || tracking)) || null);
         return {
             tracking,
             track17_code: t17,
             order_uid: null,
             order_id: pm?.order_no || "",
-            order_date: pm?.ship_date ?? null,
+            // NGÀY TẠO đơn (cột ngày lên đơn của đối tác) — khung theo dõi 17TRACK lọc theo
+            // ngày này. Trước đây gán nhầm ngày xuất kho vào đây.
+            order_date: pm?.order_date ?? saved?.order_date ?? pm?.ship_date ?? null,
             // Tên và SĐT LẤY TỪ FILE ĐỐI TÁC. Bản trước để trống rồi chờ
             // BigQuery điền — mà POS mới có vài đơn nên gần như dòng nào cũng
             // trống, và tab này thành vô dụng cho việc gọi khách.
@@ -153,6 +158,9 @@ async function loadShipments(from: string, to: string): Promise<{ shipments: Shi
             source: saved?.source ?? null,
             raw_status: saved?.raw_status ?? null,
             ship_date: saved?.ship_date ?? pm?.ship_date ?? saved?.order_date ?? null,
+            t17_status: saved?.t17_status ?? null,
+            t17_sub_status: saved?.t17_sub_status ?? null,
+            t17_event: saved?.t17_event ?? null,
         };
     };
 
@@ -432,8 +440,15 @@ export async function POST(req: NextRequest) {
                     // nạp file sau cũng không sửa lại được vì nguồn đã thành 17track.
                     if (!t.status || t.status === "NotFound") continue;
                     const prev = cur.statuses[s.tracking];
-                    // Đơn đối tác đã báo KẾT THÚC (hoàn, huỷ…) thì 17TRACK không kéo lùi.
-                    if (prev?.status && TERMINAL.has(prev.status) && prev.source !== "17track") continue;
+                    // Đơn đối tác đã báo KẾT THÚC (hoàn, huỷ…) thì 17TRACK không kéo lùi —
+                    // chỉ lưu bên cạnh để đối chiếu (buildAlerts báo khi lệch kiểu mất tiền).
+                    if (prev?.status && TERMINAL.has(prev.status) && prev.source !== "17track") {
+                        cur.statuses[s.tracking] = {
+                            ...prev, t17_status: t.status, t17_sub_status: t.sub_status,
+                            t17_event: t.last_event, t17_at: nowIso,
+                        };
+                        continue;
+                    }
                     // Lần đầu 17TRACK có tin cho đơn này: đồng hồ lấy mốc của 17TRACK,
                     // không kế thừa mốc "lúc ta nhìn thấy" của file đối tác.
                     const m = mergeStatus(prev?.source === "17track" ? prev : undefined, t, now);

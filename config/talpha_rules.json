@@ -819,6 +819,12 @@
     "register_max_per_run": 300,
     "register_scope": "tu_dong",
     "register_reserve_pct": 0.1,
+    "register_from_date": "2026-08-20",
+    "register_terminal": true,
+    "_register_window_note": "Sỹ Anh chốt 25/09/2026: theo dõi MỌI đơn có NGÀY TẠO (order_date, không có thì ngày xuất kho) từ register_from_date trở đi — thay cho luật tuổi register_max_age_days (chỉ dùng khi để trống ngày này). register_terminal = true: đăng ký CẢ đơn đối tác đã ghi kết thúc (đã giao, hoàn, huỷ, tiêu huỷ) để ĐỐI CHIẾU — trạng thái 17TRACK không đè trạng thái đối tác, chỉ cảnh báo khi lệch kiểu mất tiền: đối tác ghi đã giao mà 17TRACK ghi sự cố/đang hoàn, hoặc đối tác ghi hoàn/huỷ mà 17TRACK ghi khách đã nhận. Các đơn này đứng CUỐI hàng ưu tiên và đi theo nhịp chia quota (quota tháng không dùng hết là mất khi reset ngày 1).",
+    "code_fixes": [
+      { "match": "^67\\d{8}$", "prefix": "0", "_why": "Mã FamilyMart 11 số bắt đầu 067 bị Sheet đối tác nuốt số 0 đầu còn 10 số '67…' — 17TRACK từ chối. Thêm lại số 0." }
+    ],
     "_register_note": "Đăng ký 1 mã = 1 quota. register_scope: 'canh_bao' = CHỈ đơn có cảnh báo Gấp/Cảnh báo; 'tat_ca' = mọi đơn chưa kết thúc, không giới hạn; 'tu_dong' = đơn cảnh báo lấy hết (tới quota), rồi mọi đơn đang đi — phần này mỗi lượt chỉ lấy (quota còn − register_reserve_pct × tổng quota giữ cho đơn gấp sau này) ÷ số ngày còn lại trong tháng, để quota không cạn giữa tháng. Sỹ Anh chốt 25/09/2026: nhiều khoá (nhiều tài khoản 17TRACK miễn phí, 200 mã/tháng mỗi khoá, cộng dồn) và 'cứ dùng thoải mái để tỉ lệ giao cao nhất' → 'tu_dong'. Theo dõi đơn từ lúc đi đường thì biết NGAY ngày hàng tới cửa hàng để nhắn khách ra lấy, không đợi bảng đối tác trễ 2 ngày. Khoá thêm ở dashboard-ui/.env.local: TRACK17_API_KEY, TRACK17_API_KEY_2, _3… Mỗi mã chỉ đăng ký ở MỘT khoá (sổ data/tracking.json ghi key_id) và chỉ khoá đó hỏi trạng thái. Trước khi đăng ký hệ thống hỏi quota từng khoá (getquota, miễn phí), không bao giờ gửi quá. Chỉ đơn xuất kho trong register_max_age_days ngày. register_max_per_run là TRẦN mỗi lượt.",
     "_partner_note": "File đơn hàng của đối tác 3PL (Google Sheet 'BẢNG LÊN ĐƠN', xuất CSV, cập nhật 2 ngày/lần). Nguồn trạng thái MIỄN PHÍ, có sẵn 'Đợi khách đến lấy hàng' nhưng trễ ~2 ngày. 17TRACK gần thời gian thực nên số của nó được ưu tiên — trừ khi file đối tác đã báo đơn KẾT THÚC (giao xong, hoàn, huỷ, tiêu huỷ): trạng thái kết thúc không lùi lại được, và hoàn/huỷ/tiêu huỷ thì 17TRACK không có.",
     "partner_file": {

@@ -28,6 +28,9 @@ type TrackingConfig = {
     register_max_per_run?: number;
     register_scope?: string;
     register_reserve_pct?: number;
+    register_from_date?: string | null;
+    register_terminal?: boolean;
+    code_fixes?: { match: string; prefix: string }[];
     carrier_rules?: { match: string; carrier: number }[];
 };
 
@@ -38,8 +41,11 @@ type TrackingConfig = {
  */
 export type RegisterScope = "canh_bao" | "tat_ca" | "tu_dong";
 
-export const TRACK_CFG: Required<Omit<TrackingConfig, "carrier" | "register_scope" | "carrier_rules">>
-    & { carrier: number | null; register_scope: RegisterScope; carrier_rules: { match: RegExp; carrier: number }[] } = (() => {
+export const TRACK_CFG: Required<Omit<TrackingConfig, "carrier" | "register_scope" | "carrier_rules" | "register_from_date" | "code_fixes">>
+    & {
+        carrier: number | null; register_scope: RegisterScope; register_from_date: string | null;
+        carrier_rules: { match: RegExp; carrier: number }[]; code_fixes: { match: RegExp; prefix: string }[];
+    } = (() => {
     const c: TrackingConfig = (RULES as unknown as { tracking?: TrackingConfig }).tracking || {};
     return {
         provider: c.provider ?? "17track",
@@ -56,6 +62,12 @@ export const TRACK_CFG: Required<Omit<TrackingConfig, "carrier" | "register_scop
         // Khai sai chữ thì về "canh_bao" — hẹp hơn, tốn ít quota hơn.
         register_scope: c.register_scope === "tat_ca" || c.register_scope === "tu_dong" ? c.register_scope : "canh_bao",
         register_reserve_pct: Math.min(0.9, Math.max(0, Number(c.register_reserve_pct ?? 0.1))),
+        // Ngày khai sai dạng thì bỏ, quay về luật tuổi — hỏng về phía tốn ÍT quota.
+        register_from_date: /^\d{4}-\d{2}-\d{2}$/.test(String(c.register_from_date || "")) ? String(c.register_from_date) : null,
+        register_terminal: c.register_terminal === true,
+        code_fixes: (c.code_fixes || [])
+            .filter((r) => r && r.match && r.prefix)
+            .map((r) => ({ match: new RegExp(r.match), prefix: String(r.prefix) })),
         carrier_rules: (c.carrier_rules || [])
             .filter((r) => r && r.match && Number(r.carrier) > 0)
             .map((r) => ({ match: new RegExp(r.match), carrier: Number(r.carrier) })),
@@ -141,6 +153,10 @@ export type Shipment = {
     raw_status?: string | null;
     /** Ngày xuất kho theo file đối tác — đồng hồ đáng tin hơn status_since. */
     ship_date?: string | null;
+    /** Trạng thái 17TRACK của đơn mà ĐỐI TÁC đã ghi kết thúc — chỉ để đối chiếu, không đè. */
+    t17_status?: string | null;
+    t17_sub_status?: string | null;
+    t17_event?: string | null;
 };
 
 /** gấp = sắp mất hàng · canh_bao = cần người xử · nhac = việc thường ngày. */
@@ -151,6 +167,7 @@ export type AlertCode =
     | "toi_cua_hang"       // vừa tới cửa hàng, giục khách ra lấy
     | "giao_hong"          // DeliveryFailure / Exception
     | "dung_im"            // không nhúc nhích quá lâu
+    | "lech_trang_thai"    // đối tác ghi kết thúc, 17TRACK nói khác — kiểu mất tiền COD
     | "chua_dang_ky";      // có mã vận đơn nhưng chưa đăng ký với 17TRACK
 
 export type TrackAlert = {
@@ -240,7 +257,18 @@ export function buildAlerts(shipments: Shipment[], now: Date = new Date()): Trac
             continue;
         }
 
-        if (TERMINAL.has(s.status)) continue;
+        if (TERMINAL.has(s.status)) {
+            const lech = statusMismatch(s.status, s.t17_status, s.t17_sub_status);
+            if (lech) {
+                out.push({
+                    level: "canh_bao", code: "lech_trang_thai",
+                    title: "Đối tác và 17TRACK báo khác nhau",
+                    detail: lech + (s.t17_event ? ` Sự kiện cuối 17TRACK: ${s.t17_event}` : ""),
+                    days: null, shipment: s,
+                });
+            }
+            continue;
+        }
 
         if (s.status === "AvailableForPickup") {
             const left = daysLeftAtStore(s, now);
@@ -358,7 +386,8 @@ export function isTrack17Number(n?: string | null): n is string {
 const REGISTER_RANK = (status: string | null): number =>
     status === "AvailableForPickup" ? 0
         : status === "DeliveryFailure" || status === "Exception" ? 1
-            : status && status !== "NotFound" ? 2 : 3;
+            : status && TERMINAL.has(status) ? 4      // đơn đã kết thúc: chỉ để đối chiếu, cuối hàng
+                : status && status !== "NotFound" ? 2 : 3;
 
 export type RegisterPlan = {
     /** Đơn đem đăng ký lượt này — mỗi mã 17TRACK đúng một đơn đại diện. */
@@ -402,6 +431,7 @@ export function planRegister(
     opt: {
         maxAgeDays?: number; maxPerRun?: number; scope?: RegisterScope;
         quotaRemain?: number | null; quotaTotal?: number | null; daysLeft?: number;
+        fromDate?: string | null; terminal?: boolean;
     } = {},
 ): RegisterPlan {
     const maxAge = opt.maxAgeDays ?? TRACK_CFG.register_max_age_days;
@@ -412,6 +442,10 @@ export function planRegister(
     const canhBao = scope !== "tat_ca"
         ? new Set(buildAlerts(shipments, now).filter((a) => a.level !== "nhac").map((a) => a.shipment))
         : null;
+    const tuNgay = opt.fromDate !== undefined ? opt.fromDate : TRACK_CFG.register_from_date;
+    // Đơn đã kết thúc chỉ đăng ký để đối chiếu, và chỉ khi có khung ngày cố định — không
+    // có khung thì "mọi đơn đã giao" là cả nghìn mã.
+    const layKetThuc = (opt.terminal ?? TRACK_CFG.register_terminal) && !!tuNgay && scope !== "canh_bao";
     const seen = new Set<string>();
     for (const s of shipments) if (s.registered && s.track17_code) seen.add(s.track17_code);
 
@@ -419,11 +453,17 @@ export function planRegister(
     for (const s of shipments) {
         const n = s.track17_code;
         if (s.registered || !isTrack17Number(n) || seen.has(n)) continue;
-        if (s.status && TERMINAL.has(s.status)) continue;
+        if (s.status && TERMINAL.has(s.status) && !layKetThuc) continue;
         if (scope === "canh_bao" && !canhBao!.has(s)) continue;
-        const d = s.ship_date || s.order_date;
-        const age = d ? daysBetween(`${d.slice(0, 10)}T00:00:00Z`, now) : null;
-        if (age !== null && age > maxAge) continue;
+        if (tuNgay) {
+            // Khung theo NGÀY TẠO đơn (Sỹ Anh chốt 25/09/2026: từ 20/08).
+            const d = (s.order_date || s.ship_date || "").slice(0, 10);
+            if (d && d < tuNgay) continue;
+        } else {
+            const d = s.ship_date || s.order_date;
+            const age = d ? daysBetween(`${d.slice(0, 10)}T00:00:00Z`, now) : null;
+            if (age !== null && age > maxAge) continue;
+        }
         seen.add(n);
         cand.push(s);
     }
@@ -467,7 +507,9 @@ export function planTrack(shipments: Shipment[], justRegistered: ReadonlySet<str
         const n = s.track17_code;
         if (!isTrack17Number(n)) continue;
         if (!s.registered && !justRegistered.has(n)) continue;
-        if (s.status && TERMINAL.has(s.status)) continue;
+        // Đơn đã kết thúc: 17TRACK đã tự báo kết thúc thì thôi hỏi; đối tác ghi kết thúc
+        // thì vẫn hỏi (miễn phí) để đối chiếu — nếu đang bật register_terminal.
+        if (s.status && TERMINAL.has(s.status) && (s.source === "17track" || !TRACK_CFG.register_terminal)) continue;
         out.add(n);
     }
     return [...out];
@@ -482,4 +524,40 @@ export function carrierFor(number?: string | null): number | null {
     const n = String(number || "");
     for (const r of TRACK_CFG.carrier_rules) if (r.match.test(n)) return r.carrier;
     return TRACK_CFG.carrier;
+}
+
+/** 17TRACK báo hàng đang/đã hoàn bằng Exception + sub_status Exception_Returning/Returned. */
+const HOAN_SUB = /Returning|Returned/i;
+
+/**
+ * Đối tác ghi đơn KẾT THÚC mà 17TRACK nói khác theo kiểu MẤT TIỀN → câu cảnh báo; không
+ * lệch (hoặc lệch vô hại) → null. Chỉ bắt hai kiểu:
+ *   • đối tác ghi ĐÃ GIAO, 17TRACK ghi sự cố / giao hỏng / đang hoàn — tiền COD có thể
+ *     không bao giờ về mà sổ đối soát tưởng là về;
+ *   • đối tác ghi HOÀN / HUỶ / TIÊU HUỶ, 17TRACK ghi KHÁCH ĐÃ NHẬN — tiền phải về, đòi.
+ * Cố ý KHÔNG bắt "đối tác ghi đã giao, 17TRACK còn ở cửa hàng/đang đi": gần như luôn là
+ * 17TRACK chưa kịp cập nhật, báo ra là nhiễu.
+ */
+export function statusMismatch(partner?: string | null, t17?: string | null, t17sub?: string | null): string | null {
+    if (!partner || !t17 || t17 === "NotFound") return null;
+    if (partner === "Delivered") {
+        if (t17 === "Exception" && HOAN_SUB.test(t17sub || "")) {
+            return "Đối tác ghi ĐÃ GIAO, 17TRACK ghi hàng đang/đã HOÀN — tiền COD có thể không về.";
+        }
+        if (t17 === "Exception" || t17 === "DeliveryFailure") {
+            return `Đối tác ghi ĐÃ GIAO, 17TRACK ghi “${statusLabel(t17)}” — kiểm lại trước khi đối soát COD.`;
+        }
+        return null;
+    }
+    if ((partner === "Returned" || partner === "Cancelled" || partner === "Destroyed") && t17 === "Delivered") {
+        return `Đối tác ghi “${statusLabel(partner)}”, 17TRACK ghi KHÁCH ĐÃ NHẬN — tiền COD phải về, hỏi lại đối tác.`;
+    }
+    return null;
+}
+
+/** Sửa mã hỏng theo luật code_fixes (vd. FamilyMart bị Sheet nuốt số 0 đầu). */
+export function fixTrack17Code(n?: string | null): string | null {
+    if (!n) return null;
+    for (const r of TRACK_CFG.code_fixes) if (r.match.test(n)) return r.prefix + n;
+    return n;
 }

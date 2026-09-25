@@ -191,7 +191,8 @@ t("file đối tác đã cho trạng thái thì KHÔNG giục đăng ký 17TRACK
 console.log("── 17TRACK: chọn mã đăng ký (tốn quota) ──");
 const reg = (o = {}) => ship({ registered: false, track17_code: "73N18024614", ship_date: shipDaysAgo(3), ...o });
 // Luật chung, không phụ thuộc scope đang khai — test ở scope rộng nhất.
-const plan = (xs, o = {}) => T.planRegister(xs, NOW, { scope: "tat_ca", ...o });
+// fromDate: null = luật tuổi cũ (rules đang khai khung ngày cố định — test riêng bên dưới).
+const plan = (xs, o = {}) => T.planRegister(xs, NOW, { scope: "tat_ca", fromDate: null, ...o });
 t("đơn đã kết thúc KHÔNG đem đăng ký — đốt quota vô ích", () => {
     const xs = ["Delivered", "Returned", "Cancelled", "Destroyed", "Expired"]
         .map((st, i) => reg({ status: st, track17_code: `73N1802461${i}` }));
@@ -303,11 +304,90 @@ t("số ngày còn lại trong tháng tính theo giờ Việt Nam", () => {
     assert.strictEqual(T.daysLeftInMonth(new Date("2026-09-30T18:00:00Z")), 31);  // 01/10 giờ VN
 });
 
+console.log("── 17TRACK: khung theo NGÀY TẠO đơn (từ 20/08) ──");
+t("đơn tạo từ ngày khung trở đi thì theo dõi, trước đó thì bỏ", () => {
+    const xs = [
+        reg({ track17_code: "73N00000019", order_date: "2026-08-19", ship_date: "2026-08-25" }),
+        reg({ track17_code: "73N00000020", order_date: "2026-08-20", ship_date: "2026-08-22" }),
+    ];
+    const p = T.planRegister(xs, NOW, { scope: "tat_ca", fromDate: "2026-08-20", terminal: false });
+    assert.deepStrictEqual(p.pick.map((s) => s.track17_code), ["73N00000020"]);
+});
+t("khung ngày cố định thay luật tuổi: đơn tạo 20/08 vẫn theo dõi dù quá 45 ngày", () => {
+    const xa = new Date("2026-10-20T08:00:00Z");
+    const s = reg({ order_date: "2026-08-21", ship_date: "2026-08-23" });
+    assert.strictEqual(T.planRegister([s], xa, { scope: "tat_ca", fromDate: "2026-08-20" }).pick.length, 1);
+});
+t("đơn đã kết thúc: đăng ký để đối chiếu, đứng cuối hàng", () => {
+    const xs = [
+        reg({ track17_code: "73N00000001", status: "Delivered", order_date: "2026-08-25" }),
+        reg({ track17_code: "73N00000002", status: "InTransit", order_date: "2026-08-25" }),
+    ];
+    const p = T.planRegister(xs, NOW, { scope: "tat_ca", fromDate: "2026-08-20", terminal: true });
+    assert.deepStrictEqual(p.pick.map((s) => s.track17_code), ["73N00000002", "73N00000001"]);
+});
+t("không có khung ngày cố định thì KHÔNG đăng ký đơn đã kết thúc (tránh cả nghìn mã)", () => {
+    const s = reg({ status: "Delivered" });
+    assert.strictEqual(T.planRegister([s], NOW, { scope: "tat_ca", fromDate: null, terminal: true }).pick.length, 0);
+});
+t("scope canh_bao thì không đăng ký đơn đã kết thúc", () => {
+    const s = reg({ status: "Delivered", order_date: "2026-08-25" });
+    assert.strictEqual(T.planRegister([s], NOW, { scope: "canh_bao", fromDate: "2026-08-20", terminal: true }).pick.length, 0);
+});
+t("rules: khung từ 20/08, đối chiếu đơn đã kết thúc", () => {
+    assert.strictEqual(T.TRACK_CFG.register_from_date, "2026-08-20");
+    assert.strictEqual(T.TRACK_CFG.register_terminal, true);
+});
+
+console.log("── 17TRACK: đối chiếu đơn đối tác ghi kết thúc ──");
+t("đối tác ghi đã giao, 17TRACK ghi đang hoàn → cảnh báo mất tiền", () => {
+    assert.match(T.statusMismatch("Delivered", "Exception", "Exception_Returning"), /đang\/đã HOÀN/);
+});
+t("đối tác ghi đã giao, 17TRACK ghi giao hỏng → cảnh báo", () => {
+    assert.match(T.statusMismatch("Delivered", "DeliveryFailure", null), /kiểm lại/);
+});
+t("đối tác ghi hoàn/huỷ, 17TRACK ghi khách đã nhận → tiền phải về", () => {
+    assert.match(T.statusMismatch("Returned", "Delivered", null), /KHÁCH ĐÃ NHẬN/);
+    assert.match(T.statusMismatch("Cancelled", "Delivered", null), /KHÁCH ĐÃ NHẬN/);
+});
+t("khớp, hoặc 17TRACK chỉ chậm cập nhật → không báo (tránh nhiễu)", () => {
+    assert.strictEqual(T.statusMismatch("Delivered", "Delivered", null), null);
+    assert.strictEqual(T.statusMismatch("Delivered", "AvailableForPickup", null), null);
+    assert.strictEqual(T.statusMismatch("Returned", "Exception", "Exception_Returned"), null);
+    assert.strictEqual(T.statusMismatch("Delivered", "NotFound", null), null);
+    assert.strictEqual(T.statusMismatch("Delivered", null, null), null);
+});
+t("buildAlerts nêu đơn lệch ở mức Cảnh báo", () => {
+    const s = ship({ status: "Delivered", t17_status: "Exception", t17_sub_status: "Exception_Returning", t17_event: "退回寄件人" });
+    const a = T.buildAlerts([s], NOW);
+    assert.strictEqual(a.length, 1);
+    assert.strictEqual(a[0].code, "lech_trang_thai");
+    assert.strictEqual(a[0].level, "canh_bao");
+    assert.match(a[0].detail, /退回寄件人/);
+});
+t("đơn đối tác ghi kết thúc đã đăng ký vẫn được hỏi trạng thái (để đối chiếu)", () => {
+    const xs = [
+        reg({ registered: true, track17_code: "73N00000001", status: "Delivered", source: "doi_tac" }),
+        reg({ registered: true, track17_code: "73N00000002", status: "Delivered", source: "17track" }),
+    ];
+    assert.deepStrictEqual(T.planTrack(xs), ["73N00000001"]);
+});
+
+console.log("── 17TRACK: sửa mã hỏng từ Sheet ──");
+t("FamilyMart mất số 0 đầu (10 số 67…) → thêm lại số 0", () => {
+    assert.strictEqual(T.fixTrack17Code("6722460150"), "06722460150");
+});
+t("mã khác giữ nguyên (giao tận nhà 187…, 7-Eleven)", () => {
+    assert.strictEqual(T.fixTrack17Code("1870459566"), "1870459566");
+    assert.strictEqual(T.fixTrack17Code("73N18053018"), "73N18053018");
+    assert.strictEqual(T.fixTrack17Code(null), null);
+});
+
 console.log("── 17TRACK: chọn mã hỏi trạng thái (miễn phí) ──");
-t("chỉ hỏi mã đã đăng ký và chưa kết thúc", () => {
+t("chỉ hỏi mã đã đăng ký, bỏ mã 17TRACK đã tự báo kết thúc", () => {
     const xs = [
         reg({ registered: true, track17_code: "73N00000001", status: "InTransit" }),
-        reg({ registered: true, track17_code: "73N00000002", status: "Delivered" }),
+        reg({ registered: true, track17_code: "73N00000002", status: "Delivered", source: "17track" }),
         reg({ registered: false, track17_code: "73N00000003", status: "InTransit" }),
     ];
     assert.deepStrictEqual(T.planTrack(xs), ["73N00000001"]);

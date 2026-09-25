@@ -115,10 +115,11 @@ function buildTinVanDon(d, opts = {}) {
         .sort((a, b) => b.days_left - a.days_left);
     const hong = by("giao_hong");
     const dungIm = by("dung_im");
+    const lech = by("lech_trang_thai");
     const moiToi = by("toi_cua_hang");
     const chuaRo = by("chua_dang_ky");
 
-    const nGap = gap.length, nCb = hong.length + dungIm.length, nNhac = moiToi.length + chuaRo.length;
+    const nGap = gap.length, nCb = hong.length + dungIm.length + lech.length, nNhac = moiToi.length + chuaRo.length;
     const atStore = (d.counts || {}).AvailableForPickup || 0;
     const tienCho = (d.totals || {}).at_store_value || 0;
 
@@ -170,6 +171,18 @@ function buildTinVanDon(d, opts = {}) {
         m += `\n\n🟠 ${B(`ĐỨNG IM (${dungIm.length})`)} ${I("— hỏi lại hãng vận chuyển")}`;
         for (const a of dungIm.slice(0, slot)) m += "\n" + dongDon(a, { them: `${a.days} ngày không nhúc nhích` });
         conLai += Math.max(0, dungIm.length - slot);
+    }
+
+    // Lệch đối tác ↔ 17TRACK là chuyện TIỀN (COD không về, hoặc về mà sổ tưởng mất) —
+    // có chỗ in riêng, không tranh chỗ với giao hỏng.
+    if (lech.length) {
+        const maxLech = Number(opts.maxLech) || 5;
+        m += `\n\n🟠 ${B(`LỆCH ĐỐI TÁC ↔ 17TRACK (${lech.length})`)} ${I("— kiểm trước khi đối soát COD")}`;
+        for (const a of lech.slice(0, maxLech)) {
+            const s = a.shipment || {};
+            m += `\n• ${B(s.order_id || s.tracking || "?")}${s.cod_local ? ` · ${fmt(Math.round(s.cod_local))} NT$` : ""} · ${cat(a.detail, 110)}`;
+        }
+        conLai += Math.max(0, lech.length - maxLech);
     }
 
     if (moiToi.length) m += `\n\n🔔 ${fmt(moiToi.length)} đơn vừa tới cửa hàng — nhắn khách ra lấy.`;
