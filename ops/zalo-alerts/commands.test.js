@@ -56,8 +56,8 @@ t("/bot", doc("/bot"), { lenh: "trogiup" });
 
 t("hôm qua của ngày đầu tháng", homQua("2026-10-01"), "2026-09-30");
 
-const hd = toZalo(huongDan({ at: "08:30", nguoi: NGUOI })).msg;
-assert.ok(hd.includes("Tự gửi lúc 08:30") && hd.includes("/baocao homqua Lộc") && hd.includes("/canhbao"));
+const hd = toZalo(huongDan({ at: "08:30", toi: "22:00", nguoi: NGUOI })).msg;
+assert.ok(hd.includes("Tự gửi 08:30 (kết quả hôm qua) và 22:00 (kết quả hôm nay)") && hd.includes("/baocao homqua Lộc") && hd.includes("/canhbao"), hd);
 ok++;
 
 console.log(`commands.test.js: ${ok}/${ok} PASS`);

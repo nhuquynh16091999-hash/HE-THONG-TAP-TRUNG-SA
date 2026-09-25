@@ -29,7 +29,7 @@ const CFG = require("./config");
 const { buildMarketerReports, buildTinDinhChinh } = require("./daily_report");
 const { buildAdsAlert, buildAdsStatus } = require("./ads_alerts");
 const { docLenh, huongDan, huongDanVanDon, homQua } = require("./commands");
-const { buildTinVanDon, fetchVanDon } = require("./van_don");
+const { buildVanDonSang, buildVanDonToi, fetchVanDon } = require("./van_don");
 const { slotAction, toMin, canDinhChinh, hanDinhChinh } = require("./schedule");
 const { toZalo, chiaTin } = require("./zalo_text");
 const { MARKETERS, DISPLAY } = require("./rules");
@@ -79,7 +79,9 @@ function inQuietHours() {
 }
 
 const DAILY_AT = /^\d{1,2}:\d{2}$/.test(String(DR.at || "")) ? DR.at : "08:30";
-const VD_AT = /^\d{1,2}:\d{2}$/.test(String(VD.at || "")) ? VD.at : "";   // trống = không tự gửi tin vận đơn
+const VD_AT = /^\d{1,2}:\d{2}$/.test(String(VD.at || "")) ? VD.at : "";   // trống = không tự gửi tin vận đơn sáng
+const VD_TOI = /^\d{1,2}:\d{2}$/.test(String(VD.toiAt || "")) ? VD.toiAt : "";   // trống = không gửi tin tối
+const gioCua = (ts) => new Date(ts).toLocaleString("en-US", { hour: "2-digit", minute: "2-digit", hourCycle: "h23", timeZone: CFG.timezone });
 const INTRADAY_SLOTS = (DR.intradaySlots || []).map((x) => String(x).trim()).filter((x) => /^\d{1,2}:\d{2}$/.test(x));
 const slotLabel = (hhmm) => { const t = vnDateStr(); return `HÔM NAY ${t.slice(8, 10)}/${t.slice(5, 7)} · ${hhmm}`; };
 
@@ -113,7 +115,7 @@ async function fetchAds() {
 let zalo = null;           // require("./zalo") muộn: --dry-run chạy được cả khi chưa cài zca-js
 let api = null;
 let nhomDich = null;
-let nhomVanDon = null;     // nhóm nhận tin vận đơn — null = chưa chọn, không gửi tin vận đơn
+let nhomVanDon = {};       // mã nước → nhóm nhận tin vận đơn nước đó (VẬN ĐƠN TW, VẬN ĐƠN SGP); thiếu = không gửi
 let dichVu = false;        // chạy dịch vụ thì mỗi lần đăng nhập đều bật lại bộ nhận lệnh
 
 async function ketNoi() {
@@ -172,10 +174,26 @@ async function guiLoat(texts, nhom = nhomDich) {
     return da;
 }
 
-async function dungBaoCao(ngay, homNay, label, staleCoSan) {
+// kieu: "sang" (08:30, kết quả hôm qua) · "toi" (22:00, kết quả hôm nay) · "" (gõ tay / đính chính).
+async function dungBaoCao(ngay, homNay, label, staleCoSan, kieu = "") {
     const stale = staleCoSan === undefined ? await fetchStale() : staleCoSan;
+    const gio = vnHHMM(), today = vnDateStr();
+    let tieuDe, nguon;
+    if (kieu === "sang") {
+        tieuDe = `☀️ ADS · SÁNG ${ddmm(today)} · KẾT QUẢ ${ddmm(ngay)}`;
+        nguon = "Số chốt từ file TỔNG TEAM" + (stale && stale.lastOkTs ? ` · sync ${gioCua(stale.lastOkTs)} ✓` : "");
+    } else if (kieu === "toi") {
+        tieuDe = `🌙 ADS · TỐI ${ddmm(ngay)} · KẾT QUẢ HÔM NAY`;
+        nguon = `Số tới ${gio} · ngày chưa chốt, còn lên nhẹ`;
+    } else if (homNay) {
+        tieuDe = `📊 ADS · HÔM NAY ${ddmm(ngay)} · ${gio}`;
+        nguon = "Số đang chạy, chưa chốt ngày";
+    } else {
+        tieuDe = `📊 ADS · ${ddmm(ngay)}`;
+        nguon = "Số từ file TỔNG TEAM";
+    }
     return buildMarketerReports(DR, ngay,
-        { intraday: homNay, label: label || (homNay ? slotLabel(vnHHMM()) : undefined), stale, log });
+        { intraday: homNay, label: label || (homNay ? slotLabel(gio) : undefined), stale, log, tieuDe, nguon });
 }
 
 // MỘT tin cho mốc tự gửi (Sỹ Anh chốt 16/09/2026: trước đây 1 tin tổng + 1 tin mỗi
@@ -184,51 +202,48 @@ async function dungBaoCao(ngay, homNay, label, staleCoSan) {
 // theoDoi: khoá xếp lịch ĐÍNH CHÍNH. Chỉ mốc tự gửi và `--report` truyền vào — lệnh
 // /baocao gõ trong nhóm là người ta HỎI số lúc này, không phải bản tin chính thức, nên
 // không sinh tin đính chính (ai gõ 10 lần thì 10 tin đính chính là loạn nhóm).
-function guiBaoCao(ngay, { homNay = false, label, theoDoi } = {}) {
+function guiBaoCao(ngay, { homNay = false, label, theoDoi, kieu = "" } = {}) {
     return lanLuot(async () => {
-        const r = await dungBaoCao(ngay, homNay, label);
+        const r = await dungBaoCao(ngay, homNay, label, undefined, kieu);
         const n = await guiLoat([r.tinGop]);
         if (theoDoi && r.chuaDu && !DRY) xepDinhChinh(theoDoi, r, ngay, homNay);
         return { n, marketers: r.nguoi.length, chuaDu: r.chuaDu };
     });
 }
 
-// ─── Vận đơn cần xử lý ───
-// Đọc đúng route màn "Theo dõi vận đơn" dùng. Bảng đối tác nạp 6h + 17TRACK đồng bộ ngay
-// sau đó (talpha-tracking.service), nên 08:00 là số của sáng nay.
-// MỖI thị trường MỘT tin (Sỹ Anh chốt 25/09/2026: Singapore tách riêng Đài Loan), theo thứ
-// tự vanDon.markets. Một nước đọc hỏng thì các nước kia VẪN gửi, nước hỏng có một dòng báo
-// lỗi — trừ khi mọi nước cùng hỏng thì ném lỗi để mốc 08:00 thử lại vòng sau.
+// ─── Vận đơn ───
+// Sỹ Anh duyệt mẫu 26/09/2026: 08:30 SÁNG (hôm qua + khách phải gọi/nhắn, đủ chi tiết từng
+// khách) và 22:00 TỐI (hôm nay làm được gì). MỖI nước MỘT nhóm (VẬN ĐƠN TW, VẬN ĐƠN SGP),
+// mỗi nước một mốc riêng — nước này hỏng không kéo nước kia, và vòng rà thử lại đúng nước hỏng.
+// Tin sáng lưu danh sách khách phải gọi/nhắn vào state.json để tin tối chấm "đã lấy chưa".
 const VD_MARKETS = (Array.isArray(VD.markets) && VD.markets.length ? VD.markets : ["TW"]).map((x) => String(x).toUpperCase());
 const TEN_NUOC = { TW: "Đài Loan", SG: "Singapore" };
 
-async function dungTinVanDon(chiNuoc = null) {
+// kieu: "sang" · "toi" · "" (gõ /vandon trong ngày — khuôn tin sáng, đề giờ lúc gõ).
+async function dungTinVanDon(m, kieu) {
     const today = vnDateStr();
-    const nuoc = chiNuoc ? [chiNuoc] : VD_MARKETS;
-    const tin = [], loi = [];
-    for (const m of nuoc) {
-        try {
-            const d = await fetchVanDon(VD, today, fetch, m);
-            tin.push(buildTinVanDon(d, {
-                today, maxGap: VD.maxGap, maxCanhBao: VD.maxCanhBao, link: VD.link, quotaWarn: VD.quotaWarn,
-            }));
-        } catch (e) {
-            loi.push(e.message);
-            log(`Tin vận đơn ${m} lỗi:`, e.message);
-            tin.push(`⚠️ Vận đơn ${TEN_NUOC[m] || m}: chưa lấy được số lúc này (${e.message}).`);
-        }
+    const d = await fetchVanDon(VD, today, fetch, m);
+    const base = { today, maxGoi: VD.maxGap, maxMoiToi: VD.maxMoiToi, quotaWarn: VD.quotaWarn, phuTrach: VD.phuTrach };
+    if (kieu === "toi") {
+        const sang = (loadState().vanDonSang || {})[m];
+        return { text: buildVanDonToi(d, { ...base, sangNay: sang && sang.ngay === today ? sang : null }) };
     }
-    if (loi.length === nuoc.length) throw new Error(loi.join(" · "));
-    return tin;
+    const tieuDe = kieu === "sang" ? undefined : `📦 VẬN ĐƠN ${(TEN_NUOC[m] || m).toUpperCase()} · ${vnHHMM()} ${ddmm(today)}`;
+    return buildVanDonSang(d, { ...base, tieuDe });
 }
 
-function guiVanDon() {
-    if (!DRY && !nhomVanDon) {
-        return Promise.reject(new Error("chưa chọn nhóm vận đơn — chạy `node pair.js --chon-vandon <id nhóm>`"));
+function guiVanDon(m, kieu = "sang") {
+    const nhom = nhomVanDon[m];
+    if (!DRY && !nhom) {
+        return Promise.reject(new Error(`chưa chọn nhóm vận đơn ${m} — chạy \`node pair.js --chon-vandon <id nhóm>${m === "TW" ? "" : ` --nuoc ${m}`}\``));
     }
     return lanLuot(async () => {
-        const n = await guiLoat(await dungTinVanDon(), nhomVanDon);
-        return { n, ghiChu: `tin vận đơn ${VD_MARKETS.join(" + ")} (${n} tin)` };
+        const r = await dungTinVanDon(m, kieu);
+        const n = await guiLoat([r.text], nhom);
+        if (kieu === "sang" && !DRY) {
+            markState((s) => { (s.vanDonSang = s.vanDonSang || {})[m] = { ngay: vnDateStr(), goi: r.goi || [], moiToi: r.moiToi || [] }; });
+        }
+        return { n, ghiChu: `tin vận đơn ${m} ${kieu || "gõ tay"} (${n} tin)` };
     });
 }
 
@@ -277,18 +292,19 @@ async function ratDinhChinh() {
 // ─── Lệnh trong nhóm ───
 const lanCuoi = new Map();     // chữ lệnh → lúc nhận; cùng lệnh trong 60 giây thì bỏ (bấm gửi hai lần)
 
-// nhom: "ads" | "vandon" | "ca-hai" (cùng một nhóm cho cả hai) | "cli" (gõ từ dòng lệnh).
-// Lệnh ads chỉ trả ở nhóm ads, /vandon chỉ trả ở nhóm vận đơn: tin vận đơn có SĐT khách,
-// tin ads có doanh thu — nhóm nào chỉ thấy phần của nhóm đó.
-async function lamLenh(text, ai = "dòng lệnh", nhom = "cli") {
+// ctx: nhóm lệnh được gõ ở đâu — { ads: true } nhóm ads, { vd: "TW" } nhóm vận đơn một nước,
+// null = dòng lệnh. Lệnh ads chỉ trả ở nhóm ads, /vandon chỉ trả ở nhóm vận đơn và CHỈ nước
+// của nhóm đó: tin vận đơn có SĐT khách, tin ads có doanh thu — nhóm nào thấy phần nhóm đó.
+async function lamLenh(text, ai = "dòng lệnh", ctx = null) {
     const lenh = docLenh(text, { today: vnDateStr(), nguoi: NGUOI });
     if (!lenh) return false;
-    const choAds = nhom !== "vandon", choVD = nhom !== "ads";
+    const choAds = !ctx || !!ctx.ads, choVD = !ctx || !!ctx.vd;
+    const nhom = !ctx ? "cli" : ctx.ads && ctx.vd ? "ca-hai" : ctx.ads ? "ads" : "vandon";
     if (lenh.lenh === "vandon" ? !choVD : (lenh.lenh !== "trogiup" && !choAds)) {
         log(`Bỏ lệnh "${String(text).trim()}" từ ${ai} — không thuộc nhóm này.`);
         return true;
     }
-    const khoa = `${nhom}:${String(text).trim().toLowerCase()}`;
+    const khoa = `${nhom}:${ctx && ctx.vd ? ctx.vd : ""}:${String(text).trim().toLowerCase()}`;
     if (Date.now() - (lanCuoi.get(khoa) || 0) < 60000) { log(`Bỏ lệnh lặp "${khoa}" từ ${ai}.`); return true; }
     lanCuoi.set(khoa, Date.now());
     log(`Lệnh "${String(text).trim()}" từ ${ai}.`);
@@ -296,22 +312,25 @@ async function lamLenh(text, ai = "dòng lệnh", nhom = "cli") {
     await lanLuot(async () => {
         try {
             if (lenh.lenh === "vandon") {
-                if (lenh.loi) { await guiMot(`⚠️ ${lenh.loi}`, nhomVanDon); return; }
-                try { await guiLoat(await dungTinVanDon(lenh.nuoc || null), nhomVanDon); }
+                // Trong nhóm một nước: luôn là nước của nhóm. Dòng lệnh: nước ghi trong lệnh, hoặc mọi nước.
+                const nuoc = ctx && ctx.vd ? [ctx.vd] : lenh.nuoc ? [lenh.nuoc] : VD_MARKETS;
+                const nhomTra = nhomVanDon[nuoc[0]];
+                if (lenh.loi) { await guiMot(`⚠️ ${lenh.loi}`, nhomTra); return; }
+                try { for (const m of nuoc) await guiLoat([(await dungTinVanDon(m, "")).text], nhomVanDon[m]); }
                 catch (e) {
                     // Tự lo lỗi ở đây, KHÔNG ném ra ngoài: nhánh bắt lỗi chung bên dưới gửi
                     // vào nhóm ads — tin lỗi vận đơn không có chỗ ở đó.
                     log("Lệnh /vandon lỗi:", e.message);
-                    try { await guiMot(`⚠️ Chưa lấy được danh sách vận đơn lúc này (${e.message}). Lát nữa gõ lại.`, nhomVanDon); }
+                    try { await guiMot(`⚠️ Chưa lấy được danh sách vận đơn lúc này (${e.message}). Lát nữa gõ lại.`, nhomTra); }
                     catch (e2) { log("Không gửi được tin báo lỗi vận đơn:", e2.message); }
                 }
                 return;
             }
-            if (lenh.lenh === "trogiup" && nhom === "vandon") { await guiMot(huongDanVanDon({ at: VD_AT }), nhomVanDon); return; }
+            if (lenh.lenh === "trogiup" && nhom === "vandon") { await guiMot(huongDanVanDon({ at: VD_AT, toi: VD_TOI }), nhomVanDon[ctx.vd]); return; }
             if (lenh.loi) { await guiMot(`⚠️ ${lenh.loi}`); return; }
             if (lenh.lenh === "trogiup") {
-                await guiMot(huongDan({ at: DAILY_AT, nguoi: NGUOI })
-                    + (nhom === "ca-hai" ? "\n\n" + huongDanVanDon({ at: VD_AT }) : ""));
+                await guiMot(huongDan({ at: DAILY_AT, toi: INTRADAY_SLOTS.join(" · "), nguoi: NGUOI })
+                    + (nhom === "ca-hai" ? "\n\n" + huongDanVanDon({ at: VD_AT, toi: VD_TOI }) : ""));
                 return;
             }
             if (lenh.lenh === "canhbao") { await guiMot(buildAdsStatus(await fetchAds(), CFG)); return; }
@@ -343,12 +362,11 @@ async function lamLenh(text, ai = "dòng lệnh", nhom = "cli") {
 function xuLyTin(msg) {
     if (!zalo || msg.type !== zalo.ThreadType.Group) return;
     const laAds = !!nhomDich && msg.threadId === nhomDich.id;
-    const laVD = !!nhomVanDon && msg.threadId === nhomVanDon.id;
-    if (!laAds && !laVD) return;
+    const vd = Object.keys(nhomVanDon).find((m) => nhomVanDon[m] && nhomVanDon[m].id === msg.threadId) || null;
+    if (!laAds && !vd) return;
     const text = typeof msg.data.content === "string" ? msg.data.content : "";
     if (!text.trim().startsWith("/")) return;
-    const nhom = laAds && laVD ? "ca-hai" : laAds ? "ads" : "vandon";
-    lamLenh(text, msg.data.dName || msg.data.uidFrom, nhom).catch((e) => log("Lỗi xử lý lệnh:", e.message));
+    lamLenh(text, msg.data.dName || msg.data.uidFrom, { ads: laAds, vd }).catch((e) => log("Lỗi xử lý lệnh:", e.message));
 }
 
 // Bộ nhận lệnh gắn với MỘT phiên đăng nhập. Đăng nhập lại là thay bộ mới. Bộ nghe bị Zalo
@@ -405,14 +423,19 @@ async function chayMoc(khoa, moc, cuaSo, lamViec) {
 async function ratMoc() {
     const hq = homQua(vnDateStr());
     await chayMoc("sang", DAILY_AT, Number(DR.atCatchUpMinutes || 210),
-        () => guiBaoCao(hq, { theoDoi: `sang:${hq}` }));
+        () => guiBaoCao(hq, { theoDoi: `sang:${hq}`, kieu: "sang" }));
     for (const slot of INTRADAY_SLOTS) {
         const nay = vnDateStr();
         await chayMoc(slot, slot, Number(DR.intradayCatchUpMinutes || 60),
-            () => guiBaoCao(nay, { homNay: true, label: slotLabel(slot), theoDoi: `${slot}:${nay}` }));
+            () => guiBaoCao(nay, { homNay: true, label: slotLabel(slot), theoDoi: `${slot}:${nay}`, kieu: "toi" }));
     }
     // Tin vận đơn: dashboard lỗi thì vòng 5' sau thử lại, quá catchUpMinutes thì bỏ hôm đó.
-    if (nhomVanDon && VD_AT) await chayMoc("vandon", VD_AT, Number(VD.catchUpMinutes || 180), guiVanDon);
+    // Vận đơn: mỗi nước một mốc sáng + một mốc tối, rà riêng.
+    for (const m of VD_MARKETS) {
+        if (!nhomVanDon[m]) continue;
+        if (VD_AT) await chayMoc(`vandon:${m}`, VD_AT, Number(VD.catchUpMinutes || 180), () => guiVanDon(m, "sang"));
+        if (VD_TOI) await chayMoc(`vandon_toi:${m}`, VD_TOI, Number(VD.toiCatchUpMinutes || 60), () => guiVanDon(m, "toi"));
+    }
 }
 
 // Cảnh báo ads theo chu kỳ — chỉ chạy khi adsPollMinutes > 0.
@@ -436,8 +459,11 @@ async function giuPhien() {
 
 async function gioiThieuNeuMoi() {
     const moi = [];
-    if (nhomDich) moi.push([nhomDich, huongDan({ at: DAILY_AT, nguoi: NGUOI })]);
-    if (nhomVanDon && (!nhomDich || nhomVanDon.id !== nhomDich.id)) moi.push([nhomVanDon, huongDanVanDon({ at: VD_AT })]);
+    if (nhomDich) moi.push([nhomDich, huongDan({ at: DAILY_AT, toi: INTRADAY_SLOTS.join(" · "), nguoi: NGUOI })]);
+    for (const m of VD_MARKETS) {
+        const g = nhomVanDon[m];
+        if (g && (!nhomDich || g.id !== nhomDich.id)) moi.push([g, huongDanVanDon({ at: VD_AT, toi: VD_TOI, nuoc: TEN_NUOC[m] || m })]);
+    }
     for (const [nhom, tin] of moi) {
         if ((loadState().gioiThieu || {})[nhom.id]) continue;
         await lanLuot(() => guiMot(tin, nhom));
@@ -454,8 +480,8 @@ async function chayDichVu() {
     // và che mất lỗi thật. Đứng chờ, 10' thử lại một lần.
     for (;;) {
         nhomDich = zalo.docNhomDich();
-        nhomVanDon = zalo.docNhomVanDon();
-        if (!nhomDich && !nhomVanDon) log("Chưa chọn nhóm nhận tin — chạy `node pair.js` rồi `node pair.js --chon <id>`.");
+        nhomVanDon = Object.fromEntries(VD_MARKETS.map((m) => [m, zalo.docNhomVanDon(m)]).filter(([, g]) => g));
+        if (!nhomDich && !Object.keys(nhomVanDon).length) log("Chưa chọn nhóm nhận tin — chạy `node pair.js` rồi `node pair.js --chon <id>`.");
         else {
             try { await ketNoi(); break; }
             catch (e) { log("Đăng nhập Zalo lỗi:", e.message); }
@@ -467,8 +493,11 @@ async function chayDichVu() {
             + (ADS_POLL > 0 ? ` · cảnh báo ads mỗi ${ADS_POLL}'` : " · cảnh báo ads chỉ khi gõ /canhbao")
             + " · nghe lệnh trong nhóm.");
     } else log("Chưa chọn nhóm ads — không gửi báo cáo ads (`node pair.js --chon <id>`).");
-    if (nhomVanDon) log(`Nhóm vận đơn "${nhomVanDon.name}" (${nhomVanDon.id}) · tự gửi ${VD_AT || "(tắt)"} · nghe /vandon.`);
-    else log("Chưa chọn nhóm vận đơn — không gửi tin vận đơn (`node pair.js --chon-vandon <id>`).");
+    for (const m of VD_MARKETS) {
+        const g = nhomVanDon[m];
+        if (g) log(`Nhóm vận đơn ${m} "${g.name}" (${g.id}) · tự gửi ${[VD_AT, VD_TOI].filter(Boolean).join(" + ") || "(tắt)"} · nghe /vandon.`);
+        else log(`Chưa chọn nhóm vận đơn ${m} — không gửi tin vận đơn ${m} (\`node pair.js --chon-vandon <id>${m === "TW" ? "" : ` --nuoc ${m}`}\`).`);
+    }
 
     try { await gioiThieuNeuMoi(); } catch (e) { log("Tin giới thiệu lỗi:", e.message); }
 
@@ -495,11 +524,17 @@ async function main() {
         if (!DRY) {
             const z = require("./zalo");
             nhomDich = z.docNhomDich();
-            nhomVanDon = z.docNhomVanDon();
+            nhomVanDon = Object.fromEntries(VD_MARKETS.map((m) => [m, z.docNhomVanDon(m)]).filter(([, g]) => g));
         }
         if (ARGS.includes("--vandon")) {
-            await guiVanDon();
-            log(DRY ? "In thử tin vận đơn." : `Đã gửi tin vận đơn vào "${nhomVanDon.name}".`);
+            // --vandon [sang|toi] [--nuoc SG]: gửi ngay (mặc định: khuôn sáng, mọi nước).
+            const kieu = ["sang", "toi"].includes(argAfter("--vandon")) ? argAfter("--vandon") : "sang";
+            const nuoc = argAfter("--nuoc") ? [argAfter("--nuoc").toUpperCase()] : VD_MARKETS;
+            for (const m of nuoc) {
+                if (!DRY && !nhomVanDon[m]) { log(`Bỏ ${m}: chưa chọn nhóm vận đơn.`); continue; }
+                await guiVanDon(m, kieu);
+                log(DRY ? `In thử tin vận đơn ${m} (${kieu}).` : `Đã gửi tin vận đơn ${m} (${kieu}) vào "${nhomVanDon[m].name}".`);
+            }
         } else if (lenh) {
             if (!(await lamLenh(lenh))) log(`"${lenh}" không phải lệnh của bot.`);
         } else {

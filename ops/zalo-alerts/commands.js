@@ -88,10 +88,10 @@ function docLenh(text, { today, nguoi = [] }) {
     return { lenh, ngay, homNay: ngay === today, loc };
 }
 
-function huongDan({ at, nguoi = [] } = {}) {
+function huongDan({ at, toi, nguoi = [] } = {}) {
     const vi = nguoi[0] ? nguoi[0].ten : "Lộc";
     return `🤖 ${B("Bot TALPHA — báo cáo ads")}\n`
-        + `Tự gửi lúc ${at || "08:30"}: số ads hôm qua, gộp trong MỘT tin.\n\n`
+        + `Tự gửi ${at || "08:30"} (kết quả hôm qua)${toi ? ` và ${toi} (kết quả hôm nay)` : ""}: số tổng, theo nước, xếp hạng và chi tiết từng camp.\n\n`
         + `${B("Gõ trong nhóm để lấy số:")}\n`
         + `• /baocao — số đang chạy hôm nay (1 tin)\n`
         + `• /baocao homqua — số hôm qua\n`
@@ -102,13 +102,13 @@ function huongDan({ at, nguoi = [] } = {}) {
         + `${I("Có dấu hay không dấu đều được.")}`;
 }
 
-function huongDanVanDon({ at } = {}) {
-    return `📦 ${B("Bot TALPHA — vận đơn cần xử lý")}\n`
-        + `Tự gửi lúc ${at || "08:00"} mỗi sáng: đơn sắp bị trả về, đơn quá hạn lấy, giao hỏng, đơn đứng im.\n`
-        + `Trạng thái lấy từ bảng đối tác (nạp 6h) + 17TRACK (đồng bộ ngay sau đó).\n\n`
+function huongDanVanDon({ at, toi, nuoc } = {}) {
+    return `📦 ${B(`Bot TALPHA — vận đơn${nuoc ? ` ${nuoc}` : ""}`)}\n`
+        + `Tự gửi ${at || "08:30"}: hôm qua ra sao + khách phải gọi, nhắn hôm nay (đủ tên, SĐT, chỗ lấy hàng, tin nhắn soạn sẵn).\n`
+        + (toi ? `Tự gửi ${toi}: hôm nay làm được gì — khách đã lấy chưa, khách còn treo sang mai.\n` : "")
+        + `Trạng thái lấy từ bảng đối tác + 17TRACK (cập nhật 6h và 21:30).\n\n`
         + `${B("Gõ trong nhóm:")}\n`
-        + `• /vandon — danh sách mới nhất ngay lúc gõ (mọi nước)\n`
-        + `• /vandon sg · /vandon tw — chỉ Singapore · chỉ Đài Loan\n`
+        + `• /vandon — danh sách mới nhất ngay lúc gõ\n`
         + `• /bot — cách dùng\n`
         + `${I("Có dấu hay không dấu đều được.")}`;
 }

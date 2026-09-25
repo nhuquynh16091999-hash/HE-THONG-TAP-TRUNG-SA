@@ -172,6 +172,8 @@ export type Shipment = {
     ship_date?: string | null;
     /** Ghi chú của đối tác (vd. "khách muốn nhận ngày 9/10") — sale cần khi gọi hẹn lại. */
     note?: string | null;
+    /** Khu vực giao (giao tận nhà — Singapore) để sale biết khách ở đâu khi gọi. */
+    city?: string | null;
     /** Trạng thái 17TRACK của đơn mà ĐỐI TÁC đã ghi kết thúc — chỉ để đối chiếu, không đè. */
     t17_status?: string | null;
     t17_sub_status?: string | null;
@@ -648,6 +650,7 @@ export function partnerOrderShipment(
         raw_status: raw,
         ship_date: row.ship_date ? String(row.ship_date).slice(0, 10) : null,
         note: row.note ? String(row.note).trim() || null : null,
+        city: row.city ? String(row.city).trim() || null : null,
         t17_status: co17 && !dung17 ? saved!.status : null,
         t17_sub_status: co17 && !dung17 ? (saved!.sub_status ?? null) : null,
         t17_event: co17 && !dung17 ? (saved!.last_event ?? null) : null,

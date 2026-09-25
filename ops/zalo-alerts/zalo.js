@@ -15,8 +15,12 @@ const DIR = __dirname;
 const SESSION_FILE = path.join(DIR, ".zalo_session.json");
 const GROUP_FILE = path.join(DIR, "zalo_group.json");
 // Nhóm nhận tin VẬN ĐƠN (Sỹ Anh chốt 25/09/2026: nhóm riêng, không phải nhóm ads — tin có
-// tên + SĐT khách). Chọn bằng `node pair.js --chon-vandon <id>`.
+// tên + SĐT khách). MỖI nước một nhóm (26/09/2026: VẬN ĐƠN TW, VẬN ĐƠN SGP):
+//   Đài   → zalo_group_vandon.json      `node pair.js --chon-vandon <id>`
+//   nước khác → zalo_group_vandon_<mã>.json  `node pair.js --chon-vandon <id> --nuoc SG`
 const GROUP_VANDON_FILE = path.join(DIR, "zalo_group_vandon.json");
+const fileNhomVanDon = (m = "TW") => (String(m).toUpperCase() === "TW" ? GROUP_VANDON_FILE
+    : path.join(DIR, `zalo_group_vandon_${String(m).toLowerCase().replace(/[^a-z]/g, "")}.json`));
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 function docJson(file) {
@@ -68,9 +72,9 @@ function docNhomDich() {
     return g && g.id ? g : null;
 }
 
-/** Nhóm nhận tin vận đơn. null = chưa chọn → bot không gửi tin vận đơn. */
-function docNhomVanDon() {
-    const g = docJson(GROUP_VANDON_FILE);
+/** Nhóm nhận tin vận đơn của một nước. null = chưa chọn → bot không gửi tin vận đơn nước đó. */
+function docNhomVanDon(m = "TW") {
+    const g = docJson(fileNhomVanDon(m));
     return g && g.id ? g : null;
 }
 
@@ -92,7 +96,8 @@ async function guiNhom(api, groupId, text, { maxChars = 1800, sendGapMs = 4000 }
     const phan = chiaTin(toZalo(text), maxChars);
     for (let i = 0; i < phan.length; i++) {
         const p = phan[i];
-        await api.sendMessage(p.styles.length ? { msg: p.msg, styles: p.styles } : p.msg, groupId, ThreadType.Group);
+        const giau = p.styles.length || (p.mentions && p.mentions.length);
+        await api.sendMessage(giau ? { msg: p.msg, styles: p.styles, mentions: p.mentions || [] } : p.msg, groupId, ThreadType.Group);
         if (i < phan.length - 1) await sleep(sendGapMs);
     }
     return phan.length;
@@ -114,6 +119,6 @@ function batNghe(api, { onMessage, onClosed, log }) {
 }
 
 module.exports = {
-    SESSION_FILE, GROUP_FILE, GROUP_VANDON_FILE, ThreadType,
+    SESSION_FILE, GROUP_FILE, GROUP_VANDON_FILE, fileNhomVanDon, ThreadType,
     taoZalo, ghiRieng, luuPhien, dangNhap, docNhomDich, docNhomVanDon, danhSachNhom, guiNhom, batNghe,
 };

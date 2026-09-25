@@ -14,7 +14,9 @@
   "dailyReport": {
     "at": "08:30",
     "atCatchUpMinutes": 210,
-    "intradaySlots": ["20:00", "22:00"],
+    "intradaySlots": [
+      "22:00"
+    ],
     "intradayCatchUpMinutes": 60,
     "staleWarnMinutes": 120,
     "dinhChinhHanGio": 24,
@@ -27,14 +29,22 @@
     "recGoodAdsPct": 20
   },
   "vanDon": {
-    "at": "08:00",
+    "at": "08:30",
     "catchUpMinutes": 180,
     "url": "/api/talpha/tracking",
     "rangeDays": 60,
     "maxGap": 15,
-    "maxCanhBao": 8,
     "quotaWarn": 200,
-    "link": "http://139.180.131.21:3000/talpha",
-    "markets": ["TW", "SG"]
+    "markets": [
+      "TW",
+      "SG"
+    ],
+    "toiAt": "22:00",
+    "toiCatchUpMinutes": 60,
+    "maxMoiToi": 20,
+    "phuTrach": {
+      "ten": "Thương",
+      "uid": "3346668495041864321"
+    }
   }
 }

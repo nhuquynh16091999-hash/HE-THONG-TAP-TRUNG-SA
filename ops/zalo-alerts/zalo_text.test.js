@@ -1,6 +1,6 @@
 // node zalo_text.test.js   (không cần cài gì thêm)
 const assert = require("assert");
-const { B, I, clean, toZalo, chiaTin } = require("./zalo_text");
+const { B, I, M, clean, toZalo, chiaTin } = require("./zalo_text");
 
 let ok = 0;
 const t = (ten, fn) => { fn(); ok++; };
@@ -85,6 +85,24 @@ t("dải đậm vắt qua chỗ cắt thì mỗi phần giữ phần đậm củ
     assert.strictEqual(phan.length, 2);
     assert.deepStrictEqual(phan[0].styles, [{ start: 0, len: 150, st: "b" }]);
     assert.deepStrictEqual(phan[1].styles, [{ start: 0, len: 150, st: "b" }]);
+});
+
+t("nhắc tên: chữ @Thương hiện ra, kèm vị trí + uid để điện thoại người đó báo", () => {
+    const r = toZalo("☎️ " + M("Thương", "3346668495041864321") + " gọi khách");
+    assert.strictEqual(r.msg, "☎️ @Thương gọi khách");
+    assert.deepStrictEqual(r.mentions, [{ pos: 3, len: 7, uid: "3346668495041864321" }]);
+});
+t("nhắc tên không có uid → chỉ là chữ, không có mention", () => {
+    const r = toZalo(M("Thương"));
+    assert.strictEqual(r.msg, "@Thương");
+    assert.strictEqual(r.mentions, undefined);
+});
+t("nhắc tên đi cùng chữ đậm, và giữ đúng chỗ khi tin bị chia", () => {
+    const r = toZalo(B("x".repeat(150)) + "\n" + M("Thương", "123") + " " + "y".repeat(100));
+    const phan = chiaTin(r, 200);
+    assert.strictEqual(phan.length, 2);
+    assert.deepStrictEqual(phan[0].mentions, []);
+    assert.deepStrictEqual(phan[1].mentions, [{ pos: 0, len: 7, uid: "123" }]);
 });
 
 console.log(`zalo_text.test.js: ${ok}/${ok} PASS`);

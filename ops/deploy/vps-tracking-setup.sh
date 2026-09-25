@@ -48,12 +48,15 @@ EOF
 
 cat > /etc/systemd/system/talpha-tracking.timer <<'EOF'
 [Unit]
-Description=Nạp bảng đơn đối tác mỗi sáng 6h (giờ Việt Nam)
+Description=Nạp bảng đơn đối tác + đồng bộ 17TRACK: 6h sáng và 21:30 tối (giờ Việt Nam)
 
 [Timer]
 # systemd 252 đọc được múi giờ ngay trong OnCalendar, nên viết thẳng giờ Việt Nam thay
 # vì tự quy ra 23:00 UTC — quy tay là sớm muộn có ngày sửa nhầm.
 OnCalendar=*-*-* 06:00:00 Asia/Ho_Chi_Minh
+# 21:30 (Sỹ Anh duyệt bản tin 26/09/2026): tin vận đơn 22:00 chấm "khách phải gọi sáng nay
+# đã lấy chưa" — cần 17TRACK hỏi lại trạng thái trước đó (hỏi trạng thái miễn phí).
+OnCalendar=*-*-* 21:30:00 Asia/Ho_Chi_Minh
 RandomizedDelaySec=120
 # Máy chủ tắt ngang giờ đó thì chạy bù khi bật lại, chứ không bỏ luôn ngày hôm ấy.
 Persistent=true

@@ -23,6 +23,8 @@ const UNASSIGN = new Set(RULES.unassign_marketers || []);
 // File TỔNG TEAM có thêm tab theo NƯỚC từ 15/09/2026 ("Đài Loan", "Singapore"…), nằm lẫn
 // với tab marketer. Tab nào trùng tên hiển thị (hoặc key) của một nước là tab nước.
 const TAB_NUOC = new Set(Object.entries(khongGhiChu(RULES.markets)).flatMap(([key, v]) => [key, v.display || key]));
+// Tab nước → cờ, theo thứ tự khai trong markets (Đài, Singapore, UAE) — dòng "theo nước" của tin ads.
+const CO_NUOC = Object.entries(khongGhiChu(RULES.markets)).map(([key, v]) => ({ key, tab: v.display || key, flag: v.flag || "" }));
 
 const CAMP_TOKENS = khongGhiChu(RULES.camp_marketer_tokens);
 const CAMP_MARKETS = Object.fromEntries((RULES.camp_market_tokens || []).map((t) => [t, RULES.market_aliases[t]]));
@@ -100,6 +102,6 @@ function tenNganCamp(name) {
 }
 
 module.exports = {
-    RULES, MARKETERS, DISPLAY, THU_TU, UNASSIGN, PRIMARY_MARKET, TAB_NUOC,
+    RULES, MARKETERS, DISPLAY, THU_TU, UNASSIGN, PRIMARY_MARKET, TAB_NUOC, CO_NUOC,
     chuCamp, normCampMarketer, campaignMarket, isTestCampaign, tenNganCamp,
 };

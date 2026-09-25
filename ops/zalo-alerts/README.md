@@ -12,41 +12,35 @@ Sỹ Anh chốt 15/09/2026: **tự động chỉ gửi mốc 8h30**, còn lại 
 Không tự gửi từ 23h đến 7h (lệnh gõ tay thì trả lời bất cứ lúc nào). Không có tồn kho,
 thẻ/TKQC như bot WhatsApp cũ (`ops/whatsapp-alerts/`, đang tắt).
 
-## Tin vận đơn — nhóm RIÊNG (25/09/2026)
+## Bản tin sáng 08:30 · tối 22:00 (Sỹ Anh duyệt mẫu 26/09/2026)
 
-Sỹ Anh chốt 25/09/2026: **08:00 mỗi sáng** gửi **"📦 VẬN ĐƠN CẦN XỬ LÝ"** vào một nhóm Zalo
-**khác nhóm ads** — tin có tên + SĐT khách để sale gọi, nên không bao giờ vào nhóm ads.
+Nguyên tắc: **đọc xong tin là làm được ngay**, không mở dashboard. Mẫu duyệt ở trang
+"Bản tin Zalo 08:30 · 22:00" (bản 3).
 
-**Tin GỌN** (Sỹ Anh chốt 25/09/2026): MỘT tin Zalo **cho mỗi thị trường** (`vanDon.markets`: Đài Loan rồi
-Singapore), mỗi đơn một dòng — ngày thường ~1.300 ký tự. Singapore giao tận nhà (J&T): mục GỌI NGAY là đơn
-**giao hỏng / khách hẹn giao lại** kèm ghi chú khách, thay cho "sắp bị trả về" của Đài. Một nước đọc hỏng
-thì nước kia vẫn gửi. `/vandon sg`, `/vandon tw` lấy riêng một nước.
+| Nhóm | 08:30 | 22:00 |
+|---|---|---|
+| **BÁO CÁO ADS** | Kết quả hôm qua: tiền ads · DS · %ads · đơn · mess · chốt, từng nước, xếp hạng marketer, **chi tiết mọi camp có tiêu tiền** (tên đầy đủ như trên Meta, theo marketer, tiêu nhiều trước) | Cùng khuôn, số hôm nay, **▲▼ so với cả ngày hôm qua** |
+| **VẬN ĐƠN TW** | Hôm qua (khách đã lấy, mới tới, bắt đầu hoàn) + **@Thương gọi khách sắp bị trả về** và **nhắn khách mới tới**: mỗi khách đủ tên, SĐT, cửa hàng, mã lấy hàng, hạn, **💬 tin tiếng Trung soạn sẵn** · hỏi đối tác · kiểm đơn lệch | Khách phải gọi sáng nay: đã lấy (cứu bao nhiêu tiền) / chưa lấy (MAI HẾT HẠN) / bị trả về · khách mới tới đã lấy chưa · số cả ngày |
+| **VẬN ĐƠN SGP** | Cùng khuôn; gọi = **đơn giao hỏng / khách hẹn giao lại**, kèm khu vực, ghi chú đối tác, **💬 tin tiếng Anh soạn sẵn** | Đơn hẹn lại đã giao chưa · số cả ngày |
 
-| Dòng | Luật |
-|---|---|
-| `📦 VẬN ĐƠN dd/mm · cập nhật hh:mm` + `🏪 n đơn ở cửa hàng · tiền chờ lấy` | Đầu tin. `⚠️` chỉ hiện khi CÓ vấn đề (17TRACK lỗi, hết/sắp hết quota, khoá hỏng, việc 6h không chạy) |
-| `☎️ GỌI NGAY — sắp bị trả về` | Duy nhất mục in đủ: mã · tiền · hạn · tên SĐT · cửa hàng #mã lấy hàng. Gần hết hạn lên đầu, tối đa `vanDon.maxGap` dòng |
-| `⏰ Quá hạn lấy` · `⚠️ Giao hỏng` · `🐢 Đứng im` · `❗ Lệch đối tác ↔ 17TRACK` | Mỗi loại MỘT dòng, chỉ mã đơn (tối đa `maxCanhBao` mã, còn lại `… +n`) |
-| `↩️ Hoàn hàng` | Chỉ ĐẾM đang hoàn / đã hoàn — hàng quay đầu thì gọi khách không cứu được |
-| `📬` | Đếm đơn vừa tới cửa hàng, đơn chưa rõ vị trí |
-| `👉` | Link dashboard — chi tiết + nút chép tin nhắn khách |
-
-Số lấy từ `/api/talpha/tracking` — **đúng route màn "Theo dõi vận đơn"**, cùng luật `buildAlerts`.
-Sáng 6h `talpha-tracking.service` nạp bảng đối tác rồi đồng bộ 17TRACK; tin 08:00 đọc kết quả đó
-và **tự tố** khi 17TRACK lỗi, hết/sắp hết quota, hay việc 6h không chạy.
+* Bỏ phần "việc hôm nay" của ads, bỏ lệnh /tin và /xong (Sỹ Anh chốt).
+* @Thương là **nhắc tên thật** (mention Zalo) — `vanDon.phuTrach` trong `config.json`.
+* Tin sáng lưu danh sách khách phải gọi/nhắn vào `state.json → vanDonSang` để tin tối chấm.
+  17TRACK cập nhật lại 21:30 (`talpha-tracking.timer`) trước tin 22:00.
+* Ngày đông khách: tin vận đơn tự tách thành 2–3 tin Zalo (khung 1800 ký tự).
+* Mỗi nước một nhóm, một mốc riêng: nước này hỏng không kéo nước kia.
 
 Chọn nhóm (nick phụ phải nằm sẵn trong nhóm):
 
 ```bash
-node pair.js --groups                      # xem id nhóm
-node pair.js --chon-vandon <id nhóm>       # → zalo_group_vandon.json
+node pair.js --groups                                  # xem id nhóm
+node pair.js --chon <id>                               # nhóm ads → zalo_group.json
+node pair.js --chon-vandon <id>                        # vận đơn Đài → zalo_group_vandon.json
+node pair.js --chon-vandon <id> --nuoc SG              # vận đơn Singapore → zalo_group_vandon_sg.json
 pm2 restart talpha-zalo-alerts
-node bot.js --dry-run --vandon             # IN thử, không gửi
-node bot.js --vandon                       # gửi ngay một lần
+node bot.js --dry-run --vandon sang --nuoc SG          # IN thử, không gửi
+node bot.js --vandon toi                               # gửi ngay tin tối mọi nước
 ```
-
-Trong nhóm vận đơn gõ `/vandon` (hoặc `/vd`) để lấy danh sách lúc đó. Lệnh ads (`/baocao`,
-`/canhbao`) KHÔNG trả lời ở nhóm vận đơn, `/vandon` KHÔNG trả lời ở nhóm ads.
 
 ## Lệnh trong nhóm
 
@@ -57,7 +51,7 @@ Trong nhóm vận đơn gõ `/vandon` (hoặc `/vd`) để lấy danh sách lúc
 | `/baocao Lộc` · `/baocao homqua Lộc` | Chi tiết campaign + đề xuất của một người |
 | `/baocao team` | Chỉ số TỔNG TEAM, không kèm campaign |
 | `/canhbao` | Camp tiêu ≥ 300k mà 0 tin nhắn, chi tiêu hôm nay so với TB 7 ngày |
-| `/vandon` · `/vd` | Vận đơn cần xử lý mọi nước (`/vandon sg`, `/vandon tw`: một nước) — **chỉ ở nhóm vận đơn** |
+| `/vandon` · `/vd` | Vận đơn mới nhất của nước của nhóm (khuôn tin sáng) — **chỉ ở nhóm vận đơn** |
 | `/bot` | Cách dùng |
 
 Có dấu hay không dấu, hoa hay thường đều được; `/bc`, `/cb` là viết tắt. Chữ không bắt đầu
@@ -175,13 +169,16 @@ Chạy thử từ máy Mac: `TALPHA_DASHBOARD_URL=http://139.180.131.21:3000 nod
 | Khoá | Đang để | Nghĩa |
 |---|---|---|
 | `dailyReport.at` / `atCatchUpMinutes` | `08:30` / 210 | Giờ tin sáng; quá 210' (12:00) thì bỏ hôm đó |
-| `dailyReport.intradaySlots` | `["20:00", "22:00"]` | Mốc tự gửi số ĐANG CHẠY HÔM NAY. Trễ quá `intradayCatchUpMinutes` (60') thì bỏ mốc đó, không dồn sang mốc sau |
+| `dailyReport.intradaySlots` | `["22:00"]` | Mốc tự gửi số ĐANG CHẠY HÔM NAY (bỏ 20:00 từ 26/09/2026). Trễ quá `intradayCatchUpMinutes` (60') thì bỏ mốc đó, không dồn sang mốc sau |
 | `adsPollMinutes` | `0` — **tắt** | Tự gửi cảnh báo ads mỗi N phút (bot WhatsApp để 180) |
 | `adsWasteSpend` | 300000 | Camp tiêu từ mức này mà 0 tin nhắn là camp đốt tiền |
 | `adsSpikeRatio` / `adsMinTotalForSpike` | 1,5 / 3000000 | Chi tiêu hôm nay ≥ 1,5 lần TB 7 ngày VÀ ≥ 3tr là bất thường |
 | `quietStartHour` / `quietEndHour` | 23 / 7 | Giờ không tự gửi |
-| `vanDon.at` / `catchUpMinutes` | `08:00` / 180 | Giờ tin vận đơn; để trống `at` là tắt. Dashboard lỗi thì thử lại mỗi 5' tới 11:00 |
-| `vanDon.maxGap` / `maxCanhBao` | 15 / 8 | Số dòng "gọi ngay" tối đa · số mã tối đa trên một dòng liệt kê |
+| `vanDon.at` / `catchUpMinutes` | `08:30` / 180 | Giờ tin vận đơn sáng; để trống `at` là tắt. Dashboard lỗi thì thử lại mỗi 5' tới 11:30 |
+| `vanDon.toiAt` / `toiCatchUpMinutes` | `22:00` / 60 | Giờ tin vận đơn tối |
+| `vanDon.phuTrach` | Thương | Người được @nhắc trong tin vận đơn (tên + uid Zalo) |
+| `vanDon.maxMoiToi` | 20 | Số khách mới tới in đủ chi tiết, còn lại trỏ về dashboard |
+| `vanDon.maxGap` | 15 | Số khách "gọi ngay" in đủ chi tiết, còn lại trỏ về dashboard |
 | `vanDon.quotaWarn` | 200 | Nhắc khi quota 17TRACK còn dưới mức này — hoặc dưới 15% cỡ gói nếu nhỏ hơn (gói miễn phí vài trăm mã thì không kêu mỗi ngày) |
 | `maxChars` / `sendGapMs` | 1800 / 4000 | Tin dài hơn thì chia; nghỉ giữa hai tin để Zalo khỏi coi là spam |
 
