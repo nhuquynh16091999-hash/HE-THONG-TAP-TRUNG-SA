@@ -427,9 +427,16 @@ t("11 số → FamiPort (TW) 100227", () => {
     // Để tự đoán: 7 mã FamilyMart thành Poste Italiane — tốn quota, không bao giờ có tin.
     assert.strictEqual(T.carrierFor("06722435584"), 100227);
 });
-t("mã giao tận nhà (10 số) chưa biết hãng → để 17TRACK tự đoán", () => {
-    assert.strictEqual(T.carrierFor("1870459566"), T.TRACK_CFG.carrier);
+t("giao tận nhà (10 số) → HCT 新竹物流 190466 (Sỹ Anh xác nhận đối tác đi Hsinchu)", () => {
+    assert.strictEqual(T.carrierFor("1870459566"), 190466);
+    assert.strictEqual(T.carrierFor("7564409963"), 190466);
+});
+t("mã 12 số chưa rõ hãng, hoặc không có mã → để 17TRACK tự đoán", () => {
+    assert.strictEqual(T.carrierFor("620712345678"), T.TRACK_CFG.carrier);
     assert.strictEqual(T.carrierFor(null), T.TRACK_CFG.carrier);
+});
+t("mã FamilyMart mất số 0 được sửa TRƯỚC khi chọn hãng → FamiPort, không thành HCT", () => {
+    assert.strictEqual(T.carrierFor(T.fixTrack17Code("6722460150")), 100227);
 });
 
 console.log("── 17TRACK: đọc kết quả gettrackinfo v2.4 ──");
