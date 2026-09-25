@@ -7,7 +7,8 @@
 //   /baocao Lộc           chi tiết campaign của một người (ghép ngày: /baocao homqua Lộc)
 //   /baocao team          chỉ số TỔNG TEAM, không kèm campaign
 //   /canhbao              camp đốt tiền 0 tin nhắn + chi tiêu bất thường, ngay lúc gõ
-//   /vandon               vận đơn cần xử lý (CHỈ trả lời ở nhóm vận đơn — tin có SĐT khách)
+//   /vandon               vận đơn cần xử lý mọi nước (CHỈ trả lời ở nhóm vận đơn — tin có SĐT khách)
+//   /vandon sg · /vandon tw   chỉ Singapore · chỉ Đài Loan
 //   /bot                  cách dùng
 // Có dấu hay không dấu, hoa hay thường đều được. Không bắt đầu bằng "/" → không phải lệnh,
 // bot im — tin báo cáo của chính bot cũng đi qua đây nên điều này là bắt buộc.
@@ -43,6 +44,14 @@ function docLenh(text, { today, nguoi = [] }) {
     const [dau, ...con] = s.split(/\s+/);
     const lenh = TEN_LENH[boDau(dau.slice(1))];
     if (!lenh) return null;
+    if (lenh === "vandon") {
+        const nuoc = gon(con.join(" "));
+        if (!nuoc) return { lenh };
+        if (["sg", "sing", "singapore", "sgp"].includes(nuoc)) return { lenh, nuoc: "SG" };
+        if (["tw", "dai", "dailoan", "taiwan"].includes(nuoc)) return { lenh, nuoc: "TW" };
+        // Mang theo lenh "vandon" để lỗi được trả lời ở nhóm VẬN ĐƠN (lỗi trơn bị bỏ ở đó).
+        return { lenh, loi: `Không hiểu "${con.join(" ")}". Gõ /vandon, /vandon sg hoặc /vandon tw.` };
+    }
     if (lenh !== "baocao") return { lenh };
 
     const goc = con.join(" ");
@@ -98,7 +107,8 @@ function huongDanVanDon({ at } = {}) {
         + `Tự gửi lúc ${at || "08:00"} mỗi sáng: đơn sắp bị trả về, đơn quá hạn lấy, giao hỏng, đơn đứng im.\n`
         + `Trạng thái lấy từ bảng đối tác (nạp 6h) + 17TRACK (đồng bộ ngay sau đó).\n\n`
         + `${B("Gõ trong nhóm:")}\n`
-        + `• /vandon — danh sách mới nhất ngay lúc gõ\n`
+        + `• /vandon — danh sách mới nhất ngay lúc gõ (mọi nước)\n`
+        + `• /vandon sg · /vandon tw — chỉ Singapore · chỉ Đài Loan\n`
         + `• /bot — cách dùng\n`
         + `${I("Có dấu hay không dấu đều được.")}`;
 }

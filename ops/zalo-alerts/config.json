@@ -34,6 +34,7 @@
     "maxGap": 15,
     "maxCanhBao": 8,
     "quotaWarn": 200,
-    "link": "http://139.180.131.21:3000/talpha"
+    "link": "http://139.180.131.21:3000/talpha",
+    "markets": ["TW", "SG"]
   }
 }

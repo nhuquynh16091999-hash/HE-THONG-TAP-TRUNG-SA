@@ -31,7 +31,24 @@ type TrackingConfig = {
     register_from_date?: string | null;
     register_terminal?: boolean;
     code_fixes?: { match: string; prefix: string }[];
+    markets?: Record<string, MarketCfgRaw | string>;
     carrier_rules?: { match: string; carrier: number }[];
+};
+
+type MarketCfgRaw = {
+    label?: string; store?: string; partner_market?: string; currency?: string;
+    carrier?: number | null; stale_days?: number; status_map?: Record<string, string>;
+};
+
+/**
+ * Thị trường theo dõi vận đơn. "TW" là thị trường gốc (bảng đối tác nạp tay, luật cửa hàng
+ * tiện lợi ở phần chung); các nước khác khai ở tracking.markets — sổ riêng, bảng đối tác
+ * đọc từ BigQuery partner_orders, hãng và ngưỡng đứng im riêng.
+ */
+export type TrackMarket = {
+    code: string; label: string; store: string; partner_market: string | null;
+    currency: string; carrier: number | null; stale_days: number;
+    status_map: Record<string, string>;
 };
 
 /**
@@ -41,7 +58,7 @@ type TrackingConfig = {
  */
 export type RegisterScope = "canh_bao" | "tat_ca" | "tu_dong";
 
-export const TRACK_CFG: Required<Omit<TrackingConfig, "carrier" | "register_scope" | "carrier_rules" | "register_from_date" | "code_fixes">>
+export const TRACK_CFG: Required<Omit<TrackingConfig, "carrier" | "register_scope" | "carrier_rules" | "register_from_date" | "code_fixes" | "markets">>
     & {
         carrier: number | null; register_scope: RegisterScope; register_from_date: string | null;
         carrier_rules: { match: RegExp; carrier: number }[]; code_fixes: { match: RegExp; prefix: string }[];
@@ -153,6 +170,8 @@ export type Shipment = {
     raw_status?: string | null;
     /** Ngày xuất kho theo file đối tác — đồng hồ đáng tin hơn status_since. */
     ship_date?: string | null;
+    /** Ghi chú của đối tác (vd. "khách muốn nhận ngày 9/10") — sale cần khi gọi hẹn lại. */
+    note?: string | null;
     /** Trạng thái 17TRACK của đơn mà ĐỐI TÁC đã ghi kết thúc — chỉ để đối chiếu, không đè. */
     t17_status?: string | null;
     t17_sub_status?: string | null;
@@ -238,8 +257,9 @@ export function daysWaiting(s: Shipment, now: Date = new Date()): number | null 
  * Cố ý KHÔNG cảnh báo đơn đã Delivered hay Expired: việc đã xong hoặc đã hỏng
  * hẳn, nhắc nữa chỉ làm loãng những đơn còn cứu được.
  */
-export function buildAlerts(shipments: Shipment[], now: Date = new Date()): TrackAlert[] {
+export function buildAlerts(shipments: Shipment[], now: Date = new Date(), opt: { staleDays?: number } = {}): TrackAlert[] {
     const out: TrackAlert[] = [];
+    const staleDays = opt.staleDays ?? TRACK_CFG.stale_days;
 
     for (const s of shipments) {
         // Chỉ giục đăng ký 17TRACK khi ĐANG MÙ hẳn — không có trạng thái từ
@@ -309,11 +329,16 @@ export function buildAlerts(shipments: Shipment[], now: Date = new Date()): Trac
         // Bỏ qua mốc vô lý (>1 năm): gần như luôn là gõ nhầm năm trong file đối
         // tác — đã gặp đơn ghi xuất kho 2025 mà lên đơn 2026. Báo "đứng im 398
         // ngày" chỉ làm người đọc mất tin vào cảnh báo.
-        if (idle !== null && idle >= TRACK_CFG.stale_days && idle < 365) {
+        if (idle !== null && idle >= staleDays && idle < 365) {
+            // Chưa có mã vận đơn = hàng chưa rời kho: người phải hỏi là ĐỐI TÁC, không phải
+            // hãng vận chuyển (Singapore 25/09/2026: đơn "Đã lên đơn/Chưa lên đơn" nằm cả tuần).
+            const chuaGui = !s.track17_code && (s.status === "InfoReceived" || s.status === "NotFound");
             out.push({
                 level: "canh_bao", code: "dung_im",
-                title: `Đứng im ${idle} ngày`,
-                detail: `Vẫn ở “${statusLabel(s.status)}” mà không có cập nhật mới — hỏi lại hãng vận chuyển.`,
+                title: chuaGui ? `Chưa gửi hàng ${idle} ngày` : `Đứng im ${idle} ngày`,
+                detail: chuaGui
+                    ? "Đơn chưa có mã vận đơn — hỏi đối tác vì sao chưa gửi."
+                    : `Vẫn ở “${statusLabel(s.status)}” mà không có cập nhật mới — hỏi lại hãng vận chuyển.`,
                 days: idle, shipment: s,
             });
         }
@@ -431,7 +456,7 @@ export function planRegister(
     opt: {
         maxAgeDays?: number; maxPerRun?: number; scope?: RegisterScope;
         quotaRemain?: number | null; quotaTotal?: number | null; daysLeft?: number;
-        fromDate?: string | null; terminal?: boolean;
+        fromDate?: string | null; terminal?: boolean; staleDays?: number;
     } = {},
 ): RegisterPlan {
     const maxAge = opt.maxAgeDays ?? TRACK_CFG.register_max_age_days;
@@ -440,7 +465,7 @@ export function planRegister(
     const cap = Math.min(perRun, remain);
     const scope = opt.scope ?? TRACK_CFG.register_scope;
     const canhBao = scope !== "tat_ca"
-        ? new Set(buildAlerts(shipments, now).filter((a) => a.level !== "nhac").map((a) => a.shipment))
+        ? new Set(buildAlerts(shipments, now, { staleDays: opt.staleDays }).filter((a) => a.level !== "nhac").map((a) => a.shipment))
         : null;
     const tuNgay = opt.fromDate !== undefined ? opt.fromDate : TRACK_CFG.register_from_date;
     // Đơn đã kết thúc chỉ đăng ký để đối chiếu, và chỉ khi có khung ngày cố định — không
@@ -520,10 +545,113 @@ export function planTrack(shipments: Shipment[], justRegistered: ReadonlySet<str
  * không khớp gì thì null (để 17TRACK tự đoán). Tự đoán hỏng thật: 7-Eleven bị từ chối,
  * FamilyMart bị nhận thành Bưu điện Ý — nên khai thẳng được mã nào thì khai.
  */
-export function carrierFor(number?: string | null): number | null {
+export function carrierFor(number?: string | null, market: string = "TW"): number | null {
+    // Thị trường khai sẵn một hãng (Singapore = J&T SG) thì dùng hãng đó cho mọi mã —
+    // luật theo dạng mã ở dưới là của Đài, áp sang nước khác là đoán bừa.
+    const m = trackMarket(market);
+    if (m.code !== "TW") return m.carrier;
     const n = String(number || "");
     for (const r of TRACK_CFG.carrier_rules) if (r.match.test(n)) return r.carrier;
     return TRACK_CFG.carrier;
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Thị trường
+// ─────────────────────────────────────────────────────────────────────────
+
+const RAW_MARKETS: Record<string, MarketCfgRaw> = (() => {
+    const c = (RULES as unknown as { tracking?: TrackingConfig }).tracking?.markets || {};
+    return Object.fromEntries(Object.entries(c).filter(([k, v]) => !k.startsWith("_") && v && typeof v === "object")) as
+        Record<string, MarketCfgRaw>;
+})();
+
+const TW_MARKET: TrackMarket = {
+    code: "TW", label: "Đài Loan", store: "tracking", partner_market: null,
+    currency: "NT$", carrier: TRACK_CFG.carrier, stale_days: TRACK_CFG.stale_days, status_map: {},
+};
+
+/** Các thị trường theo dõi được: TW trước, rồi các nước khai ở tracking.markets. */
+export const TRACK_MARKETS: TrackMarket[] = [TW_MARKET, ...Object.entries(RAW_MARKETS).map(([code, m]) => ({
+    code, label: m.label || code, store: m.store || `tracking_${code.toLowerCase()}`,
+    partner_market: m.partner_market || null, currency: m.currency || "",
+    carrier: m.carrier ?? null, stale_days: Number(m.stale_days ?? TRACK_CFG.stale_days),
+    status_map: m.status_map || {},
+}))];
+
+/** Mã thị trường lạ → TW (thị trường gốc) — đọc nhầm sổ nước khác là trộn đơn hai nước. */
+export function trackMarket(code?: string | null): TrackMarket {
+    const c = String(code || "").toUpperCase();
+    return TRACK_MARKETS.find((m) => m.code === c) || TW_MARKET;
+}
+
+/** Chữ trạng thái của đối tác → trạng thái chuẩn; không khai thì null (hiện nguyên văn). */
+export function mapMarketStatus(market: TrackMarket, raw?: string | null): string | null {
+    const t = String(raw || "").trim().normalize("NFC");
+    if (!t) return null;
+    if (market.status_map[t]) return market.status_map[t];
+    const low = t.toLowerCase();
+    for (const [k, v] of Object.entries(market.status_map)) if (k.normalize("NFC").toLowerCase() === low) return v;
+    return null;
+}
+
+/** Một dòng bảng đối tác (BigQuery partner_orders) của thị trường ngoài Đài. */
+export type PartnerOrderRow = {
+    order_no?: string | null; tracking?: string | null; status?: string | null; note?: string | null;
+    order_date?: string | null; ship_date?: string | null; contact_name?: string | null; phone?: string | null;
+    cod?: number | null; marketer?: string | null; ship_method?: string | null; city?: string | null;
+};
+
+/** Trạng thái 17TRACK đã lưu trong sổ của thị trường. */
+export type SavedTrack = {
+    status: string | null; sub_status?: string | null; status_since?: string | null;
+    last_event_time?: string | null; last_event?: string | null; source?: string | null;
+};
+
+const isoNgay = (d?: string | null) => (d && /^\d{4}-\d{2}-\d{2}/.test(d) ? `${d.slice(0, 10)}T00:00:00Z` : null);
+
+/**
+ * Dòng bảng đối tác + trạng thái 17TRACK đã lưu → Shipment. Cùng luật với Đài:
+ *   • 17TRACK có tin thì dùng 17TRACK (gần thời gian thực, bảng đối tác trễ);
+ *   • TRỪ khi đối tác ghi KẾT THÚC mà 17TRACK chưa — kết thúc không lùi được; lúc đó
+ *     giữ trạng thái đối tác và để 17TRACK ở t17_* cho cảnh báo lệch.
+ */
+export function partnerOrderShipment(
+    market: TrackMarket, row: PartnerOrderRow, saved: SavedTrack | undefined, registered: boolean,
+): Shipment {
+    const tracking = String(row.tracking || "").replace(/\s+/g, "").toUpperCase();
+    const raw = String(row.status || "").trim() || null;
+    const pStatus = mapMarketStatus(market, raw);
+    const moc = isoNgay(row.ship_date) || isoNgay(row.order_date);
+    const co17 = !!saved?.status && saved.source === "17track";
+    const doiTacKetThuc = !!pStatus && TERMINAL.has(pStatus);
+    const dung17 = co17 && !(doiTacKetThuc && !TERMINAL.has(saved!.status as string));
+    return {
+        tracking: tracking || `DON-${row.order_no || "?"}`,
+        track17_code: tracking && isTrack17Number(tracking) ? tracking : null,
+        order_uid: null,
+        order_id: String(row.order_no || ""),
+        order_date: row.order_date ? String(row.order_date).slice(0, 10) : null,
+        customer: String(row.contact_name || ""),
+        phone: String(row.phone || ""),
+        store_name: "", store_code: "",
+        ship_method: String(row.ship_method || ""),
+        marketer: row.marketer ? String(row.marketer) : null,
+        sale: null,
+        cod_local: Number(row.cod) || 0,
+        status: dung17 ? (saved!.status as string) : pStatus,
+        sub_status: dung17 ? (saved!.sub_status ?? null) : null,
+        status_since: dung17 ? (saved!.status_since ?? null) : moc,
+        last_event_time: dung17 ? (saved!.last_event_time ?? null) : moc,
+        last_event: dung17 ? (saved!.last_event ?? null) : raw,
+        registered,
+        source: dung17 ? "17track" : "doi_tac",
+        raw_status: raw,
+        ship_date: row.ship_date ? String(row.ship_date).slice(0, 10) : null,
+        note: row.note ? String(row.note).trim() || null : null,
+        t17_status: co17 && !dung17 ? saved!.status : null,
+        t17_sub_status: co17 && !dung17 ? (saved!.sub_status ?? null) : null,
+        t17_event: co17 && !dung17 ? (saved!.last_event ?? null) : null,
+    };
 }
 
 /** 17TRACK báo hàng đang/đã hoàn bằng Exception + sub_status Exception_Returning/Returned. */

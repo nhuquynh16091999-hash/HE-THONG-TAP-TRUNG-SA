@@ -20,6 +20,10 @@ t("lệnh lạ", doc("/kho"), null);
 t("/vandon", doc("/vandon"), { lenh: "vandon" });
 t("/vd viết tắt, hoa thường", doc(" /VD "), { lenh: "vandon" });
 t("/vận đơn có dấu", doc("/vậnđơn"), { lenh: "vandon" });
+t("/vandon sg → chỉ Singapore", doc("/vandon sg"), { lenh: "vandon", nuoc: "SG" });
+t("/vd Singapore có hoa", doc("/vd Singapore"), { lenh: "vandon", nuoc: "SG" });
+t("/vandon đài loan có dấu", doc("/vandon Đài Loan"), { lenh: "vandon", nuoc: "TW" });
+t("/vandon chữ lạ → lỗi nhưng vẫn là lệnh vận đơn", doc("/vandon abc").lenh, "vandon");
 t("rỗng", doc(""), null);
 
 t("/baocao = số hôm nay, đủ tin", doc("/baocao"), { lenh: "baocao", ngay: HOM_NAY, homNay: true, loc: null });

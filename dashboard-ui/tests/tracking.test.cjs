@@ -475,6 +475,82 @@ t("17TRACK chưa có tin → trạng thái null, không vỡ", () => {
 });
 
 
+console.log("── Thị trường: Singapore tách riêng Đài Loan ──");
+const SG = T.trackMarket("SG");
+t("SG khai trong rules: sổ riêng, J&T Express (SG) 100229, SGD, đứng im 7 ngày", () => {
+    assert.strictEqual(SG.code, "SG");
+    assert.strictEqual(SG.store, "tracking_sg");
+    assert.strictEqual(SG.carrier, 100229);
+    assert.strictEqual(SG.currency, "SGD");
+    assert.strictEqual(SG.stale_days, 7);
+    assert.deepStrictEqual(T.TRACK_MARKETS.map((m) => m.code), ["TW", "SG"]);
+});
+t("mã thị trường lạ hoặc trống → Đài (sổ gốc)", () => {
+    assert.strictEqual(T.trackMarket(null).code, "TW");
+    assert.strictEqual(T.trackMarket("xx").store, "tracking");
+    assert.strictEqual(T.trackMarket("sg").code, "SG");
+});
+t("hãng: SG luôn J&T SG; Đài vẫn theo dạng mã", () => {
+    assert.strictEqual(T.carrierFor("JT20260922012345", "SG"), 100229);
+    assert.strictEqual(T.carrierFor("73N18053018", "SG"), 100229);
+    assert.strictEqual(T.carrierFor("73N18053018"), 190456);
+    assert.strictEqual(T.carrierFor("JT20260922012345"), T.TRACK_CFG.carrier);
+});
+t("trạng thái bảng SG → chuẩn; chữ lạ → null (hiện nguyên văn)", () => {
+    assert.strictEqual(T.mapMarketStatus(SG, "Đang trung chuyển"), "InTransit");
+    assert.strictEqual(T.mapMarketStatus(SG, " đã giao thành công "), "Delivered");
+    assert.strictEqual(T.mapMarketStatus(SG, "Khách hẹn lúc khác giao"), "DeliveryFailure");
+    assert.strictEqual(T.mapMarketStatus(SG, "Chưa lên đơn"), "InfoReceived");
+    assert.strictEqual(T.mapMarketStatus(SG, "Trạng thái mới lạ"), null);
+    assert.strictEqual(T.mapMarketStatus(SG, ""), null);
+});
+const row = (o = {}) => ({
+    order_no: "S1010", tracking: "JT20260922012345", status: "Đang trung chuyển", note: "",
+    order_date: "2026-09-20", ship_date: "2026-09-21", contact_name: "Ana", phone: "81234567", cod: 89, ...o,
+});
+t("dòng bảng SG → vận đơn: mã J&T là mã 17TRACK, tiền SGD, ghi chú đi kèm", () => {
+    const s = T.partnerOrderShipment(SG, row({ note: "khách muốn nhận ngày 9/10" }), undefined, false);
+    assert.strictEqual(s.tracking, "JT20260922012345");
+    assert.strictEqual(s.track17_code, "JT20260922012345");
+    assert.strictEqual(s.order_id, "S1010");
+    assert.strictEqual(s.status, "InTransit");
+    assert.strictEqual(s.source, "doi_tac");
+    assert.strictEqual(s.cod_local, 89);
+    assert.strictEqual(s.note, "khách muốn nhận ngày 9/10");
+    assert.strictEqual(s.status_since, "2026-09-21T00:00:00Z");
+});
+t("chưa có mã vận đơn → khoá theo mã đơn, không đem đăng ký", () => {
+    const s = T.partnerOrderShipment(SG, row({ tracking: "", status: "Chưa lên đơn" }), undefined, false);
+    assert.strictEqual(s.tracking, "DON-S1010");
+    assert.strictEqual(s.track17_code, null);
+});
+t("17TRACK có tin thì dùng 17TRACK", () => {
+    const saved = { status: "OutForDelivery", source: "17track", status_since: "2026-09-24T02:00:00Z", last_event: "Out for delivery" };
+    const s = T.partnerOrderShipment(SG, row(), saved, true);
+    assert.strictEqual(s.status, "OutForDelivery");
+    assert.strictEqual(s.source, "17track");
+    assert.strictEqual(s.t17_status, null);
+});
+t("đối tác ghi KẾT THÚC mà 17TRACK chưa → giữ đối tác, 17TRACK sang t17_* để báo lệch", () => {
+    const saved = { status: "Exception", sub_status: "Exception_Returning", source: "17track", last_event: "Return to sender" };
+    const s = T.partnerOrderShipment(SG, row({ status: "Đã giao thành công" }), saved, true);
+    assert.strictEqual(s.status, "Delivered");
+    assert.strictEqual(s.t17_status, "Exception");
+    assert.strictEqual(T.buildAlerts([s], NOW)[0].code, "lech_trang_thai");
+});
+t("chưa có mã vận đơn mà nằm lâu → 'Chưa gửi hàng', hỏi đối tác chứ không hỏi hãng", () => {
+    const s = T.partnerOrderShipment(SG, row({ tracking: "", status: "Đã lên đơn", ship_date: null, order_date: "2026-09-01" }), undefined, false);
+    const a = T.buildAlerts([s], NOW, { staleDays: 7 });
+    assert.strictEqual(a[0].code, "dung_im");
+    assert.match(a[0].title, /^Chưa gửi hàng 9 ngày$/);
+    assert.match(a[0].detail, /hỏi đối tác/);
+});
+t("đứng im theo ngưỡng từng nước: SG 7 ngày, Đài 21 ngày", () => {
+    const s = ship({ status: "InTransit", status_since: daysAgo(8), last_event_time: daysAgo(8) });
+    assert.strictEqual(T.buildAlerts([s], NOW, { staleDays: 7 })[0].code, "dung_im");
+    assert.strictEqual(T.buildAlerts([s], NOW).length, 0);
+});
+
 console.log("── 17TRACK: nhiều khoá ──");
 t("đọc mọi khoá theo thứ tự, bỏ khoá trùng và khoá rỗng", () => {
     const ks = K.apiKeys({

@@ -87,13 +87,15 @@ const nhieu = (n, code, o = {}) => Array.from({ length: n }, (_, i) => canh(code
 
     await t("đứng im, lệch đối tác ↔ 17TRACK, nhắc — mỗi loại một dòng", () => {
         const m = dung(DATA({ alerts: [
-            canh("dung_im", { level: "canh_bao", days: 25 }, { order_id: "T1300" }),
+            canh("dung_im", { level: "canh_bao", days: 25 }, { order_id: "T1300", track17_code: "73N18000001" }),
+            canh("dung_im", { level: "canh_bao", days: 9 }, { order_id: "S1050", track17_code: null }),
             canh("lech_trang_thai", { level: "canh_bao" }, { order_id: "T1400", status: "Delivered", t17_status: "Exception", t17_sub_status: "Exception_Returning" }),
             canh("lech_trang_thai", { level: "canh_bao" }, { order_id: "T1401", status: "Returned", t17_status: "Delivered" }),
             ...nhieu(3, "toi_cua_hang", { level: "nhac", days_left: 5 }),
             canh("chua_dang_ky", { level: "nhac" }),
         ] }));
         assert.match(m, /🐢 Đứng im \(1\): T1300 \(25n\)/);
+        assert.match(m, /📦 Chưa gửi hàng \(1\) — hỏi đối tác: S1050 \(9n\)/);
         assert.match(m, /❗ Lệch đối tác ↔ 17TRACK \(2\): T1400 \(ghi giao · 17T hoàn\) · T1401 \(ghi hoàn\/huỷ · 17T khách đã nhận\)/);
         assert.match(m, /📬 3 đơn vừa tới cửa hàng — nhắn khách ra lấy · 1 chưa rõ vị trí/);
     });
@@ -184,6 +186,39 @@ const nhieu = (n, code, o = {}) => Array.from({ length: n }, (_, i) => canh(code
         const alerts = nhieu(60, "sap_bi_tra_ve", { days_left: 1 });
         const phan = chiaTin(toZalo(buildTinVanDon(DATA({ alerts }), { today: TODAY, nowTs: NOW, maxGap: 60 })), 1800);
         assert.ok(phan.every((p) => p.msg.length <= 1800));
+    });
+
+    // ── Singapore: giao tận nhà (J&T), tin riêng ──
+    const SG_DATA = (o = {}) => DATA({ market: { code: "SG", label: "Singapore", currency: "SGD" },
+        counts: { InTransit: 30, OutForDelivery: 2 }, totals: { at_store_value: 0 }, ...o });
+    await t("SG: tiêu đề có tên nước, không có dòng cửa hàng, có dòng đang đi giao", () => {
+        const m = dung(SG_DATA({ alerts: [canh("dung_im", { level: "canh_bao", days: 8 }, { order_id: "S1001" })] }));
+        const [d1, d2] = m.split("\n");
+        assert.strictEqual(d1, "📦 VẬN ĐƠN SINGAPORE 26/09 · cập nhật 06:05");
+        assert.strictEqual(d2, "🚚 2 đơn đang đi giao — báo khách để máy");
+        assert.ok(!m.includes("cửa hàng"));
+    });
+    await t("SG: giao hỏng / khách hẹn lên mục GỌI NGAY, kèm lý do và ghi chú khách", () => {
+        const m = dung(SG_DATA({ alerts: [
+            canh("giao_hong", { level: "canh_bao" }, { order_id: "S1012", cod_local: 89, customer: "Ana", phone: "81234567",
+                store_name: "", store_code: "", source: "doi_tac", status: "DeliveryFailure",
+                raw_status: "Khách hẹn lúc khác giao", note: "khách muốn nhận ngày 9/10" }),
+            canh("giao_hong", { level: "canh_bao" }, { order_id: "S1013", source: "17track", status: "Exception", sub_status: "Exception_Returning" }),
+        ] }));
+        assert.match(m, /☎️ GỌI NGAY — giao hỏng, gọi hẹn lại \(1\)\n1\. S1012 · 89 · khách hẹn giao lại · Ana 81234567 · “khách muốn nhận ngày 9\/10”/);
+        assert.match(m, /↩️ Hoàn hàng \(1\): đang hoàn 1/);
+        assert.ok(!/⚠️ Giao hỏng/.test(m), "SG không lặp giao hỏng ở dòng tóm tắt");
+    });
+    await t("Đài có tên nước thì tiêu đề ghi ĐÀI LOAN, tiền NT$", () => {
+        const m = dung(DATA({ market: { code: "TW", label: "Đài Loan", currency: "NT$" }, alerts: [canh("sap_bi_tra_ve", { days_left: 1 })] }));
+        assert.match(m, /^📦 VẬN ĐƠN ĐÀI LOAN 26\/09 · cập nhật 06:05\n🏪 51 đơn ở cửa hàng · 53\.699 NT\$ chờ lấy/);
+        assert.match(m, /GỌI NGAY — sắp bị trả về/);
+    });
+    await t("fetchVanDon gắn market vào địa chỉ", async () => {
+        let url = "";
+        const f = async (u) => { url = u; return { ok: true, json: async () => ({ alerts: [] }) }; };
+        await fetchVanDon({ url: "http://dash/api/talpha/tracking", rangeDays: 60 }, TODAY, f, "SG");
+        assert.match(url, /&market=SG$/);
     });
 
     await t("fetchVanDon hỏi đúng khoảng ngày và báo lỗi route", async () => {

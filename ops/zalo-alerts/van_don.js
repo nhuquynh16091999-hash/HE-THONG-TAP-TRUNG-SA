@@ -24,10 +24,11 @@ function gioVN(iso) {
 }
 const cat = (s, n) => { const x = String(s || "").replace(/\s+/g, " ").trim(); return x.length > n ? x.slice(0, n - 1) + "…" : x; };
 
-async function fetchVanDon(cfg, today, f = fetch) {
+async function fetchVanDon(cfg, today, f = fetch, market = "") {
     if (!cfg || !cfg.url) throw new Error("thiếu vanDon.url trong config");
     const from = cong(today, -(Number(cfg.rangeDays) || 60));
-    const res = await f(`${cfg.url}?from=${from}&to=${today}`, { headers: { "cache-control": "no-store" } });
+    const nuoc = market ? `&market=${encodeURIComponent(market)}` : "";
+    const res = await f(`${cfg.url}?from=${from}&to=${today}${nuoc}`, { headers: { "cache-control": "no-store" } });
     if (!res.ok) throw new Error(`tracking HTTP ${res.status}`);
     const j = await res.json();
     if (j.error) throw new Error(j.error);
@@ -75,13 +76,18 @@ function capNhat(d) {
 
 const maDon = (a) => (a.shipment || {}).order_id || (a.shipment || {}).tracking || "?";
 
-/** Một dòng gọi khách: mã · tiền · hạn · tên SĐT · cửa hàng #mã lấy hàng. */
+/**
+ * Một dòng gọi khách: mã · tiền · hạn (hoặc lý do giao hỏng) · tên SĐT · cửa hàng #mã lấy
+ * hàng · ghi chú đối tác (vd. "khách muốn nhận ngày 9/10" — sale cần biết trước khi gọi).
+ */
 function dongGoi(a, i) {
     const s = a.shipment || {};
-    const han = a.days_left == null ? "" : a.days_left <= 0 ? B("HÔM NAY") : `còn ${a.days_left} ngày`;
+    const han = a.code === "giao_hong" ? lyDo(s)
+        : a.days_left == null ? "" : a.days_left <= 0 ? B("HÔM NAY") : `còn ${a.days_left} ngày`;
     const khach = [s.customer, s.phone].filter(Boolean).join(" ");
     const cuaHang = s.store_name ? `${s.store_name}${s.store_code ? ` #${s.store_code}` : ""}` : "";
-    return `${i + 1}. ` + [B(maDon(a)), s.cod_local ? fmt(Math.round(s.cod_local)) : "", han, khach, cuaHang]
+    const ghiChu = s.note ? `“${cat(s.note, 40)}”` : "";
+    return `${i + 1}. ` + [B(maDon(a)), s.cod_local ? fmt(Math.round(s.cod_local)) : "", han, khach, cuaHang, ghiChu]
         .filter(Boolean).join(" · ");
 }
 
@@ -99,6 +105,7 @@ function lyDo(s) {
     const sub = String(s.sub_status || ""), raw = String(s.raw_status || s.last_event || "");
     if (/Returning/.test(sub) || (s.source !== "17track" && /hoàn/i.test(raw))) return "dang_hoan";
     if (/Returned/.test(sub)) return "da_hoan";
+    if (s.source !== "17track" && /hẹn/i.test(raw)) return "khách hẹn giao lại";
     if (/Rejected/.test(sub) || /từ chối/i.test(raw)) return "khách từ chối";
     if (/NoBody/.test(sub) || /vắng/i.test(raw)) return "vắng nhà";
     if (/InvalidAddress/.test(sub)) return "sai địa chỉ";
@@ -114,7 +121,10 @@ function lechNgan(a) {
 }
 
 /**
- * TIN GỌN — Sỹ Anh chốt 25/09/2026: MỘT tin Zalo, mỗi đơn một dòng.
+ * TIN GỌN — Sỹ Anh chốt 25/09/2026: MỘT tin Zalo cho MỖI thị trường, mỗi đơn một dòng.
+ *   • Đài Loan (cửa hàng tiện lợi): GỌI NGAY = đơn sắp bị trả về.
+ *   • Nước giao tận nhà (Singapore, J&T): GỌI NGAY = đơn giao hỏng / khách hẹn giao lại,
+ *     kèm lý do và ghi chú đối tác — đó là đơn còn cứu được bằng một cuộc gọi.
  *   • Chỉ đơn CẦN GỌI NGAY (sắp bị trả về) in đủ tên, SĐT, cửa hàng, mã lấy hàng.
  *   • Quá hạn, giao hỏng, đứng im, lệch: một dòng mỗi loại, chỉ mã đơn.
  *   • Hàng đang/đã hoàn chỉ ĐẾM (44/46 "giao hỏng" ngày 25/09 là hàng quay đầu — gọi
@@ -143,36 +153,48 @@ function buildTinVanDon(d, opts = {}) {
     const dangHoan = hong.filter((a) => lyDo(a.shipment || {}) === "dang_hoan");
     const daHoan = hong.filter((a) => lyDo(a.shipment || {}) === "da_hoan");
     const suCo = hong.filter((a) => !["dang_hoan", "da_hoan"].includes(lyDo(a.shipment || {})));
-    const dungIm = by("dung_im");
+    // Đứng im mà CHƯA có mã vận đơn = hàng chưa rời kho → hỏi đối tác, tách dòng riêng.
+    const chuaGui = by("dung_im").filter((a) => !(a.shipment || {}).track17_code);
+    const dungIm = by("dung_im").filter((a) => (a.shipment || {}).track17_code);
     const lech = by("lech_trang_thai");
     const moiToi = by("toi_cua_hang");
     const chuaRo = by("chua_dang_ky");
 
     const atStore = (d.counts || {}).AvailableForPickup || 0;
+    const dangGiao = (d.counts || {}).OutForDelivery || 0;
     const tienCho = (d.totals || {}).at_store_value || 0;
+    const nuoc = d.market || {};
+    const tien = nuoc.currency || "NT$";
+    // Giao tận nhà: đơn giao hỏng là đơn còn cứu bằng một cuộc gọi → lên mục GỌI NGAY.
+    const giaoTanNha = !!nuoc.code && nuoc.code !== "TW";
     const cn = capNhat(d);
 
-    const dong = [`📦 ${B(`VẬN ĐƠN ${ddmm(today)}`)}${cn ? ` · ${cn}` : ""}`];
-    if (atStore) dong.push(`🏪 ${fmt(atStore)} đơn ở cửa hàng · ${B(fmt(Math.round(tienCho)) + " NT$")} chờ lấy`);
+    const tieuDe = `VẬN ĐƠN${nuoc.label ? ` ${String(nuoc.label).toUpperCase()}` : ""} ${ddmm(today)}`;
+    const dong = [`📦 ${B(tieuDe)}${cn ? ` · ${cn}` : ""}`];
+    if (atStore) dong.push(`🏪 ${fmt(atStore)} đơn ở cửa hàng · ${B(fmt(Math.round(tienCho)) + " " + tien)} chờ lấy`);
+    if (dangGiao) dong.push(`🚚 ${fmt(dangGiao)} đơn đang đi giao — báo khách để máy`);
     const canhBaoNguon = dongNguon(d, nowTs, opts);
     if (canhBaoNguon) dong.push(canhBaoNguon);
 
     if (!alerts.length) return [...dong, "", "✅ Không có đơn nào cần xử lý."].join("\n");
 
-    if (sap.length) {
-        dong.push("", `☎️ ${B(`GỌI NGAY — sắp bị trả về (${sap.length})`)}`);
-        sap.slice(0, maxGap).forEach((a, i) => dong.push(dongGoi(a, i)));
-        if (sap.length > maxGap) dong.push(`… +${sap.length - maxGap} đơn nữa trên dashboard`);
+    const goi = giaoTanNha ? [...sap, ...suCo] : sap;
+    if (goi.length) {
+        const nhan = giaoTanNha ? "giao hỏng, gọi hẹn lại" : "sắp bị trả về";
+        dong.push("", `☎️ ${B(`GỌI NGAY — ${nhan} (${goi.length})`)}`);
+        goi.slice(0, maxGap).forEach((a, i) => dong.push(dongGoi(a, i)));
+        if (goi.length > maxGap) dong.push(`… +${goi.length - maxGap} đơn nữa trên dashboard`);
     }
 
     const tom = [];
     if (qua.length) tom.push(`⏰ ${B(`Quá hạn lấy (${qua.length})`)}: ${dongMa(qua, (a) => `(${-a.days_left}n)`, maxMa)}`);
-    if (suCo.length) tom.push(`⚠️ ${B(`Giao hỏng (${suCo.length})`)}: ${dongMa(suCo, (a) => `(${lyDo(a.shipment || {})})`, maxMa)}`);
+    if (suCo.length && !giaoTanNha) tom.push(`⚠️ ${B(`Giao hỏng (${suCo.length})`)}: ${dongMa(suCo, (a) => `(${lyDo(a.shipment || {})})`, maxMa)}`);
     if (dangHoan.length || daHoan.length) {
         tom.push(`↩️ ${B(`Hoàn hàng (${dangHoan.length + daHoan.length})`)}: `
             + [dangHoan.length ? `đang hoàn ${dangHoan.length}` : "", daHoan.length ? `đã hoàn ${daHoan.length}` : ""].filter(Boolean).join(" · "));
     }
     if (dungIm.length) tom.push(`🐢 ${B(`Đứng im (${dungIm.length})`)}: ${dongMa(dungIm, (a) => `(${a.days}n)`, maxMa)}`);
+    if (chuaGui.length) tom.push(`📦 ${B(`Chưa gửi hàng (${chuaGui.length})`)} — hỏi đối tác: ${dongMa(chuaGui, (a) => `(${a.days}n)`, maxMa)}`);
     if (lech.length) tom.push(`❗ ${B(`Lệch đối tác ↔ 17TRACK (${lech.length})`)}: ${dongMa(lech, lechNgan, Math.min(maxMa, 5))}`);
     const nhac = [moiToi.length ? `${fmt(moiToi.length)} đơn vừa tới cửa hàng — nhắn khách ra lấy` : "",
         chuaRo.length ? `${fmt(chuaRo.length)} chưa rõ vị trí` : ""].filter(Boolean).join(" · ");

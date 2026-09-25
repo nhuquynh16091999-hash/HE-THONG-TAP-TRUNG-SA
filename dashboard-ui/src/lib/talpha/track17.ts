@@ -148,13 +148,15 @@ const errOf = (r: Record<string, unknown>) => {
  * ⚠️ TỐN QUOTA — mỗi mã một lần. Kiểm sổ đăng ký TRƯỚC khi gọi.
  * `tags` gắn mã đơn vào từng mã (tối đa 100 ký tự) để tra ngược trên trang 17TRACK.
  */
-export async function register(k: ApiKey, numbers: string[], tags: Record<string, string> = {}): Promise<RegisterResult> {
+export async function register(
+    k: ApiKey, numbers: string[], tags: Record<string, string> = {}, market: string = "TW",
+): Promise<RegisterResult> {
     if (!numbers.length) return { accepted: [], rejected: [] };
     return batched<RegisterResult>(
         k, numbers, "register",
         (n) => ({
             number: n,
-            ...(carrierFor(n) ? { carrier: carrierFor(n) } : { auto_detection: true }),
+            ...(carrierFor(n, market) ? { carrier: carrierFor(n, market) } : { auto_detection: true }),
             ...(tags[n] ? { tag: tags[n].slice(0, 100) } : {}),
         }),
         (data) => ({

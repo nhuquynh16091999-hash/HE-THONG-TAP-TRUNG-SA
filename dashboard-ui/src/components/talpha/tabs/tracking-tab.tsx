@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { format } from "date-fns";
-import { RefreshCw, AlertTriangle, Store, PackageX, Clock, Download, Upload, FileSpreadsheet, ShieldAlert, Copy, Phone } from "lucide-react";
+import { RefreshCw, AlertTriangle, Store, PackageX, Clock, Download, Upload, FileSpreadsheet, ShieldAlert, Copy, Phone, Truck } from "lucide-react";
 import TabSkeleton, { ErrorState } from "@/components/ui/tab-skeleton";
 import { formatNumber, cn } from "../utils";
 
@@ -22,8 +22,6 @@ type Alert = {
     level: "gap" | "canh_bao" | "nhac";
     code: string; title: string; detail: string; days: number | null; shipment: Shipment;
 };
-
-const TWD = (n: number) => `${Math.round(n).toLocaleString("vi-VN")} NT$`;
 
 /**
  * Tin nhắn tiếng Trung báo khách ra lấy hàng.
@@ -93,7 +91,13 @@ export default function TALPHATrackingTab({ dateRange }: Props) {
     const [importMsg, setImportMsg] = useState("");
     const [unknownStatuses, setUnknownStatuses] = useState<{ value: string; count: number }[]>([]);
     const [publicWarning, setPublicWarning] = useState("");
+    // Thị trường (Sỹ Anh chốt 25/09/2026: Singapore tách riêng Đài Loan) — sổ, bảng đối tác,
+    // tiền tệ riêng; danh sách nước lấy từ route, không gõ cứng ở đây.
+    const [market, setMarket] = useState("TW");
+    const [markets, setMarkets] = useState<{ code: string; label: string }[]>([]);
+    const [currency, setCurrency] = useState("NT$");
     const fileRef = useRef<HTMLInputElement>(null);
+    const money = (n: number) => `${Math.round(n).toLocaleString("vi-VN")} ${currency}`;
 
     const from = dateRange?.from ? format(dateRange.from, "yyyy-MM-dd") : "2026-01-01";
     const to = dateRange?.to ? format(dateRange.to, "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd");
@@ -101,23 +105,32 @@ export default function TALPHATrackingTab({ dateRange }: Props) {
     const load = useCallback(async () => {
         setLoading(true); setError("");
         try {
-            const res = await fetch(`/api/talpha/tracking?from=${from}&to=${to}`);
+            const res = await fetch(`/api/talpha/tracking?from=${from}&to=${to}&market=${market}`);
             const d = await res.json();
             if (!res.ok) throw new Error(d.error || "Không tải được vận đơn");
             setShipments(d.shipments || []); setAlerts(d.alerts || []);
             setCounts(d.counts || {}); setTotals(d.totals);
             setHasKey(d.has_api_key); setCfg(d.config); setLastSync(d.last_sync ?? null);
+            setMarkets(d.markets || []); setCurrency(d.market?.currency || "NT$");
+            // Nước ngoài Đài: bảng đối tác nạp tự động, trạng thái chưa khai đi kèm lượt đọc.
+            if (d.unknown_statuses) setUnknownStatuses(d.unknown_statuses);
         } catch (e) {
             setError(e instanceof Error ? e.message : "Lỗi không rõ");
         } finally { setLoading(false); }
-    }, [from, to]);
+    }, [from, to, market]);
+
+    const doiNuoc = (code: string) => {
+        if (code === market) return;
+        setShipments([]); setAlerts([]); setSyncMsg(""); setImportMsg(""); setUnknownStatuses([]);
+        setPublicWarning(""); setTab("alerts"); setLv("all"); setMarket(code);
+    };
 
     useEffect(() => { load(); }, [load]);
 
     const sync = async () => {
         setSyncing(true); setSyncMsg(""); setError("");
         try {
-            const res = await fetch(`/api/talpha/tracking?from=${from}&to=${to}`, { method: "POST" });
+            const res = await fetch(`/api/talpha/tracking?from=${from}&to=${to}&market=${market}`, { method: "POST" });
             const d = await res.json();
             if (!res.ok) throw new Error(d.error || "Đồng bộ thất bại");
             setSyncMsg(
@@ -161,7 +174,7 @@ export default function TALPHATrackingTab({ dateRange }: Props) {
     };
 
     const exportCsv = () => {
-        const head = ["Mã đơn", "Mã vận đơn", "Ngày đơn", "Trạng thái", "Từ ngày", "COD (TWD)",
+        const head = ["Mã đơn", "Mã vận đơn", "Ngày đơn", "Trạng thái", "Từ ngày", `COD (${currency})`,
             "Khách", "SĐT", "Marketer", "Sale", "Sự kiện cuối"];
         const esc = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
         const body = shipments.map((s) => [
@@ -173,7 +186,7 @@ export default function TALPHATrackingTab({ dateRange }: Props) {
             { type: "text/csv;charset=utf-8" });
         const a = document.createElement("a");
         a.href = URL.createObjectURL(blob);
-        a.download = `van-don_${from}_${to}.csv`;
+        a.download = `van-don_${market}_${from}_${to}.csv`;
         a.click();
         URL.revokeObjectURL(a.href);
     };
@@ -183,9 +196,22 @@ export default function TALPHATrackingTab({ dateRange }: Props) {
 
     const urgent = alerts.filter((a) => a.level === "gap");
     const atStore = counts.AvailableForPickup || 0;
+    const laDai = market === "TW";
+    const dangGiao = shipments.filter((s) => s.status === "OutForDelivery");
 
     return (
         <div className="space-y-5">
+            {markets.length > 1 && (
+                <div className="inline-flex rounded-lg border border-border bg-muted/40 p-1">
+                    {markets.map((m) => (
+                        <button key={m.code} onClick={() => doiNuoc(m.code)}
+                            className={cn("rounded-md px-4 py-1.5 text-sm font-medium transition-colors",
+                                market === m.code ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}>
+                            {m.label}
+                        </button>
+                    ))}
+                </div>
+            )}
             {!hasKey && (
                 <div className="flex gap-3 rounded-xl border-l-4 border-amber-500 bg-amber-50 p-4 text-sm dark:bg-amber-500/10">
                     <AlertTriangle className="mt-0.5 h-4 w-4 flex-none text-amber-600 dark:text-amber-400" />
@@ -202,12 +228,22 @@ export default function TALPHATrackingTab({ dateRange }: Props) {
             )}
 
             <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-                <Stat icon={<Store className="h-4 w-4" />} label="Đang ở cửa hàng"
-                    value={formatNumber(atStore)} sub={`${TWD(totals.at_store_value)} tiền hàng đang chờ khách lấy`}
-                    tone={atStore > 0 ? "warn" : undefined} />
-                <Stat icon={<AlertTriangle className="h-4 w-4" />} label="Sắp bị trả về"
-                    value={formatNumber(urgent.length)} sub={`quá ${cfg.pickup_expire_days - cfg.warn_before_expire_days} ngày chưa ai lấy`}
-                    tone={urgent.length > 0 ? "bad" : undefined} />
+                {laDai ? (<>
+                    <Stat icon={<Store className="h-4 w-4" />} label="Đang ở cửa hàng"
+                        value={formatNumber(atStore)} sub={`${money(totals.at_store_value)} tiền hàng đang chờ khách lấy`}
+                        tone={atStore > 0 ? "warn" : undefined} />
+                    <Stat icon={<AlertTriangle className="h-4 w-4" />} label="Sắp bị trả về"
+                        value={formatNumber(urgent.length)} sub={`quá ${cfg.pickup_expire_days - cfg.warn_before_expire_days} ngày chưa ai lấy`}
+                        tone={urgent.length > 0 ? "bad" : undefined} />
+                </>) : (<>
+                    {/* Giao tận nhà: không có "nằm ở cửa hàng" — thay bằng đơn đang đi giao
+                        (báo khách để máy) và đơn còn trên đường. */}
+                    <Stat icon={<Truck className="h-4 w-4" />} label="Đang đi giao"
+                        value={formatNumber(dangGiao.length)} sub={`${money(dangGiao.reduce((n, s) => n + s.cod_local, 0))} tiền hàng — báo khách để máy`} />
+                    <Stat icon={<Clock className="h-4 w-4" />} label="Đang trên đường"
+                        value={formatNumber((counts.InTransit || 0) + (counts.InfoReceived || 0))}
+                        sub={`quá ${cfg.stale_days} ngày không nhúc nhích là báo đứng im`} />
+                </>)}
                 <Stat icon={<PackageX className="h-4 w-4" />} label="Giao hỏng · sự cố"
                     value={formatNumber((counts.DeliveryFailure || 0) + (counts.Exception || 0))} sub="cần người xử lý" />
                 <Stat icon={<Clock className="h-4 w-4" />} label="Tổng vận đơn"
@@ -227,18 +263,22 @@ export default function TALPHATrackingTab({ dateRange }: Props) {
                         </button>
                     ))}
                 </div>
-                <input ref={fileRef} type="file" accept=".csv,.tsv,.txt,text/csv" className="hidden"
-                    onChange={(e) => { const f = e.target.files?.[0]; if (f) importPartner(f); }} />
-                <button onClick={() => importPartner()} disabled={importing}
-                    className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50">
-                    <FileSpreadsheet className={cn("h-4 w-4", importing && "animate-pulse")} />
-                    {importing ? "Đang đọc…" : "Đọc bảng đối tác"}
-                </button>
-                <button onClick={() => fileRef.current?.click()} disabled={importing}
-                    title="Dùng khi bảng chưa mở quyền — tải file CSV lên tay"
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-sm hover:bg-muted disabled:opacity-50">
-                    <Upload className="h-4 w-4" /> Tải file
-                </button>
+                {laDai ? (<>
+                    <input ref={fileRef} type="file" accept=".csv,.tsv,.txt,text/csv" className="hidden"
+                        onChange={(e) => { const f = e.target.files?.[0]; if (f) importPartner(f); }} />
+                    <button onClick={() => importPartner()} disabled={importing}
+                        className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50">
+                        <FileSpreadsheet className={cn("h-4 w-4", importing && "animate-pulse")} />
+                        {importing ? "Đang đọc…" : "Đọc bảng đối tác"}
+                    </button>
+                    <button onClick={() => fileRef.current?.click()} disabled={importing}
+                        title="Dùng khi bảng chưa mở quyền — tải file CSV lên tay"
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-sm hover:bg-muted disabled:opacity-50">
+                        <Upload className="h-4 w-4" /> Tải file
+                    </button>
+                </>) : (
+                    <span className="text-xs text-muted-foreground">Bảng đối tác tự nạp mỗi giờ</span>
+                )}
                 <button onClick={sync} disabled={syncing || !hasKey}
                     className="inline-flex items-center gap-1.5 rounded-lg bg-orange-500 px-3 py-2 text-sm font-medium text-white hover:bg-orange-600 disabled:opacity-50">
                     <RefreshCw className={cn("h-4 w-4", syncing && "animate-spin")} />
@@ -256,7 +296,7 @@ export default function TALPHATrackingTab({ dateRange }: Props) {
                     <div className="font-medium text-amber-900 dark:text-amber-200">Có trạng thái chưa khai</div>
                     <p className="mt-0.5 text-amber-800/80 dark:text-amber-200/70">
                         Những đơn này không vào được cảnh báo nào. Khai thêm vào{" "}
-                        <span className="font-mono">talpha_rules.json → tracking.partner_file.status_map</span>:
+                        <span className="font-mono">talpha_rules.json → {laDai ? "tracking.partner_file.status_map" : `tracking.markets.${market}.status_map`}</span>:
                     </p>
                     <ul className="mt-1 space-y-0.5 font-mono text-xs text-amber-800/70 dark:text-amber-200/60">
                         {unknownStatuses.map((u) => <li key={u.value}>{u.count}× “{u.value}”</li>)}
@@ -335,7 +375,7 @@ export default function TALPHATrackingTab({ dateRange }: Props) {
                                                     <span className="font-medium">{a.title}</span>
                                                     <span className="font-mono text-xs text-indigo-700 dark:text-indigo-300">#{s.order_id}</span>
                                                     {s.cod_local > 0 && (
-                                                        <span className="font-mono text-xs font-bold tabular-nums">{TWD(s.cod_local)}</span>
+                                                        <span className="font-mono text-xs font-bold tabular-nums">{money(s.cod_local)}</span>
                                                     )}
                                                     {conLai != null && (
                                                         <span className={cn("rounded px-1.5 font-mono text-[10px] font-bold",
@@ -406,7 +446,7 @@ export default function TALPHATrackingTab({ dateRange }: Props) {
                                                 {STATUS_VI[s.status || ""] || (s.registered ? "chưa có tin" : "chưa đăng ký")}
                                             </span>
                                         </td>
-                                        <td className="px-3 py-2 text-right font-mono tabular-nums">{s.cod_local ? TWD(s.cod_local) : "—"}</td>
+                                        <td className="px-3 py-2 text-right font-mono tabular-nums">{s.cod_local ? money(s.cod_local) : "—"}</td>
                                         <td className="px-3 py-2">
                                             <div className="max-w-[160px] truncate">{s.customer || "—"}</div>
                                             <div className="text-xs text-muted-foreground">{s.phone}</div>

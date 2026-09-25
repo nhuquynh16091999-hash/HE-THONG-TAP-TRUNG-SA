@@ -196,12 +196,30 @@ function guiBaoCao(ngay, { homNay = false, label, theoDoi } = {}) {
 // ─── Vận đơn cần xử lý ───
 // Đọc đúng route màn "Theo dõi vận đơn" dùng. Bảng đối tác nạp 6h + 17TRACK đồng bộ ngay
 // sau đó (talpha-tracking.service), nên 08:00 là số của sáng nay.
-async function dungTinVanDon() {
+// MỖI thị trường MỘT tin (Sỹ Anh chốt 25/09/2026: Singapore tách riêng Đài Loan), theo thứ
+// tự vanDon.markets. Một nước đọc hỏng thì các nước kia VẪN gửi, nước hỏng có một dòng báo
+// lỗi — trừ khi mọi nước cùng hỏng thì ném lỗi để mốc 08:00 thử lại vòng sau.
+const VD_MARKETS = (Array.isArray(VD.markets) && VD.markets.length ? VD.markets : ["TW"]).map((x) => String(x).toUpperCase());
+const TEN_NUOC = { TW: "Đài Loan", SG: "Singapore" };
+
+async function dungTinVanDon(chiNuoc = null) {
     const today = vnDateStr();
-    const d = await fetchVanDon(VD, today);
-    return buildTinVanDon(d, {
-        today, maxGap: VD.maxGap, maxCanhBao: VD.maxCanhBao, link: VD.link, quotaWarn: VD.quotaWarn,
-    });
+    const nuoc = chiNuoc ? [chiNuoc] : VD_MARKETS;
+    const tin = [], loi = [];
+    for (const m of nuoc) {
+        try {
+            const d = await fetchVanDon(VD, today, fetch, m);
+            tin.push(buildTinVanDon(d, {
+                today, maxGap: VD.maxGap, maxCanhBao: VD.maxCanhBao, link: VD.link, quotaWarn: VD.quotaWarn,
+            }));
+        } catch (e) {
+            loi.push(e.message);
+            log(`Tin vận đơn ${m} lỗi:`, e.message);
+            tin.push(`⚠️ Vận đơn ${TEN_NUOC[m] || m}: chưa lấy được số lúc này (${e.message}).`);
+        }
+    }
+    if (loi.length === nuoc.length) throw new Error(loi.join(" · "));
+    return tin;
 }
 
 function guiVanDon() {
@@ -209,8 +227,8 @@ function guiVanDon() {
         return Promise.reject(new Error("chưa chọn nhóm vận đơn — chạy `node pair.js --chon-vandon <id nhóm>`"));
     }
     return lanLuot(async () => {
-        const n = await guiLoat([await dungTinVanDon()], nhomVanDon);
-        return { n, ghiChu: `tin vận đơn (${n} phần)` };
+        const n = await guiLoat(await dungTinVanDon(), nhomVanDon);
+        return { n, ghiChu: `tin vận đơn ${VD_MARKETS.join(" + ")} (${n} tin)` };
     });
 }
 
@@ -278,7 +296,8 @@ async function lamLenh(text, ai = "dòng lệnh", nhom = "cli") {
     await lanLuot(async () => {
         try {
             if (lenh.lenh === "vandon") {
-                try { await guiMot(await dungTinVanDon(), nhomVanDon); }
+                if (lenh.loi) { await guiMot(`⚠️ ${lenh.loi}`, nhomVanDon); return; }
+                try { await guiLoat(await dungTinVanDon(lenh.nuoc || null), nhomVanDon); }
                 catch (e) {
                     // Tự lo lỗi ở đây, KHÔNG ném ra ngoài: nhánh bắt lỗi chung bên dưới gửi
                     // vào nhóm ads — tin lỗi vận đơn không có chỗ ở đó.

@@ -6,8 +6,9 @@ import {
 } from "@/lib/talpha/rules";
 import { trackingFromLink } from "@/lib/talpha/cod-recon";
 import {
-    buildAlerts, carrierFor, countByStatus, fixTrack17Code, mergeStatus, planRegister, planTrack, TERMINAL, TRACK_CFG,
-    type Shipment,
+    buildAlerts, carrierFor, countByStatus, fixTrack17Code, mergeStatus, partnerOrderShipment, planRegister, planTrack,
+    trackMarket, TERMINAL, TRACK_CFG, TRACK_MARKETS,
+    type PartnerOrderRow, type SavedTrack, type Shipment, type TrackMarket,
 } from "@/lib/talpha/tracking";
 import {
     apiKeys, allocateToKeys, register, changeCarrier, getTrackInfo, getQuota, hasApiKey, Track17Error,
@@ -37,9 +38,11 @@ const BQ_DATASET = process.env.DATASET || "TALPHA_Dataset";
 // POST chạy tự động mỗi sáng sau khi nạp bảng đối tác (ops/deploy/tracking-import.sh),
 // kết quả ghi vào `last_sync` để bot Zalo báo được "17TRACK cập nhật lúc nào, còn bao
 // nhiêu quota" — và báo LỖI, chứ không im lặng gửi số cũ như số mới.
+//
+// ?market=SG (Sỹ Anh chốt 25/09/2026): mỗi thị trường một SỔ RIÊNG, đọc bảng đối tác
+// riêng — Đài từ data/tracking.json (nút "Đọc bảng đối tác"), nước khác từ BigQuery
+// partner_orders. Không có market (hoặc mã lạ) = Đài Loan. Khoá 17TRACK dùng chung.
 // ═══════════════════════════════════════════════════════════════════
-
-const STORE = "tracking";
 
 /** `number` = mã đã đưa cho 17TRACK (7-Eleven có tiền tố 73N, khác khoá sổ). */
 type Registered = {
@@ -110,8 +113,9 @@ const emptyStore = (): Store => ({ registered: {}, statuses: {}, partner: {} });
 // sinh mã 17TRACK, nếu không mã 8 số của 7-Eleven không được thêm tiền tố 73N.
 const clean = (x?: string | null) => String(x || "").replace(/[^A-Za-z0-9]/g, "").toUpperCase();
 
-async function loadShipments(from: string, to: string): Promise<{ shipments: Shipment[]; store: Store }> {
-    const store = await readStoreFresh<Store>(STORE, emptyStore());
+async function loadShipments(mk: TrackMarket, from: string, to: string): Promise<{ shipments: Shipment[]; store: Store; lastImport: string | null }> {
+    if (mk.code !== "TW") return loadPartnerMarket(mk);
+    const store = await readStoreFresh<Store>(mk.store, emptyStore());
     const partner = store.partner || {};
     const byTracking = new Map<string, Shipment>();
     // Mã 17TRACK đã đăng ký — hai dòng đối tác chung một mã thì dòng thứ hai cũng coi là
@@ -189,6 +193,9 @@ async function loadShipments(from: string, to: string): Promise<{ shipments: Shi
                 LEFT JOIN \`${BQ_PROJECT}.${BQ_DATASET}.sale_order\` o
                        ON v.shop_id = o.shop_id AND v.order_id = o.id
                 WHERE v.order_date BETWEEN @from AND @to
+                  -- CHỈ shop Đài: trước khi tách thị trường, đơn Singapore có link vận
+                  -- đơn trên POS lọt vào danh sách Đài (gặp thật 25/09/2026).
+                  AND v.market = 'TW'
                   AND o.tracking_link IS NOT NULL AND TRIM(o.tracking_link) != ''
                   -- Đơn huỷ/đơn thô chưa có hàng đi đường, theo dõi làm gì.
                   AND v.status_category NOT IN ('HUY', 'DON_THO')`,
@@ -228,7 +235,49 @@ async function loadShipments(from: string, to: string): Promise<{ shipments: Shi
         console.warn("tracking: không đọc được BigQuery, chỉ dùng file đối tác:", e);
     }
 
-    return { shipments: [...byTracking.values()], store };
+    return { shipments: [...byTracking.values()], store, lastImport: store.partner_import?.imported_at ?? null };
+}
+
+/**
+ * Thị trường ngoài Đài: đơn = bảng đối tác trong BigQuery partner_orders (talpha-sync nạp
+ * mỗi giờ), ghép trạng thái 17TRACK trong sổ riêng của nước đó. Đọc BigQuery hỏng thì NÉM
+ * lỗi — nước này không có nguồn thứ hai, trả danh sách rỗng là nói dối "không có đơn".
+ */
+async function loadPartnerMarket(mk: TrackMarket): Promise<{ shipments: Shipment[]; store: Store; lastImport: string | null }> {
+    const store = await readStoreFresh<Store>(mk.store, emptyStore());
+    const regNumbers = new Set(Object.entries(store.registered).map(([k, r]) => r.number || clean(k)));
+    const [rows] = await bigquery.query({
+        query: `SELECT order_no, tracking, status, note, ship_method, city, contact_name, phone, cod, marketer,
+                       FORMAT_DATE('%Y-%m-%d', order_date) AS order_date,
+                       FORMAT_DATE('%Y-%m-%d', ship_date) AS ship_date,
+                       FORMAT_TIMESTAMP('%Y-%m-%dT%H:%M:%SZ', synced_at) AS synced_at
+                FROM \`${BQ_PROJECT}.${BQ_DATASET}.partner_orders\`
+                WHERE market = @m
+                ORDER BY row_no`,
+        params: { m: mk.partner_market },
+    });
+    const byKey = new Map<string, Shipment>();
+    let lastImport: string | null = null;
+    for (const r of rows as (PartnerOrderRow & { synced_at?: string })[]) {
+        if (r.synced_at && (!lastImport || r.synced_at > lastImport)) lastImport = r.synced_at;
+        const t = clean(r.tracking);
+        const key0 = t || `DON-${r.order_no || "?"}`;
+        // Hai dòng cùng mã vận đơn (đơn tách/ghép) → khoá thứ hai kèm mã đơn, không đè nhau.
+        const key = byKey.has(key0) ? `${key0}#${r.order_no || byKey.size}` : key0;
+        const s = partnerOrderShipment(mk, r, store.statuses[key0] as SavedTrack | undefined,
+            !!store.registered[key0] || (!!t && regNumbers.has(t)));
+        byKey.set(key, { ...s, tracking: key });
+    }
+    return { shipments: [...byKey.values()], store, lastImport };
+}
+
+function chuaKhai(shipments: Shipment[]): { value: string; count: number }[] {
+    const dem = new Map<string, number>();
+    for (const s of shipments) {
+        if (s.source !== "doi_tac" || s.status || !s.raw_status) continue;
+        dem.set(s.raw_status, (dem.get(s.raw_status) || 0) + 1);
+    }
+    return [...dem].map(([value, count]) => ({ value, count })).sort((a, b) => b.count - a.count);
 }
 
 function range(req: NextRequest) {
@@ -242,29 +291,35 @@ function range(req: NextRequest) {
 export async function GET(req: NextRequest) {
     const { from, to, ok } = range(req);
     if (!ok) return NextResponse.json({ error: "from/to phải dạng YYYY-MM-DD" }, { status: 400 });
+    const mk = trackMarket(req.nextUrl.searchParams.get("market"));
 
     try {
-        const { shipments, store } = await loadShipments(from, to);
-        const alerts = buildAlerts(shipments);
+        const { shipments, store, lastImport } = await loadShipments(mk, from, to);
+        const alerts = buildAlerts(shipments, new Date(), { staleDays: mk.stale_days });
         return NextResponse.json({
             from, to,
+            market: { code: mk.code, label: mk.label, currency: mk.currency },
+            markets: TRACK_MARKETS.map((m) => ({ code: m.code, label: m.label })),
             has_api_key: hasApiKey(),
             last_sync: store.last_sync ?? null,
-            last_import: store.partner_import?.imported_at ?? null,
+            last_import: lastImport,
             config: {
                 pickup_expire_days: TRACK_CFG.pickup_expire_days,
                 warn_before_expire_days: TRACK_CFG.warn_before_expire_days,
-                stale_days: TRACK_CFG.stale_days,
+                stale_days: mk.stale_days,
             },
             shipments,
             alerts,
             counts: countByStatus(shipments),
+            // Nước ngoài Đài: bảng đối tác nạp tự động nên không có lượt "Đọc bảng" để báo chữ
+            // trạng thái lạ — báo ở đây, kẻo đơn mang chữ lạ lặng lẽ rơi khỏi mọi cảnh báo.
+            ...(mk.code !== "TW" ? { unknown_statuses: chuaKhai(shipments) } : {}),
             totals: {
                 shipments: shipments.length,
                 registered: shipments.filter((s) => s.registered).length,
                 // Chỉ đếm mã SẼ được đăng ký (đơn chưa kết thúc, còn mới) — đếm cả đơn đã
                 // giao xong thì con số này không bao giờ về 0 và chẳng nói lên gì.
-                pending_register: planRegister(shipments).eligible,
+                pending_register: planRegister(shipments, new Date(), { staleDays: mk.stale_days }).eligible,
                 at_store_value: shipments
                     .filter((s) => s.status === "AvailableForPickup")
                     .reduce((n, s) => n + s.cod_local, 0),
@@ -279,6 +334,8 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
     const { from, to, ok } = range(req);
     if (!ok) return NextResponse.json({ error: "from/to phải dạng YYYY-MM-DD" }, { status: 400 });
+    const mk = trackMarket(req.nextUrl.searchParams.get("market"));
+    const STORE = mk.store;
     const keys = apiKeys();
     if (!keys.length) {
         return NextResponse.json({
@@ -309,7 +366,7 @@ export async function POST(req: NextRequest) {
             return cur;
         });
 
-        const { shipments } = await loadShipments(from, to);
+        const { shipments } = await loadShipments(mk, from, to);
         const byNumber = new Map<string, Shipment[]>();
         for (const s of shipments) {
             if (!s.track17_code) continue;
@@ -324,7 +381,9 @@ export async function POST(req: NextRequest) {
             try { quotas.set(k.id, await getQuota(k)); } catch (e) { quotas.set(k.id, null); loiKhoa(k, e); }
         }
         const tong = congQuota([...quotas.values()].filter((q): q is Quota => !!q));
-        const plan = planRegister(shipments, now, { quotaRemain: tong?.remain ?? null, quotaTotal: tong?.total ?? null });
+        const plan = planRegister(shipments, now, {
+            quotaRemain: tong?.remain ?? null, quotaTotal: tong?.total ?? null, staleDays: mk.stale_days,
+        });
 
         // ── 1. Đăng ký mã mới (TỐN QUOTA) — chia cho các khoá theo quota còn lại ──
         // Sổ đăng ký là nơi DUY NHẤT biết mã nào đã có chủ: planRegister bỏ mọi mã đã nằm
@@ -339,7 +398,7 @@ export async function POST(req: NextRequest) {
             const numbers = lo.map((s) => s.track17_code as string);
             const tags = Object.fromEntries(lo.filter((s) => s.order_id).map((s) => [s.track17_code as string, s.order_id]));
             let r: RegisterResult;
-            try { r = await register(k, numbers, tags); }
+            try { r = await register(k, numbers, tags, mk.code); }
             catch (e) { loiKhoa(k, e); r = phanDaXong(e, { accepted: [], rejected: [] }); }
             const moi = new Map<string, number | null>();
             for (const a of r.accepted) moi.set(clean(a.number), a.carrier || null);
@@ -375,7 +434,7 @@ export async function POST(req: NextRequest) {
         const soDangKy = await readStoreFresh<Store>(STORE, emptyStore());
         const doiHang = new Map<string, Map<string, { number: string; carrier_old: number; carrier_new: number }>>();
         for (const r of Object.values(soDangKy.registered)) {
-            const want = carrierFor(r.number);
+            const want = carrierFor(r.number, mk.code);
             if (!r.number || !r.key_id || !want || !r.carrier || r.carrier === want) continue;
             if ((r.carrier_changes ?? 0) >= MAX_DOI_HANG) continue;
             if (!doiHang.has(r.key_id)) doiHang.set(r.key_id, new Map());
@@ -480,7 +539,7 @@ export async function POST(req: NextRequest) {
             quota_out: quotaOut, quota, keys: khoa, orphaned,
         });
 
-        const { shipments: after } = await loadShipments(from, to);
+        const { shipments: after } = await loadShipments(mk, from, to);
         return NextResponse.json({
             ok: true,
             registered,
@@ -495,7 +554,7 @@ export async function POST(req: NextRequest) {
             carrier_fixed: carrierFixed,
             track_rejected: trackRejected.map((x) => ({ number: x.number, message: x.message })),
             status_changed: changed,
-            alerts: buildAlerts(after, now),
+            alerts: buildAlerts(after, now, { staleDays: mk.stale_days }),
             counts: countByStatus(after),
         });
     } catch (e) {

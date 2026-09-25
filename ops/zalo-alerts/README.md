@@ -17,7 +17,10 @@ thẻ/TKQC như bot WhatsApp cũ (`ops/whatsapp-alerts/`, đang tắt).
 Sỹ Anh chốt 25/09/2026: **08:00 mỗi sáng** gửi **"📦 VẬN ĐƠN CẦN XỬ LÝ"** vào một nhóm Zalo
 **khác nhóm ads** — tin có tên + SĐT khách để sale gọi, nên không bao giờ vào nhóm ads.
 
-**Tin GỌN** (Sỹ Anh chốt 25/09/2026): MỘT tin Zalo, mỗi đơn một dòng — ngày thường ~1.300 ký tự.
+**Tin GỌN** (Sỹ Anh chốt 25/09/2026): MỘT tin Zalo **cho mỗi thị trường** (`vanDon.markets`: Đài Loan rồi
+Singapore), mỗi đơn một dòng — ngày thường ~1.300 ký tự. Singapore giao tận nhà (J&T): mục GỌI NGAY là đơn
+**giao hỏng / khách hẹn giao lại** kèm ghi chú khách, thay cho "sắp bị trả về" của Đài. Một nước đọc hỏng
+thì nước kia vẫn gửi. `/vandon sg`, `/vandon tw` lấy riêng một nước.
 
 | Dòng | Luật |
 |---|---|
@@ -54,7 +57,7 @@ Trong nhóm vận đơn gõ `/vandon` (hoặc `/vd`) để lấy danh sách lúc
 | `/baocao Lộc` · `/baocao homqua Lộc` | Chi tiết campaign + đề xuất của một người |
 | `/baocao team` | Chỉ số TỔNG TEAM, không kèm campaign |
 | `/canhbao` | Camp tiêu ≥ 300k mà 0 tin nhắn, chi tiêu hôm nay so với TB 7 ngày |
-| `/vandon` · `/vd` | Vận đơn cần xử lý — **chỉ ở nhóm vận đơn** |
+| `/vandon` · `/vd` | Vận đơn cần xử lý mọi nước (`/vandon sg`, `/vandon tw`: một nước) — **chỉ ở nhóm vận đơn** |
 | `/bot` | Cách dùng |
 
 Có dấu hay không dấu, hoa hay thường đều được; `/bc`, `/cb` là viết tắt. Chữ không bắt đầu

@@ -824,6 +824,38 @@
     "register_from_date": "2026-08-20",
     "register_terminal": true,
     "_register_window_note": "Sỹ Anh chốt 25/09/2026: theo dõi MỌI đơn có NGÀY TẠO (order_date, không có thì ngày xuất kho) từ register_from_date trở đi — thay cho luật tuổi register_max_age_days (chỉ dùng khi để trống ngày này). register_terminal = true: đăng ký CẢ đơn đối tác đã ghi kết thúc (đã giao, hoàn, huỷ, tiêu huỷ) để ĐỐI CHIẾU — trạng thái 17TRACK không đè trạng thái đối tác, chỉ cảnh báo khi lệch kiểu mất tiền: đối tác ghi đã giao mà 17TRACK ghi sự cố/đang hoàn, hoặc đối tác ghi hoàn/huỷ mà 17TRACK ghi khách đã nhận. Các đơn này đứng CUỐI hàng ưu tiên và đi theo nhịp chia quota (quota tháng không dùng hết là mất khi reset ngày 1).",
+    "markets": {
+      "_note": "Sỹ Anh chốt 25/09/2026: theo dõi vận đơn TÁCH RIÊNG từng thị trường — sổ riêng (data/tracking_<mã>.json), màn riêng (nút chọn nước ở tab Theo dõi vận đơn), tin Zalo riêng. Khoá 17TRACK và quota DÙNG CHUNG. Đài Loan (TW) là thị trường gốc: bảng đối tác nạp qua nút 'Đọc bảng đối tác' vào data/tracking.json, luật cửa hàng tiện lợi ở trên. Thị trường khác đọc bảng đối tác từ BigQuery partner_orders (talpha-sync nạp mỗi giờ, xem khối partner_orders).",
+      "SG": {
+        "label": "Singapore",
+        "store": "tracking_sg",
+        "partner_market": "Singapore",
+        "currency": "SGD",
+        "carrier": 100229,
+        "_carrier_note": "J&T Express (SG) — mã 17TRACK 100229. Đối tác (Võ Hà, nhóm COD 23/09/2026): 'đơn Sing tra trên 17track chọn J&T Express (SG)'. Mã dạng JT + 14 số. KHÔNG dùng 100295 J&T International hay 100856 J&T (AE).",
+        "stale_days": 7,
+        "_stale_note": "Singapore giao tận nhà: 7 ngày không có cập nhật mới là đơn kẹt (Đài dùng 21 vì hàng nằm cửa hàng tiện lợi và bảng đối tác trễ 2 ngày).",
+        "status_map": {
+          "Chưa lên đơn": "InfoReceived",
+          "Đã lên đơn": "InfoReceived",
+          "Xuất kho": "InTransit",
+          "Đang trung chuyển": "InTransit",
+          "Đang giao hàng": "OutForDelivery",
+          "Đã giao thành công": "Delivered",
+          "Giao thành công": "Delivered",
+          "Giao không thành công": "DeliveryFailure",
+          "Khách hẹn lúc khác giao": "DeliveryFailure",
+          "Khách từ chối nhận hàng": "DeliveryFailure",
+          "Đang hoàn": "Exception",
+          "Đang hoàn về kho": "Exception",
+          "Đã hoàn": "Returned",
+          "Hoàn hàng": "Returned",
+          "Hủy đơn": "Cancelled",
+          "Huỷ đơn": "Cancelled"
+        },
+        "_status_note": "Cột 'Trạng thái' của bảng 'BS UP DATA SGP' → trạng thái chuẩn. Giá trị lạ KHÔNG bị nuốt: hiện nguyên văn để khai thêm. 'Khách hẹn lúc khác giao' xếp vào giao hỏng để sale gọi hẹn lại — cột Ghi chú (vd 'khách muốn nhận ngày 9/10') đi kèm trong tin."
+      }
+    },
     "code_fixes": [
       { "match": "^67\\d{8}$", "prefix": "0", "_why": "Mã FamilyMart 11 số bắt đầu 067 bị Sheet đối tác nuốt số 0 đầu còn 10 số '67…' — 17TRACK từ chối. Thêm lại số 0." }
     ],
