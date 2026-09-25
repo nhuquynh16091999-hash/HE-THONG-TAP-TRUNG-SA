@@ -48,6 +48,20 @@
       "pos_money_divisor": 100,
       "pos_money_divisor_confirmed": true,
       "product_code_in_name": false,
+      "product_costs_vnd": {
+        "_note": "Giá vốn sản phẩm shop UAE theo ĐÚNG tên trên POS (so chữ HOA), tính bằng ĐỒNG — Sỹ Anh gửi 25/09/2026. 'hang' = tiền hàng, 'hop' = hộp trang sức gửi kèm (15.000đ, chỉ món trang sức). Giá vốn một cái = hang + hop.",
+        "ORALHOE DENTAL 002": {
+          "hang": 21400
+        },
+        "GOLD BRACELET 001": {
+          "hang": 23400,
+          "hop": 15000
+        },
+        "LUCKY BRACELET 003": {
+          "hang": 36600,
+          "hop": 15000
+        }
+      },
       "_product_code_note": "Shop UAE đánh số sản phẩm RIÊNG ('Oralhoe Dental 002', 'Gold Bracelet 001') — số cuối tên KHÔNG phải mã 3 số của bảng giá (002 là vòng phong thuỷ). Giá vốn đơn UAE chỉ tra qua product_name_aliases; tên chưa khai thì hiện ở khung 'Còn thiếu' của tab P&L, không lấy nhầm giá.",
       "display": "UAE",
       "flag": "🇦🇪",

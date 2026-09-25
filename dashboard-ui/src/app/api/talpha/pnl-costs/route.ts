@@ -84,6 +84,21 @@ const MA_3_SO_THEO_SHOP: Record<string, boolean> = Object.fromEntries(
         .filter((m) => m && typeof m === "object" && m.shop_label)
         .map((m) => [String(m.shop_label).toUpperCase(), m.product_code_in_name !== false]));
 
+// Giá vốn theo TÊN sản phẩm, bằng ĐỒNG, riêng từng shop (markets.*.product_costs_vnd) — shop UAE
+// đặt tên riêng và Sỹ Anh báo giá bằng đồng (25/09/2026). Một cái = tiền hàng + hộp trang sức.
+const GIA_THEO_TEN: Record<string, Record<string, number>> = {};
+for (const m of Object.values(RULES.markets as Record<string, {
+    shop_label?: string; product_costs_vnd?: Record<string, { hang?: number; hop?: number } | string>;
+}>)) {
+    if (!m || typeof m !== "object" || !m.shop_label || !m.product_costs_vnd) continue;
+    const bang: Record<string, number> = {};
+    for (const [ten, v] of Object.entries(m.product_costs_vnd)) {
+        if (ten.startsWith("_") || typeof v !== "object" || !(Number(v.hang) > 0)) continue;
+        bang[khoaTen(ten)] = Number(v.hang) + Number(v.hop || 0);
+    }
+    GIA_THEO_TEN[String(m.shop_label).toUpperCase()] = bang;
+}
+
 /** Đọc kho sao kê NAZA (Đài): phí trung bình một kiện + cân tính phí trung bình. */
 async function docSaoKeNaza() {
     const kho = await readStoreFresh<{ statements: Statement[] }>("cod_statements", { statements: [] });
@@ -179,6 +194,8 @@ export async function GET(req: NextRequest) {
                 t.qty += qty; t.don.add(key); thieu.set(ma, t);
                 o!.du = false;
             };
+            const giaTen = GIA_THEO_TEN[r.shop]?.[khoaTen(ten)];
+            if (!biDanh && giaTen !== undefined) { o.cogs += giaTen * qty; continue; }
             if (!codes.length) { ghiThieu(ten || "(không tên)"); continue; }
             for (const c of codes) {
                 const gia = costPriceVnd(c);
