@@ -23,8 +23,9 @@ const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 // GIÁ VỐN: mã 3 số trong tên sản phẩm POS ("011-ATTL birth month set", "040 - VONGVANG1")
 // → giá tệ trong talpha_rules.json → products, quy VND theo cost_rate_rmb_vnd. Cùng cách
 // Sổ đơn hàng đọc cột SKU của file đối tác (productCodes · costPriceVnd). Tên gõ tay không
-// có mã thì tra product_name_aliases. Không đi qua vw_orders_std: view nối qua bảng
-// product_catalog, mà bảng đó 0 dòng từ ngày dựng dự án nên cogs_vnd của view luôn 0.
+// có mã thì tra product_name_aliases; shop UAE đánh số sản phẩm riêng nên chỉ tra aliases.
+// Không đi qua vw_orders_std: view nối qua bảng product_catalog, mà bảng đó 0 dòng từ
+// ngày dựng dự án nên cogs_vnd của view luôn 0.
 // Mã chưa khai giá KHÔNG coi là 0 — trả ra danh sách thiếu.
 //
 // PHÍ SHIP — ƯỚC TÍNH, vì phí từng đơn chỉ có khi 3PL gửi sao kê:
@@ -58,6 +59,13 @@ const ALIASES: Record<string, string> = Object.fromEntries(
     Object.entries((RULES as unknown as { product_name_aliases?: Record<string, string> }).product_name_aliases || {})
         .filter(([k]) => !k.startsWith("_"))
         .map(([k, v]) => [khoaTen(k), v]));
+
+// Shop nào đặt tên sản phẩm theo mã 3 số của bảng giá. UAE đánh số riêng ("Oralhoe Dental 002")
+// — đọc số cuối tên là lấy nhầm giá mã 002 (vòng phong thuỷ). markets.*.product_code_in_name.
+const MA_3_SO_THEO_SHOP: Record<string, boolean> = Object.fromEntries(
+    Object.values(RULES.markets as Record<string, { shop_label?: string; product_code_in_name?: boolean }>)
+        .filter((m) => m && typeof m === "object" && m.shop_label)
+        .map((m) => [String(m.shop_label).toUpperCase(), m.product_code_in_name !== false]));
 
 /** Đọc kho sao kê NAZA (Đài): phí trung bình một kiện + cân tính phí trung bình. */
 async function docSaoKeNaza() {
@@ -145,8 +153,10 @@ export async function GET(req: NextRequest) {
             if (r.product_name == null && r.variation_name == null) { o.du = false; continue; }  // đơn không có dòng hàng
             const ten = `${r.product_name || ""} ${r.variation_name || ""}`.trim();
             const qty = Number(r.qty || 0);
-            let codes = productCodes(ten);
-            if (!codes.length && ALIASES[khoaTen(ten)]) codes = [ALIASES[khoaTen(ten)]];
+            // Tên khai tay ở product_name_aliases thắng; sau đó mới đọc mã 3 số trong tên
+            // (chỉ ở shop đặt tên theo mã của bảng giá).
+            const biDanh = ALIASES[khoaTen(ten)];
+            const codes = biDanh ? [biDanh] : MA_3_SO_THEO_SHOP[r.shop] === false ? [] : productCodes(ten);
             const ghiThieu = (ma: string) => {
                 const t = thieu.get(ma) || { ma, ten, qty: 0, don: new Set<string>() };
                 t.qty += qty; t.don.add(key); thieu.set(ma, t);

@@ -22,7 +22,7 @@ rồi chuyển về theo kỳ. Singapore: bảng giá 3PL khai ở `shipping_fee
 | Sale | 2 (một ghế còn trống) | Đơn hàng, đối soát COD |
 
 Mỗi nước một shop POS Poscake — Đài "TAIWAN SỸ ANH" 1022091930 · Singapore 715135541 ·
-UAE 101085629 · 8 tài khoản quảng cáo Meta đọc được, chạy chung cho mọi nước. Tỷ giá:
+UAE 101090498 (đổi 25/09/2026) · 8 tài khoản quảng cáo Meta đọc được, chạy chung cho mọi nước. Tỷ giá:
 **800đ/TWD**, **20.000đ/SGD**, **7.000đ/AED**.
 
 **Singapore chỉ tính đơn tạo từ 14/09/2026** (`markets.Singapore.orders_from`): lúc nối,

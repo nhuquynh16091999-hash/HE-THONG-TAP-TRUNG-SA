@@ -157,7 +157,7 @@ poscake:
     - name: "UAE"
       api_url: "https://pos.pages.fm/api/v1"
       api_key: "${TALPHA_POSCAKE_AE_KEY}"               # ⚠️ Giá trị thật nằm trong .env
-      shop_id: "101085629"   # nối 15/09/2026 — tỷ giá 7.000đ/AED, chưa 3PL
+      shop_id: "101090498"   # D&T314 x ANTALO - UAE FULFILLMENT — đổi 25/09/2026 (shop 101085629 cũ 0 đơn); 7.000đ/AED, chưa 3PL
 
 # ─── 5. PANCAKE CRM ───
 pancake:
