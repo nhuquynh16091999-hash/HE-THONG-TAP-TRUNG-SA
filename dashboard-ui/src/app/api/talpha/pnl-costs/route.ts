@@ -33,6 +33,8 @@ const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 //   • Singapore (SG): bảng giá shipping_fees.SG tính cho TỪNG đơn — chặng đầu theo 0,1 kg
 //     (cân lấy trung bình kiện NAZA Đài, cùng loại hàng) + chặng cuối + phí gửi lẻ + phí
 //     thu hộ COD (% tiền của chính đơn đó, có mức sàn).
+//   • UAE (AE): bảng giá D&T Fulfillment shipping_fees.AE — phí fulfillment theo bậc số đơn
+//     trung bình/ngày + vận chuyển đơn thành công (đồng giá dưới 1 kg) + thu hộ COD % tiền đơn.
 //   • Nước khác: không đoán — null để giao diện ghi "thiếu".
 // ═══════════════════════════════════════════════════════════════════
 
@@ -49,6 +51,21 @@ type SgFees = {
     cod_fee?: { pct?: number; min?: number };
     single_parcel_fee?: number;
 };
+
+type AeFees = {
+    fulfillment_fee_tiers?: { max_orders_per_day: number; fee: number }[];
+    delivered_ship_fee?: number;
+    cod_fee_pct?: number;
+};
+const AE_FEES: AeFees | null =
+    ((RULES as unknown as { shipping_fees?: Record<string, AeFees> }).shipping_fees?.AE) || null;
+
+/** Phí fulfillment D&T theo bậc: bậc đầu tiên có trần ≥ số đơn trung bình/ngày; vượt hết thì bậc cuối. */
+function phiFulfillmentAe(donMoiNgay: number): number | null {
+    const bac = [...(AE_FEES?.fulfillment_fee_tiers || [])].sort((a, b) => a.max_orders_per_day - b.max_orders_per_day);
+    if (!bac.length) return null;
+    return (bac.find((b) => donMoiNgay < b.max_orders_per_day) || bac[bac.length - 1]).fee;
+}
 
 const SG_FEES: SgFees | null =
     ((RULES as unknown as { shipping_fees?: Record<string, SgFees> }).shipping_fees?.SG) || null;
@@ -171,11 +188,21 @@ export async function GET(req: NextRequest) {
         }
 
         const naza = await docSaoKeNaza();
+        // UAE: bậc phí fulfillment theo số đơn TRUNG BÌNH/NGÀY của khoảng đang xem.
+        const soNgay = Math.max(1, Math.round((Date.parse(to) - Date.parse(from)) / 86_400_000) + 1);
+        const donAe = [...donMap.values()].filter((o) => o.shop === "AE").length;
+        const fulfillAe = phiFulfillmentAe(donAe / soNgay);
+        const tyGiaAe = EXCHANGE_RATES[SHOP2MKT.AE] || 0;
         const shipDon = (o: Don): number | null => {
             if (o.shop === "TW") return naza.tw ? naza.tw.per_order_vnd : null;
             if (o.shop === "SG") {
                 const rmb = shipSgRmb(o.vnd / COST_RATE_RMB_VND, naza.can);
                 return rmb === null ? null : rmb * COST_RATE_RMB_VND;
+            }
+            if (o.shop === "AE") {
+                if (fulfillAe === null || !AE_FEES?.delivered_ship_fee || !tyGiaAe) return null;
+                const aed = fulfillAe + AE_FEES.delivered_ship_fee + (AE_FEES.cod_fee_pct || 0) * (o.vnd / tyGiaAe);
+                return aed * tyGiaAe;
             }
             return null;
         };
@@ -211,6 +238,13 @@ export async function GET(req: NextRequest) {
                 + `${naza.can.kg_tb.toFixed(2)} kg của ${fmt(naza.can.kien)} kiện NAZA Đài) + chặng cuối ${SG_FEES.last_leg?.first_2kg} tệ `
                 + `+ gửi lẻ ${SG_FEES.single_parcel_fee || 0} tệ + thu hộ COD ${((SG_FEES.cod_fee?.pct || 0) * 100).toFixed(0)}% tiền đơn `
                 + `(tối thiểu ${SG_FEES.cod_fee?.min || 0} tệ), quy ${fmt(COST_RATE_RMB_VND)}đ/tệ. Chưa gồm phí hàng hoàn.`;
+        }
+        const ae = nuoc.get("AE");
+        if (AE_FEES && ae && ae.orders > ae.orders_no_ship) {
+            ship_basis.AE = `trung bình ${fmt(ae.ship_vnd / (ae.orders - ae.orders_no_ship))}đ/đơn theo bảng giá D&T Fulfillment: `
+                + `fulfillment ${fulfillAe} AED (${(donAe / soNgay).toFixed(1)} đơn/ngày) + vận chuyển đơn thành công `
+                + `${AE_FEES.delivered_ship_fee} AED + thu hộ COD ${((AE_FEES.cod_fee_pct || 0) * 100).toFixed(0)}% tiền đơn, `
+                + `quy ${fmt(tyGiaAe)}đ/AED. Đơn hoàn chỉ mất phí fulfillment — P&L đang tính như đơn giao thành công.`;
         }
 
         return NextResponse.json({

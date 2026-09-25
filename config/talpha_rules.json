@@ -55,7 +55,7 @@
       "orders_from": "2026-09-15",
       "_note": "Shop POS 'D&T314 x ANTALO - UAE FULFILLMENT' (101090498) — Sỹ Anh đổi sang ngày 25/09/2026, đơn đầu tiên 23/09. Shop nối 15/09 (101085629) không có đơn nào. Khác shop UAE thời GCC (1635200759). Tỷ giá 1 AED = 7.000đ (Sỹ Anh chốt 15/09/2026) — soát lại mỗi tháng.",
       "_divisor_note": "ĐÃ ĐO 25/09/2026 trên 14 đơn thật của shop 101090498: cod = 10900 · 11900 · 14900 · 15900 · 16900 → 109–169 AED/đơn (≈0,8–1,2 triệu đồng), cùng tầm giá đơn Đài và Singapore. Chia 1 thì một đơn thành 83 triệu đồng — vô lý. POS để total_price và giá bán item = 0, chỉ cod mang tiền.",
-      "_todo": "3PL: Sỹ Anh bổ sung sau (bảng giá NAZA 8 nước không có UAE) — tới lúc đó phí ship UAE tính 0."
+      "_todo": "3PL: D&T Fulfillment — bảng giá khai ở shipping_fees.AE (25/09/2026). Chưa chạy quảng cáo UAE: đơn tới 25/09/2026 là đơn tự nhiên (Sỹ Anh xác nhận)."
     }
   },
   "market_aliases": {
@@ -434,7 +434,24 @@
       "limits": "Tổng chu vi (D+R+C) < 200 cm, cạnh dài nhất < 100 cm, nặng < 30 kg",
       "_estimate_note": "Chưa có sao kê nên chưa biết cân từng kiện: P&L lấy cân nặng tính phí trung bình của kiện NAZA Đài Loan (cùng loại hàng) để ước chặng đầu. Có sao kê Singapore đầu tiên thì thay bằng số thật."
     },
-    "_todo_other_markets": "Đài Loan (TW) và Singapore (SG) đã khai. UAE chưa có 3PL — thêm khoá AE khi có bảng giá."
+    "AE": {
+      "partner": "D&T Fulfillment",
+      "_source": "Bảng báo giá fulfillment Trung Đông của D&T Fulfillment (sheet 'VẬN HÀNH CEO') — Sỹ Anh gửi ảnh 25/09/2026. Mọi phí trừ thẳng vào các kỳ trả COD.",
+      "currency": "AED",
+      "declared": true,
+      "fulfillment_fee_tiers": [
+        {"max_orders_per_day": 150, "fee": 3},
+        {"max_orders_per_day": 350, "fee": 2.8},
+        {"max_orders_per_day": 500, "fee": 2.7}
+      ],
+      "_fulfillment_note": "Phí đóng hàng mỗi đơn theo số đơn TRUNG BÌNH/NGÀY; đơn hoàn cũng mất phí này.",
+      "delivered_ship_fee": 17,
+      "return_ship_fee": 0,
+      "cod_fee_pct": 0.02,
+      "_ship_note": "Vận chuyển đơn thành công 17 AED, đồng giá cho đơn dưới 1 kg; đơn hoàn miễn phí vận chuyển. Thu hộ COD 2% doanh thu đơn.",
+      "warehouse": "Miễn phí lưu kho nếu mỗi ngày xuất dưới 10% tổng tồn kho; vượt thì tính phí lưu kho (bảng giá không ghi mức)."
+    },
+    "_todo_other_markets": "Đài Loan (TW), Singapore (SG), UAE (AE) đã khai."
   },
   "cod_settlement": {
     "_note": "Công thức quyết toán của NAZA, đã kiểm đúng trên cả 7 kỳ (lệch 0).",

@@ -11,7 +11,7 @@ Cách vận hành máy chủ: `docs/DEPLOY_VPS.md`.
 ## 1. Việc kinh doanh
 
 Bán trang sức và mỹ phẩm qua Facebook Ads → chat-sale Messenger → **thu tiền COD**.
-**Cả ba nước đang bán — Đài Loan, Singapore, UAE**; UAE chưa có 3PL (15/09/2026).
+**Cả ba nước đang bán — Đài Loan, Singapore, UAE**. UAE giao qua D&T Fulfillment (bảng giá `shipping_fees.AE`, 25/09/2026), chưa chạy quảng cáo — đơn tới 25/09 là đơn tự nhiên.
 Hàng Đài đi từ kho Trung Quốc qua 3PL **NAZA供应链**; khách trả tiền cho shipper; NAZA gom
 rồi chuyển về theo kỳ. Singapore: bảng giá 3PL khai ở `shipping_fees.SG` (25/09/2026, chưa ghi tên đối tác), chờ sao kê mẫu.
 
