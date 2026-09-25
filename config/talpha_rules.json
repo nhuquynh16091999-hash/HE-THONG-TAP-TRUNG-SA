@@ -1428,6 +1428,103 @@
     "MỌC TÓC VN": "075",
     "_tinh_tam_note": "Sỹ Anh chốt 25/09/2026: ba tên gõ tay này (đơn TW-428, 429, 436 · TW-380 · TW-402) chưa rõ là hàng gì nên TÍNH TẠM theo giá 075 - DEGO. Biết mã thật thì đổi sang mã đó, và sửa tên trên POS cho có mã."
   },
+  "partner_orders": {
+    "_note": "Bảng đơn của đối tác 3PL (Google Sheet) nạp vào BigQuery bảng `partner_orders` mỗi vòng talpha-sync (mỗi giờ) — để tra, đối chiếu với POS, dựng báo cáo lúc cần. Ghi đè cả bảng bằng LOAD JOB; một bảng đọc lỗi thì giữ nguyên bảng cũ, không ghi nửa vời. Bảng phải CHIA SẺ quyền Người xem cho email tài khoản dịch vụ (talpha-dashboard@cty-507710.iam.gserviceaccount.com), KHÔNG để công khai — có tên, số điện thoại, địa chỉ khách.",
+    "table": "partner_orders",
+    "sheets": [
+      {
+        "market": "Singapore",
+        "shop_label": "SG",
+        "sheet_id": "14oFArR0-7Dmufm7ZUk-yw07B-nLCudAjPyPHjCadxys",
+        "sheet_gid": "0",
+        "_ten": "BS UP DATA SGP",
+        "_note": "Bảng đơn đối tác Singapore — Sỹ Anh chia sẻ 25/09/2026. Mã vận đơn J&T, COD tính SGD."
+      }
+    ],
+    "column_map": {
+      "_note": "Khoá → các cách viết tiêu đề (so sau khi bỏ dấu, chữ thường, bỏ ký tự lạ; khớp nguyên cụm hoặc phần đầu). Tiêu đề khớp nhiều khoá thì khoá có bí danh DÀI NHẤT thắng.",
+      "marketer": [
+        "mkt",
+        "marketer"
+      ],
+      "recon": [
+        "doi soat"
+      ],
+      "note": [
+        "ghi chu",
+        "note"
+      ],
+      "status": [
+        "trang thai",
+        "status"
+      ],
+      "order_date": [
+        "ngay len don"
+      ],
+      "ship_date": [
+        "ngay xuat kho"
+      ],
+      "ship_method": [
+        "phuong thuc van chuyen",
+        "shipping method"
+      ],
+      "order_no": [
+        "order no",
+        "ma don"
+      ],
+      "tracking": [
+        "tracking number",
+        "tracking no",
+        "ma van don"
+      ],
+      "return_order_no": [
+        "ma don moi"
+      ],
+      "sku": [
+        "sku"
+      ],
+      "quantity": [
+        "quantity",
+        "so luong"
+      ],
+      "contact_name": [
+        "contact name",
+        "ten khach"
+      ],
+      "phone": [
+        "phone",
+        "so dien thoai",
+        "sdt"
+      ],
+      "country": [
+        "country"
+      ],
+      "state": [
+        "states",
+        "state"
+      ],
+      "city": [
+        "city"
+      ],
+      "address": [
+        "address",
+        "dia chi"
+      ],
+      "postcode": [
+        "postcode",
+        "post code"
+      ],
+      "cod": [
+        "cod amount",
+        "cod",
+        "so tien"
+      ],
+      "currency": [
+        "currency",
+        "tien te"
+      ]
+    }
+  },
   "report_start_date": "2026-09-15",
   "_report_start_note": "Mốc gốc của mọi báo cáo số (Sỹ Anh chốt 25/09/2026): dữ liệu TRƯỚC ngày này chưa đầy đủ — đội cũ, shop cũ, TKQC cũ — nên các tab Báo cáo · Marketer · Quảng cáo không tính. Bộ chọn ngày mặc định bắt đầu từ đây và không lùi qua được. Tab vận hành (Sổ đơn, Đối soát COD, Theo dõi vận đơn, Kho, Khách hàng) KHÔNG bị chặn: đơn cũ vẫn còn đang chờ thu tiền.",
   "report_sheets": {

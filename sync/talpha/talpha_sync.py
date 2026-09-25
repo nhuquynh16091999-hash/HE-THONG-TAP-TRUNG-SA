@@ -33,6 +33,7 @@ from sync.core.bq_writer import (
     append_and_rebuild_orders, append_and_rebuild_ads,
 )
 from sync.core.pos_client import PoscakeClient, PosFetchError
+from sync.core.partner_sheet import chuan_dong, doc_sheet
 from sync.core.meta_client import MetaAdsClient, TALPHA_AD_ACCOUNTS, MetaFetchError
 from sync.config_loader import get_active_accounts
 
@@ -704,6 +705,49 @@ def sync_campaign_data() -> int:
 
 
 # ═══════════════════════════════════════════════════════════════════
+# BẢNG ĐƠN ĐỐI TÁC (Google Sheet) → partner_orders
+# ═══════════════════════════════════════════════════════════════════
+
+PARTNER_ORDER_SCHEMA = [
+    F('market','STRING'), F('shop_label','STRING'), F('sheet_id','STRING'), F('row_no','INT64'),
+    F('marketer','STRING'), F('recon','STRING'), F('note','STRING'), F('status','STRING'),
+    F('order_date','DATE'), F('ship_date','DATE'), F('ship_method','STRING'),
+    F('order_no','STRING'), F('tracking','STRING'), F('return_order_no','STRING'),
+    F('sku','STRING'), F('quantity','INT64'),
+    F('contact_name','STRING'), F('phone','STRING'), F('country','STRING'), F('state','STRING'),
+    F('city','STRING'), F('address','STRING'), F('postcode','STRING'),
+    F('cod','FLOAT64'), F('currency','STRING'),
+    F('synced_at','TIMESTAMP'),
+]
+
+
+def sync_partner_orders() -> int:
+    """Bảng đơn đối tác (config/talpha_rules.json → partner_orders.sheets) → BigQuery.
+
+    Ghi đè CẢ bảng một lần bằng LOAD JOB. Một bảng đọc lỗi thì NÉM lỗi và KHÔNG ghi gì —
+    ghi các bảng còn lại bằng WRITE_TRUNCATE là xoá mất dòng của bảng lỗi. Tiền COD giữ
+    nguyên đơn vị trong bảng đối tác (cột currency), không quy đổi ở đây.
+    """
+    with open(os.path.join(PROJECT_DIR, "config", "talpha_rules.json"), encoding="utf-8") as fh:
+        cfg = json.load(fh).get("partner_orders") or {}
+    sheets = [x for x in cfg.get("sheets") or [] if isinstance(x, dict) and x.get("sheet_id")]
+    if not sheets:
+        log.info("  partner_orders: chưa khai bảng nào — bỏ qua")
+        return 0
+    rows = []
+    for sh in sheets:
+        values = doc_sheet(sh["sheet_id"], str(sh.get("sheet_gid", "0")))
+        dong = chuan_dong(values, cfg.get("column_map") or {},
+                          {"market": sh.get("market", ""), "shop_label": sh.get("shop_label", ""),
+                           "sheet_id": sh["sheet_id"]}, sync_time)
+        log.info(f"  [{sh.get('shop_label')}] bảng đối tác: {len(dong)} đơn")
+        rows.extend(dong)
+    n = load_truncate(client, P, DS, _tbl(cfg.get("table") or "partner_orders"), rows, PARTNER_ORDER_SCHEMA)
+    log.info(f"  {_tbl(cfg.get('table') or 'partner_orders')}: {n} rows")
+    return n
+
+
+# ═══════════════════════════════════════════════════════════════════
 # CONNECTION TEST
 # ═══════════════════════════════════════════════════════════════════
 
@@ -788,6 +832,14 @@ def main():
         except Exception as e:
             log.error(f"  Orders failed: {e}", exc_info=True)
             results['errors'].append(f"orders: {e}")
+
+    if run_all or args.orders:
+        # Bảng đơn đối tác 3PL (Google Sheet). KHÔNG chặn vòng chạy và không tính là lỗi sync:
+        # đơn POS và tiền ads vẫn là số chính; bảng đối tác là số tra thêm.
+        try:
+            results['partner_orders'] = sync_partner_orders()
+        except Exception as e:
+            log.error(f"  partner_orders failed (bảng cũ giữ nguyên): {e}")
 
     if run_all or args.ads:
         log.info(f"\n[2/3] FB Ads (last {args.days} days)...")

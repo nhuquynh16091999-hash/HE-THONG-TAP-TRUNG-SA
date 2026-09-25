@@ -216,6 +216,11 @@ Sửa `vw_orders_std` hoặc `vw_fb_ads_std` là đụng gần như cả dashboa
 Bảng thô dashboard đọc thẳng: `sale_order`, `order_items`, `fb_ads_data`,
 `fb_adset_data`, `inventory_snapshot`, `sync_health`.
 
+`partner_orders` — bảng đơn của đối tác 3PL (Google Sheet) chép vào BigQuery mỗi vòng
+talpha-sync: mã vận đơn, ngày xuất kho, trạng thái giao, COD đối tác thu (đơn vị gốc, cột
+`currency`). Khai bảng ở `talpha_rules.json → partner_orders.sheets`; hiện có Singapore
+("BS UP DATA SGP", 25/09/2026). Bảng phải chia sẻ quyền Người xem cho tài khoản dịch vụ.
+
 ---
 
 ## 7. Cái gì chạy ở đâu
