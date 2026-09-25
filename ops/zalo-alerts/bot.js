@@ -86,7 +86,8 @@ async function fetchStale() {
         const j = await res.json();
         const okAge = j.last_ok_age_minutes == null ? null : Number(j.last_ok_age_minutes);
         if (!Number.isFinite(okAge)) return null;
-        return { okAge, limit: Number(DR.staleWarnMinutes || 120), lastOkTs: Date.now() - okAge * 60000 };
+        // loi = tên TKQC/shop đọc lỗi trong vòng sync gần nhất → tin "SỐ CHƯA ĐỦ" nói đích danh.
+        return { okAge, limit: Number(DR.staleWarnMinutes || 120), lastOkTs: Date.now() - okAge * 60000, loi: j.fetch_errors || null };
     } catch (e) { log("Đọc tuổi sync lỗi:", e.message); return null; }
 }
 

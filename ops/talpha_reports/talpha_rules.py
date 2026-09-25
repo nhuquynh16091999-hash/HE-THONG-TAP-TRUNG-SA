@@ -298,7 +298,7 @@ def tao_chi_muc_page(dong_ads):
     return {"trang": trang, "o_khac": o_khac}
 
 
-def tim_camp_theo_page(ten_page, ngay, chi_muc, camp_quang_cao=None):
+def tim_camp_theo_page(ten_page, ngay, chi_muc, camp_quang_cao=None, nuoc=None):
     """NGUỒN ĐƠN của POS (tên page) → campaign. Luật Sỹ Anh chốt 17/09/2026:
     đơn lấy từ POS → cột "Nguồn đơn" → khớp ô tên page trong tên camp Meta → ra camp đó →
     ra sản phẩm, marketer, tiền ads.
@@ -311,6 +311,9 @@ def tim_camp_theo_page(ten_page, ngay, chi_muc, camp_quang_cao=None):
     tiêu tiền trên page vào NGÀY đơn về, thiếu thì ngày có tiền gần nhất TRƯỚC đó (một page
     có thể chuyển từ camp người này sang người khác giữa tháng — 𝐁𝐢𝐲𝐚𝐲𝐚 𝐓𝐖: Thắng rồi Thương);
     vẫn không có thì camp tiêu nhiều nhất trên page.
+    `nuoc` (tên chuẩn, vd "Taiwan"): chỉ nhận camp CÙNG NƯỚC với shop của đơn — một page có
+    thể chạy camp ở cả Đài lẫn Singapore; đơn Đài #381 từng bị nối vào camp Singapore của Lộc
+    (17/09/2026). Bậc nào chỉ khớp camp nước khác thì coi như không khớp, xuống bậc sau.
     Trả (campaign_name, cách khớp) · (None, "khong_co_nguon") · (None, "khong_khop")."""
     p = chuan_ten_page(ten_page)
     if not p:
@@ -328,6 +331,8 @@ def tim_camp_theo_page(ten_page, ngay, chi_muc, camp_quang_cao=None):
                 g = ung.setdefault(cn, {})
                 for nd, t in ngay_tien.items():
                     g[nd] = max(g.get(nd, 0), t)
+        if nuoc:
+            ung = {cn: v for cn, v in ung.items() if campaign_market(cn)[0] == nuoc}
         if ung:
             break
     else:

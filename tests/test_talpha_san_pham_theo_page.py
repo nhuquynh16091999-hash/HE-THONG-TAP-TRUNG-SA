@@ -108,6 +108,21 @@ class TestKhopNguonDonVoiTenPageTrongCamp:
         thang = "TW/THẮNG /TỆP PHI/VÒNG MAY MẮN/𝐁𝐢𝐲𝐚𝐲𝐚 𝐓𝐖/1258963223972395/4-9 TEST"
         assert tim_camp_theo_page("𝐁𝐢𝐲𝐚𝐲𝐚 𝐓𝐖", "2026-09-01", self.CM)[0] == thang
 
+    def test_chi_nhan_camp_cung_nuoc_voi_shop(self):
+        # 17/09/2026: một page chạy cả camp Đài lẫn Singapore — đơn shop Đài không được nối
+        # vào camp Singapore (đơn Đài #381 từng làm Lộc ra 3 đơn ngày 15/09, POS chỉ 2).
+        cm = tao_chi_muc_page([
+            ("SGP/LOC/PHI/040/Lucky Silver Philippines/13-9", "2026-09-13", 300000),
+            ("TW/THAI/PHI/040/Lucky Silver Philippines/14-9", "2026-09-14", 100000),
+        ])
+        assert tim_camp_theo_page("Lucky Silver Philippines", "2026-09-15", cm, nuoc="Taiwan")[0] == \
+            "TW/THAI/PHI/040/Lucky Silver Philippines/14-9"
+        assert tim_camp_theo_page("Lucky Silver Philippines", "2026-09-15", cm, nuoc="Singapore")[0] == \
+            "SGP/LOC/PHI/040/Lucky Silver Philippines/13-9"
+        # Page chỉ có camp nước khác → không khớp, không nhận nhầm.
+        assert tim_camp_theo_page("Lucky Silver Philippines", "2026-09-15", self.CM, nuoc="Taiwan") == \
+            (None, "khong_khop")
+
     def test_khong_khop_va_khong_co_nguon(self):
         assert tim_camp_theo_page("HongKong Golden Bracelet", "2026-09-10", self.CM) == (None, "khong_khop")
         assert tim_camp_theo_page("", "2026-09-10", self.CM) == (None, "khong_co_nguon")

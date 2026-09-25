@@ -38,6 +38,17 @@ async function accountHealth() {
     }
 }
 
+// Tên TKQC / shop đọc lỗi trong vòng chạy — daily_guarded.sh đặt đầu `detail` theo nhãn
+// "TKQC_LOI=a; b || SHOP_LOI=… || MAT_QUYEN=…". Không có nhãn = vòng đó không mục nào lỗi.
+function docLoiFetch(detail: unknown) {
+    const s = String(detail || "");
+    const lay = (nhan: string) => {
+        const m = new RegExp(`${nhan}=([^|]*)`).exec(s);
+        return m ? m[1].split(";").map((x) => x.trim()).filter(Boolean) : [];
+    };
+    return { tkqc: lay("TKQC_LOI"), shops: lay("SHOP_LOI"), mat_quyen: lay("MAT_QUYEN") };
+}
+
 // Trạng thái chuỗi sync Sheet (Mac, launchd mỗi giờ). Bot WhatsApp poll route này
 // để cảnh báo khi sync FAIL hoặc IM LẶNG quá lâu (chống sự cố "chết câm" 22-29/6).
 export async function GET() {
@@ -58,9 +69,23 @@ export async function GET() {
         // và BỎ LUÔN dòng cảnh báo "SỐ CHƯA ĐỦ", đúng lúc số sai nhất. Dính thật 22/09/2026:
         // 3 TKQC mất quyền ads_read từ đêm → mỗi vòng SKIP format_all, Sheet đứng 13 giờ.
         const lastOk = rows.find((r: any) => r.ok);
+        // 23/09/2026: TKQC mất quyền ads_read vẫn còn dòng cũ nên accountHealth() báo "ok" —
+        // lấy tên thẳng từ log vòng chạy rồi gộp vào danh sách lỗi để bot báo đích danh.
+        const fetch_errors = docLoiFetch(last.detail);
+        const loiFetch = [
+            ...fetch_errors.tkqc.map((name) => ({
+                kind: "ads", name, rows: null, prev_rows: null,
+                status: fetch_errors.mat_quyen.includes(name) ? "mat_quyen" : "khong_doc_duoc",
+            })),
+            ...fetch_errors.shops.map((name) => ({ kind: "orders", name, rows: null, prev_rows: null, status: "khong_doc_duoc" })),
+        ];
+        const accountsOut = accounts || loiFetch.length
+            ? { ...(accounts || { run_ts: null, checked: 0 }), failing: [...loiFetch, ...(accounts?.failing || [])] }
+            : null;
         return NextResponse.json({
             status: last.ok ? "ok" : "fail",
-            accounts,
+            accounts: accountsOut,
+            fetch_errors,
             last_run_ts: last.ts?.value || last.ts,
             age_minutes: Number(last.age_min),
             last_ok_age_minutes: lastOk ? Number(lastOk.age_min) : null,

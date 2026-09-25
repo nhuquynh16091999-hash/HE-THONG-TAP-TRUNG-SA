@@ -98,16 +98,32 @@ function gioVN(ts) {
     return `${p({ hour: "2-digit", minute: "2-digit", hourCycle: "h23" })} ngày `
         + `${p({ day: "2-digit" })}/${p({ month: "2-digit" })}`;
 }
+// Vì sao sync hỏng — tên TKQC / shop đọc lỗi (stale.loi = fetch_errors của /api/talpha/sync-health).
+// 23/09/2026 tin chỉ nói "sync đứng 12 giờ 40 phút", không ai biết hai TKQC BM Thuyên bị Meta
+// chặn quyền đọc tới khi mở log trên máy chủ. Có tên thì người đọc biết phải gọi ai.
+function lyDoLoi(loi) {
+    if (!loi) return "";
+    const tk = loi.tkqc || [], shop = loi.shops || [], matQuyen = new Set(loi.mat_quyen || []);
+    const cau = [];
+    if (tk.length) {
+        cau.push(`TKQC không đọc được: ${tk.join(", ")}`
+            + (tk.every((t) => matQuyen.has(t)) ? " — Meta báo mất quyền đọc, cần cấp lại quyền trong Business Manager hoặc bỏ TK khỏi danh sách sync." : "."));
+    }
+    if (shop.length) cau.push(`Shop POS không đọc được: ${shop.join(", ")}.`);
+    return cau.length ? `${I(cau.join(" "))}\n` : "";
+}
+
 function canhBaoSoCu(stale, dateStr, intraday) {
     if (!stale) return "";
+    const lyDo = lyDoLoi(stale.loi);
     if (intraday) {
         if (stale.okAge == null || !(stale.okAge > stale.limit)) return "";
         const h = Math.floor(stale.okAge / 60), m = Math.round(stale.okAge % 60);
         const lau = h > 0 ? `${h} giờ${m ? " " + m + " phút" : ""}` : `${m} phút`;
-        return `⚠️ ${B(`SỐ CHƯA ĐỦ — sync đứng ${lau}.`)}\n${I("Đợi sync chạy lại rồi đọc lại.")}\n\n`;
+        return `⚠️ ${B(`SỐ CHƯA ĐỦ — sync đứng ${lau}.`)}\n${lyDo}${I("Đợi sync chạy lại rồi đọc lại.")}\n\n`;
     }
     if (!ngayChuaDu(stale.lastOkTs, dateStr)) return "";
-    return `⚠️ ${B(`SỐ CHƯA ĐỦ — chưa có vòng sync nào chạy sau khi hết ngày ${ddmm(dateStr)}.`)}\n`
+    return `⚠️ ${B(`SỐ CHƯA ĐỦ — chưa có vòng sync nào chạy sau khi hết ngày ${ddmm(dateStr)}.`)}\n${lyDo}`
         + `${I(`Số dưới đây chốt lúc ${gioVN(stale.lastOkTs)} — chưa phải số cả ngày. Đợi sync chạy lại rồi đọc lại.`)}\n\n`;
 }
 

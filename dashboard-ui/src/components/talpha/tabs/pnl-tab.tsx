@@ -191,7 +191,7 @@ export default function TALPHAPnLTab({ dateRange }: Props) {
                         { label: "Tiền ads", value: formatMoney(t.ads), kind: "minus" },
                         thieuShip.length && !ship
                             ? { label: "Phí ship", hint: "chưa có sao kê 3PL", value: DASH, kind: "minus", missing: true }
-                            : { label: "Phí ship", hint: thieuShip.length ? `ước tính · thiếu ${thieuShip.map(m => marketName(m.code)).join(", ")}` : "ước tính theo sao kê NAZA", value: formatMoney(ship), kind: "minus" },
+                            : { label: "Phí ship", hint: thieuShip.length ? `ước tính · thiếu ${thieuShip.map(m => marketName(m.code)).join(", ")}` : "ước tính — Đài theo sao kê NAZA, Singapore theo bảng giá", value: formatMoney(ship), kind: "minus" },
                         { label: "Giá vốn", hint: donThieuGia > 0 ? `thiếu giá ${formatNumber(donThieuGia)} đơn` : "bảng Giá tới Taiwan", value: formatMoney(cogs), kind: "minus" },
                         { label: "Chi phí vận hành", hint: "chưa khai", value: DASH, kind: "minus", missing: true },
                         { label: "Lãi gộp (tạm tính)", value: signed(lai), kind: "total" },

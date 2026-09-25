@@ -153,7 +153,12 @@ for r in DON:
     mkt=SHOP2MKT.get((r.shop_label or "").upper())
     if not mkt: continue
     cqc=ad2camp.get(r.ad_id or "") or ad2camp.get(r.adset_id or "")
-    camp,cach=tim_camp_theo_page(r.page_name, str(r.d), CHI_MUC, cqc)
+    # Đơn shop nước nào chỉ theo camp nước đó — cả khi nối theo page lẫn khi dự phòng theo quảng cáo.
+    # 17/09/2026: đơn Đài #381 (0 TWD, không tag) mang quảng cáo + page của camp Singapore của Lộc →
+    # Lộc ngày 15/09 ra 3 đơn, POS 2.
+    qc_cung_nuoc = bool(cqc) and campaign_market(cqc)[0]==mkt
+    if not qc_cung_nuoc: cqc=None
+    camp,cach=tim_camp_theo_page(r.page_name, str(r.d), CHI_MUC, cqc, nuoc=mkt)   # chỉ camp cùng nước với shop
     DEM_KHOP[cach]+=1
     nv_camp=parse_camp(camp)[1] if camp else None
     # Người NGOÀI TEAM chạy chung TKQC + bán chung shop POS. Nhận diện TRƯỚC bậc 2 để
@@ -161,7 +166,7 @@ for r in DON:
     nv = norm_pos_nv(r.nm)
     if not nv:
         ex = norm_pos_external(r.nm)
-        nv = EXT_PREFIX + ex if ex else (nv_camp or ad2nv.get(r.ad_id or "") or ad2nv.get(r.adset_id or "") or UNASSIGNED)
+        nv = EXT_PREFIX + ex if ex else (nv_camp or (qc_cung_nuoc and (ad2nv.get(r.ad_id or "") or ad2nv.get(r.adset_id or ""))) or UNASSIGNED)
     prod = ten_tab_cua_don(r.page_name, POS_TEN) or CAMP_TAB.get(camp or cqc or "") or "(khác)"   # tab = page
     # Đã nghỉ → "(không gán)" (bucket_nv), kể cả khi tag POS ghi đúng tên họ.
     nv=bucket_nv(nv)

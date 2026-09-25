@@ -244,6 +244,23 @@ function fakeFetch({ sheet = SHEET, camps = CAMPS, realtimeStatus = 200, sheetSt
         assert.ok(tron(sang.teamMessage).includes("chốt lúc 14:27 ngày 14/09"));
     });
 
+    await t("số cũ: có tên TKQC đọc lỗi thì tin nói đích danh", async () => {
+        const loi = { tkqc: ["TK BM Thuyên ngu 02", "TK BM Thuyên 01"], shops: [], mat_quyen: ["TK BM Thuyên 01", "TK BM Thuyên ngu 02"] };
+        const r = await buildMarketerReports(CFG, "2026-09-15",
+            { fetch: fakeFetch(), intraday: true, stale: { okAge: 760, limit: 120, lastOkTs: 0, loi } });
+        const tin = tron(r.teamMessage);
+        assert.ok(tin.startsWith("⚠️ SỐ CHƯA ĐỦ — sync đứng 12 giờ 40 phút."));
+        assert.ok(tin.includes("TKQC không đọc được: TK BM Thuyên ngu 02, TK BM Thuyên 01 — Meta báo mất quyền đọc"));
+        // Không có lỗi fetch (sync đứng vì máy chủ chết) → không bịa lý do.
+        const khong = await buildMarketerReports(CFG, "2026-09-15",
+            { fetch: fakeFetch(), intraday: true, stale: { okAge: 760, limit: 120, lastOkTs: 0, loi: { tkqc: [], shops: [], mat_quyen: [] } } });
+        assert.ok(!tron(khong.teamMessage).includes("không đọc được"));
+        // Shop POS lỗi, không phải mất quyền Meta.
+        const shop = await buildMarketerReports(CFG, "2026-09-15",
+            { fetch: fakeFetch(), intraday: true, stale: { okAge: 190, limit: 120, lastOkTs: 0, loi: { tkqc: [], shops: ["TW"], mat_quyen: [] } } });
+        assert.ok(tron(shop.teamMessage).includes("Shop POS không đọc được: TW."));
+    });
+
     await t("cờ chuaDu + số đầu bài trả ra cho bot xếp lịch đính chính", async () => {
         const syncChieuHomTruoc = Date.parse("2026-09-14T14:27:00+07:00");
         const thieu = await buildMarketerReports(CFG, "2026-09-14",
