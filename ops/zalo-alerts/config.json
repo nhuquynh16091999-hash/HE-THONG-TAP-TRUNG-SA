@@ -25,5 +25,15 @@
     "recLowClosePct": 5,
     "recHighAdsPct": 30,
     "recGoodAdsPct": 20
+  },
+  "vanDon": {
+    "at": "08:00",
+    "catchUpMinutes": 180,
+    "url": "/api/talpha/tracking",
+    "rangeDays": 60,
+    "maxGap": 15,
+    "maxCanhBao": 8,
+    "quotaWarn": 200,
+    "link": "http://139.180.131.21:3000/talpha"
   }
 }

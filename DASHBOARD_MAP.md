@@ -179,7 +179,7 @@ cookie `activeDataset` (shell đặt `TALPHA_Dataset`).
 | `inventory` | Tồn kho POS live; POS chết → snapshot BQ | Giao diện, bot WA |
 | `order-ledger` | Sổ đơn: mỗi đơn một dòng, khách + tiền + vòng đời | Giao diện |
 | `cod-recon` | Khớp sao kê 3PL với đơn đã giao | Giao diện |
-| `tracking` · `tracking/import` | 17TRACK + nạp bảng đơn đối tác | Giao diện |
+| `tracking` · `tracking/import` | 17TRACK + nạp bảng đơn đối tác | Giao diện · `talpha-tracking.timer` 6h (nạp bảng + đồng bộ 17TRACK) · bot Zalo 08:00 (tin vận đơn, nhóm riêng) |
 | `ads-recon` | Đối soát chi phí TKQC với sao kê thẻ | Giao diện |
 | `cod-actions` | Đánh dấu đã đòi / đã nhận tiền | Giao diện |
 | `ad-spend` · `marketer-perf` · `product-costs` · `targets` | Số phụ trợ cho tab | Giao diện |

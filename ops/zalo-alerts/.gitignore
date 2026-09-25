@@ -4,6 +4,7 @@ node_modules/
 .zalo_session.json.*.tmp
 # Sinh ra trên máy chủ khi ghép và chạy.
 zalo_group.json
+zalo_group_vandon.json
 state.json
 qr.png
 groups.txt

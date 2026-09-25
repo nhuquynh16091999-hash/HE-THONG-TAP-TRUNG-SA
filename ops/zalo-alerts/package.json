@@ -6,7 +6,7 @@
   "main": "bot.js",
   "scripts": {
     "start": "node bot.js",
-    "test": "node schedule.test.js && node zalo_text.test.js && node commands.test.js && node daily_report.test.js"
+    "test": "node schedule.test.js && node zalo_text.test.js && node commands.test.js && node daily_report.test.js && node van_don.test.js"
   },
   "engines": {
     "node": ">=18"

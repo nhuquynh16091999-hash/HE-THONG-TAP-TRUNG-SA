@@ -12,6 +12,36 @@ Sỹ Anh chốt 15/09/2026: **tự động chỉ gửi mốc 8h30**, còn lại 
 Không tự gửi từ 23h đến 7h (lệnh gõ tay thì trả lời bất cứ lúc nào). Không có tồn kho,
 thẻ/TKQC như bot WhatsApp cũ (`ops/whatsapp-alerts/`, đang tắt).
 
+## Tin vận đơn — nhóm RIÊNG (25/09/2026)
+
+Sỹ Anh chốt 25/09/2026: **08:00 mỗi sáng** gửi **"📦 VẬN ĐƠN CẦN XỬ LÝ"** vào một nhóm Zalo
+**khác nhóm ads** — tin có tên + SĐT khách để sale gọi, nên không bao giờ vào nhóm ads.
+
+| Mục trong tin | Luật |
+|---|---|
+| 🔴 Sắp bị trả về | Hàng ở cửa hàng còn ≤ `warn_before_expire_days` ngày — gần hết hạn nhất lên đầu |
+| 🔴 Đã quá hạn lấy | Quá ÍT ngày nhất lên đầu (quá 1 ngày còn gọi kịp, quá 3 tuần gần như đã trả về) |
+| 🟠 Giao hỏng · sự cố · đứng im | Kèm lý do / số ngày không nhúc nhích |
+| 🔔 Nhắc | Chỉ đếm: đơn vừa tới cửa hàng, đơn chưa biết ở đâu |
+
+Số lấy từ `/api/talpha/tracking` — **đúng route màn "Theo dõi vận đơn"**, cùng luật `buildAlerts`.
+Sáng 6h `talpha-tracking.service` nạp bảng đối tác rồi đồng bộ 17TRACK; tin 08:00 đọc kết quả đó
+và **tự tố** khi 17TRACK lỗi, hết/sắp hết quota, hay việc 6h không chạy. In tối đa
+`vanDon.maxGap` đơn gấp + `maxCanhBao` đơn cảnh báo, còn lại chỉ đếm và trỏ về dashboard.
+
+Chọn nhóm (nick phụ phải nằm sẵn trong nhóm):
+
+```bash
+node pair.js --groups                      # xem id nhóm
+node pair.js --chon-vandon <id nhóm>       # → zalo_group_vandon.json
+pm2 restart talpha-zalo-alerts
+node bot.js --dry-run --vandon             # IN thử, không gửi
+node bot.js --vandon                       # gửi ngay một lần
+```
+
+Trong nhóm vận đơn gõ `/vandon` (hoặc `/vd`) để lấy danh sách lúc đó. Lệnh ads (`/baocao`,
+`/canhbao`) KHÔNG trả lời ở nhóm vận đơn, `/vandon` KHÔNG trả lời ở nhóm ads.
+
 ## Lệnh trong nhóm
 
 | Gõ | Bot trả |
@@ -21,6 +51,7 @@ thẻ/TKQC như bot WhatsApp cũ (`ops/whatsapp-alerts/`, đang tắt).
 | `/baocao Lộc` · `/baocao homqua Lộc` | Chi tiết campaign + đề xuất của một người |
 | `/baocao team` | Chỉ số TỔNG TEAM, không kèm campaign |
 | `/canhbao` | Camp tiêu ≥ 300k mà 0 tin nhắn, chi tiêu hôm nay so với TB 7 ngày |
+| `/vandon` · `/vd` | Vận đơn cần xử lý — **chỉ ở nhóm vận đơn** |
 | `/bot` | Cách dùng |
 
 Có dấu hay không dấu, hoa hay thường đều được; `/bc`, `/cb` là viết tắt. Chữ không bắt đầu
@@ -143,6 +174,9 @@ Chạy thử từ máy Mac: `TALPHA_DASHBOARD_URL=http://139.180.131.21:3000 nod
 | `adsWasteSpend` | 300000 | Camp tiêu từ mức này mà 0 tin nhắn là camp đốt tiền |
 | `adsSpikeRatio` / `adsMinTotalForSpike` | 1,5 / 3000000 | Chi tiêu hôm nay ≥ 1,5 lần TB 7 ngày VÀ ≥ 3tr là bất thường |
 | `quietStartHour` / `quietEndHour` | 23 / 7 | Giờ không tự gửi |
+| `vanDon.at` / `catchUpMinutes` | `08:00` / 180 | Giờ tin vận đơn; để trống `at` là tắt. Dashboard lỗi thì thử lại mỗi 5' tới 11:00 |
+| `vanDon.maxGap` / `maxCanhBao` | 15 / 8 | Số đơn in ra mỗi mức, còn lại chỉ đếm |
+| `vanDon.quotaWarn` | 200 | Nhắc khi quota 17TRACK còn dưới mức này — hoặc dưới 15% cỡ gói nếu nhỏ hơn (gói miễn phí vài trăm mã thì không kêu mỗi ngày) |
 | `maxChars` / `sendGapMs` | 1800 / 4000 | Tin dài hơn thì chia; nghỉ giữa hai tin để Zalo khỏi coi là spam |
 
 ## File
@@ -153,11 +187,11 @@ Chạy thử từ máy Mac: `TALPHA_DASHBOARD_URL=http://139.180.131.21:3000 nod
 | `commands.js` | Đọc lệnh gõ trong nhóm (hàm thuần, có test) |
 | `pair.js` | Ghép nick bằng QR, chọn nhóm |
 | `zalo.js` | Phiên, gửi, nghe tin qua zca-js |
-| `daily_report.js` · `ads_alerts.js` | Dựng nội dung tin (hàm thuần, có test) |
+| `daily_report.js` · `ads_alerts.js` · `van_don.js` | Dựng nội dung tin (hàm thuần, có test) |
 | `zalo_text.js` | Chữ đậm/nghiêng → style Zalo, chia tin dài |
 | `rules.js` | Đọc `config/talpha_rules.json` — thiếu file là dừng, không dùng bảng dự phòng |
 | `schedule.js` | "Mốc này gửi bây giờ không" — chép từ bot WhatsApp |
 
 ```bash
-npm test        # 4 bộ test, không gọi mạng, không cần đăng nhập
+npm test        # 5 bộ test, không gọi mạng, không cần đăng nhập
 ```

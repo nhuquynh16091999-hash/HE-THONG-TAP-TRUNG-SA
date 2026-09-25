@@ -7,6 +7,7 @@
 //   /baocao Lộc           chi tiết campaign của một người (ghép ngày: /baocao homqua Lộc)
 //   /baocao team          chỉ số TỔNG TEAM, không kèm campaign
 //   /canhbao              camp đốt tiền 0 tin nhắn + chi tiêu bất thường, ngay lúc gõ
+//   /vandon               vận đơn cần xử lý (CHỈ trả lời ở nhóm vận đơn — tin có SĐT khách)
 //   /bot                  cách dùng
 // Có dấu hay không dấu, hoa hay thường đều được. Không bắt đầu bằng "/" → không phải lệnh,
 // bot im — tin báo cáo của chính bot cũng đi qua đây nên điều này là bắt buộc.
@@ -19,6 +20,7 @@ const gon = (s) => boDau(s).replace(/[\s.]/g, "");
 const TEN_LENH = {
     baocao: "baocao", bc: "baocao",
     canhbao: "canhbao", cb: "canhbao",
+    vandon: "vandon", vd: "vandon",
     bot: "trogiup", lenh: "trogiup", help: "trogiup",
 };
 
@@ -91,4 +93,14 @@ function huongDan({ at, nguoi = [] } = {}) {
         + `${I("Có dấu hay không dấu đều được.")}`;
 }
 
-module.exports = { docLenh, huongDan, homQua, boDau };
+function huongDanVanDon({ at } = {}) {
+    return `📦 ${B("Bot TALPHA — vận đơn cần xử lý")}\n`
+        + `Tự gửi lúc ${at || "08:00"} mỗi sáng: đơn sắp bị trả về, đơn quá hạn lấy, giao hỏng, đơn đứng im.\n`
+        + `Trạng thái lấy từ bảng đối tác (nạp 6h) + 17TRACK (đồng bộ ngay sau đó).\n\n`
+        + `${B("Gõ trong nhóm:")}\n`
+        + `• /vandon — danh sách mới nhất ngay lúc gõ\n`
+        + `• /bot — cách dùng\n`
+        + `${I("Có dấu hay không dấu đều được.")}`;
+}
+
+module.exports = { docLenh, huongDan, huongDanVanDon, homQua, boDau };

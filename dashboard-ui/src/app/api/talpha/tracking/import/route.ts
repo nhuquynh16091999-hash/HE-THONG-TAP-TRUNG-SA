@@ -3,6 +3,7 @@ import { khoaChoDong, khoaCuBiThay, parsePartnerFile, summarise, type MaTrung } 
 import { RULES } from "@/lib/talpha/rules";
 import { fetchSheetCsv, sheetIdFrom, serviceAccountEmail, SheetError } from "@/lib/talpha/sheet-source";
 import { readStoreFresh, updateStore } from "@/lib/talpha/store";
+import { TERMINAL } from "@/lib/talpha/tracking";
 import { MAX_UPLOAD_BYTES, tooBigMessage } from "@/lib/talpha/upload-limit";
 
 export const dynamic = "force-dynamic";
@@ -163,8 +164,11 @@ export async function POST(req: NextRequest) {
                 const prev = cur.statuses[key];
 
                 // 17TRACK gần thời gian thực, file đối tác trễ 2 ngày — không để
-                // file cũ kéo trạng thái lùi lại.
-                if (prev?.source === "17track") { kept17++; continue; }
+                // file cũ kéo trạng thái lùi lại. TRỪ khi đối tác báo đơn đã KẾT THÚC
+                // mà 17TRACK chưa: kết thúc thì không lùi được, còn hoàn/huỷ/tiêu huỷ
+                // 17TRACK không có — giữ số 17TRACK là để đơn hoàn nằm mãi ở "đang đi".
+                if (prev?.source === "17track"
+                    && !(TERMINAL.has(r.status) && !TERMINAL.has(prev.status ?? ""))) { kept17++; continue; }
 
                 if (prev?.status !== r.status) changed++;
                 cur.statuses[key] = {

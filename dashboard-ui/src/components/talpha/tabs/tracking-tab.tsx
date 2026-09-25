@@ -67,6 +67,12 @@ const LEVEL_STYLE = {
     nhac: { bar: "bg-slate-300 dark:bg-slate-600", chip: "bg-slate-100 text-slate-600 dark:bg-slate-500/15 dark:text-slate-400", label: "Nhắc" },
 } as const;
 
+type LastSync = {
+    at: string; ok: boolean; error?: string;
+    registered?: number; checked?: number; quota_out?: boolean;
+    quota?: { total: number; used: number; remain: number } | null;
+};
+
 export default function TALPHATrackingTab({ dateRange }: Props) {
     const [loading, setLoading] = useState(true);
     const [syncing, setSyncing] = useState(false);
@@ -77,6 +83,7 @@ export default function TALPHATrackingTab({ dateRange }: Props) {
     const [counts, setCounts] = useState<Record<string, number>>({});
     const [totals, setTotals] = useState({ shipments: 0, registered: 0, pending_register: 0, at_store_value: 0 });
     const [hasKey, setHasKey] = useState(true);
+    const [lastSync, setLastSync] = useState<LastSync | null>(null);
     const [cfg, setCfg] = useState({ pickup_expire_days: 7, warn_before_expire_days: 2, stale_days: 21 });
     const [tab, setTab] = useState<"alerts" | "all">("alerts");
     const [lv, setLv] = useState<"all" | "gap" | "canh_bao" | "nhac">("all");
@@ -98,7 +105,7 @@ export default function TALPHATrackingTab({ dateRange }: Props) {
             if (!res.ok) throw new Error(d.error || "Không tải được vận đơn");
             setShipments(d.shipments || []); setAlerts(d.alerts || []);
             setCounts(d.counts || {}); setTotals(d.totals);
-            setHasKey(d.has_api_key); setCfg(d.config);
+            setHasKey(d.has_api_key); setCfg(d.config); setLastSync(d.last_sync ?? null);
         } catch (e) {
             setError(e instanceof Error ? e.message : "Lỗi không rõ");
         } finally { setLoading(false); }
@@ -114,7 +121,9 @@ export default function TALPHATrackingTab({ dateRange }: Props) {
             if (!res.ok) throw new Error(d.error || "Đồng bộ thất bại");
             setSyncMsg(
                 `Đăng ký mới ${d.registered} mã · kiểm tra ${d.checked} mã · ${d.status_changed} mã đổi trạng thái` +
-                (d.register_rejected?.length ? ` · ${d.register_rejected.length} mã bị từ chối` : ""));
+                (d.register_rejected?.length ? ` · ${d.register_rejected.length} mã bị từ chối` : "") +
+                (d.over_cap ? ` · ${d.over_cap} mã để lượt sau (chạm trần mỗi lượt)` : "") +
+                (d.quota_out ? " · HẾT QUOTA — nạp thêm ở 17track" : ""));
             await load();
         } catch (e) {
             setError(e instanceof Error ? e.message : "Đồng bộ thất bại");
@@ -180,12 +189,12 @@ export default function TALPHATrackingTab({ dateRange }: Props) {
                 <div className="flex gap-3 rounded-xl border-l-4 border-amber-500 bg-amber-50 p-4 text-sm dark:bg-amber-500/10">
                     <AlertTriangle className="mt-0.5 h-4 w-4 flex-none text-amber-600 dark:text-amber-400" />
                     <div className="text-amber-900 dark:text-amber-200">
-                        <div className="font-medium">Chưa có khoá 17TRACK — không sao</div>
+                        <div className="font-medium">Chưa có khoá 17TRACK — đang chạy bằng bảng đối tác</div>
                         <p className="mt-1 text-amber-800/80 dark:text-amber-200/70">
-                            Lấy khoá ở <span className="font-mono">17track.net/en/api</span> rồi điền
-                            <span className="font-mono"> TRACK17_API_KEY</span> vào <span className="font-mono">dashboard-ui/.env.local</span>.
-                            Không bắt buộc: file đối tác đã cho đủ trạng thái và hoàn toàn miễn phí.
-                            17TRACK chỉ để soi thêm những đơn đáng ngờ, vì nó tốn quota.
+                            Bảng đối tác miễn phí nhưng trễ khoảng 2 ngày. Lấy khoá ở{" "}
+                            <span className="font-mono">api.17track.net</span> → Settings → Security, điền
+                            <span className="font-mono"> TRACK17_API_KEY</span> vào <span className="font-mono">dashboard-ui/.env.local</span> trên
+                            máy Mac rồi deploy. Có khoá thì mỗi sáng hệ thống tự đăng ký đơn mới và cập nhật trạng thái.
                         </p>
                     </div>
                 </div>
@@ -261,6 +270,16 @@ export default function TALPHATrackingTab({ dateRange }: Props) {
                         <p className="mt-1 text-rose-800/80 dark:text-rose-200/70">{publicWarning}</p>
                     </div>
                 </div>
+            )}
+            {hasKey && lastSync && (
+                <p className={cn("text-xs", lastSync.ok && !lastSync.quota_out ? "text-muted-foreground" : "text-rose-600 dark:text-rose-400")}>
+                    17TRACK · lần đồng bộ cuối {new Date(lastSync.at).toLocaleString("vi-VN", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit" })}
+                    {lastSync.ok
+                        ? ` · đăng ký ${lastSync.registered ?? 0} mã mới · cập nhật ${lastSync.checked ?? 0} mã`
+                        : ` · LỖI: ${lastSync.error || "không rõ"}`}
+                    {lastSync.quota ? ` · còn ${formatNumber(lastSync.quota.remain)}/${formatNumber(lastSync.quota.total)} quota` : ""}
+                    {lastSync.quota_out ? " · HẾT QUOTA — đơn mới không được theo dõi" : ""}
+                </p>
             )}
             {syncMsg && <p className="rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-300">{syncMsg}</p>}
             {error && shipments.length > 0 && (

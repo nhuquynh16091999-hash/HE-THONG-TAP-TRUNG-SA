@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 #
 # Dựng việc nền NẠP BẢNG ĐƠN ĐỐI TÁC — mỗi sáng 6h giờ Việt Nam, đọc Google Sheet của
-# NAZA vào kho `tracking` để Sổ đơn hàng và màn Đối soát COD tự cập nhật.
+# NAZA vào kho `tracking` để Sổ đơn hàng và màn Đối soát COD tự cập nhật. Từ 25/09/2026
+# cùng lượt đó đồng bộ luôn 17TRACK (có khoá TRACK17_API_KEY mới chạy) — bot Zalo đọc kết
+# quả lúc 08:00 để gửi tin "Vận đơn cần xử lý".
 #
 # Chạy TRÊN MÁY CHỦ:
 #     bash /opt/talpha/ops/deploy/vps-tracking-setup.sh
@@ -30,7 +32,7 @@ curl -s -o /dev/null -m 10 "http://127.0.0.1:${PORT}/login" \
 say "1/3 · Dịch vụ systemd"
 cat > /etc/systemd/system/talpha-tracking.service <<EOF
 [Unit]
-Description=TALPHA — nạp bảng đơn đối tác (Google Sheet NAZA) vào kho tracking
+Description=TALPHA — nạp bảng đơn đối tác (Google Sheet NAZA) + đồng bộ 17TRACK
 After=network-online.target
 Wants=network-online.target
 
@@ -38,7 +40,8 @@ Wants=network-online.target
 Type=oneshot
 Environment=PORT=${PORT}
 ExecStart=/bin/bash ${RUNNER}
-TimeoutStartSec=420
+# Nạp Sheet tối đa 5' + đồng bộ 17TRACK tối đa 10'.
+TimeoutStartSec=960
 StandardOutput=journal
 StandardError=journal
 EOF

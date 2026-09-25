@@ -22,9 +22,17 @@ export type TrackInfo = {
     carrier: number | null;
     status: string | null;
     sub_status: string | null;
+    /** Lúc đơn vào trạng thái hiện tại theo 17TRACK (mốc milestone) — gốc đếm hạn lấy hàng. */
+    status_time: string | null;
     last_event_time: string | null;
     last_event: string | null;
 };
+
+export type Quota = { total: number; used: number; remain: number; today_used: number };
+
+/** Mã lỗi từng mã của 17TRACK v2.4 (nằm trong data.rejected[].error.code). */
+export const ERR_ALREADY_REGISTERED = -18019901;   // đã đăng ký rồi — KHÔNG trừ quota
+export const ERR_QUOTA_OUT = -18019908;            // hết quota
 
 export type TrackInfoResult = {
     found: TrackInfo[];
@@ -106,14 +114,19 @@ const errOf = (r: Record<string, unknown>) => {
     return { code: Number(e.code ?? -1), message: String(e.message ?? "không rõ lý do") };
 };
 
-/** ⚠️ TỐN QUOTA — mỗi mã một lần. Kiểm sổ đăng ký TRƯỚC khi gọi. */
-export async function register(numbers: string[]): Promise<RegisterResult> {
+/**
+ * ⚠️ TỐN QUOTA — mỗi mã một lần. Kiểm sổ đăng ký TRƯỚC khi gọi.
+ * `tags` gắn mã đơn vào từng mã (tối đa 100 ký tự) để tra ngược trên trang 17TRACK.
+ */
+export async function register(numbers: string[], tags: Record<string, string> = {}): Promise<RegisterResult> {
     if (!numbers.length) return { accepted: [], rejected: [] };
     return batched<RegisterResult>(
         numbers, "register",
-        (n) => TRACK_CFG.carrier
-            ? { number: n, carrier: TRACK_CFG.carrier }
-            : { number: n, auto_detection: true },
+        (n) => ({
+            number: n,
+            ...(TRACK_CFG.carrier ? { carrier: TRACK_CFG.carrier } : { auto_detection: true }),
+            ...(tags[n] ? { tag: tags[n].slice(0, 100) } : {}),
+        }),
         (data) => ({
             accepted: asArray(data.accepted).map((r) => ({
                 number: String(r.number ?? ""),
@@ -133,22 +146,52 @@ export async function getTrackInfo(numbers: string[]): Promise<TrackInfoResult> 
         numbers, "gettrackinfo",
         (n) => ({ number: n }),
         (data) => ({
-            found: asArray(data.accepted).map((r) => {
-                const ti = (r.track_info || {}) as Record<string, unknown>;
-                const ls = (ti.latest_status || {}) as { status?: unknown; sub_status?: unknown };
-                const le = (ti.latest_event || {}) as { time?: unknown; content?: unknown };
-                return {
-                    number: String(r.number ?? ""),
-                    carrier: r.carrier === undefined ? null : Number(r.carrier),
-                    status: ls.status ? String(ls.status) : null,
-                    sub_status: ls.sub_status ? String(ls.sub_status) : null,
-                    last_event_time: le.time ? String(le.time) : null,
-                    last_event: le.content ? String(le.content) : null,
-                };
-            }),
+            found: asArray(data.accepted).map(parseTrackInfo),
             rejected: asArray(data.rejected).map((r) => ({ number: String(r.number ?? ""), ...errOf(r) })),
         }),
         (a, b) => ({ found: [...a.found, ...b.found], rejected: [...a.rejected, ...b.rejected] }),
         { found: [], rejected: [] },
     );
+}
+
+const str = (v: unknown): string | null => (v === undefined || v === null || v === "" ? null : String(v));
+
+/**
+ * Đọc một mã trong kết quả gettrackinfo v2.4. Tên trường theo tài liệu v2.4:
+ * latest_event có time_utc / time_iso / description / location — KHÔNG có `time` và
+ * `content` (tên của bản API cũ; đọc theo tên cũ là mọi sự kiện đều ra trống).
+ */
+export function parseTrackInfo(r: Record<string, unknown>): TrackInfo {
+    const ti = (r.track_info || {}) as Record<string, unknown>;
+    const ls = (ti.latest_status || {}) as { status?: unknown; sub_status?: unknown };
+    const le = (ti.latest_event || {}) as Record<string, unknown>;
+    const status = str(ls.status);
+    // Mốc vào trạng thái hiện tại: milestone cùng tên (vd. AvailableForPickup = lúc hàng
+    // tới cửa hàng). Không có thì lấy mốc sự kiện mới nhất.
+    const ms = Array.isArray(ti.milestone) ? (ti.milestone as Record<string, unknown>[]) : [];
+    const hit = ms.find((m) => m.key_stage === status && (m.time_utc || m.time_iso));
+    const evTime = str(le.time_utc) ?? str(le.time_iso);
+    const desc = str(le.description);
+    const loc = str(le.location);
+    return {
+        number: String(r.number ?? ""),
+        carrier: r.carrier === undefined || r.carrier === null ? null : Number(r.carrier),
+        status,
+        sub_status: str(ls.sub_status),
+        status_time: (hit ? str(hit.time_utc) ?? str(hit.time_iso) : null) ?? evTime,
+        last_event_time: evTime,
+        last_event: desc ? (loc && !desc.includes(loc) ? `${desc} · ${loc}` : desc) : null,
+    };
+}
+
+/** Quota còn lại — miễn phí, không trừ gì. */
+export async function getQuota(): Promise<Quota> {
+    const { data } = await call("getquota", []);
+    const d = data || {};
+    return {
+        total: Number(d.quota_total ?? 0),
+        used: Number(d.quota_used ?? 0),
+        remain: Number(d.quota_remain ?? 0),
+        today_used: Number(d.today_used ?? 0),
+    };
 }

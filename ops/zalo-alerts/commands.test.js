@@ -17,6 +17,9 @@ const t = (ten, thuc, mong) => { assert.deepStrictEqual(thuc, mong, `${ten}: ra 
 t("chữ thường không phải lệnh", doc("báo cáo cho anh với"), null);
 t("tin báo cáo của bot", doc("🏆 TỔNG TEAM — 14/09\n💰 Tiền ads: 3.317.956đ"), null);
 t("lệnh lạ", doc("/kho"), null);
+t("/vandon", doc("/vandon"), { lenh: "vandon" });
+t("/vd viết tắt, hoa thường", doc(" /VD "), { lenh: "vandon" });
+t("/vận đơn có dấu", doc("/vậnđơn"), { lenh: "vandon" });
 t("rỗng", doc(""), null);
 
 t("/baocao = số hôm nay, đủ tin", doc("/baocao"), { lenh: "baocao", ngay: HOM_NAY, homNay: true, loc: null });

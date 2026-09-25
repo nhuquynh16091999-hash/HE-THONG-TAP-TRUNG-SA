@@ -14,6 +14,9 @@ const { toZalo, chiaTin } = require("./zalo_text");
 const DIR = __dirname;
 const SESSION_FILE = path.join(DIR, ".zalo_session.json");
 const GROUP_FILE = path.join(DIR, "zalo_group.json");
+// Nhóm nhận tin VẬN ĐƠN (Sỹ Anh chốt 25/09/2026: nhóm riêng, không phải nhóm ads — tin có
+// tên + SĐT khách). Chọn bằng `node pair.js --chon-vandon <id>`.
+const GROUP_VANDON_FILE = path.join(DIR, "zalo_group_vandon.json");
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 function docJson(file) {
@@ -65,6 +68,12 @@ function docNhomDich() {
     return g && g.id ? g : null;
 }
 
+/** Nhóm nhận tin vận đơn. null = chưa chọn → bot không gửi tin vận đơn. */
+function docNhomVanDon() {
+    const g = docJson(GROUP_VANDON_FILE);
+    return g && g.id ? g : null;
+}
+
 async function danhSachNhom(api) {
     const { gridVerMap } = await api.getAllGroups();
     const ids = Object.keys(gridVerMap || {});
@@ -105,6 +114,6 @@ function batNghe(api, { onMessage, onClosed, log }) {
 }
 
 module.exports = {
-    SESSION_FILE, GROUP_FILE, ThreadType,
-    taoZalo, ghiRieng, luuPhien, dangNhap, docNhomDich, danhSachNhom, guiNhom, batNghe,
+    SESSION_FILE, GROUP_FILE, GROUP_VANDON_FILE, ThreadType,
+    taoZalo, ghiRieng, luuPhien, dangNhap, docNhomDich, docNhomVanDon, danhSachNhom, guiNhom, batNghe,
 };

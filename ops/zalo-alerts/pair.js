@@ -1,7 +1,8 @@
 // Ghép nick Zalo PHỤ cho bot — chạy TRÊN MÁY CHỦ, trong thư mục này:
 //   node pair.js                   đăng nhập bằng QR → lưu phiên → in danh sách nhóm
 //   node pair.js --groups          dùng phiên đã lưu, in lại danh sách nhóm
-//   node pair.js --chon <id nhóm>  chọn nhóm nhận tin → zalo_group.json
+//   node pair.js --chon <id nhóm>  chọn nhóm nhận tin ADS → zalo_group.json
+//   node pair.js --chon-vandon <id nhóm>  chọn nhóm nhận tin VẬN ĐƠN → zalo_group_vandon.json
 //
 // Ghép TRÊN MÁY CHỦ chứ không ghép ở máy Mac rồi chép phiên lên: phiên sinh ra ở IP nào
 // thì dùng ở IP đó, Zalo ít hỏi lại. QR ghi ra qr.png — hết hạn sau ~100 giây, tự làm mã
@@ -10,7 +11,7 @@
 const fs = require("fs");
 const path = require("path");
 const { LoginQRCallbackEventType: E } = require("zca-js");
-const { SESSION_FILE, GROUP_FILE, taoZalo, ghiRieng, luuPhien, dangNhap, danhSachNhom } = require("./zalo");
+const { SESSION_FILE, GROUP_FILE, GROUP_VANDON_FILE, taoZalo, ghiRieng, luuPhien, dangNhap, danhSachNhom } = require("./zalo");
 
 const QR_FILE = path.join(__dirname, "qr.png");
 const GROUPS_FILE = path.join(__dirname, "groups.txt");
@@ -66,14 +67,17 @@ async function inNhom(api) {
 }
 
 async function main() {
-    const chon = argAfter("--chon");
+    const chonVD = argAfter("--chon-vandon");
+    const chon = chonVD || argAfter("--chon");
     if (chon) {
         const api = await dangNhap();
         const nhom = await danhSachNhom(api);
         const g = nhom.find((x) => x.id === chon);
         if (!g) throw new Error(`nick phụ không ở nhóm id ${chon} — chạy \`node pair.js --groups\` xem lại`);
-        fs.writeFileSync(GROUP_FILE, JSON.stringify({ id: g.id, name: g.name, chonLuc: new Date().toISOString() }, null, 2) + "\n");
-        log(`Đã chọn nhóm nhận tin: "${g.name}" (${g.members ?? "?"} người) → zalo_group.json`);
+        const file = chonVD ? GROUP_VANDON_FILE : GROUP_FILE;
+        fs.writeFileSync(file, JSON.stringify({ id: g.id, name: g.name, chonLuc: new Date().toISOString() }, null, 2) + "\n");
+        log(`Đã chọn nhóm nhận tin ${chonVD ? "VẬN ĐƠN" : "ADS"}: "${g.name}" (${g.members ?? "?"} người) → ${path.basename(file)}`);
+        log("Bot đang chạy thì: pm2 restart talpha-zalo-alerts");
         return;
     }
     if (process.argv.includes("--groups")) {

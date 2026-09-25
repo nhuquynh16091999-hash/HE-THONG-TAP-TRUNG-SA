@@ -188,4 +188,157 @@ t("file đối tác đã cho trạng thái thì KHÔNG giục đăng ký 17TRACK
 });
 
 
+console.log("── 17TRACK: chọn mã đăng ký (tốn quota) ──");
+const reg = (o = {}) => ship({ registered: false, track17_code: "73N18024614", ship_date: shipDaysAgo(3), ...o });
+// Luật chung, không phụ thuộc scope đang khai — test ở scope rộng nhất.
+const plan = (xs, o = {}) => T.planRegister(xs, NOW, { scope: "tat_ca", ...o });
+t("đơn đã kết thúc KHÔNG đem đăng ký — đốt quota vô ích", () => {
+    const xs = ["Delivered", "Returned", "Cancelled", "Destroyed", "Expired"]
+        .map((st, i) => reg({ status: st, track17_code: `73N1802461${i}` }));
+    assert.strictEqual(plan(xs).pick.length, 0);
+});
+t("đơn đang đi, còn mới thì đăng ký", () => {
+    assert.strictEqual(plan([reg()]).pick.length, 1);
+});
+t("đơn cũ quá hạn tuổi thì bỏ (dòng đối tác quên cập nhật)", () => {
+    const s = reg({ ship_date: shipDaysAgo(T.TRACK_CFG.register_max_age_days + 1) });
+    assert.strictEqual(plan([s]).pick.length, 0);
+});
+t("đã đăng ký thì không đăng ký lại", () => {
+    assert.strictEqual(plan([reg({ registered: true })]).pick.length, 0);
+});
+t("hai dòng chung một mã chỉ tốn MỘT quota", () => {
+    const p = plan([reg({ tracking: "A" }), reg({ tracking: "B" })]);
+    assert.strictEqual(p.pick.length, 1);
+    assert.strictEqual(p.eligible, 1);
+});
+t("dòng chung mã với đơn đã đăng ký thì không đăng ký nữa", () => {
+    assert.strictEqual(plan([reg({ tracking: "A", registered: true }), reg({ tracking: "B" })]).pick.length, 0);
+});
+t("khoá dạng mã đơn (T1304) không phải mã vận đơn → bỏ", () => {
+    assert.strictEqual(plan([reg({ track17_code: "T1304" })]).pick.length, 0);
+    assert.strictEqual(plan([reg({ track17_code: null })]).pick.length, 0);
+});
+t("chạm trần mỗi lượt thì cắt, đơn ở cửa hàng lên trước", () => {
+    const xs = [
+        reg({ track17_code: "73N00000001", status: "InTransit" }),
+        reg({ track17_code: "73N00000002", status: "AvailableForPickup" }),
+        reg({ track17_code: "73N00000003", status: "DeliveryFailure" }),
+    ];
+    const p = plan(xs, { maxPerRun: 2 });
+    assert.deepStrictEqual(p.pick.map((s) => s.track17_code), ["73N00000002", "73N00000003"]);
+    assert.strictEqual(p.over_cap, 1);
+    assert.strictEqual(p.eligible, 3);
+    assert.strictEqual(p.quota_limited, false);
+});
+
+console.log("── 17TRACK: gói miễn phí — chỉ đơn có cảnh báo, không quá quota ──");
+const coCanhBao = () => [
+    // sắp bị trả về (gấp): 17TRACK xuất kho 9 ngày trước, 3 ngày đi đường → quá hạn
+    reg({ track17_code: "73N00000001", status: "AvailableForPickup", source: "doi_tac", ship_date: shipDaysAgo(9) }),
+    // giao hỏng (cảnh báo)
+    reg({ track17_code: "73N00000002", status: "DeliveryFailure" }),
+    // đang đi bình thường — KHÔNG có cảnh báo
+    reg({ track17_code: "73N00000003", status: "InTransit" }),
+    // vừa tới cửa hàng — chỉ là "nhắc", không đáng tốn quota
+    reg({ track17_code: "73N00000004", status: "AvailableForPickup", source: "doi_tac", ship_date: shipDaysAgo(3) }),
+];
+t("scope canh_bao: chỉ đơn Gấp/Cảnh báo, bỏ đơn đang đi và đơn chỉ là nhắc", () => {
+    const p = T.planRegister(coCanhBao(), NOW, { scope: "canh_bao" });
+    assert.deepStrictEqual(p.pick.map((s) => s.track17_code).sort(), ["73N00000001", "73N00000002"]);
+});
+t("scope tat_ca: mọi đơn chưa kết thúc", () => {
+    assert.strictEqual(T.planRegister(coCanhBao(), NOW, { scope: "tat_ca" }).pick.length, 4);
+});
+t("không bao giờ gửi quá quota còn lại — đơn gấp lên trước", () => {
+    const p = T.planRegister(coCanhBao(), NOW, { scope: "canh_bao", quotaRemain: 1 });
+    assert.deepStrictEqual(p.pick.map((s) => s.track17_code), ["73N00000001"]);
+    assert.strictEqual(p.over_cap, 1);
+    assert.strictEqual(p.quota_limited, true);
+});
+t("hết quota thì không gửi mã nào", () => {
+    const p = T.planRegister(coCanhBao(), NOW, { scope: "canh_bao", quotaRemain: 0 });
+    assert.strictEqual(p.pick.length, 0);
+    assert.strictEqual(p.quota_limited, true);
+});
+t("không hỏi được quota (null) thì chỉ cắt theo trần mỗi lượt", () => {
+    const p = T.planRegister(coCanhBao(), NOW, { scope: "canh_bao", quotaRemain: null });
+    assert.strictEqual(p.pick.length, 2);
+    assert.strictEqual(p.quota_limited, false);
+});
+t("rules đang khai gói miễn phí → mặc định canh_bao", () => {
+    assert.strictEqual(T.TRACK_CFG.register_scope, "canh_bao");
+});
+
+console.log("── 17TRACK: chọn mã hỏi trạng thái (miễn phí) ──");
+t("chỉ hỏi mã đã đăng ký và chưa kết thúc", () => {
+    const xs = [
+        reg({ registered: true, track17_code: "73N00000001", status: "InTransit" }),
+        reg({ registered: true, track17_code: "73N00000002", status: "Delivered" }),
+        reg({ registered: false, track17_code: "73N00000003", status: "InTransit" }),
+    ];
+    assert.deepStrictEqual(T.planTrack(xs), ["73N00000001"]);
+});
+t("mã vừa đăng ký lượt này thì hỏi luôn", () => {
+    const s = reg({ track17_code: "73N00000003", status: "InTransit" });
+    assert.deepStrictEqual(T.planTrack([s], new Set(["73N00000003"])), ["73N00000003"]);
+});
+
+console.log("── 17TRACK: mốc đổi trạng thái ──");
+t("đổi trạng thái thì lấy mốc 17TRACK, không lấy lúc đồng bộ", () => {
+    // Đồng bộ mỗi sáng: lấy lúc đồng bộ là hạn lấy hàng tính lùi gần một ngày.
+    const m = T.mergeStatus(undefined, { status: "AvailableForPickup", status_time: daysAgo(1) }, NOW);
+    assert.strictEqual(m.status_since, daysAgo(1));
+});
+t("mốc ở tương lai thì bỏ, dùng lúc đồng bộ", () => {
+    const tuongLai = new Date(NOW.getTime() + 3 * 86400000).toISOString();
+    const m = T.mergeStatus(undefined, { status: "AvailableForPickup", status_time: tuongLai }, NOW);
+    assert.strictEqual(m.status_since, NOW.toISOString());
+});
+t("không đổi trạng thái thì giữ mốc cũ dù 17TRACK gửi mốc khác", () => {
+    const m = T.mergeStatus({ status: "AvailableForPickup", status_since: daysAgo(4) },
+        { status: "AvailableForPickup", status_time: daysAgo(1) }, NOW);
+    assert.strictEqual(m.status_since, daysAgo(4));
+});
+t("cảnh báo ở cửa hàng mang theo số ngày còn lại", () => {
+    const s = ship({ status: "AvailableForPickup", source: "17track", status_since: daysAgo(6) });
+    assert.strictEqual(T.buildAlerts([s], NOW)[0].days_left, T.TRACK_CFG.pickup_expire_days - 6);
+});
+
+console.log("── 17TRACK: đọc kết quả gettrackinfo v2.4 ──");
+const K = require("../.test-build/track17.js");
+t("đọc đúng tên trường v2.4 (time_utc, description) và mốc milestone", () => {
+    // Bản cũ đọc latest_event.time / .content — tên của API cũ, ra trống hết.
+    const r = K.parseTrackInfo({
+        number: "73N18024614", carrier: 100123,
+        track_info: {
+            latest_status: { status: "AvailableForPickup", sub_status: "AvailableForPickup_Other" },
+            latest_event: { time_iso: "2026-09-08T10:00:00+08:00", time_utc: "2026-09-08T02:00:00Z",
+                description: "貨件已送達取件門市", location: "新城康樂店" },
+            milestone: [
+                { key_stage: "InfoReceived", time_utc: "2026-09-05T01:00:00Z" },
+                { key_stage: "AvailableForPickup", time_utc: "2026-09-07T09:00:00Z" },
+            ],
+        },
+    });
+    assert.strictEqual(r.status, "AvailableForPickup");
+    assert.strictEqual(r.status_time, "2026-09-07T09:00:00Z");
+    assert.strictEqual(r.last_event_time, "2026-09-08T02:00:00Z");
+    assert.strictEqual(r.last_event, "貨件已送達取件門市 · 新城康樂店");
+    assert.strictEqual(r.carrier, 100123);
+});
+t("không có milestone thì mốc trạng thái = mốc sự kiện mới nhất", () => {
+    const r = K.parseTrackInfo({ number: "X", track_info: {
+        latest_status: { status: "InTransit" },
+        latest_event: { time_iso: "2026-09-08T10:00:00+08:00", description: "運送中" } } });
+    assert.strictEqual(r.status_time, "2026-09-08T10:00:00+08:00");
+});
+t("17TRACK chưa có tin → trạng thái null, không vỡ", () => {
+    const r = K.parseTrackInfo({ number: "X", carrier: null });
+    assert.strictEqual(r.status, null);
+    assert.strictEqual(r.last_event, null);
+    assert.strictEqual(r.carrier, null);
+});
+
+
 console.log(`\n${pass} phép thử — tất cả đạt.`);
