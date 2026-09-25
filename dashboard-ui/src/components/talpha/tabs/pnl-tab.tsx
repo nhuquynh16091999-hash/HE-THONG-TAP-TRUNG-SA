@@ -35,7 +35,8 @@ interface Costs {
     total: CostBucket;
     days: (CostBucket & { date: string })[];
     markets: (CostBucket & { code: string; ship_per_order_vnd: number | null })[];
-    ship_basis: { per_order_vnd: number; parcels: number; periods: number; shops: string[] } | null;
+    /** Mã shop → câu giải thích phí ship của nước đó được ước tính từ đâu. */
+    ship_basis: Record<string, string>;
     missing_costs: { ma: string; ten: string; qty: number; orders: number }[];
     cost_rate_rmb_vnd: number;
 }
@@ -224,7 +225,7 @@ export default function TALPHAPnLTab({ dateRange }: Props) {
                         {thieuShip.map(m => (
                             <li key={m.code}>
                                 <strong>Phí ship {marketName(m.code)}</strong> — {formatNumber(m.orders)} đơn chưa tính ship: chưa có kỳ sao kê 3PL
-                                nào của nước này. Có sao kê đầu tiên (tải ở tab Đối soát COD) hoặc bảng giá thì P&L tự tính.
+                                nào của nước này. Khai bảng giá vào <code className="rounded bg-muted px-1">talpha_rules.json → shipping_fees</code> hoặc tải sao kê đầu tiên ở tab Đối soát COD thì P&L tự tính.
                             </li>
                         ))}
                         {lechDon && (
@@ -288,10 +289,9 @@ export default function TALPHAPnLTab({ dateRange }: Props) {
                 }
                 notes={[
                     <>Doanh số, tiền ads, số đơn: file TỔNG TEAM, cùng số với tab Tổng quan và bot Zalo.</>,
-                    costs?.ship_basis
-                        ? <>Phí ship: {formatMoney(costs.ship_basis.per_order_vnd)}đ/đơn = trung bình {formatNumber(costs.ship_basis.parcels)} kiện
-                            trong {formatNumber(costs.ship_basis.periods)} kỳ sao kê NAZA (phí vận chuyển + phí thao tác, quy VND theo tỷ giá từng kỳ).</>
-                        : <>Phí ship: chưa có kỳ sao kê NAZA nào trong kho nên chưa ước tính được.</>,
+                    ...(Object.keys(costs?.ship_basis || {}).length
+                        ? Object.entries(costs!.ship_basis).map(([code, moTa]) => <>Phí ship {marketName(code)}: {moTa}</>)
+                        : [<>Phí ship: chưa có sao kê hay bảng giá 3PL nào nên chưa ước tính được.</>]),
                     <>Giá vốn: mã 3 số trong tên sản phẩm POS × giá tệ trong <code className="rounded bg-muted px-1 py-0.5 text-[11px]">talpha_rules.json → products</code>,
                         quy VND theo {formatMoney(costs?.cost_rate_rmb_vnd ?? 0)}đ/tệ. Mã chưa khai giá không được coi là 0 — liệt kê ở khung &ldquo;Còn thiếu&rdquo;.</>,
                 ]}

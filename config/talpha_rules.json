@@ -407,7 +407,32 @@
         "reship": "Tính như phí gửi trực tiếp, không thu thêm phí đóng gói"
       }
     },
-    "_todo_other_markets": "Chỉ có Đài Loan. Thêm thị trường thì khai thêm khoá ở đây."
+    "SG": {
+      "partner": null,
+      "_source": "Bảng giá 'Singapore – Ngày 28/09/2025', cập nhật 09.09.2026 — Sỹ Anh gửi ảnh 25/09/2026. Bảng không ghi tên đối tác.",
+      "currency": "RMB",
+      "declared": true,
+      "first_leg_per_100g": {"thuong": 2.8, "dac_thu": 3.5},
+      "_first_leg_note": "Phí chặng đầu tính theo TỪNG 0,1 kg. Trọng lượng tính phí = max(cân thật, D×R×C cm / 6000). Trang sức/phụ kiện là hàng thường; hàng đặc thù (thường là mỹ phẩm, chất lỏng) 3,5 tệ/0,1 kg — P&L đang ước tính tất cả là hàng thường.",
+      "volumetric_divisor": 6000,
+      "last_leg": {"first_2kg": 28, "extra_per_kg": 6},
+      "cod_fee": {"pct": 0.04, "min": 8},
+      "single_parcel_fee": 3,
+      "_single_parcel_note": "Dịch vụ gửi hàng lẻ (một đơn – một kiện): 3 RMB/đơn.",
+      "returns": {"pickup": 28, "refund_handling": 6, "return_inbound": 3},
+      "_returns_note": "Khách trả hàng hoàn tiền: phí lấy hàng 28 + xử lý hoàn tiền 6 RMB/đơn; nhập kho hàng hoàn 3 RMB/đơn. P&L chưa trừ vì chưa biết tỷ lệ hoàn.",
+      "warehouse": {
+        "transfer_handling": "5 RMB/đơn — đổi vận đơn, xuất kho",
+        "reship": "Tương đương phí giao hàng",
+        "storage": "1 RMB/đơn/ngày (0–5 kg, 15–60 ngày); lưu tối đa 30 ngày ở kho nước ngoài",
+        "overdue_disposal": "1 RMB/đơn",
+        "repack": "2 RMB/đơn nếu thay vật liệu đóng gói"
+      },
+      "cod_max_sgd": 2000,
+      "limits": "Tổng chu vi (D+R+C) < 200 cm, cạnh dài nhất < 100 cm, nặng < 30 kg",
+      "_estimate_note": "Chưa có sao kê nên chưa biết cân từng kiện: P&L lấy cân nặng tính phí trung bình của kiện NAZA Đài Loan (cùng loại hàng) để ước chặng đầu. Có sao kê Singapore đầu tiên thì thay bằng số thật."
+    },
+    "_todo_other_markets": "Đài Loan (TW) và Singapore (SG) đã khai. UAE chưa có 3PL — thêm khoá AE khi có bảng giá."
   },
   "cod_settlement": {
     "_note": "Công thức quyết toán của NAZA, đã kiểm đúng trên cả 7 kỳ (lệch 0).",
@@ -766,7 +791,10 @@
     "batch_size": 40,
     "rate_limit_per_sec": 3,
     "_limit_note": "17TRACK cho tối đa 40 mã mỗi lượt gọi và 3 lượt mỗi giây; quá thì trả lỗi 429.",
-    "_partner_note": "File đơn hàng của đối tác 3PL (Google Sheet 'BẢNG LÊN ĐƠN', xuất CSV, cập nhật 2 ngày/lần). Đây là nguồn trạng thái MIỄN PHÍ và đã có sẵn 'Đợi khách đến lấy hàng' — chính tín hiệu cần bắt. 17TRACK chỉ để soi thêm cho đơn đáng ngờ, vì nó tốn quota.",
+    "register_max_age_days": 45,
+    "register_max_per_run": 300,
+    "_register_note": "Sỹ Anh chốt 25/09/2026: MUA GÓI 17TRACK, theo dõi HẾT đơn đang đi đường (gói miễn phí chỉ 100 mã/tháng, mà ship ~350–400 đơn/tháng). Mỗi sáng sau khi nạp bảng đối tác, hệ thống tự đăng ký mọi đơn CHƯA kết thúc (không phải đã giao/hoàn/huỷ/tiêu huỷ) xuất kho trong register_max_age_days ngày — đơn cũ hơn mà còn 'đang đi' gần như luôn là dòng đối tác quên cập nhật. register_max_per_run là TRẦN mỗi lượt: luật lọc có hỏng thì mất tối đa ngần ấy quota, không phải cả nghìn. Lượt đầu ~150 mã, sau đó ~15 mã/ngày.",
+    "_partner_note": "File đơn hàng của đối tác 3PL (Google Sheet 'BẢNG LÊN ĐƠN', xuất CSV, cập nhật 2 ngày/lần). Nguồn trạng thái MIỄN PHÍ, có sẵn 'Đợi khách đến lấy hàng' nhưng trễ ~2 ngày. 17TRACK gần thời gian thực nên số của nó được ưu tiên — trừ khi file đối tác đã báo đơn KẾT THÚC (giao xong, hoàn, huỷ, tiêu huỷ): trạng thái kết thúc không lùi lại được, và hoàn/huỷ/tiêu huỷ thì 17TRACK không có.",
     "partner_file": {
       "sheet_id": "1UGEcebSs-hDV2FB0P-4aDn6eKOkTjmhe44bwdbfxJXc",
       "sheet_gid": "0",
@@ -1345,7 +1373,22 @@
       "cost_price_rmb": 8.5,
       "_ghi_chu": "200G"
     },
+    "075": {
+      "name": "075 - DEGO",
+      "cost_price_rmb": 8.75,
+      "_ghi_chu": "110 ML — thêm 25/09/2026 từ file 'BẢN SAO BÁO GÍA TIỀN HÀNG' (1z3si2P_…), dòng 109"
+    },
+    "076": {
+      "name": "076 - SET 20",
+      "cost_price_rmb": 21.0,
+      "_ghi_chu": "200G — thêm 25/09/2026 từ file 'BẢN SAO BÁO GÍA TIỀN HÀNG' (1z3si2P_…), dòng 112"
+    },
     "_note_ten": "Giá lấy từ bảng 'Giá tới Taiwan' của Sỹ Anh (10/09/2026). Bảng đó không có cột tên sản phẩm, chỉ có nhãn kiểu '053 - SET10', nên tên tiếng Anh cũ được giữ lại để màn hình còn đọc được; nhãn gốc trong bảng lưu ở _nhan_bang_gia. Tên là tên, giá là giá — KHÔNG lấy giá cũ của hệ thống GCC."
+  },
+  "product_name_aliases": {
+    "_note": "Tên sản phẩm sale GÕ TAY trên POS, không có mã 3 số → mã đúng. Khoá viết HOA, bỏ khoảng trắng hai đầu. Chỉ dùng khi tên không chứa mã 3 số nào.",
+    "DEGO": "075",
+    "_DEGO_note": "Suy từ tên (25/09/2026): báo giá chỉ có một sản phẩm tên DEGO là '075 - DEGO'. Sỹ Anh chưa xác nhận — sai thì xoá dòng này."
   },
   "report_start_date": "2026-09-15",
   "_report_start_note": "Mốc gốc của mọi báo cáo số (Sỹ Anh chốt 25/09/2026): dữ liệu TRƯỚC ngày này chưa đầy đủ — đội cũ, shop cũ, TKQC cũ — nên các tab Báo cáo · Marketer · Quảng cáo không tính. Bộ chọn ngày mặc định bắt đầu từ đây và không lùi qua được. Tab vận hành (Sổ đơn, Đối soát COD, Theo dõi vận đơn, Kho, Khách hàng) KHÔNG bị chặn: đơn cũ vẫn còn đang chờ thu tiền.",

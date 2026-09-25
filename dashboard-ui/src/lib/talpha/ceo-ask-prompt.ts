@@ -39,6 +39,11 @@ function shippingTable(): string {
         .filter(([k]) => !k.startsWith("_"))
         .map(([label, f]) => {
             const fee = f as { partner?: string; packing: number; delivery: number; cod_pct: number; cod_flat: number };
+            // Bảng giá theo cân nặng (NAZA Đài · Singapore) không có đóng gói/giao cố định —
+            // in "undefined" vào prompt là dạy mô hình bịa số.
+            if (typeof fee.packing !== "number") {
+                return `  ${label} (${fee.partner || "?"}): bảng giá theo cân nặng, tính bằng tệ — xem shipping_fees.${label}; tab P&L ước tính phí ship`;
+            }
             const parts = [`đóng gói ${fee.packing}`, `giao ${fee.delivery}`];
             if (fee.cod_pct) parts.push(`COD ${(fee.cod_pct * 100).toFixed(0)}% doanh thu`);
             if (fee.cod_flat) parts.push(`COD ${fee.cod_flat}/đơn`);
