@@ -28,140 +28,161 @@ const DATA = (o = {}) => ({
     ...o,
 });
 const dung = (d, o = {}) => tron(buildTinVanDon(d, { today: TODAY, nowTs: NOW, link: "http://dash/talpha", ...o }));
+const nhieu = (n, code, o = {}) => Array.from({ length: n }, (_, i) => canh(code, typeof o === "function" ? o(i) : o, { order_id: `X${i}` }));
 
 (async () => {
     await t("không có việc thì nói rõ, không im", () => {
         const m = dung(DATA());
-        assert.match(m, /VẬN ĐƠN CẦN XỬ LÝ — 26\/09/);
+        assert.match(m, /VẬN ĐƠN 26\/09 · cập nhật 06:05/);
         assert.match(m, /Không có đơn nào cần xử lý/);
     });
 
-    await t("đầu tin: đếm theo mức + tiền đang chờ ở cửa hàng", () => {
-        const m = dung(DATA({ alerts: [
-            canh("sap_bi_tra_ve", { days_left: 1 }),
-            canh("giao_hong", { level: "canh_bao" }, { order_id: "T1552", last_event: "Khách từ chối nhận hàng" }),
-            canh("toi_cua_hang", { level: "nhac", days_left: 5 }),
-        ] }));
-        assert.match(m, /Gấp 1 · 🟠 Cảnh báo 1 · 🔔 Nhắc 1/);
-        assert.match(m, /51 đơn đang nằm ở cửa hàng · 53\.699 NT\$/);
-        assert.match(m, /17TRACK cập nhật 06:05 26\/09 · còn 9\.600 quota/);
-    });
-
-    await t("dòng đơn có đủ thứ để gọi khách: mã, tiền, tên, SĐT, cửa hàng, mã lấy hàng", () => {
+    await t("đầu tin 2 dòng: ngày + giờ cập nhật, đơn ở cửa hàng + tiền chờ lấy", () => {
         const m = dung(DATA({ alerts: [canh("sap_bi_tra_ve", { days_left: 1 })] }));
-        assert.match(m, /1\. T1466 · 1\.499 NT\$ · còn 1 ngày\n {3}Ghen · 0975475359 · 全家新城康樂店 \(mã 026205\)/);
+        const [d1, d2] = m.split("\n");
+        assert.strictEqual(d1, "📦 VẬN ĐƠN 26/09 · cập nhật 06:05");
+        assert.strictEqual(d2, "🏪 51 đơn ở cửa hàng · 53.699 NT$ chờ lấy");
     });
 
-    await t("còn hạn lên trước, gần hết hạn nhất lên đầu; quá hạn ÍT nhất lên đầu", () => {
+    await t("đơn cần gọi: MỘT dòng, đủ mã · tiền · hạn · tên SĐT · cửa hàng #mã lấy hàng", () => {
+        const m = dung(DATA({ alerts: [canh("sap_bi_tra_ve", { days_left: 1 })] }));
+        assert.match(m, /☎️ GỌI NGAY — sắp bị trả về \(1\)\n1\. T1466 · 1\.499 · còn 1 ngày · Ghen 0975475359 · 全家新城康樂店 #026205\n/);
+    });
+
+    await t("gọi ngay: gần hết hạn lên đầu; quá hạn: quá ÍT ngày lên đầu, gộp một dòng", () => {
         const m = dung(DATA({ alerts: [
             canh("sap_bi_tra_ve", { days_left: -20 }, { order_id: "QUA20" }),
             canh("sap_bi_tra_ve", { days_left: 2 }, { order_id: "CON2" }),
             canh("sap_bi_tra_ve", { days_left: -1 }, { order_id: "QUA1" }),
             canh("sap_bi_tra_ve", { days_left: 0 }, { order_id: "CON0" }),
         ] }));
-        const thuTu = ["CON0", "CON2", "QUA1", "QUA20"].map((x) => m.indexOf(x));
-        assert.deepStrictEqual([...thuTu].sort((a, b) => a - b), thuTu);
-        assert.match(m, /CON0 · 1\.499 NT\$ · HẾT HẠN HÔM NAY/);
-        assert.match(m, /QUA1 · 1\.499 NT\$ · quá 1 ngày/);
-        assert.match(m, /SẮP BỊ TRẢ VỀ — gọi khách ngay \(2\)/);
-        assert.match(m, /ĐÃ QUÁ HẠN LẤY \(2\)/);
+        assert.match(m, /1\. CON0 · 1\.499 · HÔM NAY ·/);
+        assert.match(m, /2\. CON2 · 1\.499 · còn 2 ngày ·/);
+        assert.match(m, /⏰ Quá hạn lấy \(2\): QUA1 \(1n\) · QUA20 \(20n\)/);
     });
 
-    await t("in có trần, phần thừa nói rõ còn bao nhiêu + chỗ xem đủ", () => {
-        const nhieu = Array.from({ length: 40 }, (_, i) => canh("sap_bi_tra_ve", { days_left: -i - 1 }, { order_id: `Q${i}` }));
-        const m = dung(DATA({ alerts: nhieu }), { maxGap: 15 });
-        assert.ok(m.includes("Q14") && !m.includes("Q15 "), "in đúng 15 đơn");
-        assert.match(m, /Còn 25 đơn không in ở đây\. Xem đủ, chép tin nhắn khách: http:\/\/dash\/talpha/);
-    });
-
-    await t("giao hỏng hiện lý do, đứng im hiện số ngày", () => {
+    await t("có trần: danh sách gọi và dòng liệt kê mã đều nói còn bao nhiêu", () => {
         const m = dung(DATA({ alerts: [
-            canh("giao_hong", { level: "canh_bao" }, { order_id: "T1552", last_event: "Khách từ chối nhận hàng" }),
+            ...nhieu(20, "sap_bi_tra_ve", { days_left: 1 }),
+            ...nhieu(12, "sap_bi_tra_ve", (i) => ({ days_left: -i - 1 })),
+        ] }), { maxGap: 15, maxCanhBao: 8 });
+        assert.match(m, /15\. X14 ·/);
+        assert.ok(!/16\. /.test(m), "không in quá 15 dòng gọi");
+        assert.match(m, /… \+5 đơn nữa trên dashboard/);
+        assert.match(m, /Quá hạn lấy \(12\): [^\n]* … \+4\n/);
+    });
+
+    await t("giao hỏng: hàng hoàn chỉ ĐẾM, sự cố khác liệt kê mã kèm lý do", () => {
+        const m = dung(DATA({ alerts: [
+            canh("giao_hong", { level: "canh_bao" }, { order_id: "H1", source: "17track", status: "Exception", sub_status: "Exception_Returning" }),
+            canh("giao_hong", { level: "canh_bao" }, { order_id: "H2", source: "17track", status: "Exception", sub_status: "Exception_Returned" }),
+            canh("giao_hong", { level: "canh_bao" }, { order_id: "H3", source: "doi_tac", status: "DeliveryFailure", raw_status: "Đang hoàn về kho" }),
+            canh("giao_hong", { level: "canh_bao" }, { order_id: "T1552", source: "doi_tac", status: "DeliveryFailure", raw_status: "Khách từ chối nhận hàng" }),
+            canh("giao_hong", { level: "canh_bao" }, { order_id: "T1553", source: "17track", status: "Exception", sub_status: "Exception_Other" }),
+        ] }));
+        assert.match(m, /↩️ Hoàn hàng \(3\): đang hoàn 2 · đã hoàn 1/);
+        assert.match(m, /⚠️ Giao hỏng \(2\): T1552 \(khách từ chối\) · T1553 \(sự cố\)/);
+        assert.ok(!/H1|H2|H3/.test(m), "đơn hoàn không liệt kê mã");
+    });
+
+    await t("đứng im, lệch đối tác ↔ 17TRACK, nhắc — mỗi loại một dòng", () => {
+        const m = dung(DATA({ alerts: [
             canh("dung_im", { level: "canh_bao", days: 25 }, { order_id: "T1300" }),
+            canh("lech_trang_thai", { level: "canh_bao" }, { order_id: "T1400", status: "Delivered", t17_status: "Exception", t17_sub_status: "Exception_Returning" }),
+            canh("lech_trang_thai", { level: "canh_bao" }, { order_id: "T1401", status: "Returned", t17_status: "Delivered" }),
+            ...nhieu(3, "toi_cua_hang", { level: "nhac", days_left: 5 }),
+            canh("chua_dang_ky", { level: "nhac" }),
         ] }));
-        assert.match(m, /GIAO HỎNG · SỰ CỐ \(1\)\n• T1552 · 1\.499 NT\$ · Khách từ chối nhận hàng/);
-        assert.match(m, /ĐỨNG IM \(1\)[^\n]*\n• T1300 · 1\.499 NT\$ · 25 ngày không nhúc nhích/);
+        assert.match(m, /🐢 Đứng im \(1\): T1300 \(25n\)/);
+        assert.match(m, /❗ Lệch đối tác ↔ 17TRACK \(2\): T1400 \(ghi giao · 17T hoàn\) · T1401 \(ghi hoàn\/huỷ · 17T khách đã nhận\)/);
+        assert.match(m, /📬 3 đơn vừa tới cửa hàng — nhắn khách ra lấy · 1 chưa rõ vị trí/);
     });
 
-    await t("hết chỗ in thì mục sau chỉ còn một dòng đếm, không in tiêu đề rỗng", () => {
-        const hong = Array.from({ length: 3 }, (_, i) => canh("giao_hong", { level: "canh_bao" }, { order_id: `H${i}` }));
-        const m = dung(DATA({ alerts: [...hong, canh("dung_im", { level: "canh_bao", days: 25 }, { order_id: "T1300" })] }), { maxCanhBao: 3 });
-        assert.ok(!m.includes("ĐỨNG IM ("), "không in tiêu đề mục rỗng");
-        assert.match(m, /1 đơn đứng im — hỏi lại hãng vận chuyển, xem ở dashboard/);
-        assert.match(m, /Còn 1 đơn không in ở đây/);
+    await t("dòng cuối là link dashboard", () => {
+        const m = dung(DATA({ alerts: [canh("sap_bi_tra_ve", { days_left: 1 })] }));
+        assert.match(m, /\n\n👉 Chi tiết, chép tin nhắn khách: http:\/\/dash\/talpha$/);
     });
 
-    await t("lệch đối tác ↔ 17TRACK có mục riêng, tính vào Cảnh báo", () => {
-        const m = dung(DATA({ alerts: [
-            canh("lech_trang_thai", { level: "canh_bao", detail: "Đối tác ghi ĐÃ GIAO, 17TRACK ghi hàng đang/đã HOÀN — tiền COD có thể không về." }, { order_id: "T1400" }),
-        ] }));
-        assert.match(m, /Cảnh báo 1/);
-        assert.match(m, /LỆCH ĐỐI TÁC ↔ 17TRACK \(1\)/);
-        assert.match(m, /• T1400 · 1\.499 NT\$ · Đối tác ghi ĐÃ GIAO/);
+    await t("không có vấn đề nguồn thì KHÔNG có dòng cảnh báo nào (quota dư không in)", () => {
+        const m = dung(DATA({ alerts: [canh("sap_bi_tra_ve", { days_left: 1 })] }));
+        assert.ok(!m.includes("⚠️"), m);
+        assert.ok(!/quota/i.test(m));
     });
 
-    await t("17TRACK lỗi thì tin TỰ TỐ, không gửi số cũ như số mới", () => {
+    await t("17TRACK lỗi thì tin TỰ TỐ, đầu tin không ghi 'cập nhật'", () => {
         const m = dung(DATA({
             last_sync: { at: "2026-09-25T23:05:00Z", ok: false, error: "17TRACK báo lỗi -18010001 — sai khoá" },
             alerts: [canh("sap_bi_tra_ve", { days_left: 1 })],
         }));
-        assert.match(m, /⚠️ 17TRACK lỗi lúc 06:05 26\/09: 17TRACK báo lỗi -18010001 — sai khoá/);
+        assert.strictEqual(m.split("\n")[0], "📦 VẬN ĐƠN 26/09");
+        assert.match(m, /⚠️ 17TRACK lỗi 06:05 26\/09: 17TRACK báo lỗi -18010001 — sai khoá/);
     });
 
     await t("17TRACK không chạy sáng nay (lần cuối quá 26 giờ) → cảnh báo", () => {
         const m = dung(DATA({ last_sync: { at: "2026-09-23T23:05:00Z", ok: true }, alerts: [canh("sap_bi_tra_ve", { days_left: 1 })] }));
-        assert.match(m, /17TRACK chưa đồng bộ từ 06:05 24\/09/);
+        assert.match(m, /⚠️ 17TRACK chưa chạy từ 06:05 24\/09 — số có thể trễ/);
     });
 
-    await t("hết quota → nói rõ bao nhiêu đơn đang mù và bao giờ có lại", () => {
-        const het = dung(DATA({ last_sync: { at: "2026-09-25T23:05:00Z", ok: true, quota_out: true, over_cap: 7, quota: { total: 200, remain: 0 } } }));
-        assert.match(het, /HẾT QUOTA 17TRACK — 7 đơn chưa được theo dõi/);
-        assert.match(het, /Thêm khoá mới, hoặc chờ quota miễn phí về lại ngày 1/);
+    await t("hết quota → nói rõ bao nhiêu đơn chưa được theo dõi và làm gì", () => {
+        const m = dung(DATA({ last_sync: { at: "2026-09-25T23:05:00Z", ok: true, quota_out: true, over_cap: 7, quota: { total: 200, remain: 0 } } }));
+        assert.match(m, /⚠️ HẾT QUOTA 17TRACK — 7 đơn chưa được theo dõi: thêm khoá mới hoặc chờ ngày 1/);
+    });
+
+    await t("hết quota: không đếm đơn thường để lượt sau (chia nhịp)", () => {
+        const m = dung(DATA({ last_sync: { at: "2026-09-25T23:05:00Z", ok: true, quota_out: true, over_cap: 40, deferred: 35, quota: { total: 400, remain: 0 } } }));
+        assert.match(m, /HẾT QUOTA 17TRACK — 5 đơn chưa được theo dõi/);
     });
 
     await t("sắp hết quota: ngưỡng theo cỡ gói, gói miễn phí không kêu mỗi ngày", () => {
         const ls = (total, remain) => ({ last_sync: { at: "2026-09-25T23:05:00Z", ok: true, quota: { total, remain } } });
-        assert.match(dung(DATA(ls(5000, 150))), /Quota 17TRACK sắp hết — còn 150\/5\.000/);
+        assert.match(dung(DATA(ls(5000, 150))), /Quota 17TRACK sắp hết: còn 150\/5\.000/);
         assert.ok(!/sắp hết/.test(dung(DATA(ls(200, 150)))), "gói 200 còn 150 là bình thường");
-        assert.match(dung(DATA(ls(200, 20))), /Quota 17TRACK sắp hết — còn 20\/200/);
+        assert.match(dung(DATA(ls(600, 20))), /Quota 17TRACK sắp hết: còn 20\/600/);
     });
 
-    await t("nhiều khoá: quota cộng, nêu số khoá; khoá hỏng thì nêu đích danh", () => {
+    await t("nhiều khoá: khoá hỏng nêu đích danh, khoá tốt không in", () => {
         const m = dung(DATA({ last_sync: { at: "2026-09-25T23:05:00Z", ok: true, quota: { total: 400, remain: 300 },
             keys: [{ label: "khoá 1", ok: true }, { label: "khoá 2", ok: false, error: "17TRACK báo lỗi -18010002 ở khoá 2" }] } }));
-        assert.match(m, /còn 300 quota \(2 khoá\)/);
-        assert.match(m, /17TRACK khoá 2 lỗi: 17TRACK báo lỗi -18010002 ở khoá 2 — mã của khoá này không cập nhật được/);
+        assert.match(m, /⚠️ 17TRACK khoá 2 lỗi: 17TRACK báo lỗi -18010002 ở khoá 2/);
         assert.ok(!m.includes("khoá 1 lỗi"));
     });
 
     await t("mã thuộc khoá đã gỡ → cảnh báo", () => {
         const m = dung(DATA({ last_sync: { at: "2026-09-25T23:05:00Z", ok: true, orphaned: 12 } }));
-        assert.match(m, /12 mã thuộc khoá 17TRACK đã gỡ khỏi \.env/);
+        assert.match(m, /⚠️ 12 mã thuộc khoá đã gỡ — không cập nhật được nữa/);
     });
 
-    await t("hết quota: chỉ đếm đơn cần xử lý, không đếm đơn thường để lượt sau", () => {
-        const m = dung(DATA({ last_sync: { at: "2026-09-25T23:05:00Z", ok: true, quota_out: true, over_cap: 40, deferred: 35, quota: { total: 400, remain: 0 } } }));
-        assert.match(m, /HẾT QUOTA 17TRACK — 5 đơn chưa được theo dõi/);
-    });
-
-    await t("chưa có khoá 17TRACK → nói rõ đang chạy bằng bảng đối tác", () => {
+    await t("chưa có khoá 17TRACK → đầu tin ghi 'theo bảng đối tác'", () => {
         const m = dung(DATA({ has_api_key: false, last_sync: null }));
-        assert.match(m, /Nguồn: bảng đối tác \(trễ ~2 ngày\) — chưa bật 17TRACK/);
+        assert.strictEqual(m.split("\n")[0], "📦 VẬN ĐƠN 26/09 · theo bảng đối tác");
     });
 
     await t("bảng đối tác không nạp sáng nay → cảnh báo", () => {
         const m = dung(DATA({ last_import: "2026-09-23T23:01:00Z" }));
-        assert.match(m, /Bảng đối tác chưa nạp từ 06:01 24\/09/);
+        assert.match(m, /⚠️ Bảng đối tác chưa nạp từ 06:01 24\/09/);
     });
 
-    await t("thiếu tên / SĐT / cửa hàng thì không in dòng trống", () => {
+    await t("thiếu tên / SĐT / cửa hàng / tiền thì bỏ trống gọn, không để dấu · thừa", () => {
         const m = dung(DATA({ alerts: [canh("sap_bi_tra_ve", { days_left: 1 }, { customer: "", phone: "", store_name: "", cod_local: 0 })] }));
-        assert.match(m, /1\. T1466 · còn 1 ngày(\n\n|$)/);
+        assert.match(m, /\n1\. T1466 · còn 1 ngày\n/);
     });
 
-    await t("tin dài vẫn chia được theo khung 1800 ký tự của Zalo", () => {
-        const nhieu = Array.from({ length: 30 }, (_, i) => canh("sap_bi_tra_ve", { days_left: -i - 1 }, { order_id: `Q${i}` }));
-        const phan = chiaTin(toZalo(buildTinVanDon(DATA({ alerts: nhieu }), { today: TODAY, nowTs: NOW })), 1800);
+    await t("ngày bình thường vừa MỘT tin Zalo (1800 ký tự)", () => {
+        // Cỡ ngày 25/09/2026: 11 đơn gọi ngay, 10 quá hạn, 46 giao hỏng (44 là hoàn), 28 vừa tới.
+        const alerts = [
+            ...nhieu(11, "sap_bi_tra_ve", { days_left: 1 }),
+            ...nhieu(10, "sap_bi_tra_ve", (i) => ({ days_left: -i - 1 })),
+            ...nhieu(44, "giao_hong", { level: "canh_bao" }).map((a) => ({ ...a, shipment: { ...a.shipment, source: "17track", sub_status: "Exception_Returning" } })),
+            ...nhieu(2, "giao_hong", { level: "canh_bao" }).map((a) => ({ ...a, shipment: { ...a.shipment, source: "17track", status: "Exception", sub_status: "Exception_Other" } })),
+            ...nhieu(28, "toi_cua_hang", { level: "nhac" }),
+        ];
+        const phan = chiaTin(toZalo(buildTinVanDon(DATA({ alerts }), { today: TODAY, nowTs: NOW, link: "http://139.180.131.21:3000/talpha" })), 1800);
+        assert.strictEqual(phan.length, 1, `ra ${phan.length} tin, ${phan.map((p) => p.msg.length).join("+")} ký tự`);
+    });
+
+    await t("tin dài bất thường vẫn chia được theo khung 1800 ký tự của Zalo", () => {
+        const alerts = nhieu(60, "sap_bi_tra_ve", { days_left: 1 });
+        const phan = chiaTin(toZalo(buildTinVanDon(DATA({ alerts }), { today: TODAY, nowTs: NOW, maxGap: 60 })), 1800);
         assert.ok(phan.every((p) => p.msg.length <= 1800));
     });
 
@@ -175,4 +196,4 @@ const dung = (d, o = {}) => tron(buildTinVanDon(d, { today: TODAY, nowTs: NOW, l
     });
 
     console.log(`van_don: ${ok} phép thử — tất cả đạt.`);
-})().catch(() => process.exit(1));
+})().catch((e) => { console.error(e.message); process.exit(1); });

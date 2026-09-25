@@ -7,7 +7,7 @@
 //
 // Tin có tên + SĐT khách — chỉ gửi vào nhóm vận đơn, không bao giờ vào nhóm ads.
 // Hàm thuần: không gọi mạng (trừ fetchVanDon), không đụng Zalo — để test được.
-const { B, I } = require("./zalo_text");
+const { B } = require("./zalo_text");
 
 const fmt = (n) => Number(n || 0).toLocaleString("vi-VN");
 const ddmm = (d) => `${d.slice(8, 10)}/${d.slice(5, 7)}`;
@@ -35,74 +35,100 @@ async function fetchVanDon(cfg, today, f = fetch) {
 }
 
 /**
- * Dòng "số này mới tới đâu". Số cũ mà không ai nói thì sale gọi nhầm khách đã lấy hàng
- * rồi — nên tin TỰ TỐ khi 17TRACK lỗi, hết quota, hay đồng bộ/nạp bảng bị đứng.
+ * Cảnh báo "số này mới tới đâu" — MỖI VẤN ĐỀ MỘT DÒNG, không có vấn đề thì không có dòng
+ * nào (giờ cập nhật đã nằm trên đầu tin). Số cũ mà không ai nói thì sale gọi nhầm khách
+ * đã lấy hàng rồi — nên tin TỰ TỐ khi 17TRACK lỗi, hết quota, hay đồng bộ/nạp bảng đứng.
  */
 function dongNguon(d, nowTs, { quotaWarn = 200, staleHours = 26 } = {}) {
     const cu = (iso) => iso && nowTs - Date.parse(iso) > staleHours * 3600000;
     const ra = [];
     const ls = d.last_sync;
-    if (!d.has_api_key) {
-        ra.push(I("Nguồn: bảng đối tác (trễ ~2 ngày) — chưa bật 17TRACK."));
-    } else if (!ls) {
-        ra.push(`⚠️ ${B("17TRACK chưa đồng bộ lần nào")} ${I("— số dưới đây theo bảng đối tác, có thể trễ 2 ngày.")}`);
-    } else if (!ls.ok) {
-        ra.push(`⚠️ ${B(`17TRACK lỗi lúc ${gioVN(ls.at)}`)}: ${cat(ls.error, 120)}\n${I("Số dưới đây theo lần đồng bộ trước + bảng đối tác, có thể trễ.")}`);
-    } else if (cu(ls.at)) {
-        ra.push(`⚠️ ${B(`17TRACK chưa đồng bộ từ ${gioVN(ls.at)}`)} ${I("— việc sáng nay không chạy, số có thể trễ.")}`);
-    } else {
-        const q = ls.quota;
-        const nk = (ls.keys || []).length;
-        ra.push(I(`17TRACK cập nhật ${gioVN(ls.at)}${q ? ` · còn ${fmt(q.remain)} quota` : ""}${nk > 1 ? ` (${nk} khoá)` : ""}`));
-    }
+    if (d.has_api_key && !ls) ra.push(`⚠️ ${B("17TRACK chưa đồng bộ lần nào")} — số theo bảng đối tác, trễ ~2 ngày`);
+    else if (ls && !ls.ok) ra.push(`⚠️ ${B(`17TRACK lỗi ${gioVN(ls.at)}`)}: ${cat(ls.error, 90)}`);
+    else if (ls && cu(ls.at)) ra.push(`⚠️ ${B(`17TRACK chưa chạy từ ${gioVN(ls.at)}`)} — số có thể trễ`);
     // Nhiều khoá: một khoá chết thì lượt vẫn chạy bằng khoá khác — nhưng mã của khoá chết
     // đứng im, nên phải nêu đích danh.
     if (ls && ls.ok) {
-        for (const k of (ls.keys || []).filter((x) => !x.ok)) {
-            ra.push(`⚠️ ${B(`17TRACK ${k.label} lỗi`)}: ${cat(k.error, 100)} ${I("— mã của khoá này không cập nhật được.")}`);
-        }
+        for (const k of (ls.keys || []).filter((x) => !x.ok)) ra.push(`⚠️ ${B(`17TRACK ${k.label} lỗi`)}: ${cat(k.error, 80)}`);
     }
-    if (ls && Number(ls.orphaned) > 0) {
-        ra.push(`⚠️ ${B(`${fmt(ls.orphaned)} mã thuộc khoá 17TRACK đã gỡ khỏi .env`)} — không cập nhật được nữa, lắp lại khoá đó nếu còn dùng.`);
-    }
-    // Gói miễn phí hết quota là CHUYỆN THƯỜNG cuối tháng — nói rõ đơn nào đang mù và bao
-    // giờ có lại, chứ không chỉ kêu "nạp thêm".
+    if (ls && Number(ls.orphaned) > 0) ra.push(`⚠️ ${B(`${fmt(ls.orphaned)} mã thuộc khoá đã gỡ`)} — không cập nhật được nữa`);
+    // Hết quota: nói rõ bao nhiêu đơn đang mù và làm gì, chứ không chỉ kêu "nạp thêm".
     if (ls && ls.quota_out) {
-        // over_cap gồm cả đơn thường để lượt sau vì chia nhịp — đó KHÔNG phải đơn cần xử lý.
+        // over_cap gồm cả đơn thường để lượt sau vì chia nhịp — đó KHÔNG phải đơn mù.
         const n = Math.max(0, (Number(ls.over_cap) || 0) - (Number(ls.deferred) || 0));
-        ra.push(`⚠️ ${B(`HẾT QUOTA 17TRACK${n ? ` — ${fmt(n)} đơn chưa được theo dõi` : ""}`)}. `
-            + "Các đơn đó đang theo bảng đối tác (trễ ~2 ngày). Thêm khoá mới, hoặc chờ quota miễn phí về lại ngày 1.");
+        ra.push(`⚠️ ${B(`HẾT QUOTA 17TRACK${n ? ` — ${fmt(n)} đơn chưa được theo dõi` : ""}`)}: thêm khoá mới hoặc chờ ngày 1`);
     } else if (ls && ls.ok && ls.quota && ls.quota.total > 0) {
         // Ngưỡng theo cỡ gói: gói miễn phí vài trăm mã thì "còn dưới 200" là kêu mỗi ngày.
         const nguong = Math.min(quotaWarn, Math.ceil(ls.quota.total * 0.15));
-        if (ls.quota.remain < nguong) {
-            ra.push(`⚠️ ${B(`Quota 17TRACK sắp hết — còn ${fmt(ls.quota.remain)}/${fmt(ls.quota.total)}`)}.`);
-        }
+        if (ls.quota.remain < nguong) ra.push(`⚠️ ${B(`Quota 17TRACK sắp hết: còn ${fmt(ls.quota.remain)}/${fmt(ls.quota.total)}`)}`);
     }
-    if (cu(d.last_import)) ra.push(`⚠️ ${B(`Bảng đối tác chưa nạp từ ${gioVN(d.last_import)}`)} — xem journalctl -u talpha-tracking.`);
+    if (cu(d.last_import)) ra.push(`⚠️ ${B(`Bảng đối tác chưa nạp từ ${gioVN(d.last_import)}`)}`);
     return ra.join("\n");
 }
 
-function dongDon(a, { soThuTu, them } = {}) {
+/** Giờ cập nhật cho dòng đầu tin — số của lượt đồng bộ gần nhất. */
+function capNhat(d) {
+    const ls = d.last_sync;
+    if (!d.has_api_key) return "theo bảng đối tác";
+    return ls && ls.ok ? `cập nhật ${gioVN(ls.at).slice(0, 5)}` : "";
+}
+
+const maDon = (a) => (a.shipment || {}).order_id || (a.shipment || {}).tracking || "?";
+
+/** Một dòng gọi khách: mã · tiền · hạn · tên SĐT · cửa hàng #mã lấy hàng. */
+function dongGoi(a, i) {
     const s = a.shipment || {};
-    const ma = s.order_id || s.tracking || "?";
-    const khach = [s.customer, s.phone].filter(Boolean).join(" · ");
-    const cuaHang = s.store_name ? `${s.store_name}${s.store_code ? ` (mã ${s.store_code})` : ""}` : "";
-    let m = `${soThuTu ? soThuTu + "." : "•"} ${B(ma)}${s.cod_local ? ` · ${fmt(Math.round(s.cod_local))} NT$` : ""}${them ? ` · ${them}` : ""}`;
-    const dong2 = [khach, cuaHang].filter(Boolean).join(" · ");
-    if (dong2) m += `\n   ${dong2}`;
-    return m;
+    const han = a.days_left == null ? "" : a.days_left <= 0 ? B("HÔM NAY") : `còn ${a.days_left} ngày`;
+    const khach = [s.customer, s.phone].filter(Boolean).join(" ");
+    const cuaHang = s.store_name ? `${s.store_name}${s.store_code ? ` #${s.store_code}` : ""}` : "";
+    return `${i + 1}. ` + [B(maDon(a)), s.cod_local ? fmt(Math.round(s.cod_local)) : "", han, khach, cuaHang]
+        .filter(Boolean).join(" · ");
+}
+
+/** Danh sách mã gọn trên một dòng: "T1 (1n) · T2 (3n) … +5". */
+function dongMa(xs, nhan, max) {
+    const hien = xs.slice(0, max).map((a) => `${B(maDon(a))}${nhan ? ` ${nhan(a)}` : ""}`);
+    return hien.join(" · ") + (xs.length > max ? ` … +${xs.length - max}` : "");
 }
 
 /**
+ * Lý do giao hỏng. 17TRACK nói bằng sub_status; đối tác nói bằng chữ trong cột NOTE.
+ * "hoàn" tách riêng: hàng đã quay đầu thì gọi khách không cứu được nữa — chỉ để đếm.
+ */
+function lyDo(s) {
+    const sub = String(s.sub_status || ""), raw = String(s.raw_status || s.last_event || "");
+    if (/Returning/.test(sub) || (s.source !== "17track" && /hoàn/i.test(raw))) return "dang_hoan";
+    if (/Returned/.test(sub)) return "da_hoan";
+    if (/Rejected/.test(sub) || /từ chối/i.test(raw)) return "khách từ chối";
+    if (/NoBody/.test(sub) || /vắng/i.test(raw)) return "vắng nhà";
+    if (/InvalidAddress/.test(sub)) return "sai địa chỉ";
+    if (s.status === "DeliveryFailure") return "giao hỏng";
+    return "sự cố";
+}
+
+/** Lệch đối tác ↔ 17TRACK nói bằng 3–4 chữ: "ghi giao · 17T hoàn". */
+function lechNgan(a) {
+    const s = a.shipment || {};
+    if (s.status === "Delivered") return /Return/.test(String(s.t17_sub_status || "")) ? "(ghi giao · 17T hoàn)" : "(ghi giao · 17T sự cố)";
+    return "(ghi hoàn/huỷ · 17T khách đã nhận)";
+}
+
+/**
+ * TIN GỌN — Sỹ Anh chốt 25/09/2026: MỘT tin Zalo, mỗi đơn một dòng.
+ *   • Chỉ đơn CẦN GỌI NGAY (sắp bị trả về) in đủ tên, SĐT, cửa hàng, mã lấy hàng.
+ *   • Quá hạn, giao hỏng, đứng im, lệch: một dòng mỗi loại, chỉ mã đơn.
+ *   • Hàng đang/đã hoàn chỉ ĐẾM (44/46 "giao hỏng" ngày 25/09 là hàng quay đầu — gọi
+ *     khách không cứu được, liệt kê ra chỉ làm dài tin).
+ * Chi tiết + nút chép tin nhắn khách nằm ở dashboard (link cuối tin).
+ *
  * @param d      JSON của GET /api/talpha/tracking
  * @param opts   { today: "YYYY-MM-DD" giờ VN, nowTs, maxGap, maxCanhBao, link, quotaWarn }
  */
 function buildTinVanDon(d, opts = {}) {
     const today = opts.today;
     const nowTs = opts.nowTs ?? Date.now();
-    const maxGap = Number(opts.maxGap) || 15;
-    const maxCanhBao = Number(opts.maxCanhBao) || 8;
+    const maxGap = Number(opts.maxGap) || 15;        // số dòng gọi khách tối đa
+    const maxMa = Number(opts.maxCanhBao) || 8;      // số mã tối đa trên một dòng liệt kê
     const alerts = d.alerts || [];
     const by = (code) => alerts.filter((a) => a.code === code);
 
@@ -114,83 +140,47 @@ function buildTinVanDon(d, opts = {}) {
     const qua = gap.filter((a) => a.days_left != null && a.days_left < 0)
         .sort((a, b) => b.days_left - a.days_left);
     const hong = by("giao_hong");
+    const dangHoan = hong.filter((a) => lyDo(a.shipment || {}) === "dang_hoan");
+    const daHoan = hong.filter((a) => lyDo(a.shipment || {}) === "da_hoan");
+    const suCo = hong.filter((a) => !["dang_hoan", "da_hoan"].includes(lyDo(a.shipment || {})));
     const dungIm = by("dung_im");
     const lech = by("lech_trang_thai");
     const moiToi = by("toi_cua_hang");
     const chuaRo = by("chua_dang_ky");
 
-    const nGap = gap.length, nCb = hong.length + dungIm.length + lech.length, nNhac = moiToi.length + chuaRo.length;
     const atStore = (d.counts || {}).AvailableForPickup || 0;
     const tienCho = (d.totals || {}).at_store_value || 0;
+    const cn = capNhat(d);
 
-    let m = `📦 ${B(`VẬN ĐƠN CẦN XỬ LÝ — ${ddmm(today)}`)}\n`;
-    if (!alerts.length) {
-        return m + `✅ Không có đơn nào cần xử lý.${atStore ? ` ${fmt(atStore)} đơn đang ở cửa hàng, chưa tới hạn.` : ""}\n`
-            + dongNguon(d, nowTs, opts);
-    }
-    m += `🔴 Gấp ${B(fmt(nGap))} · 🟠 Cảnh báo ${B(fmt(nCb))} · 🔔 Nhắc ${fmt(nNhac)}\n`;
-    if (atStore) m += `🏪 ${fmt(atStore)} đơn đang nằm ở cửa hàng · ${B(fmt(Math.round(tienCho)) + " NT$")} chờ khách lấy\n`;
-    m += dongNguon(d, nowTs, opts);
+    const dong = [`📦 ${B(`VẬN ĐƠN ${ddmm(today)}`)}${cn ? ` · ${cn}` : ""}`];
+    if (atStore) dong.push(`🏪 ${fmt(atStore)} đơn ở cửa hàng · ${B(fmt(Math.round(tienCho)) + " NT$")} chờ lấy`);
+    const canhBaoNguon = dongNguon(d, nowTs, opts);
+    if (canhBaoNguon) dong.push(canhBaoNguon);
 
-    let conLai = 0;
-    let slot = maxGap;
+    if (!alerts.length) return [...dong, "", "✅ Không có đơn nào cần xử lý."].join("\n");
+
     if (sap.length) {
-        m += `\n\n🔴 ${B(`SẮP BỊ TRẢ VỀ — gọi khách ngay (${sap.length})`)}`;
-        sap.slice(0, slot).forEach((a, i) => {
-            m += "\n" + dongDon(a, { soThuTu: i + 1, them: a.days_left === 0 ? "HẾT HẠN HÔM NAY" : `còn ${a.days_left} ngày` });
-        });
-        conLai += Math.max(0, sap.length - slot);
-        slot = Math.max(0, slot - sap.length);
-    }
-    // Hết chỗ in thì chỉ còn MỘT dòng đếm — tiêu đề mục mà không có đơn nào bên dưới
-    // trông như tin bị cắt.
-    if (qua.length && !slot) {
-        m += `\n\n🔴 ${fmt(qua.length)} đơn đã quá hạn lấy — xem ở dashboard.`;
-        conLai += qua.length;
-    } else if (qua.length) {
-        m += `\n\n🔴 ${B(`ĐÃ QUÁ HẠN LẤY (${qua.length})`)} ${I("— gọi xem hàng còn giữ được không")}`;
-        qua.slice(0, slot).forEach((a, i) => {
-            m += "\n" + dongDon(a, { soThuTu: i + 1, them: `quá ${-a.days_left} ngày` });
-        });
-        conLai += Math.max(0, qua.length - slot);
+        dong.push("", `☎️ ${B(`GỌI NGAY — sắp bị trả về (${sap.length})`)}`);
+        sap.slice(0, maxGap).forEach((a, i) => dong.push(dongGoi(a, i)));
+        if (sap.length > maxGap) dong.push(`… +${sap.length - maxGap} đơn nữa trên dashboard`);
     }
 
-    slot = maxCanhBao;
-    if (hong.length) {
-        m += `\n\n🟠 ${B(`GIAO HỎNG · SỰ CỐ (${hong.length})`)}`;
-        for (const a of hong.slice(0, slot)) {
-            m += "\n" + dongDon(a, { them: cat(a.shipment?.last_event || a.title, 50) });
-        }
-        conLai += Math.max(0, hong.length - slot);
-        slot = Math.max(0, slot - hong.length);
+    const tom = [];
+    if (qua.length) tom.push(`⏰ ${B(`Quá hạn lấy (${qua.length})`)}: ${dongMa(qua, (a) => `(${-a.days_left}n)`, maxMa)}`);
+    if (suCo.length) tom.push(`⚠️ ${B(`Giao hỏng (${suCo.length})`)}: ${dongMa(suCo, (a) => `(${lyDo(a.shipment || {})})`, maxMa)}`);
+    if (dangHoan.length || daHoan.length) {
+        tom.push(`↩️ ${B(`Hoàn hàng (${dangHoan.length + daHoan.length})`)}: `
+            + [dangHoan.length ? `đang hoàn ${dangHoan.length}` : "", daHoan.length ? `đã hoàn ${daHoan.length}` : ""].filter(Boolean).join(" · "));
     }
-    if (dungIm.length && !slot) {
-        m += `\n\n🟠 ${fmt(dungIm.length)} đơn đứng im — hỏi lại hãng vận chuyển, xem ở dashboard.`;
-        conLai += dungIm.length;
-    } else if (dungIm.length) {
-        m += `\n\n🟠 ${B(`ĐỨNG IM (${dungIm.length})`)} ${I("— hỏi lại hãng vận chuyển")}`;
-        for (const a of dungIm.slice(0, slot)) m += "\n" + dongDon(a, { them: `${a.days} ngày không nhúc nhích` });
-        conLai += Math.max(0, dungIm.length - slot);
-    }
+    if (dungIm.length) tom.push(`🐢 ${B(`Đứng im (${dungIm.length})`)}: ${dongMa(dungIm, (a) => `(${a.days}n)`, maxMa)}`);
+    if (lech.length) tom.push(`❗ ${B(`Lệch đối tác ↔ 17TRACK (${lech.length})`)}: ${dongMa(lech, lechNgan, Math.min(maxMa, 5))}`);
+    const nhac = [moiToi.length ? `${fmt(moiToi.length)} đơn vừa tới cửa hàng — nhắn khách ra lấy` : "",
+        chuaRo.length ? `${fmt(chuaRo.length)} chưa rõ vị trí` : ""].filter(Boolean).join(" · ");
+    if (nhac) tom.push(`📬 ${nhac}`);
+    if (tom.length) dong.push("", ...tom);
 
-    // Lệch đối tác ↔ 17TRACK là chuyện TIỀN (COD không về, hoặc về mà sổ tưởng mất) —
-    // có chỗ in riêng, không tranh chỗ với giao hỏng.
-    if (lech.length) {
-        const maxLech = Number(opts.maxLech) || 5;
-        m += `\n\n🟠 ${B(`LỆCH ĐỐI TÁC ↔ 17TRACK (${lech.length})`)} ${I("— kiểm trước khi đối soát COD")}`;
-        for (const a of lech.slice(0, maxLech)) {
-            const s = a.shipment || {};
-            m += `\n• ${B(s.order_id || s.tracking || "?")}${s.cod_local ? ` · ${fmt(Math.round(s.cod_local))} NT$` : ""} · ${cat(a.detail, 110)}`;
-        }
-        conLai += Math.max(0, lech.length - maxLech);
-    }
-
-    if (moiToi.length) m += `\n\n🔔 ${fmt(moiToi.length)} đơn vừa tới cửa hàng — nhắn khách ra lấy.`;
-    if (chuaRo.length) m += `\n🔔 ${fmt(chuaRo.length)} đơn chưa biết đang ở đâu.`;
-    if (conLai || moiToi.length || chuaRo.length) {
-        m += `\n\n${I(`${conLai ? `Còn ${fmt(conLai)} đơn không in ở đây. ` : ""}Xem đủ, chép tin nhắn khách: ${opts.link || "dashboard → Đơn hàng & Đối soát → Theo dõi vận đơn"}`)}`;
-    }
-    return m;
+    dong.push("", `👉 Chi tiết, chép tin nhắn khách: ${opts.link || "dashboard → Đơn hàng & Đối soát → Theo dõi vận đơn"}`);
+    return dong.join("\n");
 }
 
 module.exports = { buildTinVanDon, fetchVanDon, dongNguon };

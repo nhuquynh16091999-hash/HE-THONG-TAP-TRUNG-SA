@@ -17,17 +17,20 @@ thẻ/TKQC như bot WhatsApp cũ (`ops/whatsapp-alerts/`, đang tắt).
 Sỹ Anh chốt 25/09/2026: **08:00 mỗi sáng** gửi **"📦 VẬN ĐƠN CẦN XỬ LÝ"** vào một nhóm Zalo
 **khác nhóm ads** — tin có tên + SĐT khách để sale gọi, nên không bao giờ vào nhóm ads.
 
-| Mục trong tin | Luật |
+**Tin GỌN** (Sỹ Anh chốt 25/09/2026): MỘT tin Zalo, mỗi đơn một dòng — ngày thường ~1.300 ký tự.
+
+| Dòng | Luật |
 |---|---|
-| 🔴 Sắp bị trả về | Hàng ở cửa hàng còn ≤ `warn_before_expire_days` ngày — gần hết hạn nhất lên đầu |
-| 🔴 Đã quá hạn lấy | Quá ÍT ngày nhất lên đầu (quá 1 ngày còn gọi kịp, quá 3 tuần gần như đã trả về) |
-| 🟠 Giao hỏng · sự cố · đứng im | Kèm lý do / số ngày không nhúc nhích |
-| 🔔 Nhắc | Chỉ đếm: đơn vừa tới cửa hàng, đơn chưa biết ở đâu |
+| `📦 VẬN ĐƠN dd/mm · cập nhật hh:mm` + `🏪 n đơn ở cửa hàng · tiền chờ lấy` | Đầu tin. `⚠️` chỉ hiện khi CÓ vấn đề (17TRACK lỗi, hết/sắp hết quota, khoá hỏng, việc 6h không chạy) |
+| `☎️ GỌI NGAY — sắp bị trả về` | Duy nhất mục in đủ: mã · tiền · hạn · tên SĐT · cửa hàng #mã lấy hàng. Gần hết hạn lên đầu, tối đa `vanDon.maxGap` dòng |
+| `⏰ Quá hạn lấy` · `⚠️ Giao hỏng` · `🐢 Đứng im` · `❗ Lệch đối tác ↔ 17TRACK` | Mỗi loại MỘT dòng, chỉ mã đơn (tối đa `maxCanhBao` mã, còn lại `… +n`) |
+| `↩️ Hoàn hàng` | Chỉ ĐẾM đang hoàn / đã hoàn — hàng quay đầu thì gọi khách không cứu được |
+| `📬` | Đếm đơn vừa tới cửa hàng, đơn chưa rõ vị trí |
+| `👉` | Link dashboard — chi tiết + nút chép tin nhắn khách |
 
 Số lấy từ `/api/talpha/tracking` — **đúng route màn "Theo dõi vận đơn"**, cùng luật `buildAlerts`.
 Sáng 6h `talpha-tracking.service` nạp bảng đối tác rồi đồng bộ 17TRACK; tin 08:00 đọc kết quả đó
-và **tự tố** khi 17TRACK lỗi, hết/sắp hết quota, hay việc 6h không chạy. In tối đa
-`vanDon.maxGap` đơn gấp + `maxCanhBao` đơn cảnh báo, còn lại chỉ đếm và trỏ về dashboard.
+và **tự tố** khi 17TRACK lỗi, hết/sắp hết quota, hay việc 6h không chạy.
 
 Chọn nhóm (nick phụ phải nằm sẵn trong nhóm):
 
@@ -175,7 +178,7 @@ Chạy thử từ máy Mac: `TALPHA_DASHBOARD_URL=http://139.180.131.21:3000 nod
 | `adsSpikeRatio` / `adsMinTotalForSpike` | 1,5 / 3000000 | Chi tiêu hôm nay ≥ 1,5 lần TB 7 ngày VÀ ≥ 3tr là bất thường |
 | `quietStartHour` / `quietEndHour` | 23 / 7 | Giờ không tự gửi |
 | `vanDon.at` / `catchUpMinutes` | `08:00` / 180 | Giờ tin vận đơn; để trống `at` là tắt. Dashboard lỗi thì thử lại mỗi 5' tới 11:00 |
-| `vanDon.maxGap` / `maxCanhBao` | 15 / 8 | Số đơn in ra mỗi mức, còn lại chỉ đếm |
+| `vanDon.maxGap` / `maxCanhBao` | 15 / 8 | Số dòng "gọi ngay" tối đa · số mã tối đa trên một dòng liệt kê |
 | `vanDon.quotaWarn` | 200 | Nhắc khi quota 17TRACK còn dưới mức này — hoặc dưới 15% cỡ gói nếu nhỏ hơn (gói miễn phí vài trăm mã thì không kêu mỗi ngày) |
 | `maxChars` / `sendGapMs` | 1800 / 4000 | Tin dài hơn thì chia; nghỉ giữa hai tin để Zalo khỏi coi là spam |
 
