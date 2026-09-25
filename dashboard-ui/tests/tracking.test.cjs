@@ -267,8 +267,8 @@ t("không hỏi được quota (null) thì chỉ cắt theo trần mỗi lượt
     assert.strictEqual(p.pick.length, 2);
     assert.strictEqual(p.quota_limited, false);
 });
-t("rules đang khai nhiều khoá, dùng thoải mái → tu_dong", () => {
-    assert.strictEqual(T.TRACK_CFG.register_scope, "tu_dong");
+t("rules: theo dõi hết đơn, không chia nhịp → tat_ca (Sỹ Anh chốt 25/09/2026)", () => {
+    assert.strictEqual(T.TRACK_CFG.register_scope, "tat_ca");
 });
 
 console.log("── 17TRACK: tu_dong — đơn cảnh báo lấy hết, đơn thường chia nhịp theo tháng ──");

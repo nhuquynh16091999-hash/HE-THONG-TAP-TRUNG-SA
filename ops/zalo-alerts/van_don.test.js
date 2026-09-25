@@ -115,8 +115,8 @@ const dung = (d, o = {}) => tron(buildTinVanDon(d, { today: TODAY, nowTs: NOW, l
 
     await t("hết quota → nói rõ bao nhiêu đơn đang mù và bao giờ có lại", () => {
         const het = dung(DATA({ last_sync: { at: "2026-09-25T23:05:00Z", ok: true, quota_out: true, over_cap: 7, quota: { total: 200, remain: 0 } } }));
-        assert.match(het, /Hết quota 17TRACK — 7 đơn cần xử lý chưa được soi/);
-        assert.match(het, /Gói miễn phí có lại ngày 1 tháng sau/);
+        assert.match(het, /HẾT QUOTA 17TRACK — 7 đơn chưa được theo dõi/);
+        assert.match(het, /Thêm khoá mới, hoặc chờ quota miễn phí về lại ngày 1/);
     });
 
     await t("sắp hết quota: ngưỡng theo cỡ gói, gói miễn phí không kêu mỗi ngày", () => {
@@ -141,7 +141,7 @@ const dung = (d, o = {}) => tron(buildTinVanDon(d, { today: TODAY, nowTs: NOW, l
 
     await t("hết quota: chỉ đếm đơn cần xử lý, không đếm đơn thường để lượt sau", () => {
         const m = dung(DATA({ last_sync: { at: "2026-09-25T23:05:00Z", ok: true, quota_out: true, over_cap: 40, deferred: 35, quota: { total: 400, remain: 0 } } }));
-        assert.match(m, /5 đơn cần xử lý chưa được soi/);
+        assert.match(m, /HẾT QUOTA 17TRACK — 5 đơn chưa được theo dõi/);
     });
 
     await t("chưa có khoá 17TRACK → nói rõ đang chạy bằng bảng đối tác", () => {

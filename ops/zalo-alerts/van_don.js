@@ -70,8 +70,8 @@ function dongNguon(d, nowTs, { quotaWarn = 200, staleHours = 26 } = {}) {
     if (ls && ls.quota_out) {
         // over_cap gồm cả đơn thường để lượt sau vì chia nhịp — đó KHÔNG phải đơn cần xử lý.
         const n = Math.max(0, (Number(ls.over_cap) || 0) - (Number(ls.deferred) || 0));
-        ra.push(`⚠️ ${B("Hết quota 17TRACK")} — ${n ? `${fmt(n)} đơn cần xử lý chưa được soi, ` : ""}`
-            + "các đơn đó đang theo bảng đối tác (trễ ~2 ngày). Gói miễn phí có lại ngày 1 tháng sau.");
+        ra.push(`⚠️ ${B(`HẾT QUOTA 17TRACK${n ? ` — ${fmt(n)} đơn chưa được theo dõi` : ""}`)}. `
+            + "Các đơn đó đang theo bảng đối tác (trễ ~2 ngày). Thêm khoá mới, hoặc chờ quota miễn phí về lại ngày 1.");
     } else if (ls && ls.ok && ls.quota && ls.quota.total > 0) {
         // Ngưỡng theo cỡ gói: gói miễn phí vài trăm mã thì "còn dưới 200" là kêu mỗi ngày.
         const nguong = Math.min(quotaWarn, Math.ceil(ls.quota.total * 0.15));
