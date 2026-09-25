@@ -10,8 +10,8 @@ import {
     type Shipment,
 } from "@/lib/talpha/tracking";
 import {
-    register, changeCarrier, getTrackInfo, getQuota, hasApiKey, Track17Error,
-    ERR_ALREADY_REGISTERED, ERR_QUOTA_OUT, type Quota,
+    apiKeys, allocateToKeys, register, changeCarrier, getTrackInfo, getQuota, hasApiKey, Track17Error,
+    ERR_ALREADY_REGISTERED, ERR_QUOTA_OUT, type ApiKey, type Quota, type RegisterResult, type TrackInfo,
 } from "@/lib/talpha/track17";
 import { track17CodeFor } from "@/lib/talpha/partner-file";
 import { readStoreFresh, updateStore } from "@/lib/talpha/store";
@@ -46,13 +46,28 @@ type Registered = {
     order_uid: string | null; registered_at: string; carrier: number | null; number?: string;
     /** Số lần đã đổi hãng vì 17TRACK đoán nhầm — chặn vòng đổi mãi không xong. */
     carrier_changes?: number;
+    /** Khoá (tài khoản 17TRACK) đã đăng ký mã này — chỉ khoá đó hỏi được trạng thái. */
+    key_id?: string;
+};
+/** Kết quả một lượt của MỘT khoá — tin Zalo nêu đích danh khoá nào hỏng. */
+type KeySync = {
+    label: string; ok: boolean; error?: string;
+    registered?: number; checked?: number; quota?: Quota | null;
 };
 type LastSync = {
     at: string; ok: boolean; error?: string;
     registered?: number; checked?: number; changed?: number; carrier_fixed?: number;
-    register_rejected?: number; over_cap?: number; quota_out?: boolean;
+    register_rejected?: number; over_cap?: number; deferred?: number; quota_out?: boolean;
+    /** Quota CỘNG của mọi khoá hỏi được. */
     quota?: Quota | null;
+    keys?: KeySync[];
+    /** Mã đã đăng ký bằng khoá không còn trong .env — không ai hỏi được nữa. */
+    orphaned?: number;
 };
+
+const congQuota = (qs: Quota[]): Quota | null => qs.length ? qs.reduce((a, q) => ({
+    total: a.total + q.total, used: a.used + q.used, remain: a.remain + q.remain, today_used: a.today_used + q.today_used,
+}), { total: 0, used: 0, remain: 0, today_used: 0 }) : null;
 type Saved = {
     status: string | null; sub_status: string | null; status_since: string;
     last_event_time: string | null; last_event: string | null;
@@ -256,7 +271,8 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
     const { from, to, ok } = range(req);
     if (!ok) return NextResponse.json({ error: "from/to phải dạng YYYY-MM-DD" }, { status: 400 });
-    if (!hasApiKey()) {
+    const keys = apiKeys();
+    if (!keys.length) {
         return NextResponse.json({
             error: "Chưa có khoá 17TRACK. Lấy ở 17track.net/en/api rồi điền TRACK17_API_KEY vào dashboard-ui/.env.local.",
         }, { status: 428 });
@@ -265,15 +281,27 @@ export async function POST(req: NextRequest) {
     const now = new Date();
     const nowIso = now.toISOString();
     const ghiLuot = (x: LastSync) => updateStore<Store>(STORE, emptyStore(), (cur) => { cur.last_sync = x; return cur; });
+    // Một khoá hỏng (hết hạn, bị khoá) KHÔNG làm hỏng cả lượt — ghi lại rồi chạy tiếp khoá khác.
+    const theoKhoa = new Map<string, KeySync>(keys.map((k) => [k.id, { label: k.label, ok: true }]));
+    const loiKhoa = (k: ApiKey, e: unknown) => {
+        const x = theoKhoa.get(k.id)!;
+        x.ok = false;
+        x.error = e instanceof Error ? e.message : String(e);
+        console.warn(`17TRACK ${k.label} lỗi:`, x.error);
+    };
+    // Lỗi giữa chừng vẫn giữ phần đã xong (batched gắn vào e.partial) — mã đã đăng ký
+    // ở lô trước là quota đã trừ, phải ghi sổ.
+    const phanDaXong = <T>(e: unknown, rong: T): T =>
+        e instanceof Track17Error && e.partial ? (e.partial as T) : rong;
 
     try {
+        // ── 0. Sổ cũ (lúc mới có MỘT khoá) chưa ghi khoá nào → của khoá 1 ──
+        await updateStore<Store>(STORE, emptyStore(), (cur) => {
+            for (const r of Object.values(cur.registered)) if (!r.key_id) r.key_id = keys[0].id;
+            return cur;
+        });
+
         const { shipments } = await loadShipments(from, to);
-        // Hỏi quota còn lại TRƯỚC (miễn phí) để không bao giờ gửi quá số đó: gửi quá thì
-        // 17TRACK từ chối phần thừa — mà phần thừa có khi lại là đơn gấp nhất. Hỏi hỏng
-        // thì cứ đăng ký theo trần mỗi lượt, 17TRACK tự chặn khi hết.
-        let quota: Quota | null = null;
-        try { quota = await getQuota(); } catch (e) { console.warn("17TRACK getquota lỗi:", e); }
-        const plan = planRegister(shipments, now, { quotaRemain: quota?.remain ?? null });
         const byNumber = new Map<string, Shipment[]>();
         for (const s of shipments) {
             if (!s.track17_code) continue;
@@ -281,32 +309,49 @@ export async function POST(req: NextRequest) {
             if (l) l.push(s); else byNumber.set(s.track17_code, [s]);
         }
 
-        // ── 1. Đăng ký mã mới (TỐN QUOTA) ──
+        // Hỏi quota từng khoá TRƯỚC (miễn phí) để không bao giờ gửi quá số còn lại: gửi quá
+        // thì 17TRACK từ chối phần thừa — mà phần thừa có khi lại là đơn gấp nhất.
+        const quotas = new Map<string, Quota | null>();
+        for (const k of keys) {
+            try { quotas.set(k.id, await getQuota(k)); } catch (e) { quotas.set(k.id, null); loiKhoa(k, e); }
+        }
+        const tong = congQuota([...quotas.values()].filter((q): q is Quota => !!q));
+        const plan = planRegister(shipments, now, { quotaRemain: tong?.remain ?? null, quotaTotal: tong?.total ?? null });
+
+        // ── 1. Đăng ký mã mới (TỐN QUOTA) — chia cho các khoá theo quota còn lại ──
+        // Sổ đăng ký là nơi DUY NHẤT biết mã nào đã có chủ: planRegister bỏ mọi mã đã nằm
+        // trong sổ dù thuộc khoá nào, nên một mã không bao giờ bị hai khoá cùng đăng ký.
         let registered = 0;
         const rejected: { number: string; code: number; message: string }[] = [];
         const justRegistered = new Set<string>();
-        if (plan.pick.length) {
-            const numbers = plan.pick.map((s) => s.track17_code as string);
-            const tags = Object.fromEntries(plan.pick.filter((s) => s.order_id).map((s) => [s.track17_code as string, s.order_id]));
-            const r = await register(numbers, tags);
-            registered = r.accepted.length;
-            const carrierOf = new Map(r.accepted.map((a) => [clean(a.number), a.carrier]));
-            for (const a of r.accepted) justRegistered.add(clean(a.number));
+        const chia = allocateToKeys(plan.pick, keys.map((k) => ({ id: k.id, remain: quotas.get(k.id)?.remain ?? null })));
+        for (const k of keys) {
+            const lo = chia.get(k.id);
+            if (!lo?.length) continue;
+            const numbers = lo.map((s) => s.track17_code as string);
+            const tags = Object.fromEntries(lo.filter((s) => s.order_id).map((s) => [s.track17_code as string, s.order_id]));
+            let r: RegisterResult;
+            try { r = await register(k, numbers, tags); }
+            catch (e) { loiKhoa(k, e); r = phanDaXong(e, { accepted: [], rejected: [] }); }
+            const moi = new Map<string, number | null>();
+            for (const a of r.accepted) moi.set(clean(a.number), a.carrier || null);
             for (const x of r.rejected) {
-                // Đã đăng ký từ trước (lượt trước chết giữa chừng, sổ bị mất) — 17TRACK
-                // KHÔNG trừ quota lần này, chỉ cần ghi sổ lại cho khớp.
-                if (x.code === ERR_ALREADY_REGISTERED) justRegistered.add(clean(x.number));
+                // Đã đăng ký từ trước ở CHÍNH khoá này (lượt trước chết giữa chừng) —
+                // 17TRACK KHÔNG trừ quota lần này, chỉ cần ghi sổ lại cho khớp.
+                if (x.code === ERR_ALREADY_REGISTERED) moi.set(clean(x.number), null);
                 else rejected.push(x);
             }
+            registered += r.accepted.length;
+            theoKhoa.get(k.id)!.registered = r.accepted.length;
 
             // Ghi sổ NGAY: quota đã bị trừ rồi, mất sổ là lần sau trừ lần nữa.
-            if (justRegistered.size) {
+            if (moi.size) {
+                for (const n of moi.keys()) justRegistered.add(n);
                 await updateStore<Store>(STORE, emptyStore(), (cur) => {
-                    for (const n of justRegistered) {
+                    for (const [n, carrier] of moi) {
                         for (const s of byNumber.get(n) || []) {
                             cur.registered[s.tracking] = {
-                                order_uid: s.order_uid, registered_at: nowIso,
-                                carrier: carrierOf.get(n) || null, number: n,
+                                order_uid: s.order_uid, registered_at: nowIso, carrier, number: n, key_id: k.id,
                             };
                         }
                     }
@@ -315,26 +360,31 @@ export async function POST(req: NextRequest) {
             }
         }
 
-        // ── 1b. Đổi hãng cho mã 17TRACK đoán nhầm (không trừ quota) ──
+        // ── 1b. Đổi hãng cho mã 17TRACK đoán nhầm (không trừ quota), bằng khoá của mã ──
         // Lượt đầu 25/09/2026 để 17TRACK tự đoán: 7 mã FamilyMart thành Bưu điện Ý. Mã
         // đăng ký rồi không đăng ký lại được, chỉ đổi hãng — thử tối đa 2 lần mỗi mã.
         const MAX_DOI_HANG = 2;
         const soDangKy = await readStoreFresh<Store>(STORE, emptyStore());
-        const doiHang = new Map<string, { number: string; carrier_old: number; carrier_new: number }>();
+        const doiHang = new Map<string, Map<string, { number: string; carrier_old: number; carrier_new: number }>>();
         for (const r of Object.values(soDangKy.registered)) {
             const want = carrierFor(r.number);
-            if (!r.number || !want || !r.carrier || r.carrier === want) continue;
+            if (!r.number || !r.key_id || !want || !r.carrier || r.carrier === want) continue;
             if ((r.carrier_changes ?? 0) >= MAX_DOI_HANG) continue;
-            doiHang.set(r.number, { number: r.number, carrier_old: r.carrier, carrier_new: want });
+            if (!doiHang.has(r.key_id)) doiHang.set(r.key_id, new Map());
+            doiHang.get(r.key_id)!.set(r.number, { number: r.number, carrier_old: r.carrier, carrier_new: want });
         }
         let carrierFixed = 0;
-        if (doiHang.size) {
-            const r = await changeCarrier([...doiHang.values()]);
+        for (const k of keys) {
+            const items = doiHang.get(k.id);
+            if (!items?.size) continue;
+            let r: RegisterResult;
+            try { r = await changeCarrier(k, [...items.values()]); }
+            catch (e) { loiKhoa(k, e); r = phanDaXong(e, { accepted: [], rejected: [] }); }
             const ok = new Set(r.accepted.map((a) => clean(a.number)));
-            carrierFixed = ok.size;
+            carrierFixed += ok.size;
             await updateStore<Store>(STORE, emptyStore(), (cur) => {
                 for (const reg of Object.values(cur.registered)) {
-                    const d = reg.number ? doiHang.get(reg.number) : undefined;
+                    const d = reg.key_id === k.id && reg.number ? items.get(reg.number) : undefined;
                     if (!d) continue;
                     reg.carrier_changes = (reg.carrier_changes ?? 0) + 1;
                     if (ok.has(d.number)) reg.carrier = d.carrier_new;
@@ -343,20 +393,44 @@ export async function POST(req: NextRequest) {
             });
         }
 
-        // ── 2. Hỏi trạng thái (miễn phí) ──
-        const info = await getTrackInfo(planTrack(shipments, justRegistered));
+        // ── 2. Hỏi trạng thái (miễn phí) — mỗi khoá chỉ hỏi mã của chính nó ──
+        const soMoi = await readStoreFresh<Store>(STORE, emptyStore());
+        const khoaCuaMa = new Map<string, string>();
+        for (const r of Object.values(soMoi.registered)) if (r.number && r.key_id) khoaCuaMa.set(r.number, r.key_id);
+        const conKhoa = new Set(keys.map((k) => k.id));
+        const hoiTheoKhoa = new Map<string, string[]>();
+        let orphaned = 0;
+        for (const n of planTrack(shipments, justRegistered)) {
+            const kid = khoaCuaMa.get(n);
+            if (!kid || !conKhoa.has(kid)) { orphaned++; continue; }
+            if (!hoiTheoKhoa.has(kid)) hoiTheoKhoa.set(kid, []);
+            hoiTheoKhoa.get(kid)!.push(n);
+        }
+        const found: TrackInfo[] = [];
+        const trackRejected: { number: string; message: string }[] = [];
+        for (const k of keys) {
+            const ns = hoiTheoKhoa.get(k.id);
+            if (!ns?.length) continue;
+            let r: { found: TrackInfo[]; rejected: { number: string; message: string }[] };
+            try { r = await getTrackInfo(k, ns); }
+            catch (e) { loiKhoa(k, e); r = phanDaXong(e, { found: [], rejected: [] }); }
+            found.push(...r.found);
+            trackRejected.push(...r.rejected);
+            theoKhoa.get(k.id)!.checked = r.found.length;
+        }
+
         let changed = 0;
         await updateStore<Store>(STORE, emptyStore(), (cur) => {
-            for (const t of info.found) {
-                // 17TRACK chưa có tin (vừa đăng ký, chưa nhận ra hãng) thì giữ trạng thái
-                // đối tác — ghi "NotFound" đè lên là mất luôn "đang ở cửa hàng", và lần
-                // nạp file sau cũng không sửa lại được vì nguồn đã thành 17track.
-                if (!t.status || t.status === "NotFound") continue;
+            for (const t of found) {
                 for (const s of byNumber.get(clean(t.number)) || []) {
                     // Sổ chưa biết hãng (mã đăng ký từ trước, 17TRACK báo "đã đăng ký") thì
                     // học từ đây — lượt sau mới soát được hãng có đúng luật không.
                     const reg = cur.registered[s.tracking];
                     if (reg && !reg.carrier && t.carrier) reg.carrier = t.carrier;
+                    // 17TRACK chưa có tin (vừa đăng ký, chưa nhận ra hãng) thì giữ trạng thái
+                    // đối tác — ghi "NotFound" đè lên là mất luôn "đang ở cửa hàng", và lần
+                    // nạp file sau cũng không sửa lại được vì nguồn đã thành 17track.
+                    if (!t.status || t.status === "NotFound") continue;
                     const prev = cur.statuses[s.tracking];
                     // Đơn đối tác đã báo KẾT THÚC (hoàn, huỷ…) thì 17TRACK không kéo lùi.
                     if (prev?.status && TERMINAL.has(prev.status) && prev.source !== "17track") continue;
@@ -373,14 +447,22 @@ export async function POST(req: NextRequest) {
         });
 
         // ── 3. Quota sau lượt này (miễn phí) — hỏng thì giữ số hỏi lúc đầu ──
-        if (registered > 0 || !quota) {
-            try { quota = await getQuota(); } catch (e) { console.warn("17TRACK getquota lỗi:", e); }
+        for (const k of keys) {
+            if (!theoKhoa.get(k.id)!.registered && quotas.get(k.id)) continue;
+            try { quotas.set(k.id, await getQuota(k)); } catch { /* giữ số cũ */ }
         }
-        // Hết quota = còn đơn cần đăng ký mà không đăng ký được (gói miễn phí: hết tháng).
+        for (const k of keys) theoKhoa.get(k.id)!.quota = quotas.get(k.id) ?? null;
+        const khoa = [...theoKhoa.values()];
+        // MỌI khoá đều hỏng thì lượt này hỏng thật — báo lỗi, không báo "cập nhật xong".
+        if (khoa.every((x) => !x.ok)) throw new Track17Error(khoa.map((x) => `${x.label}: ${x.error}`).join(" · "));
+
+        const quota = congQuota([...quotas.values()].filter((q): q is Quota => !!q));
+        // Hết quota = còn đơn CẦN XỬ LÝ mà không đăng ký được (gói miễn phí: hết tháng).
         const quotaOut = rejected.some((x) => x.code === ERR_QUOTA_OUT) || plan.quota_limited;
         await ghiLuot({
-            at: nowIso, ok: true, registered, checked: info.found.length, changed, carrier_fixed: carrierFixed,
-            register_rejected: rejected.length, over_cap: plan.over_cap, quota_out: quotaOut, quota,
+            at: nowIso, ok: true, registered, checked: found.length, changed, carrier_fixed: carrierFixed,
+            register_rejected: rejected.length, over_cap: plan.over_cap, deferred: plan.deferred,
+            quota_out: quotaOut, quota, keys: khoa, orphaned,
         });
 
         const { shipments: after } = await loadShipments(from, to);
@@ -389,18 +471,21 @@ export async function POST(req: NextRequest) {
             registered,
             register_rejected: rejected.map((x) => ({ number: x.number, message: x.message })),
             over_cap: plan.over_cap,
+            deferred: plan.deferred,
             quota_out: quotaOut,
             quota,
-            checked: info.found.length,
+            keys: khoa,
+            orphaned,
+            checked: found.length,
             carrier_fixed: carrierFixed,
-            track_rejected: info.rejected.map((x) => ({ number: x.number, message: x.message })),
+            track_rejected: trackRejected.map((x) => ({ number: x.number, message: x.message })),
             status_changed: changed,
             alerts: buildAlerts(after, now),
             counts: countByStatus(after),
         });
     } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
-        await ghiLuot({ at: nowIso, ok: false, error: msg }).catch(() => {});
+        await ghiLuot({ at: nowIso, ok: false, error: msg, keys: [...theoKhoa.values()] }).catch(() => {});
         if (e instanceof Track17Error) {
             return NextResponse.json({ error: e.message }, { status: e.code === 429 ? 429 : 502 });
         }

@@ -27,11 +27,16 @@ type TrackingConfig = {
     register_max_age_days?: number;
     register_max_per_run?: number;
     register_scope?: string;
+    register_reserve_pct?: number;
     carrier_rules?: { match: string; carrier: number }[];
 };
 
-/** "canh_bao": chỉ đăng ký đơn đang có cảnh báo Gấp/Cảnh báo · "tat_ca": mọi đơn chưa kết thúc. */
-export type RegisterScope = "canh_bao" | "tat_ca";
+/**
+ * "canh_bao": chỉ đơn đang có cảnh báo Gấp/Cảnh báo · "tat_ca": mọi đơn chưa kết thúc ·
+ * "tu_dong": đơn cảnh báo trước, rồi tới mọi đơn đang đi — phần này chia nhịp theo quota
+ * còn lại và số ngày còn lại trong tháng, để quota không cạn giữa tháng.
+ */
+export type RegisterScope = "canh_bao" | "tat_ca" | "tu_dong";
 
 export const TRACK_CFG: Required<Omit<TrackingConfig, "carrier" | "register_scope" | "carrier_rules">>
     & { carrier: number | null; register_scope: RegisterScope; carrier_rules: { match: RegExp; carrier: number }[] } = (() => {
@@ -49,7 +54,8 @@ export const TRACK_CFG: Required<Omit<TrackingConfig, "carrier" | "register_scop
         register_max_age_days: Number(c.register_max_age_days ?? 45),
         register_max_per_run: Number(c.register_max_per_run ?? 300),
         // Khai sai chữ thì về "canh_bao" — hẹp hơn, tốn ít quota hơn.
-        register_scope: c.register_scope === "tat_ca" ? "tat_ca" : "canh_bao",
+        register_scope: c.register_scope === "tat_ca" || c.register_scope === "tu_dong" ? c.register_scope : "canh_bao",
+        register_reserve_pct: Math.min(0.9, Math.max(0, Number(c.register_reserve_pct ?? 0.1))),
         carrier_rules: (c.carrier_rules || [])
             .filter((r) => r && r.match && Number(r.carrier) > 0)
             .map((r) => ({ match: new RegExp(r.match), carrier: Number(r.carrier) })),
@@ -361,9 +367,18 @@ export type RegisterPlan = {
     eligible: number;
     /** Số mã đủ điều kiện nhưng để lượt sau — chạm trần mỗi lượt hoặc hết quota. */
     over_cap: number;
-    /** Bị cắt vì quota còn lại không đủ (chứ không phải vì trần mỗi lượt). */
+    /** Đơn CẢNH BÁO bị cắt vì quota còn lại không đủ (chứ không phải vì trần mỗi lượt). */
     quota_limited: boolean;
+    /** "tu_dong": đơn thường để lượt sau vì chia nhịp quota (không phải hết quota). */
+    deferred: number;
 };
+
+/** Số ngày còn lại trong tháng (tính cả hôm nay), theo giờ Việt Nam — gói miễn phí reset ngày 1. */
+export function daysLeftInMonth(now: Date = new Date()): number {
+    const vn = new Date(now.getTime() + 7 * 3_600_000);
+    const last = new Date(Date.UTC(vn.getUTCFullYear(), vn.getUTCMonth() + 1, 0)).getUTCDate();
+    return last - vn.getUTCDate() + 1;
+}
 
 /**
  * Chọn đơn đem đăng ký 17TRACK. ⚠️ MỖI MÃ TỐN MỘT QUOTA, nên chỉ lấy đơn còn đáng theo dõi:
@@ -376,17 +391,25 @@ export type RegisterPlan = {
  * Cắt ở register_max_per_run (luật lọc có hỏng thì mất tối đa ngần ấy quota) và ở quota
  * còn lại (`quotaRemain`, hỏi 17TRACK trước khi gọi) — gửi quá quota thì 17TRACK từ chối
  * phần thừa, mà phần bị từ chối lại có thể là đơn gấp nhất.
+ *
+ * "tu_dong": đơn cảnh báo lấy hết (tới quota); đơn thường mỗi lượt chỉ lấy
+ *   (quota còn − phần giữ lại cho cảnh báo sau này) ÷ số ngày còn lại trong tháng.
+ * Không hỏi được quota thì "tu_dong" chỉ đăng ký đơn cảnh báo — mù quota mà đăng ký
+ * cả trăm đơn thường là cách cạn quota đúng lúc có đơn gấp.
  */
 export function planRegister(
     shipments: Shipment[], now: Date = new Date(),
-    opt: { maxAgeDays?: number; maxPerRun?: number; scope?: RegisterScope; quotaRemain?: number | null } = {},
+    opt: {
+        maxAgeDays?: number; maxPerRun?: number; scope?: RegisterScope;
+        quotaRemain?: number | null; quotaTotal?: number | null; daysLeft?: number;
+    } = {},
 ): RegisterPlan {
     const maxAge = opt.maxAgeDays ?? TRACK_CFG.register_max_age_days;
     const perRun = Math.max(0, opt.maxPerRun ?? TRACK_CFG.register_max_per_run);
     const remain = opt.quotaRemain == null || !Number.isFinite(opt.quotaRemain) ? Infinity : Math.max(0, opt.quotaRemain);
     const cap = Math.min(perRun, remain);
     const scope = opt.scope ?? TRACK_CFG.register_scope;
-    const canhBao = scope === "canh_bao"
+    const canhBao = scope !== "tat_ca"
         ? new Set(buildAlerts(shipments, now).filter((a) => a.level !== "nhac").map((a) => a.shipment))
         : null;
     const seen = new Set<string>();
@@ -397,7 +420,7 @@ export function planRegister(
         const n = s.track17_code;
         if (s.registered || !isTrack17Number(n) || seen.has(n)) continue;
         if (s.status && TERMINAL.has(s.status)) continue;
-        if (canhBao && !canhBao.has(s)) continue;
+        if (scope === "canh_bao" && !canhBao!.has(s)) continue;
         const d = s.ship_date || s.order_date;
         const age = d ? daysBetween(`${d.slice(0, 10)}T00:00:00Z`, now) : null;
         if (age !== null && age > maxAge) continue;
@@ -407,9 +430,29 @@ export function planRegister(
     const dateOf = (s: Shipment) => s.ship_date || s.order_date || "";
     cand.sort((a, b) => REGISTER_RANK(a.status) - REGISTER_RANK(b.status)
         || dateOf(b).localeCompare(dateOf(a)));
+    if (scope !== "tu_dong") {
+        return {
+            pick: cand.slice(0, cap), eligible: cand.length, over_cap: Math.max(0, cand.length - cap),
+            quota_limited: cand.length > cap && remain < perRun, deferred: 0,
+        };
+    }
+
+    const gap = cand.filter((s) => canhBao!.has(s));
+    const thuong = cand.filter((s) => !canhBao!.has(s));
+    const pickGap = gap.slice(0, cap);
+    let nhip = 0;
+    if (Number.isFinite(remain)) {
+        const total = opt.quotaTotal && opt.quotaTotal > 0 ? opt.quotaTotal : remain;
+        const giuLai = Math.ceil(total * TRACK_CFG.register_reserve_pct);
+        const ngay = Math.max(1, opt.daysLeft ?? daysLeftInMonth(now));
+        nhip = Math.max(0, Math.floor((remain - pickGap.length - giuLai) / ngay));
+    }
+    const pickThuong = thuong.slice(0, Math.max(0, Math.min(cap - pickGap.length, nhip)));
+    const pick = [...pickGap, ...pickThuong];
     return {
-        pick: cand.slice(0, cap), eligible: cand.length, over_cap: Math.max(0, cand.length - cap),
-        quota_limited: cand.length > cap && remain < perRun,
+        pick, eligible: cand.length, over_cap: cand.length - pick.length,
+        quota_limited: gap.length > pickGap.length && remain < perRun,
+        deferred: thuong.length - pickThuong.length,
     };
 }
 

@@ -71,6 +71,7 @@ type LastSync = {
     at: string; ok: boolean; error?: string;
     registered?: number; checked?: number; quota_out?: boolean;
     quota?: { total: number; used: number; remain: number } | null;
+    keys?: { label: string; ok: boolean; error?: string }[];
 };
 
 export default function TALPHATrackingTab({ dateRange }: Props) {
@@ -272,12 +273,15 @@ export default function TALPHATrackingTab({ dateRange }: Props) {
                 </div>
             )}
             {hasKey && lastSync && (
-                <p className={cn("text-xs", lastSync.ok && !lastSync.quota_out ? "text-muted-foreground" : "text-rose-600 dark:text-rose-400")}>
+                <p className={cn("text-xs", lastSync.ok && !lastSync.quota_out && !lastSync.keys?.some((k) => !k.ok)
+                    ? "text-muted-foreground" : "text-rose-600 dark:text-rose-400")}>
                     17TRACK · lần đồng bộ cuối {new Date(lastSync.at).toLocaleString("vi-VN", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit" })}
                     {lastSync.ok
                         ? ` · đăng ký ${lastSync.registered ?? 0} mã mới · cập nhật ${lastSync.checked ?? 0} mã`
                         : ` · LỖI: ${lastSync.error || "không rõ"}`}
                     {lastSync.quota ? ` · còn ${formatNumber(lastSync.quota.remain)}/${formatNumber(lastSync.quota.total)} quota` : ""}
+                    {(lastSync.keys?.length ?? 0) > 1 ? ` (${lastSync.keys!.length} khoá)` : ""}
+                    {lastSync.ok && lastSync.keys?.filter((k) => !k.ok).map((k) => ` · ${k.label} LỖI: ${k.error}`).join("")}
                     {lastSync.quota_out ? " · HẾT QUOTA — đơn mới không được theo dõi" : ""}
                 </p>
             )}

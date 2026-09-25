@@ -266,8 +266,41 @@ t("không hỏi được quota (null) thì chỉ cắt theo trần mỗi lượt
     assert.strictEqual(p.pick.length, 2);
     assert.strictEqual(p.quota_limited, false);
 });
-t("rules đang khai gói miễn phí → mặc định canh_bao", () => {
-    assert.strictEqual(T.TRACK_CFG.register_scope, "canh_bao");
+t("rules đang khai nhiều khoá, dùng thoải mái → tu_dong", () => {
+    assert.strictEqual(T.TRACK_CFG.register_scope, "tu_dong");
+});
+
+console.log("── 17TRACK: tu_dong — đơn cảnh báo lấy hết, đơn thường chia nhịp theo tháng ──");
+const nhieuThuong = (n) => Array.from({ length: n }, (_, i) =>
+    reg({ track17_code: `73N9${String(i).padStart(7, "0")}`, status: "InTransit" }));
+t("đơn cảnh báo lấy hết, đơn thường chỉ lấy (còn − giữ lại) ÷ số ngày còn lại", () => {
+    // 2 đơn cảnh báo + 50 đơn thường; quota tổng 200, còn 100, còn 5 ngày, giữ lại 10% = 20
+    // → nhịp = floor((100 − 2 − 20) / 5) = 15 đơn thường.
+    const p = T.planRegister([...coCanhBao(), ...nhieuThuong(50)], NOW,
+        { scope: "tu_dong", quotaRemain: 100, quotaTotal: 200, daysLeft: 5 });
+    const codes = p.pick.map((s) => s.track17_code);
+    assert.ok(codes.includes("73N00000001") && codes.includes("73N00000002"), "đơn cảnh báo phải có");
+    assert.strictEqual(p.pick.length, 2 + 15);
+    assert.strictEqual(p.deferred, 52 - 15);   // đơn thường = 50 + 2 đơn không cảnh báo của coCanhBao
+    assert.strictEqual(p.quota_limited, false, "chia nhịp không phải hết quota");
+});
+t("đơn cảnh báo đứng trước dù quota ít", () => {
+    const p = T.planRegister([...nhieuThuong(10), ...coCanhBao()], NOW,
+        { scope: "tu_dong", quotaRemain: 2, quotaTotal: 200, daysLeft: 5 });
+    assert.deepStrictEqual(p.pick.map((s) => s.track17_code).sort(), ["73N00000001", "73N00000002"]);
+});
+t("quota không đủ cho đơn cảnh báo → báo hết quota", () => {
+    const p = T.planRegister(coCanhBao(), NOW, { scope: "tu_dong", quotaRemain: 1, quotaTotal: 200, daysLeft: 5 });
+    assert.strictEqual(p.pick.length, 1);
+    assert.strictEqual(p.quota_limited, true);
+});
+t("không hỏi được quota → chỉ đăng ký đơn cảnh báo (mù quota không đốt vào đơn thường)", () => {
+    const p = T.planRegister([...coCanhBao(), ...nhieuThuong(20)], NOW, { scope: "tu_dong", quotaRemain: null });
+    assert.strictEqual(p.pick.length, 2);
+});
+t("số ngày còn lại trong tháng tính theo giờ Việt Nam", () => {
+    assert.strictEqual(T.daysLeftInMonth(new Date("2026-09-25T01:00:00Z")), 6);   // 25→30/09
+    assert.strictEqual(T.daysLeftInMonth(new Date("2026-09-30T18:00:00Z")), 31);  // 01/10 giờ VN
 });
 
 console.log("── 17TRACK: chọn mã hỏi trạng thái (miễn phí) ──");
@@ -355,4 +388,49 @@ t("17TRACK chưa có tin → trạng thái null, không vỡ", () => {
 });
 
 
-console.log(`\n${pass} phép thử — tất cả đạt.`);
+console.log("── 17TRACK: nhiều khoá ──");
+t("đọc mọi khoá theo thứ tự, bỏ khoá trùng và khoá rỗng", () => {
+    const ks = K.apiKeys({
+        TRACK17_API_KEY_10: "KHOA10", TRACK17_API_KEY: "KHOA1", TRACK17_API_KEY_2: "KHOA2",
+        TRACK17_API_KEY_3: "KHOA1", TRACK17_API_KEY_4: "  ", KHAC: "x",
+    });
+    assert.deepStrictEqual(ks.map((k) => k.key), ["KHOA1", "KHOA2", "KHOA10"]);
+    assert.deepStrictEqual(ks.map((k) => k.label), ["khoá 1", "khoá 2", "khoá 3"]);
+    assert.ok(ks.every((k) => /^[0-9a-f]{8}$/.test(k.id)), "id là băm, không phải khoá thật");
+    assert.ok(!ks.some((k) => k.id.includes("KHOA")));
+});
+t("chia mã cho khoá còn nhiều quota trước, khoá không rõ quota thì không giao", () => {
+    const m = K.allocateToKeys(["a", "b", "c", "d", "e"], [
+        { id: "k1", remain: 2 }, { id: "k2", remain: 10 }, { id: "chet", remain: null }, { id: "het", remain: 0 },
+    ]);
+    assert.deepStrictEqual(m.get("k2"), ["a", "b", "c", "d", "e"]);
+    assert.strictEqual(m.has("k1"), false);
+    const m2 = K.allocateToKeys(["a", "b", "c", "d", "e"], [{ id: "k1", remain: 2 }, { id: "k2", remain: 1 }]);
+    assert.deepStrictEqual(m2.get("k1"), ["a", "b"]);
+    assert.deepStrictEqual(m2.get("k2"), ["c"]);
+});
+
+// Lô sau hỏng thì lô trước (đã trừ quota) vẫn phải về tay bên gọi để ghi sổ —
+// không thì lượt sau đem đăng ký lại ở một khoá KHÁC, tốn quota hai lần.
+(async () => {
+    const goc = global.fetch;
+    let lan = 0;
+    global.fetch = async (_url, init) => {
+        lan++;
+        const body = JSON.parse(init.body);
+        if (lan === 1) {
+            return { ok: true, status: 200, json: async () => ({ code: 0, data: { accepted: body.map((x) => ({ number: x.number, carrier: 190456 })), rejected: [] } }) };
+        }
+        return { ok: false, status: 429, json: async () => ({}) };
+    };
+    try {
+        const so = Array.from({ length: 45 }, (_, i) => `73N8${String(i).padStart(7, "0")}`);
+        await assert.rejects(K.register({ id: "k", label: "khoá 1", key: "x" }, so), (e) => {
+            assert.strictEqual(e.code, 429);
+            assert.strictEqual(e.partial.accepted.length, 40, "lô đầu 40 mã đã đăng ký phải còn");
+            return true;
+        });
+        pass++; console.log("  ✓ lô sau hỏng vẫn trả về phần đã đăng ký (e.partial)");
+    } finally { global.fetch = goc; }
+    console.log(`\n${pass} phép thử — tất cả đạt.`);
+})().catch((e) => { console.error(e); process.exit(1); });

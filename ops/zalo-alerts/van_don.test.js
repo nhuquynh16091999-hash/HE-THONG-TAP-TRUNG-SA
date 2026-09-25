@@ -117,6 +117,24 @@ const dung = (d, o = {}) => tron(buildTinVanDon(d, { today: TODAY, nowTs: NOW, l
         assert.match(dung(DATA(ls(200, 20))), /Quota 17TRACK sắp hết — còn 20\/200/);
     });
 
+    await t("nhiều khoá: quota cộng, nêu số khoá; khoá hỏng thì nêu đích danh", () => {
+        const m = dung(DATA({ last_sync: { at: "2026-09-25T23:05:00Z", ok: true, quota: { total: 400, remain: 300 },
+            keys: [{ label: "khoá 1", ok: true }, { label: "khoá 2", ok: false, error: "17TRACK báo lỗi -18010002 ở khoá 2" }] } }));
+        assert.match(m, /còn 300 quota \(2 khoá\)/);
+        assert.match(m, /17TRACK khoá 2 lỗi: 17TRACK báo lỗi -18010002 ở khoá 2 — mã của khoá này không cập nhật được/);
+        assert.ok(!m.includes("khoá 1 lỗi"));
+    });
+
+    await t("mã thuộc khoá đã gỡ → cảnh báo", () => {
+        const m = dung(DATA({ last_sync: { at: "2026-09-25T23:05:00Z", ok: true, orphaned: 12 } }));
+        assert.match(m, /12 mã thuộc khoá 17TRACK đã gỡ khỏi \.env/);
+    });
+
+    await t("hết quota: chỉ đếm đơn cần xử lý, không đếm đơn thường để lượt sau", () => {
+        const m = dung(DATA({ last_sync: { at: "2026-09-25T23:05:00Z", ok: true, quota_out: true, over_cap: 40, deferred: 35, quota: { total: 400, remain: 0 } } }));
+        assert.match(m, /5 đơn cần xử lý chưa được soi/);
+    });
+
     await t("chưa có khoá 17TRACK → nói rõ đang chạy bằng bảng đối tác", () => {
         const m = dung(DATA({ has_api_key: false, last_sync: null }));
         assert.match(m, /Nguồn: bảng đối tác \(trễ ~2 ngày\) — chưa bật 17TRACK/);

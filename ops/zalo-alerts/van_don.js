@@ -52,12 +52,24 @@ function dongNguon(d, nowTs, { quotaWarn = 200, staleHours = 26 } = {}) {
         ra.push(`⚠️ ${B(`17TRACK chưa đồng bộ từ ${gioVN(ls.at)}`)} ${I("— việc sáng nay không chạy, số có thể trễ.")}`);
     } else {
         const q = ls.quota;
-        ra.push(I(`17TRACK cập nhật ${gioVN(ls.at)}${q ? ` · còn ${fmt(q.remain)} quota` : ""}`));
+        const nk = (ls.keys || []).length;
+        ra.push(I(`17TRACK cập nhật ${gioVN(ls.at)}${q ? ` · còn ${fmt(q.remain)} quota` : ""}${nk > 1 ? ` (${nk} khoá)` : ""}`));
+    }
+    // Nhiều khoá: một khoá chết thì lượt vẫn chạy bằng khoá khác — nhưng mã của khoá chết
+    // đứng im, nên phải nêu đích danh.
+    if (ls && ls.ok) {
+        for (const k of (ls.keys || []).filter((x) => !x.ok)) {
+            ra.push(`⚠️ ${B(`17TRACK ${k.label} lỗi`)}: ${cat(k.error, 100)} ${I("— mã của khoá này không cập nhật được.")}`);
+        }
+    }
+    if (ls && Number(ls.orphaned) > 0) {
+        ra.push(`⚠️ ${B(`${fmt(ls.orphaned)} mã thuộc khoá 17TRACK đã gỡ khỏi .env`)} — không cập nhật được nữa, lắp lại khoá đó nếu còn dùng.`);
     }
     // Gói miễn phí hết quota là CHUYỆN THƯỜNG cuối tháng — nói rõ đơn nào đang mù và bao
     // giờ có lại, chứ không chỉ kêu "nạp thêm".
     if (ls && ls.quota_out) {
-        const n = Number(ls.over_cap) || 0;
+        // over_cap gồm cả đơn thường để lượt sau vì chia nhịp — đó KHÔNG phải đơn cần xử lý.
+        const n = Math.max(0, (Number(ls.over_cap) || 0) - (Number(ls.deferred) || 0));
         ra.push(`⚠️ ${B("Hết quota 17TRACK")} — ${n ? `${fmt(n)} đơn cần xử lý chưa được soi, ` : ""}`
             + "các đơn đó đang theo bảng đối tác (trễ ~2 ngày). Gói miễn phí có lại ngày 1 tháng sau.");
     } else if (ls && ls.ok && ls.quota && ls.quota.total > 0) {
