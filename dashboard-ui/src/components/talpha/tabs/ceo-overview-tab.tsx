@@ -1,39 +1,64 @@
-﻿"use client";
+"use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { format } from "date-fns";
 import { formatVNDCompact, formatMoney, formatNumber, marketName, shippingVNDFromRevVnd, cn } from "../utils";
-import { useMarkets, sqlMarketFromCampaign } from "../markets-context";
-import { BQ_PROJECT, DATASET } from "../constants";
+import { useMarkets } from "../markets-context";
 import TabSkeleton from "@/components/ui/tab-skeleton";
 import CeoAssistant from "../ceo-assistant";
 import CeoSmartInsights from "./ceo-smart-insights";
 import {
     ReportHero, KpiRow, KpiTile, ResultCard, WaterfallList, BarStrip,
     ReportTable, FootNotes, LightEmoji, LightLegend,
-    lightForAdsPct, lightForHigher, DASH,
+    lightForAdsPct, DASH,
     type Column,
 } from "../report";
 
+/*
+ * Tổng quan — số lấy THẲNG từ file Google Sheet "TỔNG TEAM THÁNG n" qua
+ * /api/talpha/sheet-report?from&to, cùng file CEO xem và bot Zalo đọc.
+ *
+ * Trước 25/09/2026 tab tự tính lại từ BigQuery theo luật riêng: doanh thu chỉ đếm đơn
+ * ĐÃ GIAO XONG, tiền ads gán marketer theo ad_id của đơn đã giao, tên marketer là tên
+ * tài khoản POS thô ("Chun Ho", "Tô Lâm"), và không có mốc ngày — 28/07 → 25/09 ra
+ * DS 13,9tr, ads 146,4tr, ROAS 0,10×, trong khi Sheet cùng kỳ ra doanh số hơn 144tr.
+ * Sỹ Anh chốt: số dashboard phải khớp Sheet, và chỉ tính từ 15/09/2026. Đọc thẳng Sheet
+ * thì hết chỗ lệch — muốn đổi cách tính thì đổi ở format_all.py, hai nơi đổi theo nhau.
+ */
+
 interface Props { dateRange?: { from: Date; to: Date }; projectId?: string }
 
-interface MonthlyRow {
-    month: string; orders: number; revenue: number; ads_spend: number; shipping: number; net_profit: number;
+interface So { ads: number; mess: number; don: number; doanh_so: number; ds_giao_tc: number }
+type MarketerRow = So & { tab: string; display: string; ngoaiTong?: boolean };
+type MarketRow = So & { tab: string; code: string | null };
+type DayRow = So & { date: string };
+interface Report {
+    from: string; to: string; start_date: string | null;
+    sheets: Record<string, string>;
+    missing_months: string[];
+    team: So;
+    marketers: (So & { tab: string; display: string })[];
+    unassigned: So | null;
+    markets: MarketRow[];
+    days: DayRow[];
+    months: (So & { month: string })[];
 }
-interface MarketerRow {
-    marketer: string; orders: number; revenue: number; ads_spend: number; roas: number; net_profit: number;
-}
-interface MarketRow {
-    shop_name: string; orders: number; revenue: number; ads_spend: number; shipping: number; margin: number;
-}
+
+// Số dẫn xuất — cùng công thức cột Sheet (drow/vrow trong format_all.py).
+const pct = (a: number, b: number) => (b > 0 ? (a / b) * 100 : null);
+const adsPct = (s: So) => pct(s.ads, s.doanh_so);            // "% Ads/DT"
+const adsPctGiao = (s: So) => pct(s.ads, s.ds_giao_tc);      // "% Ads/DT giao"
+const tyLeChot = (s: So) => pct(s.don, s.mess);              // "Tỷ lệ chốt"
+const pctText = (v: number | null, digits = 1) => (v === null ? DASH : `${v.toFixed(digits)}%`);
+const ngayVN = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}`;
+
 export default function TALPHACeoOverviewTab({ dateRange }: Props) {
     const [loading, setLoading] = useState(true);
-    const [monthly, setMonthly] = useState<MonthlyRow[]>([]);
-    const [marketers, setMarketers] = useState<MarketerRow[]>([]);
-    const [markets, setMarkets] = useState<MarketRow[]>([]);
-    const [totals, setTotals] = useState({ orders: 0, revenue: 0, ads: 0, shipping: 0, net: 0, markets: 0 });
+    const [data, setData] = useState<Report | null>(null);
+    const [loi, setLoi] = useState<string | null>(null);
     // KPI doanh số/tháng (VND) từ talpha_rules.json — tháng nào không khai thì không có khoá.
     const [targets, setTargets] = useState<Record<string, number>>({});
+    const { loaded: marketsLoaded } = useMarkets();
 
     useEffect(() => {
         fetch("/api/talpha/targets")
@@ -42,231 +67,73 @@ export default function TALPHACeoOverviewTab({ dateRange }: Props) {
             .catch(() => setTargets({}));
     }, []);
 
-    const { loaded: marketsLoaded, markets: dsNuoc, primary: nuocChinh } = useMarkets();
-
     useEffect(() => {
-        // Chờ có danh sách nước: câu SQL tách chi tiêu theo nước sinh từ chính danh sách đó.
-        if (!marketsLoaded) return;
-        async function fetchData() {
-            setLoading(true);
-            try {
-                const from = dateRange?.from ? format(dateRange.from, "yyyy-MM-dd") : "2025-01-01";
-                const to = dateRange?.to ? format(dateRange.to, "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd");
+        let dung = false;
+        const from = format(dateRange?.from ?? new Date(), "yyyy-MM-dd");
+        const to = format(dateRange?.to ?? new Date(), "yyyy-MM-dd");
+        setLoading(true);
+        setLoi(null);
+        fetch(`/api/talpha/sheet-report?from=${from}&to=${to}`)
+            .then(async r => {
+                const d = await r.json();
+                if (!r.ok || d.error) throw new Error(d.error || `HTTP ${r.status}`);
+                return d as Report;
+            })
+            .then(d => { if (!dung) setData(d); })
+            .catch(e => { if (!dung) { setData(null); setLoi(String(e?.message || e)); } })
+            .finally(() => { if (!dung) setLoading(false); });
+        return () => { dung = true; };
+    }, [dateRange]);
 
-                // A1: mọi số tiền/đơn lấy từ view chuẩn vw_orders_std (revenue_vnd đã quy
-                // VND theo shop_label, order_date theo tz TKQC, is_confirmed = GIAO_THANH_CONG)
-                // và vw_fb_ads_std (spend đã là VND). Shipping vẫn model ở TS (3PL fee table).
-                const queries = [
-                    // Q0: DS Giao TC theo tháng × market
-                    `SELECT
-                        FORMAT_DATE('%Y-%m', order_date) as month,
-                        market,
-                        COUNT(DISTINCT order_uid) as orders,
-                        ROUND(SUM(revenue_vnd), 0) as revenue_vnd
-                    FROM \`${BQ_PROJECT}.${DATASET}.vw_orders_std\`
-                    WHERE order_date BETWEEN '${from}' AND '${to}' AND is_confirmed AND marketer_group != 'external'
-                    GROUP BY 1, 2 ORDER BY 1`,
+    // Chờ danh sách nước để đổi mã "SG" ra tên và tính phí ship theo bảng 3PL.
+    if (loading || !marketsLoaded) return <TabSkeleton cards={6} showChart={true} rows={5} />;
 
-                    // Q1: Monthly ads spend (VND)
-                    `SELECT
-                        FORMAT_DATE('%Y-%m', date) as month,
-                        ROUND(SUM(spend), 0) as ads_spend
-                    FROM \`${BQ_PROJECT}.${DATASET}.vw_fb_ads_std\`
-                    WHERE date BETWEEN '${from}' AND '${to}' AND spend > 0
-                    GROUP BY 1 ORDER BY 1`,
+    if (loi || !data) {
+        return (
+            <div className="rounded-xl border border-rose-300 bg-rose-50 p-5 text-sm text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300">
+                <p className="font-semibold">Không đọc được file TỔNG TEAM.</p>
+                <p className="mt-1">{loi}</p>
+                <p className="mt-2 text-xs opacity-80">
+                    Số trên tab này lấy thẳng từ Sheet. Không đọc được thì không hiện số tự tính khác đi,
+                    để khỏi có hai bộ số lệch nhau.
+                </p>
+            </div>
+        );
+    }
 
-                    // Q2: DS Giao TC theo marketer × market
-                    `SELECT
-                        marketer_name as marketer,
-                        market,
-                        COUNT(DISTINCT order_uid) as orders,
-                        ROUND(SUM(revenue_vnd), 0) as revenue_vnd
-                    FROM \`${BQ_PROJECT}.${DATASET}.vw_orders_std\`
-                    WHERE order_date BETWEEN '${from}' AND '${to}' AND is_confirmed AND marketer_group != 'external'
-                    GROUP BY 1, 2 ORDER BY revenue_vnd DESC`,
+    const t = data.team;
+    const period = `${ngayVN(data.from)} → ${ngayVN(data.to)}`;
+    const today = format(new Date(), "yyyy-MM-dd");
+    const runningMonth = today.slice(0, 7);
 
-                    // Q3: DS Giao TC theo market
-                    `SELECT
-                        market,
-                        COUNT(DISTINCT order_uid) as orders,
-                        ROUND(SUM(revenue_vnd), 0) as revenue_vnd
-                    FROM \`${BQ_PROJECT}.${DATASET}.vw_orders_std\`
-                    WHERE order_date BETWEEN '${from}' AND '${to}' AND is_confirmed AND marketer_group != 'external'
-                    GROUP BY 1 ORDER BY revenue_vnd DESC`,
+    // Phí ship dựng theo bảng giá 3PL, trên MỌI đơn đã chốt (cùng nền với doanh số).
+    // Không có tab nước (kỳ chỉ một nước có số) thì không biết nước nào → không đoán, để 0.
+    const ship = data.markets.reduce((s, m) => s + (m.code ? shippingVNDFromRevVnd(m.code, m.don, m.doanh_so) : 0), 0);
+    const lai = t.doanh_so - t.ads - ship;
+    const bien = pct(lai, t.doanh_so);
+    const roas = t.ads > 0 ? t.doanh_so / t.ads : 0;
+    const pAds = adsPct(t);
+    const pAdsGiao = adsPctGiao(t);
+    const chot = tyLeChot(t);
 
-                    // Q4: Chi tiêu theo nước — ô ĐẦU TIÊN là mã nước trong tên campaign thắng; tên
-                    // không ghi nước tính về nước chính (Sỹ Anh chốt 15/09/2026). Bản cũ gõ cứng 7
-                    // nước GCC + Đài bằng LIKE, không có Singapore, và ném tên kiểu "Lộc/…" vào "Other".
-                    `SELECT market, ROUND(SUM(spend), 0) as ads_spend
-                    FROM (
-                        SELECT ${sqlMarketFromCampaign(dsNuoc, nuocChinh)} AS market, spend
-                        FROM \`${BQ_PROJECT}.${DATASET}.vw_fb_ads_std\`
-                        WHERE date BETWEEN '${from}' AND '${to}' AND spend > 0
-                    )
-                    GROUP BY market`,
-
-                    // Q5: Ads spend per ad_id (for double-count-free marketer attribution)
-                    `SELECT ad_id, ROUND(SUM(spend), 0) as spend
-                    FROM \`${BQ_PROJECT}.${DATASET}.vw_fb_ads_std\`
-                    WHERE date BETWEEN '${from}' AND '${to}' AND spend > 0
-                    GROUP BY 1`,
-
-                    // Q6: Distinct (marketer, ad_id) pairs — đơn GTC, ad_id đã resolve (utm → cột)
-                    `SELECT
-                        marketer_name as marketer,
-                        resolved_ad_id as ad_id
-                    FROM \`${BQ_PROJECT}.${DATASET}.vw_orders_std\`
-                    WHERE order_date BETWEEN '${from}' AND '${to}' AND marketer_group != 'external'
-                      AND is_confirmed AND resolved_ad_id IS NOT NULL
-                    GROUP BY 1, 2`,
-
-                    // Q7: Total ads spend (VND)
-                    `SELECT ROUND(SUM(spend), 0) as total_ads
-                    FROM \`${BQ_PROJECT}.${DATASET}.vw_fb_ads_std\`
-                    WHERE date BETWEEN '${from}' AND '${to}' AND spend > 0`,
-                ];
-
-                const results = await Promise.all(
-                    queries.map(q =>
-                        fetch("/api/query", {
-                            method: "POST", headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({ query: q })
-                        }).then(r => r.json()).catch(() => ({ data: [] }))
-                    )
-                );
-
-                const isValidName = (n: string) =>
-                    !!n && n.toLowerCase() !== "unknown" && n !== "None" && n !== "null" && !n.includes("{") && n.length <= 50;
-
-                // Ads spend per ad_id (VND)
-                const adSpendMap = new Map<string, number>();
-                for (const r of results[5].data || []) {
-                    if (r.ad_id) adSpendMap.set(String(r.ad_id), r.ad_spend ?? r.spend ?? 0);
-                }
-                // Marketer → distinct ad_ids → attribute each ad's spend once (no double counting)
-                const mkAdsMap = new Map<string, Set<string>>();
-                for (const r of results[6].data || []) {
-                    const name = (r.marketer || "").trim();
-                    if (!isValidName(name) || !r.ad_id) continue;
-                    if (!mkAdsMap.has(name)) mkAdsMap.set(name, new Set());
-                    mkAdsMap.get(name)!.add(String(r.ad_id));
-                }
-                const marketerAds = (name: string) => {
-                    const ids = mkAdsMap.get(name);
-                    if (!ids) return 0;
-                    let s = 0; for (const id of ids) s += adSpendMap.get(id) || 0;
-                    return s;
-                };
-
-                // Monthly: aggregate revenue+shipping by month (VND, từ view) + merge ads
-                const monthMap = new Map<string, { orders: number; revenue: number; shipping: number }>();
-                for (const r of results[0].data || []) {
-                    const m = r.month || "";
-                    const rev = r.revenue_vnd || 0;
-                    const ship = shippingVNDFromRevVnd(r.market, r.orders || 0, rev);
-                    const ex = monthMap.get(m);
-                    if (ex) { ex.orders += r.orders || 0; ex.revenue += rev; ex.shipping += ship; }
-                    else monthMap.set(m, { orders: r.orders || 0, revenue: rev, shipping: ship });
-                }
-                const monthAdsMap = new Map<string, number>();
-                for (const r of results[1].data || []) {
-                    monthAdsMap.set(r.month || "", r.ads_spend || 0);
-                }
-                const allMonths = new Set([...monthMap.keys(), ...monthAdsMap.keys()]);
-                const monthlyArr: MonthlyRow[] = Array.from(allMonths).sort().map(m => {
-                    const rev = monthMap.get(m)?.revenue || 0;
-                    const orders = monthMap.get(m)?.orders || 0;
-                    const ship = monthMap.get(m)?.shipping || 0;
-                    const ads = monthAdsMap.get(m) || 0;
-                    return { month: m, orders, revenue: rev, ads_spend: ads, shipping: ship, net_profit: rev - ads - ship };
-                });
-                setMonthly(monthlyArr);
-
-                // Marketers: aggregate by name with VND; ads attributed once per ad_id
-                // net_profit field temporarily accumulates shipping (VND) during aggregation
-                const mkMap = new Map<string, MarketerRow>();
-                for (const r of results[2].data || []) {
-                    const name = (r.marketer || "").trim();
-                    if (!isValidName(name)) continue;
-                    const rev = r.revenue_vnd || 0;
-                    const ship = shippingVNDFromRevVnd(r.market, r.orders || 0, rev);
-                    const ex = mkMap.get(name);
-                    if (ex) { ex.orders += r.orders || 0; ex.revenue += rev; ex.net_profit += ship; }
-                    else mkMap.set(name, { marketer: name, orders: r.orders || 0, revenue: rev, ads_spend: 0, roas: 0, net_profit: ship });
-                }
-                const mkArr = Array.from(mkMap.values()).map(m => {
-                    const ads = marketerAds(m.marketer);
-                    const shipping = m.net_profit; // temporarily held shipping
-                    return {
-                        ...m,
-                        ads_spend: ads,
-                        roas: ads > 0 ? Math.round((m.revenue / ads) * 100) / 100 : 0,
-                        net_profit: m.revenue - ads - shipping,
-                    };
-                }).sort((a, b) => b.revenue - a.revenue).slice(0, 10);
-                setMarketers(mkArr);
-
-                // Markets: revenue + shipping + ads (keyed by market code)
-                const mktAdsMap = new Map<string, number>();
-                for (const r of results[4].data || []) {
-                    mktAdsMap.set(r.market || "", r.ads_spend || 0);
-                }
-                const marketsArr: MarketRow[] = (results[3].data || []).map((r: any) => {
-                    const rev = r.revenue_vnd || 0;
-                    const ship = shippingVNDFromRevVnd(r.market, r.orders || 0, rev);
-                    const ads = mktAdsMap.get(r.market) || 0;
-                    const net = rev - ads - ship;
-                    return {
-                        shop_name: marketName(r.market), orders: r.orders || 0, revenue: rev,
-                        ads_spend: ads, shipping: ship,
-                        margin: rev > 0 ? Math.round((net / rev) * 1000) / 10 : 0,
-                    };
-                });
-                setMarkets(marketsArr);
-
-                // Global totals
-                const totalRev = monthlyArr.reduce((s, m) => s + m.revenue, 0);
-                const totalOrders = monthlyArr.reduce((s, m) => s + m.orders, 0);
-                const totalShipping = monthlyArr.reduce((s, m) => s + m.shipping, 0);
-                const totalAds = results[7].data?.[0]?.total_ads || 0;
-                setTotals({
-                    orders: totalOrders, revenue: totalRev, ads: totalAds, shipping: totalShipping,
-                    net: totalRev - totalAds - totalShipping, markets: marketsArr.length,
-                });
-            } catch (e) { console.error("CEO fetch error", e); } finally { setLoading(false); }
-        }
-        fetchData();
-    }, [dateRange, marketsLoaded, dsNuoc, nuocChinh]);
-
-    if (loading) return <TabSkeleton cards={6} showChart={true} rows={5} />;
-
-    // ═══ Số dẫn xuất — chỉ là phép chia trên totals, không đụng tới nguồn ═══
-    const overallRoas = totals.ads > 0 ? totals.revenue / totals.ads : 0;
-    const overallMargin = totals.revenue > 0 ? (totals.net / totals.revenue) * 100 : 0;
-    const adsPct = totals.revenue > 0 ? (totals.ads / totals.revenue) * 100 : 0;
-    const aov = totals.orders > 0 ? totals.revenue / totals.orders : 0;
-
-    const period = dateRange
-        ? `${format(dateRange.from, "dd/MM/yyyy")} → ${format(dateRange.to, "dd/MM/yyyy")}`
-        : "toàn kỳ";
-    // Tháng đang chạy: chưa hết tháng nên cột luôn thấp giả → đánh dấu, không giấu.
-    const runningMonth = format(new Date(), "yyyy-MM");
-
-    // Thanh tiến độ chỉ nói về THÁNG ĐANG CHẠY — KPI trong rules file là KPI tháng,
-    // đem so với cả khoảng 60 ngày của bộ chọn ngày là so hai thứ khác nhau.
-    const runningRow = monthly.find(m => m.month === runningMonth);
+    // Thanh KPI chỉ nói về THÁNG ĐANG CHẠY — KPI trong rules file là KPI tháng.
+    const runningRow = data.months.find(m => m.month === runningMonth);
     const runningTarget = targets[runningMonth];
     const monthProgress = runningRow && runningTarget
         ? {
-            label: `DS giao TC tháng ${runningMonth.slice(5)}/${runningMonth.slice(0, 4)}`,
-            current: runningRow.revenue,
+            label: `Doanh số tháng ${runningMonth.slice(5)}/${runningMonth.slice(0, 4)}`,
+            current: runningRow.doanh_so,
             target: runningTarget,
             format: formatVNDCompact,
         }
         : undefined;
 
     const signed = (n: number) => `${n >= 0 ? "+" : ""}${formatMoney(n)}`;
-    const pctOf = (part: number, whole: number) => (whole > 0 ? (part / whole) * 100 : 0);
+    const marketerRows: MarketerRow[] = [
+        ...data.marketers,
+        ...(data.unassigned ? [{ ...data.unassigned, tab: "(không gán)", display: "(không gán)", ngoaiTong: true }] : []),
+    ];
+    const tenNuoc = (m: MarketRow) => (m.code ? marketName(m.code) : m.tab);
 
     return (
         <div className="space-y-6">
@@ -276,131 +143,133 @@ export default function TALPHACeoOverviewTab({ dateRange }: Props) {
                 title={`Báo cáo ANTALO — ${period}`}
                 subtitle={
                     <>
-                        Doanh thu chỉ tính đơn <strong>giao thành công</strong>, đã quy VND theo tỷ giá từng thị trường ·
-                        tiền ads là số thật từ Meta · phí ship dựng theo bảng giá 3PL (cột shipping_fee của POS không dùng được) ·
-                        đã loại chi tiêu của người ngoài team.
+                        Số lấy thẳng từ file <strong>TỔNG TEAM</strong> — cùng file CEO xem, cập nhật mỗi giờ.
+                        Chỉ tính người trong team · doanh số là đơn đã chốt (trừ huỷ, nháp, đơn trống), quy VND theo tỷ giá
+                        từng nước · tiền ads là số thật từ Meta
+                        {data.start_date && <> · tính từ <strong>{ngayVN(data.start_date)}</strong>, trước đó dữ liệu chưa đủ</>}.
                     </>
                 }
                 progress={monthProgress}
             >
                 {monthProgress && (
                     <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground/80">
-                        KPI lấy từ bảng &ldquo;KPI Q3-Q4&rdquo; CEO chốt. KPI đó tính trên <strong>doanh số ship</strong>,
-                        còn thanh này đo <strong>đơn đã giao xong</strong> — hàng Trung Đông mất vài tuần mới giao tới tay
-                        nên giữa tháng thanh luôn ngắn hơn thực tế, cuối tháng mới về gần.
+                        KPI lấy từ bảng &ldquo;KPI Q3-Q4&rdquo; CEO chốt, tính trên doanh số ship. Thanh này đo doanh số đơn đã chốt
+                        {data.start_date && data.start_date.slice(0, 7) === runningMonth && <> từ {ngayVN(data.start_date)}</>}.
                     </p>
                 )}
             </ReportHero>
 
-            {/* ═══ 2. Hàng KPI ═══ */}
+            {data.missing_months.length > 0 && (
+                <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300">
+                    <strong>Thiếu số tháng {data.missing_months.join(", ")}:</strong> chưa khai ID file TỔNG TEAM của tháng đó trong{" "}
+                    <code className="rounded bg-amber-100 px-1 dark:bg-amber-500/20">talpha_rules.json → report_sheets.grand_by_month</code>.
+                    Các con số dưới đây <strong>chưa gồm</strong> tháng đó.
+                </div>
+            )}
+
+            {/* ═══ 2. Hàng KPI — cùng cột với Sheet ═══ */}
             <KpiRow>
                 <KpiTile
+                    emoji="💸"
+                    label="Tiền ads"
+                    value={formatVNDCompact(t.ads)}
+                    sub={`${formatNumber(t.mess)} tin nhắn · ${t.mess > 0 ? formatVNDCompact(t.ads / t.mess) : DASH}/tin`}
+                    tooltip="Cột TỔNG TIỀN ADS của tab Tổng: chi tiêu Meta của campaign có tên người trong team."
+                />
+                <KpiTile
                     emoji="💰"
-                    label="DS giao TC"
-                    value={formatVNDCompact(totals.revenue)}
-                    sub={`${formatNumber(totals.orders)} đơn · ${monthly.length} tháng`}
-                    tooltip="Doanh thu của riêng đơn đã giao thành công (GIAO_THANH_CONG), quy VND theo tỷ giá thị trường. Đơn chưa giao không được tính."
-                />
-                <KpiTile
-                    emoji="📊"
-                    label="Lãi sau ads"
-                    value={formatVNDCompact(totals.net)}
-                    sub={`biên ${overallMargin.toFixed(1)}%`}
-                    tone={totals.net >= 0 ? "good" : "bad"}
-                    tooltip="Doanh thu − tiền ads − phí ship. CHƯA trừ giá vốn và chưa trừ chi phí vận hành, nên đây không phải lãi cuối cùng."
-                />
-                <KpiTile
-                    emoji="📦"
-                    label="Đơn giao TC"
-                    value={formatNumber(totals.orders)}
-                    sub={`AOV ${formatVNDCompact(aov)}`}
-                />
-                <KpiTile
-                    emoji="🎯"
-                    label="ROAS"
-                    value={`${overallRoas.toFixed(2)}×`}
-                    sub={`Ads ${formatVNDCompact(totals.ads)}`}
-                    tone={lightForHigher(overallRoas, ROAS_TARGET, ROAS_DANGER)}
-                    tooltip={`DS giao TC ÷ tiền ads. Ngưỡng từ talpha_rules.json: ≥${ROAS_TARGET} đạt mục tiêu, dưới ${ROAS_DANGER} là báo động.`}
+                    label="Doanh số"
+                    value={formatVNDCompact(t.doanh_so)}
+                    sub={`${formatNumber(t.don)} đơn · TB ${t.don > 0 ? formatVNDCompact(t.doanh_so / t.don) : DASH}/đơn`}
+                    tooltip="Cột Doanh Số của Sheet: mọi đơn đã chốt trên POS (trừ huỷ, đơn nháp, đơn trống), quy VND theo tỷ giá từng nước."
                 />
                 <KpiTile
                     emoji="📉"
-                    label="ads%"
-                    value={`${adsPct.toFixed(0)}%`}
-                    tone={lightForAdsPct(adsPct)}
+                    label="% Ads/DT"
+                    value={pctText(pAds)}
+                    sub={`ROAS ${roas.toFixed(2)}×`}
+                    tone={pAds === null ? "neutral" : lightForAdsPct(pAds)}
                     legend={<LightLegend />}
-                    tooltip="Tiền ads trên DS giao TC. Càng thấp càng tốt."
+                    tooltip="Tiền ads ÷ doanh số — cột % Ads/DT của Sheet. Càng thấp càng tốt."
+                />
+                <KpiTile
+                    emoji="🎯"
+                    label="Tỷ lệ chốt"
+                    value={pctText(chot, 2)}
+                    sub={`CPO ${t.don > 0 ? formatVNDCompact(t.ads / t.don) : DASH}`}
+                    tooltip="Số đơn ÷ số tin nhắn. CPO = tiền ads ÷ số đơn."
+                />
+                <KpiTile
+                    emoji="📦"
+                    label="DS giao TC"
+                    value={formatVNDCompact(t.ds_giao_tc)}
+                    sub={t.ds_giao_tc > 0 ? `% Ads/DT giao ${pctText(pAdsGiao)}` : "chưa có đơn giao xong"}
+                    tooltip="Doanh số của riêng đơn đã giao thành công. Đơn COD mất vài ngày tới vài tuần mới giao xong nên số này luôn đi sau doanh số."
                 />
                 <KpiTile
                     emoji="🌍"
                     label="Thị trường"
-                    value={formatNumber(totals.markets)}
-                    sub={markets.slice(0, 3).map(m => m.shop_name).join(" · ") || DASH}
+                    value={formatNumber(data.markets.length || (t.don || t.ads ? 1 : 0))}
+                    sub={data.markets.map(tenNuoc).join(" · ") || DASH}
                 />
             </KpiRow>
 
-            {/* ═══ 3. Kết quả kỳ + bóc tách chi phí ═══ */}
+            {/* ═══ 3. Lãi tạm tính ═══ */}
             <ResultCard
                 emoji="📊"
-                title="Lãi / lỗ kỳ này"
-                note="Tính trên đơn đã giao thành công. Chưa trừ giá vốn (order_items chưa có giá) và chưa trừ chi phí vận hành (lương, phần mềm) — đây là lãi sau quảng cáo và phí ship, không phải lãi cuối cùng."
-                value={signed(totals.net)}
-                caption={`biên lãi ${overallMargin.toFixed(1)}% trên doanh thu`}
-                tone={totals.net >= 0 ? "good" : "bad"}
+                title="Lãi sau ads (tạm tính)"
+                note="Tính trên doanh số đơn đã chốt, tức là giả định mọi đơn đều giao thành công — đơn hoàn sau này sẽ kéo số này xuống. Chưa trừ giá vốn và chi phí vận hành."
+                value={signed(lai)}
+                caption={bien === null ? "chưa có doanh số" : `biên ${bien.toFixed(1)}% trên doanh số`}
+                tone={lai >= 0 ? "good" : "bad"}
                 segments={[
-                    { color: "bg-rose-400", value: totals.ads, label: "Tiền ads" },
-                    { color: "bg-amber-400", value: totals.shipping, label: "Phí ship" },
-                    { color: "bg-emerald-500", value: Math.max(0, totals.net), label: "Lãi sau ads" },
+                    { color: "bg-rose-400", value: t.ads, label: "Tiền ads" },
+                    { color: "bg-amber-400", value: ship, label: "Phí ship" },
+                    { color: "bg-emerald-500", value: Math.max(0, lai), label: "Lãi sau ads" },
                 ]}
                 subStats={[
+                    { label: "ROAS", value: `${roas.toFixed(2)}×`, hint: "doanh số ÷ tiền ads" },
+                    { label: "% Ads/DT", value: pctText(pAds), hint: "cột % Ads/DT của Sheet" },
                     {
-                        label: "ROAS",
-                        value: `${overallRoas.toFixed(2)}×`,
-                        hint: "DS giao TC ÷ tiền ads",
-                    },
-                    {
-                        label: "ads%",
-                        value: `${adsPct.toFixed(0)}%`,
-                        hint: `tiền ads chiếm ${adsPct.toFixed(0)}% doanh thu giao TC`,
-                    },
-                    {
-                        label: "Phí ship",
-                        value: formatVNDCompact(totals.shipping),
-                        hint: `${pctOf(totals.shipping, totals.revenue).toFixed(1)}% doanh thu · dựng từ bảng giá 3PL`,
+                        label: "Đã giao xong",
+                        value: formatVNDCompact(t.ds_giao_tc),
+                        hint: `${pctText(pct(t.ds_giao_tc, t.doanh_so))} doanh số đã thành tiền giao TC`,
                     },
                 ]}
             >
                 <WaterfallList
                     rows={[
-                        { label: "Doanh thu (đơn giao thành công)", value: formatMoney(totals.revenue), kind: "base" },
-                        { label: "Tiền ads", value: formatMoney(totals.ads), kind: "minus" },
-                        { label: "Phí ship", hint: "model 3PL theo thị trường", value: formatMoney(totals.shipping), kind: "minus" },
+                        { label: "Doanh số (đơn đã chốt)", value: formatMoney(t.doanh_so), kind: "base" },
+                        { label: "Tiền ads", value: formatMoney(t.ads), kind: "minus" },
+                        ship > 0
+                            ? { label: "Phí ship", hint: "model 3PL theo thị trường", value: formatMoney(ship), kind: "minus" }
+                            : { label: "Phí ship", hint: "chưa khai bảng giá 3PL", value: DASH, kind: "minus", missing: true },
                         { label: "Giá vốn", hint: "order_items chưa có giá vốn", value: DASH, kind: "minus", missing: true },
-                        { label: "Lãi sau quảng cáo", value: signed(totals.net), kind: "total" },
+                        { label: "Lãi sau ads (tạm tính)", value: signed(lai), kind: "total" },
                     ]}
                 />
             </ResultCard>
 
             {/* ═══ 4. Cảnh báo & trợ lý — giữ nguyên module cũ ═══ */}
-            <CeoSmartInsights roas={overallRoas} margin={overallMargin} net={totals.net} revenue={totals.revenue} />
+            <CeoSmartInsights roas={roas} margin={bien ?? 0} net={lai} revenue={t.doanh_so} />
             <CeoAssistant dateRange={dateRange} />
 
-            {/* ═══ 5. Xu hướng theo tháng ═══ */}
+            {/* ═══ 5. Xu hướng theo ngày ═══ */}
             <section className="rounded-xl border border-border bg-card p-5 shadow-sm">
-                <h3 className="section-header mb-1">📈 Xu hướng theo tháng</h3>
+                <h3 className="section-header mb-1">📈 Xu hướng theo ngày</h3>
                 <BarStrip
-                    hint="Cột mờ có gạch chéo = tháng đang chạy, chưa hết tháng nên luôn thấp giả. Tầng trên là doanh thu giao TC, tầng dưới là lãi (xanh) hoặc lỗ (đỏ)."
-                    items={monthly.map(m => ({
-                        label: `${m.month.slice(5)}/${m.month.slice(2, 4)}`,
-                        top: m.revenue,
-                        bottom: m.net_profit,
-                        inProgress: m.month === runningMonth,
-                        title: `${m.month} · DS ${formatMoney(m.revenue)} · lãi ${signed(m.net_profit)} · ${formatNumber(m.orders)} đơn`,
+                    hint="Tầng trên là doanh số đơn đã chốt, tầng dưới là doanh số trừ tiền ads của ngày đó. Cột mờ có gạch chéo = hôm nay, chưa hết ngày."
+                    items={data.days.map(d => ({
+                        label: `${d.date.slice(8, 10)}/${d.date.slice(5, 7)}`,
+                        top: d.doanh_so,
+                        bottom: d.doanh_so - d.ads,
+                        inProgress: d.date === today,
+                        title: `${ngayVN(d.date)} · ads ${formatMoney(d.ads)} · ${formatNumber(d.don)} đơn · DS ${formatMoney(d.doanh_so)}`,
                     }))}
                     legend={[
-                        { color: "bg-emerald-500/70", label: "doanh thu đơn giao TC" },
-                        { color: "bg-sky-500/70", label: "lãi sau ads" },
-                        { color: "bg-rose-500/70", label: "lỗ" },
+                        { color: "bg-emerald-500/70", label: "doanh số" },
+                        { color: "bg-sky-500/70", label: "doanh số − ads" },
+                        { color: "bg-rose-500/70", label: "ads vượt doanh số" },
                     ]}
                 />
             </section>
@@ -409,62 +278,57 @@ export default function TALPHACeoOverviewTab({ dateRange }: Props) {
             <ReportTable
                 emoji="👥"
                 title="Theo nhân viên"
-                note="Tiền ads gán về marketer qua ad_id, mỗi ad chỉ tính cho một người một lần nên tổng không bị đếm trùng. Người ngoài team đã loại khỏi bảng này."
+                note="Mỗi dòng là tab của người đó trong file TỔNG TEAM: tiền ads theo tên trong campaign, đơn theo người được gán trên POS. Dòng (không gán) — đơn chưa gán được ai, hoặc số của người đã nghỉ — không nằm trong dòng TỔNG, giống tab Tổng của Sheet."
                 columns={MARKETER_COLUMNS}
-                rows={marketers}
-                rowKey={m => m.marketer}
-                empty="Chưa gán được marketer nào trong kỳ này"
+                rows={marketerRows}
+                rowKey={m => m.tab}
+                empty="Kỳ này chưa có số của ai"
+                footer={<TongRow cells={[
+                    "TỔNG TEAM", money(t.ads), formatNumber(t.mess), formatNumber(t.don), pctText(chot, 2),
+                    money(t.doanh_so), pctText(pAds), money(t.ds_giao_tc), adsLight(t),
+                ]} />}
             />
 
             {/* ═══ 7. Theo thị trường ═══ */}
             <ReportTable
                 emoji="🌍"
                 title="Theo thị trường"
-note="Tiền ads chia theo nước bằng mã nước trong tên campaign (TW · SG · AE, đặt ở ô đầu). Campaign tên cũ không ghi nước đang tính về Đài Loan — đổi tên campaign để tách đúng nước."
-                columns={MARKET_COLUMNS}
-                rows={markets}
-                rowKey={m => m.shop_name}
+                note="Tab từng nước của file TỔNG TEAM. Tiền ads chia theo mã nước ở ô đầu tên campaign (TW · SG · AE); đơn theo shop POS của nước đó."
+                columns={MARKET_COLUMNS(tenNuoc)}
+                rows={data.markets}
+                rowKey={m => m.tab}
+                empty="Kỳ này chỉ một nước có số — Sheet không tách tab theo nước"
             />
 
-            {/* ═══ 8. Chi tiết theo tháng ═══ */}
+            {/* ═══ 8. Chi tiết theo ngày — cùng hàng với tab Tổng của Sheet ═══ */}
             <ReportTable
                 emoji="📅"
-                title="Chi tiết theo tháng"
-                columns={MONTHLY_COLUMNS}
-                rows={monthly}
-                rowKey={m => m.month}
-                footer={
-                    <tr className="border-t-2 border-amber-500/30 bg-amber-500/5 font-bold">
-                        <td className="px-3 py-2 text-left">TỔNG</td>
-                        <td className="px-3 py-2 text-right tabular-nums">{formatNumber(totals.orders)}</td>
-                        <td className="px-3 py-2 text-right tabular-nums">{formatMoney(totals.revenue)}</td>
-                        <td className="px-3 py-2 text-right tabular-nums">{formatMoney(totals.ads)}</td>
-                        <td className="px-3 py-2 text-right tabular-nums">{formatMoney(totals.shipping)}</td>
-                        <td className={cn("px-3 py-2 text-right tabular-nums", totals.net >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400")}>
-                            {signed(totals.net)}
-                        </td>
-                        <td className="px-3 py-2 text-right tabular-nums">{overallMargin.toFixed(1)}%</td>
-                        <td className="px-3 py-2 text-center"><LightEmoji light={lightForAdsPct(adsPct)} /></td>
-                    </tr>
-                }
+                title="Chi tiết theo ngày"
+                note="Đọc từ tab Tổng của file TỔNG TEAM — số từng ngày ở đây phải trùng từng dòng trong Sheet."
+                columns={DAY_COLUMNS}
+                rows={[...data.days].reverse()}
+                rowKey={d => d.date}
+                empty="Chưa có ngày nào có số trong khoảng này"
+                footer={<TongRow cells={[
+                    "TỔNG", money(t.ads), formatNumber(t.mess), t.mess > 0 ? money(t.ads / t.mess) : DASH,
+                    formatNumber(t.don), pctText(chot, 2), money(t.doanh_so), money(t.ds_giao_tc), pctText(pAds),
+                ]} />}
             />
 
             {/* ═══ 9. Chân tab — định nghĩa số và nguồn ═══ */}
             <FootNotes
                 warning={
                     <>
-                        <strong>Đây chưa phải lãi cuối cùng.</strong> Giá vốn chưa vào được vì order_items còn thiếu giá,
-                        và chi phí vận hành (lương, phần mềm, kho) chưa nằm trong công thức. Con số &ldquo;lãi sau ads&rdquo;
-                        luôn đẹp hơn lãi thật.
+                        <strong>Lãi ở đây là tạm tính.</strong> Nó tính trên doanh số đơn đã chốt, chưa trừ đơn hoàn, giá vốn và
+                        chi phí vận hành. Tiền đã thật sự giao xong xem ở ô DS giao TC.
                     </>
                 }
                 notes={[
-                    <>Doanh thu = đơn có <code className="rounded bg-muted px-1 py-0.5 text-[11px]">status_category = GIAO_THANH_CONG</code>, quy VND theo tỷ giá cố định trong talpha_rules.json. Đơn mới chốt chưa giao không được tính.</>,
-                    <>Phí ship là số <strong>dựng theo bảng giá 3PL</strong> (packing + delivery + %COD của từng thị trường), không phải số thật từ đối tác — cột shipping_fee trong POS đang lặp lại giá trị cod nên không dùng được.</>,
-                    <>Tiền ads gán về marketer theo ad_id lấy từ đơn; ad nào không có đơn gắn về thì không quy cho ai, nên tổng ads của các marketer nhỏ hơn tổng ads toàn kỳ.</>,
-                    <>Ngày tính theo múi giờ của từng tài khoản quảng cáo, đơn tính theo giờ Việt Nam.</>,
+                    <>Mọi số đọc từ Sheet &ldquo;TỔNG TEAM THÁNG n&rdquo; (ID khai ở <code className="rounded bg-muted px-1 py-0.5 text-[11px]">talpha_rules.json → report_sheets</code>), do <code className="rounded bg-muted px-1 py-0.5 text-[11px]">format_all.py</code> ghi mỗi giờ. Sync hỏng thì Sheet đứng số cũ, tab này đứng theo. Muốn đổi cách tính thì sửa format_all.py — Sheet, bot Zalo và tab này đổi theo cùng lúc; đừng vá riêng ở tab.</>,
+                    <>Doanh số = đơn đã chốt trên POS, trừ huỷ, đơn nháp và đơn trống (0 sản phẩm, 0 tiền); ngày tính theo giờ Việt Nam.</>,
+                    <>TỔNG chỉ gồm người trong team. Người ngoài team chạy chung TKQC và ô (không gán) không vào TỔNG.</>,
+                    <>Số trước mốc gốc không tính — đổi mốc ở <code className="rounded bg-muted px-1 py-0.5 text-[11px]">talpha_rules.json → report_start_date</code>.</>,
                 ]}
-                sources={["vw_orders_std", "vw_fb_ads_std"]}
             />
         </div>
     );
@@ -472,87 +336,62 @@ note="Tiền ads chia theo nước bằng mã nước trong tên campaign (TW ·
 
 /* ═══════════ Định nghĩa cột — tách khỏi phần render cho gọn ═══════════ */
 
-// Ngưỡng ROAS — chép đúng talpha_rules.json (thresholds.roas_target / roas_danger).
-// TODO: khi có route đọc thresholds thì lấy động, đừng để hai nơi trôi khỏi nhau.
-const ROAS_TARGET = 2.5;
-const ROAS_DANGER = 1.3;
-
 const money = (n: number) => formatMoney(n);
-const profitClass = (n: number) =>
-    n >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400";
+// Người không tiêu đồng nào và không có đơn: không có gì để chấm, hiện gạch chứ không đèn đỏ.
+const adsLight = (s: So) =>
+    (s.ads === 0 && s.doanh_so === 0 ? DASH : <LightEmoji light={lightForAdsPct(adsPct(s) ?? undefined)} />);
+
+/** Dòng TỔNG ghim cuối bảng — ô đầu căn trái, ô đèn (nếu là phần tử) căn giữa, còn lại căn phải. */
+function TongRow({ cells }: { cells: ReactNode[] }) {
+    return (
+        <tr className="border-t-2 border-amber-500/30 bg-amber-500/5 font-bold">
+            {cells.map((c, i) => (
+                <td
+                    key={i}
+                    className={cn("px-3 py-2 tabular-nums", i === 0 ? "text-left" : typeof c === "object" ? "text-center" : "text-right")}
+                >
+                    {c}
+                </td>
+            ))}
+        </tr>
+    );
+}
 
 const MARKETER_COLUMNS: Column<MarketerRow>[] = [
-    { key: "marketer", label: "Nhân viên", cellClassName: "font-medium text-foreground", render: m => m.marketer },
-    { key: "orders", label: "Đơn", align: "right", render: m => formatNumber(m.orders) },
-    { key: "revenue", label: "DS giao TC", align: "right", render: m => money(m.revenue) },
-    { key: "ads_spend", label: "Ads", align: "right", render: m => (m.ads_spend > 0 ? money(m.ads_spend) : DASH) },
     {
-        key: "roas", label: "ROAS", align: "right",
-        cellClassName: m => (m.roas >= 2.5 ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400"),
-        render: m => (m.roas ? `${m.roas}×` : DASH),
+        key: "display", label: "Nhân viên",
+        cellClassName: m => cn("font-medium", m.ngoaiTong ? "text-muted-foreground italic" : "text-foreground"),
+        render: m => m.display,
     },
-    {
-        key: "ads_pct", label: "ads%", align: "right",
-        title: "Tiền ads trên DS giao TC của riêng marketer đó",
-        render: m => (m.revenue > 0 && m.ads_spend > 0 ? `${((m.ads_spend / m.revenue) * 100).toFixed(0)}%` : DASH),
-    },
-    {
-        key: "net_profit", label: "Lãi sau ads", align: "right",
-        cellClassName: m => cn("font-semibold", profitClass(m.net_profit)),
-        render: m => `${m.net_profit >= 0 ? "+" : ""}${money(m.net_profit)}`,
-    },
-    {
-        key: "light", label: "Đèn", align: "center",
-        render: m => <LightEmoji light={lightForAdsPct(m.revenue > 0 ? (m.ads_spend / m.revenue) * 100 : undefined)} />,
-    },
+    { key: "ads", label: "Tiền ads", align: "right", render: m => (m.ads > 0 ? money(m.ads) : DASH) },
+    { key: "mess", label: "Tin nhắn", align: "right", render: m => formatNumber(m.mess) },
+    { key: "don", label: "Đơn", align: "right", render: m => formatNumber(m.don) },
+    { key: "chot", label: "Chốt", align: "right", title: "Số đơn ÷ tin nhắn", render: m => pctText(tyLeChot(m), 2) },
+    { key: "doanh_so", label: "Doanh số", align: "right", render: m => money(m.doanh_so) },
+    { key: "ads_pct", label: "% Ads/DT", align: "right", title: "Tiền ads ÷ doanh số của riêng người đó", render: m => pctText(adsPct(m)) },
+    { key: "gtc", label: "DS giao TC", align: "right", render: m => (m.ds_giao_tc > 0 ? money(m.ds_giao_tc) : DASH) },
+    { key: "light", label: "Đèn", align: "center", render: m => adsLight(m) },
 ];
 
-const MARKET_COLUMNS: Column<MarketRow>[] = [
-    { key: "shop_name", label: "Thị trường", cellClassName: "font-medium text-foreground", render: m => m.shop_name },
-    { key: "orders", label: "Đơn", align: "right", render: m => formatNumber(m.orders) },
-    { key: "revenue", label: "DS giao TC", align: "right", render: m => money(m.revenue) },
-    { key: "ads_spend", label: "Ads", align: "right", render: m => (m.ads_spend > 0 ? money(m.ads_spend) : DASH) },
-    { key: "shipping", label: "Phí ship", align: "right", render: m => money(m.shipping) },
-    {
-        key: "margin", label: "Biên", align: "right",
-        cellClassName: m => cn("font-semibold", profitClass(m.margin)),
-        render: m => `${m.margin}%`,
-    },
-    {
-        key: "light", label: "Đèn", align: "center",
-        render: m => <LightEmoji light={lightForAdsPct(m.revenue > 0 ? (m.ads_spend / m.revenue) * 100 : undefined)} />,
-    },
+const MARKET_COLUMNS = (tenNuoc: (m: MarketRow) => string): Column<MarketRow>[] => [
+    { key: "tab", label: "Thị trường", cellClassName: "font-medium text-foreground", render: m => tenNuoc(m) },
+    { key: "ads", label: "Tiền ads", align: "right", render: m => money(m.ads) },
+    { key: "mess", label: "Tin nhắn", align: "right", render: m => formatNumber(m.mess) },
+    { key: "don", label: "Đơn", align: "right", render: m => formatNumber(m.don) },
+    { key: "doanh_so", label: "Doanh số", align: "right", render: m => money(m.doanh_so) },
+    { key: "ads_pct", label: "% Ads/DT", align: "right", render: m => pctText(adsPct(m)) },
+    { key: "gtc", label: "DS giao TC", align: "right", render: m => (m.ds_giao_tc > 0 ? money(m.ds_giao_tc) : DASH) },
+    { key: "light", label: "Đèn", align: "center", render: m => adsLight(m) },
 ];
 
-const MONTHLY_COLUMNS: Column<MonthlyRow>[] = [
-    {
-        key: "month", label: "Tháng", cellClassName: "font-medium text-foreground",
-        render: m => (
-            <span className="flex items-center gap-2">
-                {m.month}
-                {m.month === format(new Date(), "yyyy-MM") && (
-                    <span className="rounded-full bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-amber-600 dark:text-amber-400">
-                        đang chạy
-                    </span>
-                )}
-            </span>
-        ),
-    },
-    { key: "orders", label: "Đơn", align: "right", render: m => formatNumber(m.orders) },
-    { key: "revenue", label: "DS giao TC", align: "right", render: m => money(m.revenue) },
-    { key: "ads_spend", label: "Ads", align: "right", render: m => money(m.ads_spend) },
-    { key: "shipping", label: "Phí ship", align: "right", render: m => money(m.shipping) },
-    {
-        key: "net_profit", label: "Lãi sau ads", align: "right",
-        cellClassName: m => cn("font-semibold", profitClass(m.net_profit)),
-        render: m => `${m.net_profit >= 0 ? "+" : ""}${money(m.net_profit)}`,
-    },
-    {
-        key: "margin", label: "Biên", align: "right",
-        render: m => (m.revenue > 0 ? `${((m.net_profit / m.revenue) * 100).toFixed(1)}%` : DASH),
-    },
-    {
-        key: "light", label: "Đèn", align: "center",
-        render: m => <LightEmoji light={lightForAdsPct(m.revenue > 0 ? (m.ads_spend / m.revenue) * 100 : undefined)} />,
-    },
+const DAY_COLUMNS: Column<DayRow>[] = [
+    { key: "date", label: "Ngày", cellClassName: "font-medium text-foreground", render: d => ngayVN(d.date) },
+    { key: "ads", label: "Tiền ads", align: "right", render: d => money(d.ads) },
+    { key: "mess", label: "Tin nhắn", align: "right", render: d => formatNumber(d.mess) },
+    { key: "gia_tn", label: "Giá/tin", align: "right", render: d => (d.mess > 0 ? money(d.ads / d.mess) : DASH) },
+    { key: "don", label: "Đơn", align: "right", render: d => formatNumber(d.don) },
+    { key: "chot", label: "Chốt", align: "right", render: d => pctText(tyLeChot(d), 2) },
+    { key: "doanh_so", label: "Doanh số", align: "right", render: d => money(d.doanh_so) },
+    { key: "gtc", label: "DS giao TC", align: "right", render: d => (d.ds_giao_tc > 0 ? money(d.ds_giao_tc) : DASH) },
+    { key: "ads_pct", label: "% Ads/DT", align: "right", render: d => pctText(adsPct(d)) },
 ];

@@ -1,12 +1,14 @@
 ﻿"use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { format, startOfMonth, endOfMonth, subMonths, subDays } from "date-fns";
 import { Calendar as CalendarIcon, ChevronDown } from "lucide-react";
 
 interface DateRangePickerProps {
     value: { from: Date; to: Date };
     onChange: (range: { from: Date; to: Date }) => void;
+    /** Ngày sớm nhất được chọn (mốc gốc báo cáo). Chọn sớm hơn thì tự kéo về mốc. */
+    minDate?: Date | null;
 }
 
 interface Preset {
@@ -61,10 +63,10 @@ const PRESETS: Preset[] = [
 
 // Match current value against a preset so the highlighted pill stays in sync
 // when DateRangePicker remounts (e.g., tab navigation restores saved range).
-function matchPreset(value: { from: Date; to: Date }): string {
+function matchPreset(value: { from: Date; to: Date }, presets: Preset[] = PRESETS): string {
     const fromStr = format(value.from, "yyyy-MM-dd");
     const toStr = format(value.to, "yyyy-MM-dd");
-    for (const p of PRESETS) {
+    for (const p of presets) {
         const r = p.getRange();
         if (
             format(r.from, "yyyy-MM-dd") === fromStr &&
@@ -74,9 +76,24 @@ function matchPreset(value: { from: Date; to: Date }): string {
     return "custom";
 }
 
-export default function DateRangePicker({ value, onChange }: DateRangePickerProps) {
+export default function DateRangePicker({ value, onChange, minDate }: DateRangePickerProps) {
+    // Có mốc gốc thì thêm nút "Từ dd/MM" — khoảng mặc định của các tab báo cáo.
+    const presets = useMemo<Preset[]>(
+        () => (minDate
+            ? [...PRESETS, { label: `Từ ${format(minDate, "dd/MM")}`, key: "since-start", getRange: () => ({ from: minDate, to: new Date() }) }]
+            : PRESETS),
+        [minDate],
+    );
+    // Kéo khoảng về mốc gốc: preset "90 ngày" không được lùi qua ngày dữ liệu còn thiếu.
+    const clamp = useCallback(
+        (r: { from: Date; to: Date }) => {
+            if (!minDate || r.from >= minDate) return r;
+            return { from: minDate, to: r.to < minDate ? minDate : r.to };
+        },
+        [minDate],
+    );
     const [open, setOpen] = useState(false);
-    const [activePreset, setActivePreset] = useState(() => matchPreset(value));
+    const [activePreset, setActivePreset] = useState(() => matchPreset(value, presets));
     const [showCustom, setShowCustom] = useState(false);
     const [customFrom, setCustomFrom] = useState(format(value.from, "yyyy-MM-dd"));
     const [customTo, setCustomTo] = useState(format(value.to, "yyyy-MM-dd"));
@@ -84,8 +101,8 @@ export default function DateRangePicker({ value, onChange }: DateRangePickerProp
 
     // Sync preset highlight when value changes from outside (persistence restore, programmatic set)
     useEffect(() => {
-        setActivePreset(matchPreset(value));
-    }, [value]);
+        setActivePreset(matchPreset(value, presets));
+    }, [value, presets]);
 
     // Close on outside click
     useEffect(() => {
@@ -102,10 +119,10 @@ export default function DateRangePicker({ value, onChange }: DateRangePickerProp
         (preset: Preset) => {
             setActivePreset(preset.key);
             setShowCustom(false);
-            onChange(preset.getRange());
+            onChange(clamp(preset.getRange()));
             setOpen(false);
         },
-        [onChange]
+        [onChange, clamp]
     );
 
     const applyCustom = useCallback(() => {
@@ -113,10 +130,10 @@ export default function DateRangePicker({ value, onChange }: DateRangePickerProp
         const to = new Date(customTo);
         if (!isNaN(from.getTime()) && !isNaN(to.getTime()) && from <= to) {
             setActivePreset("custom");
-            onChange({ from, to });
+            onChange(clamp({ from, to }));
             setOpen(false);
         }
-    }, [customFrom, customTo, onChange]);
+    }, [customFrom, customTo, onChange, clamp]);
 
     const displayLabel =
         activePreset === "custom"
@@ -153,7 +170,7 @@ export default function DateRangePicker({ value, onChange }: DateRangePickerProp
                 >
                     {/* Preset Grid */}
                     <div className="grid grid-cols-4 gap-1.5">
-                        {PRESETS.map((p) => (
+                        {presets.map((p) => (
                             <button
                                 key={p.key}
                                 onClick={() => selectPreset(p)}
@@ -195,6 +212,7 @@ export default function DateRangePicker({ value, onChange }: DateRangePickerProp
                                 <input
                                     type="date"
                                     value={customFrom}
+                                    min={minDate ? format(minDate, "yyyy-MM-dd") : undefined}
                                     onChange={(e) => setCustomFrom(e.target.value)}
                                     className="flex-1 rounded-lg border border-border dark:border-white/[0.08] bg-background 
                                                dark:bg-white/[0.04]
@@ -207,6 +225,7 @@ export default function DateRangePicker({ value, onChange }: DateRangePickerProp
                                 <input
                                     type="date"
                                     value={customTo}
+                                    min={minDate ? format(minDate, "yyyy-MM-dd") : undefined}
                                     onChange={(e) => setCustomTo(e.target.value)}
                                     className="flex-1 rounded-lg border border-border dark:border-white/[0.08] bg-background 
                                                dark:bg-white/[0.04]

@@ -36,6 +36,8 @@ type Rules = {
         monthly_revenue_vnd?: Record<string, number>;
         marketer_monthly_ship_vnd?: Record<string, Record<string, number> | string>;
     };
+    report_start_date?: string;
+    report_sheets?: { grand_by_month?: Record<string, string> };
 };
 type ProductCost = { name: string; cost_price_rmb?: number; cost_price_vnd: number };
 
@@ -118,6 +120,16 @@ export const MARKETS_PUBLIC: { primary: string | null; markets: MarketPublic[] }
 // ⚠ KPI đo trên DOANH SỐ SHIP, dashboard đo DS GIAO THÀNH CÔNG — xem _targets_note.
 export const MONTHLY_REVENUE_TARGETS: Record<string, number> =
     RULES.targets?.monthly_revenue_vnd ?? {};
+
+// ── Mốc gốc của báo cáo số ──
+// "YYYY-MM-DD" — ngày trước mốc chưa đủ dữ liệu, các tab báo cáo không tính (xem
+// _report_start_note). null = không chặn.
+export const REPORT_START_DATE: string | null =
+    /^\d{4}-\d{2}-\d{2}$/.test(RULES.report_start_date || "") ? RULES.report_start_date! : null;
+
+// ID file "TỔNG TEAM THÁNG n" theo tháng "YYYY-MM" — bot Zalo và tab Tổng quan đọc số từ đây.
+export const GRAND_SHEET_BY_MONTH: Record<string, string> = Object.fromEntries(
+    Object.entries(RULES.report_sheets?.grand_by_month ?? {}).filter(([k]) => !k.startsWith("_")));
 
 // KPI ship theo tháng của TỪNG NGƯỜI, key = TÊN HIỂN THỊ ("Lộc", "Chu Thuý"…) để
 // client so thẳng với cột marketer của /api/talpha/marketer-perf. Người không có

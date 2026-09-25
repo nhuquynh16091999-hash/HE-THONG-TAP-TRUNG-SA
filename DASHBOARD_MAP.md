@@ -65,7 +65,8 @@ Ba câu hỏi tiền, ba màn hình khác nhau — **đừng trộn**:
 
 | Câu hỏi | Màn hình | Nguồn |
 |:--|:--|:--|
-| Bán được bao nhiêu? | Tổng quan · P&L | BigQuery, đơn **GIAO THÀNH CÔNG** |
+| Bán được bao nhiêu? | Tổng quan | File Sheet **TỔNG TEAM** — doanh số đơn đã chốt + DS giao TC |
+| Lãi theo đơn đã giao? | P&L | BigQuery, đơn **GIAO THÀNH CÔNG** |
 | Đang tiêu bao nhiêu, ngay lúc này? | Ads Command Center | Meta + POS **gọi thẳng**, đơn **ĐÃ ĐẶT** |
 | Tiền có về đủ không? | Đối soát COD · Đối soát chi phí QC | File sao kê người dùng tải lên |
 
@@ -126,7 +127,7 @@ Vào `/` → middleware kiểm đăng nhập → `/talpha` → `components/talph
 
 | Nhóm | Tab | Component | Số từ đâu |
 |:--|:--|:--|:--|
-| 📋 Báo cáo | Tổng quan | `tabs/ceo-overview-tab.tsx` | `/api/query` + `targets` |
+| 📋 Báo cáo | Tổng quan | `tabs/ceo-overview-tab.tsx` | `/api/talpha/sheet-report?from&to` (đọc thẳng file TỔNG TEAM) + `targets` |
 | | P&L | `tabs/pnl-tab.tsx` | `/api/query` |
 | | P&L theo SP | `tabs/product-pnl-tab.tsx` | `/api/query` + `product-costs` |
 | 🧾 Đơn hàng & Đối soát | Sổ đơn hàng | `tabs/order-ledger-tab.tsx` | `/api/talpha/order-ledger` |
@@ -141,6 +142,16 @@ Vào `/` → middleware kiểm đăng nhập → `/talpha` → `components/talph
 | 👥 Khách hàng | Khách hàng · Market Intel | `tabs/customer-tab.tsx` · `market-intel-tab.tsx` | `/api/query` |
 
 Ngoài shell còn `/login` và `/admin` (người dùng + TKQC).
+
+**Mốc gốc 15/09/2026** (`talpha_rules.json → report_start_date`, Sỹ Anh chốt 25/09/2026):
+tab Tổng quan · P&L · P&L theo SP · Marketing · Chi phí quảng cáo không tính ngày trước mốc
+(`FLOOR_TABS` trong shell) — bộ chọn ngày mặc định từ mốc, chọn sớm hơn thì tự kéo về. Tab
+vận hành (Sổ đơn, Đối soát COD, Vận đơn, Kho, Khách hàng) không chặn: đơn cũ còn chờ thu tiền.
+
+**Tổng quan đọc thẳng Sheet, không tự tính.** Trước 25/09/2026 tab tính lại từ BigQuery theo
+luật riêng (doanh thu chỉ đơn đã giao, tên marketer là tên tài khoản POS, không mốc ngày) nên
+lệch Sheet cả trăm triệu. Muốn đổi cách tính thì sửa `format_all.py` — Sheet, bot Zalo và
+tab đổi theo cùng lúc.
 
 Ba tab **bỏ qua bộ chọn ngày** (`IGNORES_DATE_RANGE`): Ads Command Center và Sức khoẻ
 quảng cáo có cửa sổ thời gian cố định trong view; Đối soát chi phí QC lấy kỳ từ chính
@@ -175,7 +186,9 @@ cookie `activeDataset` (shell đặt `TALPHA_Dataset`).
 | `ceo-ask` | Hỏi đáp bằng LLM → sinh SQL | Giao diện |
 | `export-report` | Nút "Xuất Sheet" → chạy thẳng `format_all.py` (**đang hỏng**, xem mục 7) | Giao diện |
 | `sync-inventory` | Ghi snapshot tồn kho làm dự phòng cho tab Kho | `snapshot_cron.sh` (chưa hẹn giờ) |
-| `ads-alerts` · `sheet-report` · `sync-health` | Cảnh báo spend, số từ Sheet, sức khoẻ sync | Bot Zalo · bot WA (đang tắt) |
+| `ads-alerts` · `sync-health` | Cảnh báo spend, sức khoẻ sync | Bot Zalo · bot WA (đang tắt) |
+| `sheet-report` | Số từ file TỔNG TEAM — `?date=` một ngày, `?from&to=` cộng cả khoảng | Bot Zalo · tab Tổng quan |
+| `report-config` | Mốc gốc báo cáo cho bộ chọn ngày | Giao diện |
 | `billing` | Hạn mức, số dư TKQC | Bot WA (đang tắt) |
 
 Hạ tầng: `auth/[...nextauth]`, `auth/validate`, `users`, `ad-accounts`.

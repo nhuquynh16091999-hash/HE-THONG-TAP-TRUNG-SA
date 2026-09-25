@@ -1347,6 +1347,8 @@
     },
     "_note_ten": "Giá lấy từ bảng 'Giá tới Taiwan' của Sỹ Anh (10/09/2026). Bảng đó không có cột tên sản phẩm, chỉ có nhãn kiểu '053 - SET10', nên tên tiếng Anh cũ được giữ lại để màn hình còn đọc được; nhãn gốc trong bảng lưu ở _nhan_bang_gia. Tên là tên, giá là giá — KHÔNG lấy giá cũ của hệ thống GCC."
   },
+  "report_start_date": "2026-09-15",
+  "_report_start_note": "Mốc gốc của mọi báo cáo số (Sỹ Anh chốt 25/09/2026): dữ liệu TRƯỚC ngày này chưa đầy đủ — đội cũ, shop cũ, TKQC cũ — nên các tab Báo cáo · Marketer · Quảng cáo không tính. Bộ chọn ngày mặc định bắt đầu từ đây và không lùi qua được. Tab vận hành (Sổ đơn, Đối soát COD, Theo dõi vận đơn, Kho, Khách hàng) KHÔNG bị chặn: đơn cũ vẫn còn đang chờ thu tiền.",
   "report_sheets": {
     "_note": "ID file Google Sheet 'TỔNG TEAM THÁNG n' theo từng tháng. Bot đọc số từ ĐÂY qua /api/talpha/sheet-report để tin nhắn và Sheet không bao giờ lệch. Mỗi đầu tháng CEO tạo file mới thì thêm một dòng. format_all.py hiện vẫn giữ GRAND_KEY riêng trong code — nên cho nó đọc key này để chỉ còn MỘT chỗ khai.",
     "grand_by_month": {
