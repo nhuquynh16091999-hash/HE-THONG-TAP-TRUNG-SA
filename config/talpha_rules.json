@@ -1388,7 +1388,11 @@
   "product_name_aliases": {
     "_note": "Tên sản phẩm sale GÕ TAY trên POS, không có mã 3 số → mã đúng. Khoá viết HOA, bỏ khoảng trắng hai đầu. Chỉ dùng khi tên không chứa mã 3 số nào.",
     "DEGO": "075",
-    "_DEGO_note": "Suy từ tên (25/09/2026): báo giá chỉ có một sản phẩm tên DEGO là '075 - DEGO'. Sỹ Anh chưa xác nhận — sai thì xoá dòng này."
+    "_DEGO_note": "Suy từ tên (25/09/2026): báo giá chỉ có một sản phẩm tên DEGO là '075 - DEGO'. Sỹ Anh chưa xác nhận — sai thì xoá dòng này.",
+    "TW-LO-01": "075",
+    "AA": "075",
+    "MỌC TÓC VN": "075",
+    "_tinh_tam_note": "Sỹ Anh chốt 25/09/2026: ba tên gõ tay này (đơn TW-428, 429, 436 · TW-380 · TW-402) chưa rõ là hàng gì nên TÍNH TẠM theo giá 075 - DEGO. Biết mã thật thì đổi sang mã đó, và sửa tên trên POS cho có mã."
   },
   "report_start_date": "2026-09-15",
   "_report_start_note": "Mốc gốc của mọi báo cáo số (Sỹ Anh chốt 25/09/2026): dữ liệu TRƯỚC ngày này chưa đầy đủ — đội cũ, shop cũ, TKQC cũ — nên các tab Báo cáo · Marketer · Quảng cáo không tính. Bộ chọn ngày mặc định bắt đầu từ đây và không lùi qua được. Tab vận hành (Sổ đơn, Đối soát COD, Theo dõi vận đơn, Kho, Khách hàng) KHÔNG bị chặn: đơn cũ vẫn còn đang chờ thu tiền.",

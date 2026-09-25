@@ -138,8 +138,8 @@ export default function TALPHAPnLTab({ dateRange }: Props) {
                 subtitle={
                     <>
                         Doanh số, tiền ads, số đơn lấy thẳng từ file <strong>TỔNG TEAM</strong> (khớp tab Tổng quan).
-                        Giá vốn tính theo mã sản phẩm trên đơn POS × bảng &ldquo;Giá tới Taiwan&rdquo;; phí ship ước tính theo
-                        trung bình các kỳ sao kê NAZA
+                        Giá vốn tính theo mã sản phẩm trên đơn POS × bảng &ldquo;Giá tới Taiwan&rdquo;; phí ship ước tính — Đài theo
+                        trung bình các kỳ sao kê NAZA, Singapore theo bảng giá 3PL
                         {sheet.start_date && <> · tính từ <strong>{ngayVN(sheet.start_date)}</strong></>}.
                     </>
                 }

@@ -51,9 +51,13 @@ type SgFees = {
 
 const SG_FEES: SgFees | null =
     ((RULES as unknown as { shipping_fees?: Record<string, SgFees> }).shipping_fees?.SG) || null;
+// Khoá so sánh cho tên gõ tay: chữ HOA, dạng NFC. POS có lúc lưu tiếng Việt ở dạng dấu
+// tách rời (NFD) — "MỌC TÓC VN" hai kiểu mã hoá nhìn giống hệt nhau mà so bằng thì trượt.
+const khoaTen = (s: string) => s.normalize("NFC").trim().toUpperCase();
 const ALIASES: Record<string, string> = Object.fromEntries(
     Object.entries((RULES as unknown as { product_name_aliases?: Record<string, string> }).product_name_aliases || {})
-        .filter(([k]) => !k.startsWith("_")));
+        .filter(([k]) => !k.startsWith("_"))
+        .map(([k, v]) => [khoaTen(k), v]));
 
 /** Đọc kho sao kê NAZA (Đài): phí trung bình một kiện + cân tính phí trung bình. */
 async function docSaoKeNaza() {
@@ -142,7 +146,7 @@ export async function GET(req: NextRequest) {
             const ten = `${r.product_name || ""} ${r.variation_name || ""}`.trim();
             const qty = Number(r.qty || 0);
             let codes = productCodes(ten);
-            if (!codes.length && ALIASES[ten.toUpperCase()]) codes = [ALIASES[ten.toUpperCase()]];
+            if (!codes.length && ALIASES[khoaTen(ten)]) codes = [ALIASES[khoaTen(ten)]];
             const ghiThieu = (ma: string) => {
                 const t = thieu.get(ma) || { ma, ten, qty: 0, don: new Set<string>() };
                 t.qty += qty; t.don.add(key); thieu.set(ma, t);
