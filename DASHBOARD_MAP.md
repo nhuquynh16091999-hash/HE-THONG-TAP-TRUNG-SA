@@ -129,12 +129,12 @@ Vào `/` → middleware kiểm đăng nhập → `/talpha` → `components/talph
 |:--|:--|:--|:--|
 | 📋 Báo cáo | Tổng quan | `tabs/ceo-overview-tab.tsx` | `/api/talpha/sheet-report?from&to` (đọc thẳng file TỔNG TEAM) + `targets` |
 | | P&L | `tabs/pnl-tab.tsx` | `sheet-report?from&to` + `pnl-costs` |
-| | P&L theo SP | `tabs/product-pnl-tab.tsx` | `/api/query` + `product-costs` |
+| | P&L theo SP | `tabs/product-pnl-tab.tsx` | `/api/talpha/product-pnl` (đơn đã chốt × giá vốn × ads theo mã SP trong tên camp) |
 | 🧾 Đơn hàng & Đối soát | Sổ đơn hàng | `tabs/order-ledger-tab.tsx` | `/api/talpha/order-ledger` |
 | | Đối soát COD | `tabs/cod-recon-tab.tsx` | `/api/talpha/order-ledger` + `cod-recon` (Đài) · `cod-recon/market` (Singapore, UAE) |
 | | Theo dõi vận đơn | `tabs/tracking-tab.tsx` | `/api/talpha/tracking` |
 | 📦 Sản phẩm | Sản phẩm & Kho | `tabs/products-tab.tsx` | `/api/talpha/inventory` |
-| 👤 Marketer | Marketing & Ads | `tabs/marketing-tab.tsx` | `/api/query` + `marketer-perf` |
+| 👤 Marketer | Marketing & Ads | `tabs/marketing-tab.tsx` | `/api/query` (số Meta) + `sheet-report?from&to` (từng người, KPI) |
 | 🎯 Quảng cáo | Chi phí quảng cáo | `tabs/ad-spend-tab.tsx` | `/api/talpha/ad-spend` |
 | | Ads Command Center | `app/talpha/ads-command-center/page.tsx` | `/api/talpha/realtime` |
 | | Sức khoẻ quảng cáo | `tabs/ad-health-tab.tsx` | `/api/query` |
@@ -190,7 +190,8 @@ cookie `activeDataset` (shell đặt `TALPHA_Dataset`).
 | `ads-alerts` · `sync-health` | Cảnh báo spend, sức khoẻ sync | Bot Zalo · bot WA (đang tắt) |
 | `sheet-report` | Số từ file TỔNG TEAM — `?date=` một ngày, `?from&to=` cộng cả khoảng | Bot Zalo · tab Tổng quan |
 | `report-config` | Mốc gốc báo cáo cho bộ chọn ngày | Giao diện |
-| `pnl-costs` | Giá vốn + phí ship ước tính của đơn đã chốt, theo ngày và nước; liệt kê mã chưa có giá | Tab P&L |
+| `pnl-costs` | Giá vốn + phí ship ước tính của đơn đã chốt, theo ngày và nước; liệt kê mã chưa có giá | Tab P&L · Tổng quan |
+| `product-pnl` | P&L từng sản phẩm: doanh số chia theo số lượng, ads theo mã SP trong tên campaign | Tab P&L theo SP |
 | `billing` | Hạn mức, số dư TKQC | Bot WA (đang tắt) |
 
 Hạ tầng: `auth/[...nextauth]`, `auth/validate`, `users`, `ad-accounts`.
@@ -242,7 +243,7 @@ Chúng chưa từng chạy lần nào trong dự án mới:
 | Thứ | Tình trạng thật |
 |:--|:--|
 | `ops/talpha_reports/snapshot_cron.sh` | `inventory_snapshot` không được làm tươi — đó là đường dự phòng của tab Kho khi POS chết |
-| `ops/talpha_reports/catalog_cron.sh` | `product_catalog` **0 dòng từ ngày dựng dự án** → tab P&L theo SP và giá vốn trong `vw_orders_std` trống. Script ghi cứng Python ở `runtime/.venv`, trên VPS là `/opt/talpha/.venv` nên chết ngay |
+| `ops/talpha_reports/catalog_cron.sh` | `product_catalog` **0 dòng từ ngày dựng dự án** → giá vốn trong `vw_orders_std` luôn 0 (tab P&L và P&L theo SP không còn dựa vào nó từ 25–28/09/2026 — giá vốn tính ở `lib/talpha/order-costs.ts`). Script ghi cứng Python ở `runtime/.venv`, trên VPS là `/opt/talpha/.venv` nên chết ngay |
 | Nút "Xuất Sheet" (`api/talpha/export-report`) | Đường dẫn script ghi cứng `/Users/syanh/talpha_reports/format_all.py` — máy Mac của chủ cũ, bấm trên máy chủ là báo "Không thấy script". Và format_all.py không tự giữ khoá |
 
 Dựng timer theo mẫu `ops/deploy/vps-sync-setup.sh`.

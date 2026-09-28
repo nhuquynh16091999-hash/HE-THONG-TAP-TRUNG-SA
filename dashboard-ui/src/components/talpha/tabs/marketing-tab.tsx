@@ -11,12 +11,17 @@ import TabSkeleton from "@/components/ui/tab-skeleton";
 import { BQ_PROJECT, DATASET } from "../constants";
 import { formatVNDCompact } from "../utils";
 
+// Một dòng của file TỔNG TEAM (/api/talpha/sheet-report?from&to) — cùng số với tab Tổng quan.
+type So = { ads: number; mess: number; don: number; doanh_so: number; ds_giao_tc: number };
+type Nguoi = So & { tab: string; display: string };
+
 interface Props { dateRange?: { from: Date; to: Date }; projectId?: string }
 
 export default function TALPHAMarketingTab({ dateRange }: Props) {
     const [loading, setLoading] = useState(true);
-    const [marketers, setMarketers] = useState<any[]>([]);
-    const [unassigned, setUnassigned] = useState<{ orders: number; revenue_vnd: number } | null>(null);
+    const [marketers, setMarketers] = useState<Nguoi[]>([]);
+    const [unassigned, setUnassigned] = useState<So | null>(null);
+    const [loiSheet, setLoiSheet] = useState<string | null>(null);
     const [accounts, setAccounts] = useState<any[]>([]);
     const [summary, setSummary] = useState({ spend: 0, messages: 0, impressions: 0, cpm: 0 });
     // KPI tháng đang chạy: {display name → VND target} + doanh số GTC tháng này của từng người
@@ -29,10 +34,10 @@ export default function TALPHAMarketingTab({ dateRange }: Props) {
                 const from = dateRange?.from ? format(dateRange.from, "yyyy-MM-dd") : "2025-01-01";
                 const to = dateRange?.to ? format(dateRange.to, "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd");
 
-                // A1: query qua view chuẩn — vw_fb_ads_std (spend VND).
-                // X7: bảng marketer KHÔNG query thẳng nữa — `vw_orders_std.marketer_name`
-                // là tag POS thô (1 người ra nhiều dòng, người ngoài team lọt vào). Gán
-                // marketer là rule CEO 3 bậc → làm server-side ở /api/talpha/marketer-perf.
+                // A1: query qua view chuẩn — vw_fb_ads_std (spend VND) cho phần số Meta.
+                // Bảng từng người + KPI đọc file TỔNG TEAM (Sỹ Anh chốt 28/09/2026) — trước đó đọc
+                // /api/talpha/marketer-perf: doanh thu chỉ đơn ĐÃ GIAO XONG, gán người theo ad_id,
+                // nên số từng người lệch Sheet và tab Tổng quan.
                 const queries = [
                     // Q0: Account breakdown (spend VND)
                     `SELECT
@@ -60,6 +65,13 @@ export default function TALPHAMarketingTab({ dateRange }: Props) {
                 const monthStart = `${monthKey}-01`;
                 const today = format(now, "yyyy-MM-dd");
 
+                const docSheet = (f: string, t: string) =>
+                    fetch(`/api/talpha/sheet-report?from=${f}&to=${t}`)
+                        .then(async r => {
+                            const d = await r.json();
+                            if (!r.ok || d.error) throw new Error(d.error || `HTTP ${r.status}`);
+                            return d;
+                        });
                 const [results, perf, targetsRes, monthPerf] = await Promise.all([
                     Promise.all(
                         queries.map(q =>
@@ -69,19 +81,17 @@ export default function TALPHAMarketingTab({ dateRange }: Props) {
                             }).then(r => r.json()).catch(() => ({ data: [] }))
                         )
                     ),
-                    fetch(`/api/talpha/marketer-perf?from=${from}&to=${to}`)
-                        .then(r => r.json()).catch(() => ({ rows: [] })),
+                    docSheet(from, to).catch((e: Error) => ({ error: e.message })),
                     fetch("/api/talpha/targets").then(r => r.json()).catch(() => ({})),
-                    // Doanh số GTC từ đầu tháng tới hôm nay — mẫu số của thanh KPI
-                    fetch(`/api/talpha/marketer-perf?from=${monthStart}&to=${today}`)
-                        .then(r => r.json()).catch(() => ({ rows: [] })),
+                    // Doanh số tháng này tới hôm nay (từ mốc gốc nếu mốc rơi vào tháng này) — tử số thanh KPI.
+                    docSheet(monthStart, today).catch(() => ({ marketers: [] })),
                 ]);
 
                 // Ghép KPI tháng: chỉ người CÓ khoá KPI tháng này mới có thanh
                 const perTargets: Record<string, Record<string, number>> =
                     targetsRes?.marketer_monthly_ship_vnd || {};
                 const monthActual = new Map<string, number>(
-                    (monthPerf.rows || []).map((r: any) => [r.marketer, r.revenue_vnd || 0]));
+                    (monthPerf.marketers || []).map((r: Nguoi) => [r.display, r.doanh_so || 0]));
                 setKpiRows(
                     Object.entries(perTargets)
                         .filter(([, months]) => months[monthKey] > 0)
@@ -92,11 +102,9 @@ export default function TALPHAMarketingTab({ dateRange }: Props) {
                         .sort((a, b) => b.target - a.target),
                 );
 
-                // Bảng marketer đã gán theo rule 3 bậc từ server — client chỉ hiển thị.
-                setMarketers((perf.rows || []).map((r: any) => ({
-                    marketer: r.marketer, orders: r.orders, revenue: r.revenue_vnd,
-                    viaTag: r.via_tag, viaAdId: r.via_ad_id, inactive: r.inactive, spend: r.spend_vnd,
-                })));
+                // Bảng từng người = các tab người của file TỔNG TEAM.
+                setLoiSheet(perf.error || null);
+                setMarketers(perf.marketers || []);
                 setUnassigned(perf.unassigned || null);
 
                 setAccounts((results[0].data || []).map((r: any) => ({
@@ -146,7 +154,7 @@ export default function TALPHAMarketingTab({ dateRange }: Props) {
                             </h3>
                             <p className="mb-3 mt-0.5 text-[11px] leading-snug text-muted-foreground">
                                 KPI từ bảng &ldquo;KPI Q3-Q4&rdquo; CEO chốt, đo trên <strong>doanh số ship</strong>;
-                                thanh dưới đo <strong>đơn đã giao xong</strong> nên giữa tháng luôn ngắn hơn thực tế.
+                                thanh dưới đo <strong>doanh số đơn đã chốt</strong> trong file TỔNG TEAM (tính từ mốc gốc báo cáo).
                                 S.Anh không có KPI trong bảng.
                             </p>
                             <div className="space-y-2">
@@ -171,46 +179,49 @@ export default function TALPHAMarketingTab({ dateRange }: Props) {
                             </div>
                         </div>
                     )}
-                    <h3 className="text-sm font-semibold text-foreground mb-4">👤 Hiệu suất Marketer (DS Giao TC, VND)</h3>
+                    <h3 className="text-sm font-semibold text-foreground">👤 Hiệu suất Marketer</h3>
+                    <p className="mb-3 mt-0.5 text-[11px] leading-snug text-muted-foreground">
+                        Tab của từng người trong file TỔNG TEAM — cùng số với tab Tổng quan và bot Zalo. Doanh số là đơn đã chốt;
+                        DS giao TC là phần đã giao xong.
+                    </p>
+                    {loiSheet && <p className="mb-2 text-xs text-rose-600 dark:text-rose-400">Không đọc được file TỔNG TEAM: {loiSheet}</p>}
                     <div className="overflow-auto max-h-[400px]">
                         <table className="w-full text-sm">
                             <thead>
                                 <tr className="text-muted-foreground text-xs border-b border-border">
                                     <th className="text-left py-2 pl-2 font-medium">#</th>
                                     <th className="text-left py-2 font-medium">Marketer</th>
+                                    <th className="text-right py-2 font-medium">Tiền ads</th>
                                     <th className="text-right py-2 font-medium">Đơn</th>
-                                    <th className="text-right py-2 pr-2 font-medium">DS Giao TC (VND)</th>
+                                    <th className="text-right py-2 font-medium">Doanh số</th>
+                                    <th className="text-right py-2 font-medium">% Ads/DT</th>
+                                    <th className="text-right py-2 pr-2 font-medium">DS giao TC</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {marketers.map((m: any, i: number) => (
-                                    <tr key={i} className="border-b border-border/60 hover:bg-muted/50">
+                                {marketers.map((m, i) => (
+                                    <tr key={m.tab} className="border-b border-border/60 hover:bg-muted/50">
                                         <td className="py-2 pl-2 text-muted-foreground">{i + 1}</td>
                                         <td className="py-2 text-foreground font-medium">
-                                            {m.marketer}
-                                            {m.spend > 0 && (
-                                                <span className="ml-1 text-xs text-amber-600 dark:text-amber-400">
-                                                    · {formatVNDCompact(m.spend)} ads
-                                                </span>
-                                            )}
-                                            {m.inactive && <span className="ml-1 text-xs text-muted-foreground">(NV cũ)</span>}
-                                            {m.viaAdId > 0 && (
-                                                <span className="ml-1 text-xs text-muted-foreground"
-                                                    title="Đơn không có tag POS, gán theo chủ campaign của ad_id">
-                                                    · {m.viaAdId} đơn theo ad_id
-                                                </span>
-                                            )}
+                                            {m.display}
+                                            {m.mess > 0 && <span className="ml-1 text-xs text-muted-foreground">· {m.mess.toLocaleString("vi-VN")} tin</span>}
                                         </td>
-                                        <td className="py-2 text-right text-blue-600 dark:text-blue-400 font-mono">{m.orders}</td>
-                                        <td className="py-2 text-right pr-2 text-emerald-600 dark:text-emerald-400 font-mono">{formatVNDCompact(m.revenue)}</td>
+                                        <td className="py-2 text-right text-amber-600 dark:text-amber-400 font-mono">{m.ads > 0 ? formatVNDCompact(m.ads) : "—"}</td>
+                                        <td className="py-2 text-right text-blue-600 dark:text-blue-400 font-mono">{m.don}</td>
+                                        <td className="py-2 text-right text-emerald-600 dark:text-emerald-400 font-mono">{formatVNDCompact(m.doanh_so)}</td>
+                                        <td className="py-2 text-right font-mono text-muted-foreground">{m.doanh_so > 0 && m.ads > 0 ? `${((m.ads / m.doanh_so) * 100).toFixed(1)}%` : "—"}</td>
+                                        <td className="py-2 text-right pr-2 font-mono text-muted-foreground">{m.ds_giao_tc > 0 ? formatVNDCompact(m.ds_giao_tc) : "—"}</td>
                                     </tr>
                                 ))}
-                                {unassigned && unassigned.orders > 0 && (
+                                {unassigned && (unassigned.don > 0 || unassigned.ads > 0) && (
                                     <tr className="border-b border-border/60 text-muted-foreground">
                                         <td className="py-2 pl-2">—</td>
-                                        <td className="py-2 italic">(không gán)</td>
-                                        <td className="py-2 text-right font-mono">{unassigned.orders}</td>
-                                        <td className="py-2 text-right pr-2 font-mono">{formatVNDCompact(unassigned.revenue_vnd)}</td>
+                                        <td className="py-2 italic" title="Không nằm trong TỔNG của Sheet">(không gán)</td>
+                                        <td className="py-2 text-right font-mono">{unassigned.ads > 0 ? formatVNDCompact(unassigned.ads) : "—"}</td>
+                                        <td className="py-2 text-right font-mono">{unassigned.don}</td>
+                                        <td className="py-2 text-right font-mono">{formatVNDCompact(unassigned.doanh_so)}</td>
+                                        <td className="py-2 text-right font-mono">—</td>
+                                        <td className="py-2 text-right pr-2 font-mono">{unassigned.ds_giao_tc > 0 ? formatVNDCompact(unassigned.ds_giao_tc) : "—"}</td>
                                     </tr>
                                 )}
                             </tbody>

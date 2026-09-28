@@ -29,14 +29,14 @@
       "currency_symbol": "S$",
       "rate_vnd": 20000,
       "pos_money_divisor": 100,
-      "pos_money_divisor_confirmed": false,
+      "pos_money_divisor_confirmed": true,
       "display": "Singapore",
       "flag": "🇸🇬",
       "status": "dang_ban",
       "orders_from": "2026-09-14",
       "_note": "Nối 15/09/2026. Tỷ giá 1 SGD = 20.000đ (Sỹ Anh chốt) — soát lại mỗi tháng.",
       "_orders_from_note": "Chỉ tính đơn TẠO từ 14/09/2026 (giờ VN). Shop có sẵn 60 đơn khi nối: 54 đơn là BẢN SAO đơn shop Đài (cùng SĐT, cùng phút tạo, đầu số 09 của Đài, 52 đơn tạo tháng 7 khi Singapore chưa chạy). Đơn Singapore thật đầu tiên tạo 19:41 ngày 14/09. Bỏ mốc này là đơn Đài bị đếm hai lần dưới tên Singapore.",
-      "_divisor_note": "CHƯA ĐO: khi nối, mọi đơn đều ghi VND, chưa đơn nào ghi SGD có giá. Tạm đặt 100 vì Poscake lưu tiền có hai số lẻ theo đơn vị nhỏ (shop SAR/AED thời GCC: cod 10900 = 109,00) — nếu sai thì doanh thu HỤT 100 lần chứ không phồng. Có đơn SGD đầu tiên thì so cod với giá bán, rồi đặt pos_money_divisor_confirmed = true.",
+      "_divisor_note": "ĐÃ ĐO 28/09/2026: POS Singapore 68 đơn 13–25/09 cộng cod ÷ 100 = 5.532 SGD, bảng đơn đối tác 'BS UP DATA SGP' (partner_orders) cùng kỳ 68 đơn = 5.492 SGD — lệch 0,7%. Đơn lẻ: cod 12900 ↔ 129 SGD, 6900 ↔ 69 SGD (giá bán thật 59–129 SGD). Chia 1 thì một đơn thành 12.900 SGD (khoảng 258 triệu đồng) — vô lý.",
       "_todo": "3PL dự kiến NAZA — chờ file sao kê mẫu. Bảng giá NAZA Singapore bản 28/09/2025: chặng đầu 2,3 RMB/0,1kg; chặng cuối 24 RMB 2kg đầu, 4 RMB/kg sau; thu hộ COD 4% (tối thiểu 10 RMB); COD tối đa 2000 SGD/đơn."
     },
     "UAE": {

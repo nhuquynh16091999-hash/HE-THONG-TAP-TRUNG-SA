@@ -1,240 +1,197 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { format } from "date-fns";
-import { Package, DollarSign, Boxes, Wallet, AlertTriangle } from "lucide-react";
-import { KPICard } from "@/components/ui/kpi-card";
 import TabSkeleton from "@/components/ui/tab-skeleton";
-import { BQ_PROJECT, DATASET } from "../constants";
-import { formatVNDCompact, formatNumber } from "../utils";
+import { formatVNDCompact, formatMoney, formatNumber, marketName, cn } from "../utils";
+import { useMarkets } from "../markets-context";
+import {
+    ReportHero, KpiRow, KpiTile, ReportTable, FootNotes, DASH,
+    type Column,
+} from "../report";
+
+/*
+ * P&L theo sản phẩm — /api/talpha/product-pnl, cùng nền với tab P&L (đơn đã chốt, giá vốn
+ * theo mã sản phẩm trên đơn POS, phí ship ước tính) + tiền ads theo ô mã sản phẩm trong tên
+ * campaign. Trước 28/09/2026 tab đọc vw_orders_std × vw_product_catalog_std: bảng
+ * product_catalog 0 dòng nên tab gần như trống, và chỉ tính đơn đã giao xong.
+ */
 
 interface Props { dateRange?: { from: Date; to: Date }; projectId?: string }
 
-interface ProductRow {
-    sku: string;                // khoá hiển thị/gom nhóm (mã chuẩn hoá, hoặc sku thô nếu không suy ra được mã)
-    skuCode: string | null;     // mã đã chuẩn hoá — null = không suy ra được ⇒ KHÔNG tra giá vốn
-    name: string;
-    units: number;
-    orders: number;
-    revenueVnd: number;
-    costPrice: number | null;   // null = SKU chưa khai giá vốn
-    cogsVnd: number | null;
-    profitVnd: number | null;
+interface Row {
+    sp: string; ten: string; ma: string | null; thieu_gia: boolean; shops: string[];
+    orders: number; units: number; doanh_so: number; ads: number; mess: number;
+    ship: number; cogs: number; gia_vnd: number | null; lai: number;
+}
+interface Data {
+    from: string; to: string; rows: Row[];
+    total: { orders: number; units: number; doanh_so: number; ads: number; ship: number; cogs: number; lai: number; ads_khong_ma: number; ads_ngoai_team: number };
+    missing_costs: { ma: string; ten: string; qty: number; orders: number }[];
+    ship_basis: Record<string, string>;
 }
 
-// P&L theo sản phẩm — nguồn: order_items × product_catalog × vw_orders_std.
-// DS Giao TC = revenue_vnd của view (đã quy VND theo shop_label, chỉ đơn
-// GIAO_THANH_CONG) phân bổ theo quantity item trong đơn.
-// E2 — giá vốn: POS KHÔNG trả giá vốn lẫn giá bán ở cấp item (variation_info.
-// retail_price / last_imported_price / avg_price = 0 với mọi item, đã verify bằng
-// POS API live 03/08) → giá vốn lấy từ config/talpha_rules.json mục products
-// (27 SKU CEO khai). SKU chưa khai để TRỐNG, không tính bằng 0, và tổng lãi gộp
-// chỉ cộng phần có giá vốn — banner dưới bảng nói rõ độ phủ.
+const ngayVN = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}`;
+const pctText = (a: number, b: number) => (b > 0 ? `${((a / b) * 100).toFixed(1)}%` : DASH);
+const signed = (n: number) => `${n >= 0 ? "+" : ""}${formatMoney(n)}`;
+const laiClass = (n: number) => (n >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400");
+
 export default function TALPHAProductPnLTab({ dateRange }: Props) {
     const [loading, setLoading] = useState(true);
-    const [rows, setRows] = useState<ProductRow[]>([]);
-    const [summary, setSummary] = useState({
-        skus: 0, units: 0, revenue: 0,
-        skusCosted: 0, revenueCosted: 0, cogs: 0, profit: 0,
-    });
+    const [data, setData] = useState<Data | null>(null);
+    const [loi, setLoi] = useState<string | null>(null);
+    const { loaded: marketsLoaded } = useMarkets();
 
     useEffect(() => {
-        (async () => {
-            setLoading(true);
-            try {
-                const from = dateRange?.from ? format(dateRange.from, "yyyy-MM-dd") : "2025-01-01";
-                const to = dateRange?.to ? format(dateRange.to, "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd");
-
-                // A1: phân bổ revenue_vnd của view theo quantity item — hết quy đổi client.
-                const query = `
-                    WITH item_rev AS (
-                        SELECT
-                            i.shop_id, i.order_id, i.variation_id, i.quantity,
-                            v.revenue_vnd * SAFE_DIVIDE(
-                                i.quantity,
-                                SUM(i.quantity) OVER (PARTITION BY i.shop_id, i.order_id)
-                            ) AS revenue_vnd
-                        FROM \`${BQ_PROJECT}.${DATASET}.order_items\` i
-                        -- X8: order_id KHÔNG duy nhất (POS đánh số riêng từng shop) → PHẢI ghép cả shop_id,
-                        -- nếu không sẽ nhân chéo item của các đơn trùng id giữa 7 shop.
-                        JOIN \`${BQ_PROJECT}.${DATASET}.vw_orders_std\` v
-                          ON i.shop_id = CAST(v.shop_id AS STRING) AND i.order_id = CAST(v.order_id AS STRING)
-                        WHERE v.is_confirmed
-                          AND v.order_date BETWEEN '${from}' AND '${to}'
-                          AND v.marketer_group != 'external'   -- X10: chỉ tính team
-                    )
-                    SELECT
-                        c.sku, c.sku_code, ANY_VALUE(c.product_name) AS product_name,
-                        COUNT(DISTINCT CONCAT(ir.shop_id, '-', ir.order_id)) AS orders,
-                        SUM(ir.quantity)            AS units,
-                        ROUND(SUM(ir.revenue_vnd), 0) AS revenue_vnd
-                    FROM item_rev ir
-                    JOIN \`${BQ_PROJECT}.${DATASET}.vw_product_catalog_std\` c
-                        ON ir.variation_id = c.variation_id
-                    GROUP BY c.sku, c.sku_code`;
-
-                const [res, costRes] = await Promise.all([
-                    fetch("/api/query", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ query }),
-                    }).then(r => r.json()).catch(() => ({ data: [] })),
-                    fetch("/api/talpha/product-costs")
-                        .then(r => r.json()).catch(() => ({ costs: {} })),
-                ]);
-                const costs: Record<string, number> = costRes?.costs || {};
-
-                // Gom theo SKU (revenue đã là VND từ view).
-                const map = new Map<string, ProductRow>();
-                for (const r of res.data || []) {
-                    const sku = String(r.sku || "—");
-                    const revVnd = r.revenue_vnd || 0;
-                    const ex = map.get(sku);
-                    if (ex) {
-                        ex.units += r.units || 0;
-                        ex.orders += r.orders || 0;
-                        ex.revenueVnd += revVnd;
-                    } else {
-                        map.set(sku, {
-                            sku,
-                            skuCode: r.sku_code ? String(r.sku_code) : null,
-                            name: String(r.product_name || ""),
-                            units: r.units || 0,
-                            orders: r.orders || 0,
-                            revenueVnd: revVnd,
-                            costPrice: null,
-                            cogsVnd: null,
-                            profitVnd: null,
-                        });
-                    }
-                }
-
-                // E2 — trừ giá vốn cho SKU đã khai; SKU chưa khai giữ null (không phải 0).
-                // Tra theo skuCode (mã đã chuẩn hoá), KHÔNG theo sku thô: POS để lọt tên SP
-                // vào cột sku ("Necklace box" thay vì "008") nên tra bằng sku thô sẽ trượt.
-                for (const row of map.values()) {
-                    const cp = row.skuCode ? costs[row.skuCode] : undefined;
-                    if (typeof cp !== "number") continue;
-                    row.costPrice = cp;
-                    row.cogsVnd = cp * row.units;
-                    row.profitVnd = row.revenueVnd - row.cogsVnd;
-                }
-
-                const list = Array.from(map.values()).sort((a, b) => b.revenueVnd - a.revenueVnd);
-                const costed = list.filter(r => r.cogsVnd !== null);
-
-                setRows(list);
-                setSummary({
-                    skus: list.length,
-                    units: list.reduce((s, r) => s + r.units, 0),
-                    revenue: list.reduce((s, r) => s + r.revenueVnd, 0),
-                    skusCosted: costed.length,
-                    revenueCosted: costed.reduce((s, r) => s + r.revenueVnd, 0),
-                    cogs: costed.reduce((s, r) => s + (r.cogsVnd || 0), 0),
-                    profit: costed.reduce((s, r) => s + (r.profitVnd || 0), 0),
-                });
-            } finally {
-                setLoading(false);
-            }
-        })();
+        let dung = false;
+        const from = format(dateRange?.from ?? new Date(), "yyyy-MM-dd");
+        const to = format(dateRange?.to ?? new Date(), "yyyy-MM-dd");
+        setLoading(true); setLoi(null);
+        fetch(`/api/talpha/product-pnl?from=${from}&to=${to}`)
+            .then(async r => {
+                const d = await r.json();
+                if (!r.ok || d.error) throw new Error(d.error || `HTTP ${r.status}`);
+                return d as Data;
+            })
+            .then(d => { if (!dung) setData(d); })
+            .catch(e => { if (!dung) { setData(null); setLoi(String(e?.message || e)); } })
+            .finally(() => { if (!dung) setLoading(false); });
+        return () => { dung = true; };
     }, [dateRange]);
 
-    if (loading) return <TabSkeleton />;
+    if (loading || !marketsLoaded) return <TabSkeleton cards={6} rows={8} />;
+    if (loi || !data) {
+        return (
+            <div className="rounded-xl border border-rose-300 bg-rose-50 p-5 text-sm text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300">
+                <p className="font-semibold">Không tính được P&L theo sản phẩm.</p>
+                <p className="mt-1">{loi}</p>
+            </div>
+        );
+    }
 
-    const maxRev = rows[0]?.revenueVnd || 1;
-    const marginPct = summary.revenueCosted > 0 ? (summary.profit / summary.revenueCosted) * 100 : 0;
-    const coveragePct = summary.revenue > 0 ? (summary.revenueCosted / summary.revenue) * 100 : 0;
+    const t = data.total;
+    const adsTong = t.ads + t.ads_khong_ma;
+    const biDot = data.rows.filter(r => r.ads > 0 && r.orders === 0);
 
     return (
         <div className="space-y-6">
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                <KPICard title="SKU bán được" value={formatNumber(summary.skus)} icon={Boxes} status="neutral" subValue={`${formatNumber(summary.skusCosted)} SKU có giá vốn`} />
-                <KPICard title="Tổng units" value={formatNumber(summary.units)} icon={Package} status="success" subValue="số lượng đã bán" />
-                <KPICard title="DS Giao TC (VND)" value={formatVNDCompact(summary.revenue)} icon={DollarSign} status="success" subValue="đã quy đổi theo shop" />
-                <KPICard
-                    title="Lãi gộp (phần có giá vốn)"
-                    value={formatVNDCompact(summary.profit)}
-                    icon={Wallet}
-                    status={summary.profit >= 0 ? "success" : "danger"}
-                    subValue={`biên ${marginPct.toFixed(1)}% · phủ ${coveragePct.toFixed(0)}% doanh thu`}
-                />
-            </div>
+            <ReportHero
+                emoji="📦"
+                title={`P&L theo sản phẩm — ${ngayVN(data.from)} → ${ngayVN(data.to)}`}
+                subtitle={
+                    <>
+                        Đơn đã chốt trên POS (trừ huỷ, nháp, đơn trống) — cùng nền với tab P&L. Doanh số một sản phẩm là tiền
+                        đơn chia theo số lượng từng dòng hàng; tiền ads theo ô mã sản phẩm trong tên campaign; giá vốn theo
+                        bảng &ldquo;Giá tới Taiwan&rdquo; và bảng giá UAE; phí ship ước tính.
+                    </>
+                }
+            />
 
-            {summary.skus > summary.skusCosted && (
-                <div className="flex items-start gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-xs text-amber-700 dark:text-amber-400">
-                    <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-                    <span>
-                        Giá vốn mới khai cho <b>{formatNumber(summary.skusCosted)}/{formatNumber(summary.skus)} SKU</b> đang bán
-                        (<b>{coveragePct.toFixed(0)}%</b> doanh thu kỳ này). Lãi gộp ở trên chỉ tính trên phần đó — SKU chưa khai
-                        để trống, KHÔNG tính giá vốn = 0. Khai thêm tại <code>config/talpha_rules.json</code> mục <code>products</code>.
-                        POS không trả giá vốn ở cấp item nên đây là nguồn duy nhất.
-                    </span>
-                </div>
+            <KpiRow>
+                <KpiTile emoji="🏷️" label="Sản phẩm" value={formatNumber(data.rows.filter(r => r.orders > 0).length)}
+                    sub={`${formatNumber(t.units)} cái · ${formatNumber(t.orders)} đơn`} />
+                <KpiTile emoji="💵" label="Doanh số" value={formatVNDCompact(t.doanh_so)} />
+                <KpiTile emoji="💸" label="Tiền ads" value={formatVNDCompact(adsTong)}
+                    sub={t.ads_khong_ma > 0 ? `${formatVNDCompact(t.ads_khong_ma)} camp không ghi mã` : `${pctText(adsTong, t.doanh_so)} doanh số`}
+                    tone={t.ads_khong_ma > 0 ? "warn" : "neutral"} />
+                <KpiTile emoji="📦" label="Giá vốn" value={formatVNDCompact(t.cogs)}
+                    sub={data.missing_costs.length ? `${data.missing_costs.length} mã thiếu giá` : `${pctText(t.cogs, t.doanh_so)} doanh số`}
+                    tone={data.missing_costs.length ? "warn" : "neutral"} />
+                <KpiTile emoji="🚚" label="Phí ship" value={formatVNDCompact(t.ship)} sub="ước tính" />
+                <KpiTile emoji="📊" label="Lãi gộp (tạm tính)" value={formatVNDCompact(t.lai)}
+                    sub={t.doanh_so > 0 ? `biên ${((t.lai / t.doanh_so) * 100).toFixed(1)}%` : DASH}
+                    tone={t.lai >= 0 ? "good" : "bad"} />
+            </KpiRow>
+
+            {(biDot.length > 0 || data.missing_costs.length > 0 || t.ads_khong_ma > 0) && (
+                <section className="rounded-xl border border-amber-300 bg-amber-50/60 p-5 text-sm dark:border-amber-500/30 dark:bg-amber-500/5">
+                    <h3 className="section-header mb-2">⚠️ Cần xem</h3>
+                    <ul className="space-y-1.5 text-foreground">
+                        {biDot.length > 0 && (
+                            <li><strong>Tiêu tiền ads mà 0 đơn:</strong> {biDot.map(r => `${r.ten} (${formatVNDCompact(r.ads)})`).join(" · ")}</li>
+                        )}
+                        {t.ads_khong_ma > 0 && (
+                            <li><strong>{formatVNDCompact(t.ads_khong_ma)} tiền ads</strong> ở campaign không ghi mã sản phẩm — không gán được cho sản phẩm nào, chỉ cộng vào tổng.</li>
+                        )}
+                        {data.missing_costs.length > 0 && (
+                            <li><strong>Thiếu giá vốn:</strong> {data.missing_costs.map(m => `${m.ten} (${m.orders} đơn)`).join(" · ")} — lãi của những dòng này đang cao hơn thật.</li>
+                        )}
+                    </ul>
+                </section>
             )}
 
-            <div className="rounded-xl border border-border bg-card">
-                <div className="border-b border-border px-5 py-3">
-                    <h3 className="text-sm font-semibold text-foreground">P&L theo sản phẩm</h3>
-                    <p className="text-xs text-muted-foreground">
-                        DS Giao TC phân bổ theo item · nguồn <code>order_items × product_catalog × vw_orders_std</code> · giá vốn từ <code>talpha_rules.json</code>
-                    </p>
-                </div>
-                <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                        <thead>
-                            <tr className="border-b border-border text-xs text-muted-foreground">
-                                <th className="px-4 py-2 text-left font-medium">#</th>
-                                <th className="px-4 py-2 text-left font-medium">SKU</th>
-                                <th className="px-4 py-2 text-left font-medium">Sản phẩm</th>
-                                <th className="px-4 py-2 text-right font-medium">Units</th>
-                                <th className="px-4 py-2 text-right font-medium">Đơn</th>
-                                <th className="px-4 py-2 text-right font-medium">DS Giao TC (VND)</th>
-                                <th className="px-4 py-2 text-right font-medium">Giá vốn/unit</th>
-                                <th className="px-4 py-2 text-right font-medium">COGS (VND)</th>
-                                <th className="px-4 py-2 text-right font-medium">Lãi gộp (VND)</th>
-                                <th className="px-4 py-2 text-right font-medium">Biên LG</th>
-                                <th className="px-4 py-2 text-left font-medium w-40">Tỷ trọng</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {rows.map((r, i) => (
-                                <tr key={r.sku + i} className="border-b border-border/50 hover:bg-muted/30">
-                                    <td className="px-4 py-2 text-muted-foreground">{i + 1}</td>
-                                    <td className="px-4 py-2 font-mono font-medium">{r.sku}</td>
-                                    <td className="px-4 py-2">{r.name || <span className="text-muted-foreground/50">—</span>}</td>
-                                    <td className="px-4 py-2 text-right font-mono">{formatNumber(r.units)}</td>
-                                    <td className="px-4 py-2 text-right font-mono text-muted-foreground">{formatNumber(r.orders)}</td>
-                                    <td className="px-4 py-2 text-right font-mono font-medium text-emerald-600 dark:text-emerald-400">{formatVNDCompact(r.revenueVnd)}</td>
-                                    <td className="px-4 py-2 text-right font-mono text-muted-foreground">
-                                        {r.costPrice === null
-                                            ? <span className="text-muted-foreground/50" title="SKU chưa khai giá vốn">—</span>
-                                            : formatVNDCompact(r.costPrice)}
-                                    </td>
-                                    <td className="px-4 py-2 text-right font-mono text-muted-foreground">
-                                        {r.cogsVnd === null ? <span className="text-muted-foreground/50">—</span> : formatVNDCompact(r.cogsVnd)}
-                                    </td>
-                                    <td className={`px-4 py-2 text-right font-mono font-medium ${r.profitVnd === null ? "" : r.profitVnd >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}`}>
-                                        {r.profitVnd === null ? <span className="text-muted-foreground/50">—</span> : formatVNDCompact(r.profitVnd)}
-                                    </td>
-                                    <td className="px-4 py-2 text-right font-mono text-muted-foreground">
-                                        {r.profitVnd === null || r.revenueVnd <= 0
-                                            ? <span className="text-muted-foreground/50">—</span>
-                                            : `${((r.profitVnd / r.revenueVnd) * 100).toFixed(0)}%`}
-                                    </td>
-                                    <td className="px-4 py-2">
-                                        <div className="h-2 w-full rounded-full bg-muted">
-                                            <div className="h-2 rounded-full bg-emerald-500" style={{ width: `${Math.max(2, (r.revenueVnd / maxRev) * 100)}%` }} />
-                                        </div>
-                                    </td>
-                                </tr>
-                            ))}
-                            {rows.length === 0 && (
-                                <tr><td colSpan={11} className="px-4 py-8 text-center text-muted-foreground">Không có dữ liệu trong khoảng thời gian này</td></tr>
-                            )}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
+            <ReportTable
+                emoji="🏷️"
+                title="Từng sản phẩm"
+                note="Sắp theo doanh số. Dòng tên nghiêng là hàng chưa tra được giá vốn. Lãi gộp = doanh số − tiền ads − phí ship − giá vốn, chưa trừ đơn hoàn và chi phí vận hành."
+                columns={COLUMNS}
+                rows={data.rows}
+                rowKey={r => r.sp}
+                empty="Kỳ này chưa có đơn nào"
+                footer={<>
+                    {t.ads_khong_ma > 0 && (
+                        <tr className="border-t border-border text-muted-foreground">
+                            <td className="px-3 py-2 italic" colSpan={4}>(ads ở campaign không ghi mã sản phẩm)</td>
+                            <td className="px-3 py-2 text-right tabular-nums">{formatMoney(t.ads_khong_ma)}</td>
+                            <td colSpan={3} />
+                            <td className="px-3 py-2 text-right tabular-nums text-rose-600 dark:text-rose-400">{signed(-t.ads_khong_ma)}</td>
+                            <td />
+                        </tr>
+                    )}
+                    <TongRow cells={[
+                        "TỔNG", formatNumber(t.orders), formatNumber(t.units), formatMoney(t.doanh_so), formatMoney(adsTong),
+                        pctText(adsTong, t.doanh_so), formatMoney(t.ship), formatMoney(t.cogs), signed(t.lai), pctText(t.lai, t.doanh_so),
+                    ]} lai={t.lai} />
+                </>}
+            />
+
+            <FootNotes
+                warning={<><strong>Lãi gộp tạm tính.</strong> Coi mọi đơn đã chốt là giao thành công; phí ship là ước tính trung bình; chưa trừ đơn hoàn và chi phí vận hành.</>}
+                notes={[
+                    <>Doanh số một sản phẩm: POS để giá bán từng dòng hàng = 0, nên tiền đơn được chia theo số lượng. Đơn ghép nhiều sản phẩm giá lệch nhau thì phần chia chỉ là gần đúng; tổng vẫn khớp tab P&L.</>,
+                    <>Tiền ads: campaign có ô mã sản phẩm (&ldquo;…/040/…&rdquo;), chỉ campaign của người trong team như file TỔNG TEAM{t.ads_ngoai_team > 0 ? ` (${formatVNDCompact(t.ads_ngoai_team)} của campaign không nhận ra người trong team không tính)` : ""}.</>,
+                    ...Object.entries(data.ship_basis).map(([code, moTa]) => <>Phí ship {marketName(code)}: {moTa}</>),
+                ]}
+            />
         </div>
     );
 }
+
+function TongRow({ cells, lai }: { cells: ReactNode[]; lai: number }) {
+    return (
+        <tr className="border-t-2 border-amber-500/30 bg-amber-500/5 font-bold">
+            {cells.map((c, i) => (
+                <td key={i} className={cn("px-3 py-2 tabular-nums", i === 0 ? "text-left" : "text-right", i === 8 && laiClass(lai))}>{c}</td>
+            ))}
+        </tr>
+    );
+}
+
+const COLUMNS: Column<Row>[] = [
+    {
+        key: "ten", label: "Sản phẩm",
+        cellClassName: r => cn("font-medium", r.thieu_gia ? "italic text-muted-foreground" : "text-foreground"),
+        render: r => (
+            <span className="flex flex-col">
+                <span>{r.ten}</span>
+                <span className="text-[11px] font-normal text-muted-foreground">
+                    {[r.ma && r.ten.indexOf(r.ma) !== 0 ? `mã ${r.ma}` : null, r.shops.map(s => marketName(s)).join(" · ") || null,
+                        r.ads > 0 && r.orders === 0 ? "chưa có đơn" : null].filter(Boolean).join(" · ")}
+                </span>
+            </span>
+        ),
+    },
+    { key: "orders", label: "Đơn", align: "right", render: r => formatNumber(r.orders) },
+    { key: "units", label: "Số cái", align: "right", render: r => formatNumber(r.units) },
+    { key: "doanh_so", label: "Doanh số", align: "right", render: r => (r.doanh_so > 0 ? formatMoney(r.doanh_so) : DASH) },
+    { key: "ads", label: "Tiền ads", align: "right", render: r => (r.ads > 0 ? formatMoney(r.ads) : DASH) },
+    { key: "ads_pct", label: "% Ads/DT", align: "right", render: r => (r.ads > 0 ? pctText(r.ads, r.doanh_so) : DASH) },
+    { key: "ship", label: "Phí ship", align: "right", render: r => (r.ship > 0 ? formatMoney(r.ship) : DASH) },
+    {
+        key: "cogs", label: "Giá vốn", align: "right",
+        title: "Số cái × giá vốn một cái",
+        render: r => (r.thieu_gia ? "thiếu giá" : r.cogs > 0 ? formatMoney(r.cogs) : DASH),
+    },
+    { key: "lai", label: "Lãi gộp", align: "right", cellClassName: r => cn("font-semibold", laiClass(r.lai)), render: r => signed(r.lai) },
+    { key: "bien", label: "Biên", align: "right", render: r => pctText(r.lai, r.doanh_so) },
+];
