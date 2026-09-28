@@ -146,7 +146,180 @@ function tinLech(p: Period, lang: "vi" | "zh"): string {
         `với số trên đơn của mình:\n\n${dong}\n\nNhờ bạn kiểm tra lại giúp mình nhé. Cảm ơn bạn!`;
 }
 
-export default function TALPHACodReconTab({ dateRange }: Props) {
+/**
+ * Nút chọn nước (Sỹ Anh chốt 26/09/2026): Đài Loan giữ nguyên toàn bộ quy trình sao kê NAZA;
+ * Singapore, UAE chưa có sao kê nên chỉ có phần "tiền còn ở đâu" (CodNuocKhac). Danh sách nước
+ * lấy từ /api/talpha/markets — không gõ cứng ở giao diện.
+ */
+export default function TALPHACodReconTab(props: Props) {
+    const [nuoc, setNuoc] = useState("TW");
+    const [ds, setDs] = useState<{ code: string; display: string }[]>([]);
+    useEffect(() => {
+        fetch("/api/talpha/markets").then((r) => r.json())
+            .then((d: { markets?: { code: string; display: string; status?: string }[] }) =>
+                setDs((d.markets || []).filter((m) => m.status !== "sap_chay").map((m) => ({ code: m.code, display: m.display }))))
+            .catch(() => { /* không lấy được danh sách nước thì vẫn hiện màn Đài như cũ */ });
+    }, []);
+    return (
+        <div className="space-y-5">
+            {ds.length > 1 && (
+                <div className="inline-flex rounded-lg border border-border bg-muted/40 p-1">
+                    {ds.map((m) => (
+                        <button key={m.code} onClick={() => setNuoc(m.code)}
+                            className={cn("rounded-md px-4 py-1.5 text-sm font-medium transition-colors",
+                                nuoc === m.code ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}>
+                            {m.display}
+                        </button>
+                    ))}
+                </div>
+            )}
+            {nuoc === "TW" ? <CodDaiLoan {...props} /> : <CodNuocKhac key={nuoc} code={nuoc} />}
+        </div>
+    );
+}
+
+type KhoanNuoc = { so_don: number; cod_local: number; vnd_uoc: number | null };
+type DonNuoc = {
+    order_id: string; tracking: string; order_date: string | null; trang_thai: string;
+    nhom: "da_giao" | "chua_giao" | "khong_tinh"; cod_local: number; khach: string;
+};
+type NuocData = {
+    market: { code: string; display: string; currency: string; symbol: string; rate_vnd: number };
+    nguon: { loai: "doi_tac" | "pos"; nhan: string; cap_nhat: string | null };
+    sao_ke: number;
+    tong: {
+        da_giao: KhoanNuoc;
+        chua_giao: KhoanNuoc & { theo_trang_thai: { trang_thai: string; so_don: number; cod_local: number }[] };
+        khong_tinh: KhoanNuoc & { hoan: number; huy: number; tieu_huy: number };
+    };
+    don: DonNuoc[];
+};
+
+/**
+ * Đối soát COD nước ngoài Đài — bước 1 (Sỹ Anh chốt 26/09/2026). Chưa có sao kê bên giao hàng,
+ * nên chỉ trả lời "tiền còn ở đâu": đã giao (bên giao hàng đang giữ) · chưa giao (ngoài đường) ·
+ * không tính (hoàn, huỷ). Khớp từng kỳ như Đài là bước 2, làm khi có file sao kê mẫu.
+ */
+function CodNuocKhac({ code }: { code: string }) {
+    const [d, setD] = useState<NuocData | null>(null);
+    const [err, setErr] = useState("");
+    const [loading, setLoading] = useState(true);
+    const load = useCallback(async () => {
+        setLoading(true); setErr("");
+        try {
+            const res = await fetch(`/api/talpha/cod-recon/market?market=${code}`);
+            const j = await res.json();
+            if (!res.ok) throw new Error(j.error || "Không tải được đơn");
+            setD(j);
+        } catch (e) {
+            setErr(e instanceof Error ? e.message : "Lỗi không rõ");
+        } finally { setLoading(false); }
+    }, [code]);
+    useEffect(() => { load(); }, [load]);
+
+    if (loading && !d) return <TabSkeleton cards={3} rows={6} showChart={false} />;
+    if (err || !d) return <ErrorState message={err || "Không tải được đơn"} onRetry={load} />;
+
+    const m = d.market, t = d.tong;
+    const tien = (n: number) => `${(Math.round(n * 100) / 100).toLocaleString("vi-VN")} ${m.symbol}`;
+    const COD = "text-sky-700 dark:text-sky-300";
+    const gia = m.rate_vnd > 0 ? `${m.rate_vnd.toLocaleString("vi-VN")}đ/${m.currency}` : "chưa khai tỷ giá";
+    const daGiao = d.don.filter((x) => x.nhom === "da_giao");
+    const capNhat = d.nguon.cap_nhat ? (() => {
+        const x = new Date(d.nguon.cap_nhat);
+        const p = (n: number) => String(n).padStart(2, "0");
+        return `${p(x.getHours())}:${p(x.getMinutes())} ngày ${p(x.getDate())}/${p(x.getMonth() + 1)}`;
+    })() : null;
+
+    return (
+        <div className="space-y-5">
+            <div className="flex gap-3 rounded-xl border-l-4 border-amber-500 bg-amber-50 p-4 text-sm dark:bg-amber-500/10">
+                <Info className="mt-0.5 h-4 w-4 flex-none text-amber-600 dark:text-amber-400" />
+                <div className="text-amber-900 dark:text-amber-200">
+                    <div className="font-medium">Chưa có sao kê của bên giao hàng {m.display}</div>
+                    <p className="mt-1 text-amber-800/80 dark:text-amber-200/70">
+                        Đơn lấy từ {d.nguon.nhan}{capNhat ? ` · nạp lúc ${capNhat}` : ""}. Số VND quy theo tỷ giá {gia},
+                        <b className="font-semibold"> chưa trừ phí ship và phí thu hộ</b>. Có file sao kê mẫu thì làm tiếp phần khớp từng kỳ như Đài Loan.
+                    </p>
+                </div>
+            </div>
+
+            <Khoi so="Σ" ten="Tiền về" phamVi="all" phu="Bên giao hàng đã gửi bao nhiêu, còn phải gửi bao nhiêu">
+                <div className="grid gap-3 p-4 lg:grid-cols-3">
+                    <TheTien mau="xanh" Icon={Wallet} nhan="Bên giao hàng đã gửi về" so="—"
+                        chiSo={[{ so: formatNumber(d.sao_ke), ten: "kỳ sao kê" }]}
+                        ghi="chưa có sao kê nào, chưa biết đã về bao nhiêu" />
+                    <TheTien mau="vang" Icon={PackageCheck} nhan="Còn phải gửi — đơn đã giao thành công" uoc
+                        so={t.da_giao.vnd_uoc != null ? VND(t.da_giao.vnd_uoc) : "—"}
+                        chiSo={[
+                            { so: formatNumber(t.da_giao.so_don), ten: "đơn" },
+                            { so: tien(t.da_giao.cod_local), ten: "COD", cls: COD },
+                        ]}
+                        ghi="khách đã trả, tiền đang nằm ở bên giao hàng" />
+                    <TheTien mau="cam" Icon={Boxes} nhan="Đơn còn lại — chưa giao xong" uoc
+                        so={t.chua_giao.vnd_uoc != null ? VND(t.chua_giao.vnd_uoc) : "—"}
+                        chiSo={[
+                            { so: formatNumber(t.chua_giao.so_don), ten: "đơn" },
+                            { so: tien(t.chua_giao.cod_local), ten: "COD", cls: COD },
+                        ]}
+                        ghi={`tiền chưa thu từ khách · đã trừ ${t.khong_tinh.hoan} đơn hoàn + ${t.khong_tinh.huy} đơn huỷ`
+                            + `${t.khong_tinh.tieu_huy ? ` + ${t.khong_tinh.tieu_huy} đơn tiêu huỷ` : ""}`
+                            + ` (${tien(t.khong_tinh.cod_local)}) vì không bao giờ trả tiền`} />
+                </div>
+            </Khoi>
+
+            <Khoi so="1" ten="Đơn đã giao — tiền bên giao hàng đang giữ" phamVi="all" dem={`${formatNumber(daGiao.length)} đơn`}>
+                {daGiao.length ? (
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                            <thead>
+                                <tr className="border-b border-border text-left text-[12px] uppercase tracking-wide text-muted-foreground">
+                                    <th className="px-4 py-2 font-medium">Mã đơn</th>
+                                    <th className="px-4 py-2 font-medium">Mã vận đơn</th>
+                                    <th className="px-4 py-2 font-medium">Ngày đơn</th>
+                                    <th className="px-4 py-2 font-medium">Khách</th>
+                                    <th className="px-4 py-2 text-right font-medium">COD</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {daGiao.map((x) => (
+                                    <tr key={`${x.order_id}-${x.tracking}`} className="border-b border-border/60 last:border-0">
+                                        <td className="px-4 py-2 font-mono text-[13px]">{x.order_id || "—"}</td>
+                                        <td className="px-4 py-2 font-mono text-[12px] text-muted-foreground">{x.tracking || "—"}</td>
+                                        <td className="px-4 py-2 tabular-nums">{x.order_date ? `${x.order_date.slice(8, 10)}/${x.order_date.slice(5, 7)}` : "—"}</td>
+                                        <td className="px-4 py-2">{x.khach || "—"}</td>
+                                        <td className="px-4 py-2 text-right font-mono tabular-nums">{tien(x.cod_local)}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                ) : (
+                    <p className="px-5 py-4 text-sm text-muted-foreground">Chưa có đơn nào giao thành công.</p>
+                )}
+            </Khoi>
+
+            <Khoi so="2" ten="Đơn chưa giao xong — tiền còn ngoài đường" phamVi="all" dem={`${formatNumber(t.chua_giao.so_don)} đơn`}>
+                {t.chua_giao.theo_trang_thai.length ? (
+                    <ul className="divide-y divide-border/60">
+                        {t.chua_giao.theo_trang_thai.map((x) => (
+                            <li key={x.trang_thai} className="flex items-center justify-between gap-3 px-5 py-2.5 text-sm">
+                                <span>{x.trang_thai}</span>
+                                <span className="tabular-nums text-muted-foreground">
+                                    {formatNumber(x.so_don)} đơn · <span className={cn("font-mono", COD)}>{tien(x.cod_local)}</span>
+                                </span>
+                            </li>
+                        ))}
+                    </ul>
+                ) : (
+                    <p className="px-5 py-4 text-sm text-muted-foreground">Không còn đơn nào ngoài đường.</p>
+                )}
+            </Khoi>
+        </div>
+    );
+}
+
+function CodDaiLoan({ dateRange }: Props) {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
     const [upErr, setUpErr] = useState("");

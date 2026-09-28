@@ -131,7 +131,7 @@ Vào `/` → middleware kiểm đăng nhập → `/talpha` → `components/talph
 | | P&L | `tabs/pnl-tab.tsx` | `sheet-report?from&to` + `pnl-costs` |
 | | P&L theo SP | `tabs/product-pnl-tab.tsx` | `/api/query` + `product-costs` |
 | 🧾 Đơn hàng & Đối soát | Sổ đơn hàng | `tabs/order-ledger-tab.tsx` | `/api/talpha/order-ledger` |
-| | Đối soát COD | `tabs/cod-recon-tab.tsx` | `/api/talpha/order-ledger` + `cod-recon` |
+| | Đối soát COD | `tabs/cod-recon-tab.tsx` | `/api/talpha/order-ledger` + `cod-recon` (Đài) · `cod-recon/market` (Singapore, UAE) |
 | | Theo dõi vận đơn | `tabs/tracking-tab.tsx` | `/api/talpha/tracking` |
 | 📦 Sản phẩm | Sản phẩm & Kho | `tabs/products-tab.tsx` | `/api/talpha/inventory` |
 | 👤 Marketer | Marketing & Ads | `tabs/marketing-tab.tsx` | `/api/query` + `marketer-perf` |
@@ -179,6 +179,7 @@ cookie `activeDataset` (shell đặt `TALPHA_Dataset`).
 | `inventory` | Tồn kho POS live; POS chết → snapshot BQ | Giao diện, bot WA |
 | `order-ledger` | Sổ đơn: mỗi đơn một dòng, khách + tiền + vòng đời | Giao diện |
 | `cod-recon` | Khớp sao kê 3PL với đơn đã giao | Giao diện |
+| `cod-recon/market?market=SG\|AE` | Đối soát COD nước ngoài Đài, bước 1 (26/09/2026): tiền còn ở đâu — đã giao / chưa giao / hoàn-huỷ. SG đọc bảng đối tác + 17TRACK (chung `lib/talpha/tracking-market.ts` với Theo dõi vận đơn), UAE đọc POS. Chưa có sao kê → chưa khớp từng kỳ | Giao diện (nút Đài Loan / Singapore / UAE) |
 | `tracking` · `tracking/import` | 17TRACK + nạp bảng đơn đối tác. `?market=SG`: Singapore sổ riêng (`data/tracking_sg.json`), đơn đọc từ BigQuery `partner_orders` | Giao diện (nút Đài Loan / Singapore) · `talpha-tracking.timer` 6h (nạp bảng Đài + đồng bộ 17TRACK từng nước) · bot Zalo 08:00 (mỗi nước một tin, nhóm riêng) |
 | `ads-recon` | Đối soát chi phí TKQC với sao kê thẻ | Giao diện |
 | `cod-actions` | Đánh dấu đã đòi / đã nhận tiền | Giao diện |

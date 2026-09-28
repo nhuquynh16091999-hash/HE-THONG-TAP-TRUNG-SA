@@ -6,9 +6,9 @@ import {
 } from "@/lib/talpha/rules";
 import { trackingFromLink } from "@/lib/talpha/cod-recon";
 import {
-    buildAlerts, carrierFor, countByStatus, fixTrack17Code, mergeStatus, partnerOrderShipment, planRegister, planTrack,
+    buildAlerts, carrierFor, countByStatus, fixTrack17Code, mergeStatus, planRegister, planTrack,
     trackMarket, TERMINAL, TRACK_CFG, TRACK_MARKETS,
-    type PartnerOrderRow, type SavedTrack, type Shipment, type TrackMarket,
+    type Shipment, type TrackMarket,
 } from "@/lib/talpha/tracking";
 import {
     apiKeys, allocateToKeys, register, changeCarrier, getTrackInfo, getQuota, hasApiKey, Track17Error,
@@ -16,6 +16,7 @@ import {
 } from "@/lib/talpha/track17";
 import { track17CodeFor } from "@/lib/talpha/partner-file";
 import { readStoreFresh, updateStore } from "@/lib/talpha/store";
+import { loadPartnerMarketShipments } from "@/lib/talpha/tracking-market";
 
 export const dynamic = "force-dynamic";
 
@@ -238,38 +239,8 @@ async function loadShipments(mk: TrackMarket, from: string, to: string): Promise
     return { shipments: [...byTracking.values()], store, lastImport: store.partner_import?.imported_at ?? null };
 }
 
-/**
- * Thị trường ngoài Đài: đơn = bảng đối tác trong BigQuery partner_orders (talpha-sync nạp
- * mỗi giờ), ghép trạng thái 17TRACK trong sổ riêng của nước đó. Đọc BigQuery hỏng thì NÉM
- * lỗi — nước này không có nguồn thứ hai, trả danh sách rỗng là nói dối "không có đơn".
- */
-async function loadPartnerMarket(mk: TrackMarket): Promise<{ shipments: Shipment[]; store: Store; lastImport: string | null }> {
-    const store = await readStoreFresh<Store>(mk.store, emptyStore());
-    const regNumbers = new Set(Object.entries(store.registered).map(([k, r]) => r.number || clean(k)));
-    const [rows] = await bigquery.query({
-        query: `SELECT order_no, tracking, status, note, ship_method, city, contact_name, phone, cod, marketer,
-                       FORMAT_DATE('%Y-%m-%d', order_date) AS order_date,
-                       FORMAT_DATE('%Y-%m-%d', ship_date) AS ship_date,
-                       FORMAT_TIMESTAMP('%Y-%m-%dT%H:%M:%SZ', synced_at) AS synced_at
-                FROM \`${BQ_PROJECT}.${BQ_DATASET}.partner_orders\`
-                WHERE market = @m
-                ORDER BY row_no`,
-        params: { m: mk.partner_market },
-    });
-    const byKey = new Map<string, Shipment>();
-    let lastImport: string | null = null;
-    for (const r of rows as (PartnerOrderRow & { synced_at?: string })[]) {
-        if (r.synced_at && (!lastImport || r.synced_at > lastImport)) lastImport = r.synced_at;
-        const t = clean(r.tracking);
-        const key0 = t || `DON-${r.order_no || "?"}`;
-        // Hai dòng cùng mã vận đơn (đơn tách/ghép) → khoá thứ hai kèm mã đơn, không đè nhau.
-        const key = byKey.has(key0) ? `${key0}#${r.order_no || byKey.size}` : key0;
-        const s = partnerOrderShipment(mk, r, store.statuses[key0] as SavedTrack | undefined,
-            !!store.registered[key0] || (!!t && regNumbers.has(t)));
-        byKey.set(key, { ...s, tracking: key });
-    }
-    return { shipments: [...byKey.values()], store, lastImport };
-}
+/** Thị trường ngoài Đài — đọc chung với màn Đối soát COD (lib/talpha/tracking-market.ts). */
+const loadPartnerMarket = (mk: TrackMarket) => loadPartnerMarketShipments<Store>(mk, emptyStore);
 
 function chuaKhai(shipments: Shipment[]): { value: string; count: number }[] {
     const dem = new Map<string, number>();
