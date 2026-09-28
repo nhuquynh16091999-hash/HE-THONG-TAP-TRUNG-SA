@@ -179,8 +179,8 @@ cookie `activeDataset` (shell đặt `TALPHA_Dataset`).
 | `inventory` | Tồn kho POS live; POS chết → snapshot BQ | Giao diện, bot WA |
 | `order-ledger` | Sổ đơn: mỗi đơn một dòng, khách + tiền + vòng đời | Giao diện |
 | `cod-recon` | Khớp sao kê 3PL với đơn đã giao | Giao diện |
-| `cod-recon/market?market=SG\|AE` | Đối soát COD nước ngoài Đài, bước 1 (26/09/2026): tiền còn ở đâu — đã giao / chưa giao / hoàn-huỷ. SG đọc bảng đối tác + 17TRACK (chung `lib/talpha/tracking-market.ts` với Theo dõi vận đơn), UAE đọc POS. Chưa có sao kê → chưa khớp từng kỳ | Giao diện (nút Đài Loan / Singapore / UAE) |
-| `tracking` · `tracking/import` | 17TRACK + nạp bảng đơn đối tác. `?market=SG`: Singapore sổ riêng (`data/tracking_sg.json`), đơn đọc từ BigQuery `partner_orders` | Giao diện (nút Đài Loan / Singapore) · `talpha-tracking.timer` 6h (nạp bảng Đài + đồng bộ 17TRACK từng nước) · bot Zalo 08:00 (mỗi nước một tin, nhóm riêng) |
+| `cod-recon/market?market=SG\|AE` | Đối soát COD nước ngoài Đài, bước 1 (26/09/2026): tiền còn ở đâu — đã giao / chưa giao / hoàn-huỷ. SG đọc bảng đối tác + 17TRACK, UAE (từ 28/09/2026) đọc đơn POS + trạng thái tra ở WeShip — cả hai chung `lib/talpha/tracking-market.ts` với Theo dõi vận đơn. Chưa có sao kê → chưa khớp từng kỳ | Giao diện (nút Đài Loan / Singapore / UAE) |
+| `tracking` · `tracking/import` | 17TRACK + nạp bảng đơn đối tác. `?market=SG`: Singapore sổ riêng (`data/tracking_sg.json`), đơn đọc từ BigQuery `partner_orders`. `?market=AE` (28/09/2026): UAE không có bảng đối tác, 17TRACK không có hãng — đơn đọc từ POS (mã AWB ở `sale_order.partner → extend_code`), POST tra thẳng trang WeShip `portal.weshipme.com/tracking` (`lib/talpha/weship.ts`, miễn phí, không quota), sổ `data/tracking_ae.json` | Giao diện (nút Đài Loan / Singapore / UAE, nút “Tra WeShip”) · `talpha-tracking.timer` 6h + 21:30 (nạp bảng Đài + đồng bộ từng nước) · bot Zalo 08:30 + 22:00 (mỗi nước một tin, nhóm riêng) |
 | `ads-recon` | Đối soát chi phí TKQC với sao kê thẻ | Giao diện |
 | `cod-actions` | Đánh dấu đã đòi / đã nhận tiền | Giao diện |
 | `ad-spend` · `marketer-perf` · `product-costs` · `targets` | Số phụ trợ cho tab | Giao diện |

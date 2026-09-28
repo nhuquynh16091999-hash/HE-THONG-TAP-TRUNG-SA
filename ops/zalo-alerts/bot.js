@@ -217,7 +217,9 @@ function guiBaoCao(ngay, { homNay = false, label, theoDoi, kieu = "" } = {}) {
 // mỗi nước một mốc riêng — nước này hỏng không kéo nước kia, và vòng rà thử lại đúng nước hỏng.
 // Tin sáng lưu danh sách khách phải gọi/nhắn vào state.json để tin tối chấm "đã lấy chưa".
 const VD_MARKETS = (Array.isArray(VD.markets) && VD.markets.length ? VD.markets : ["TW"]).map((x) => String(x).toUpperCase());
-const TEN_NUOC = { TW: "Đài Loan", SG: "Singapore" };
+const TEN_NUOC = { TW: "Đài Loan", SG: "Singapore", AE: "UAE" };
+// UAE không qua 17TRACK: đơn POS + tra thẳng trang WeShip (Sỹ Anh chốt 28/09/2026).
+const NGUON_NUOC = { AE: "đơn POS + tra trang WeShip" };
 
 // kieu: "sang" · "toi" · "" (gõ /vandon trong ngày — khuôn tin sáng, đề giờ lúc gõ).
 async function dungTinVanDon(m, kieu) {
@@ -326,7 +328,7 @@ async function lamLenh(text, ai = "dòng lệnh", ctx = null) {
                 }
                 return;
             }
-            if (lenh.lenh === "trogiup" && nhom === "vandon") { await guiMot(huongDanVanDon({ at: VD_AT, toi: VD_TOI }), nhomVanDon[ctx.vd]); return; }
+            if (lenh.lenh === "trogiup" && nhom === "vandon") { await guiMot(huongDanVanDon({ at: VD_AT, toi: VD_TOI, nuoc: TEN_NUOC[ctx.vd], nguon: NGUON_NUOC[ctx.vd] }), nhomVanDon[ctx.vd]); return; }
             if (lenh.loi) { await guiMot(`⚠️ ${lenh.loi}`); return; }
             if (lenh.lenh === "trogiup") {
                 await guiMot(huongDan({ at: DAILY_AT, toi: INTRADAY_SLOTS.join(" · "), nguoi: NGUOI })
@@ -462,7 +464,7 @@ async function gioiThieuNeuMoi() {
     if (nhomDich) moi.push([nhomDich, huongDan({ at: DAILY_AT, toi: INTRADAY_SLOTS.join(" · "), nguoi: NGUOI })]);
     for (const m of VD_MARKETS) {
         const g = nhomVanDon[m];
-        if (g && (!nhomDich || g.id !== nhomDich.id)) moi.push([g, huongDanVanDon({ at: VD_AT, toi: VD_TOI, nuoc: TEN_NUOC[m] || m })]);
+        if (g && (!nhomDich || g.id !== nhomDich.id)) moi.push([g, huongDanVanDon({ at: VD_AT, toi: VD_TOI, nuoc: TEN_NUOC[m] || m, nguon: NGUON_NUOC[m] })]);
     }
     for (const [nhom, tin] of moi) {
         if ((loadState().gioiThieu || {})[nhom.id]) continue;

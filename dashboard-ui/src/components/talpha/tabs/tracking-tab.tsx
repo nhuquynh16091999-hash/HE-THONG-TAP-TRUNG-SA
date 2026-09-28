@@ -14,9 +14,10 @@ type Shipment = {
     cod_local: number; status: string | null; sub_status: string | null;
     status_since: string | null; last_event_time: string | null; last_event: string | null;
     registered: boolean;
-    source?: "doi_tac" | "17track" | null;
+    source?: "doi_tac" | "17track" | "weship" | null;
     raw_status?: string | null;
     store_name?: string; store_code?: string; ship_method?: string;
+    city?: string | null; fail_count?: number | null;
 };
 type Alert = {
     level: "gap" | "canh_bao" | "nhac";
@@ -68,6 +69,8 @@ const LEVEL_STYLE = {
 type LastSync = {
     at: string; ok: boolean; error?: string;
     registered?: number; checked?: number; quota_out?: boolean;
+    /** Lượt tra WeShip (UAE): số mã đem tra, trang báo không có, lỗi. */
+    targets?: number; not_found?: number; failed?: number;
     quota?: { total: number; used: number; remain: number } | null;
     keys?: { label: string; ok: boolean; error?: string }[];
 };
@@ -96,6 +99,9 @@ export default function TALPHATrackingTab({ dateRange }: Props) {
     const [market, setMarket] = useState("TW");
     const [markets, setMarkets] = useState<{ code: string; label: string }[]>([]);
     const [currency, setCurrency] = useState("NT$");
+    // Nguồn trạng thái: 17TRACK (Đài, Singapore) hay tra thẳng trang WeShip (UAE, 28/09/2026).
+    const [provider, setProvider] = useState<"17track" | "weship">("17track");
+    const [posSource, setPosSource] = useState(false);
     const fileRef = useRef<HTMLInputElement>(null);
     const money = (n: number) => `${Math.round(n).toLocaleString("vi-VN")} ${currency}`;
 
@@ -112,6 +118,7 @@ export default function TALPHATrackingTab({ dateRange }: Props) {
             setCounts(d.counts || {}); setTotals(d.totals);
             setHasKey(d.has_api_key); setCfg(d.config); setLastSync(d.last_sync ?? null);
             setMarkets(d.markets || []); setCurrency(d.market?.currency || "NT$");
+            setProvider(d.provider === "weship" ? "weship" : "17track"); setPosSource(d.market?.source === "pos");
             // Nước ngoài Đài: bảng đối tác nạp tự động, trạng thái chưa khai đi kèm lượt đọc.
             if (d.unknown_statuses) setUnknownStatuses(d.unknown_statuses);
         } catch (e) {
@@ -133,6 +140,13 @@ export default function TALPHATrackingTab({ dateRange }: Props) {
             const res = await fetch(`/api/talpha/tracking?from=${from}&to=${to}&market=${market}`, { method: "POST" });
             const d = await res.json();
             if (!res.ok) throw new Error(d.error || "Đồng bộ thất bại");
+            if (d.provider === "weship") {
+                setSyncMsg(`Tra WeShip ${d.checked}/${d.targets} mã · ${d.status_changed} mã đổi trạng thái` +
+                    (d.not_found ? ` · ${d.not_found} mã WeShip báo không có` : "") +
+                    (d.failed ? ` · ${d.failed} mã lỗi: ${d.error_note || ""}` : ""));
+                await load();
+                return;
+            }
             setSyncMsg(
                 `Đăng ký mới ${d.registered} mã · kiểm tra ${d.checked} mã · ${d.status_changed} mã đổi trạng thái` +
                 (d.register_rejected?.length ? ` · ${d.register_rejected.length} mã bị từ chối` : "") +
@@ -248,9 +262,11 @@ export default function TALPHATrackingTab({ dateRange }: Props) {
                     value={formatNumber((counts.DeliveryFailure || 0) + (counts.Exception || 0))} sub="cần người xử lý" />
                 <Stat icon={<Clock className="h-4 w-4" />} label="Tổng vận đơn"
                     value={formatNumber(totals.shipments)}
-                    sub={totals.pending_register > 0
-                        ? `${totals.pending_register} mã chưa đăng ký theo dõi`
-                        : "đã đăng ký theo dõi hết"} />
+                    sub={provider === "weship"
+                        ? (totals.pending_register > 0 ? `${totals.pending_register} mã AWB chưa tra WeShip` : "đã tra WeShip hết")
+                        : totals.pending_register > 0
+                            ? `${totals.pending_register} mã chưa đăng ký theo dõi`
+                            : "đã đăng ký theo dõi hết"} />
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
@@ -277,12 +293,12 @@ export default function TALPHATrackingTab({ dateRange }: Props) {
                         <Upload className="h-4 w-4" /> Tải file
                     </button>
                 </>) : (
-                    <span className="text-xs text-muted-foreground">Bảng đối tác tự nạp mỗi giờ</span>
+                    <span className="text-xs text-muted-foreground">{posSource ? "Đơn đọc thẳng từ POS" : "Bảng đối tác tự nạp mỗi giờ"}</span>
                 )}
                 <button onClick={sync} disabled={syncing || !hasKey}
                     className="inline-flex items-center gap-1.5 rounded-lg bg-orange-500 px-3 py-2 text-sm font-medium text-white hover:bg-orange-600 disabled:opacity-50">
                     <RefreshCw className={cn("h-4 w-4", syncing && "animate-spin")} />
-                    {syncing ? "Đang đồng bộ…" : "Đồng bộ 17TRACK"}
+                    {syncing ? (provider === "weship" ? "Đang tra…" : "Đang đồng bộ…") : provider === "weship" ? "Tra WeShip" : "Đồng bộ 17TRACK"}
                 </button>
                 <button onClick={exportCsv} disabled={!shipments.length}
                     className="ml-auto inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-sm hover:bg-muted disabled:opacity-40">
@@ -296,7 +312,7 @@ export default function TALPHATrackingTab({ dateRange }: Props) {
                     <div className="font-medium text-amber-900 dark:text-amber-200">Có trạng thái chưa khai</div>
                     <p className="mt-0.5 text-amber-800/80 dark:text-amber-200/70">
                         Những đơn này không vào được cảnh báo nào. Khai thêm vào{" "}
-                        <span className="font-mono">talpha_rules.json → {laDai ? "tracking.partner_file.status_map" : `tracking.markets.${market}.status_map`}</span>:
+                        <span className="font-mono">talpha_rules.json → {laDai ? "tracking.partner_file.status_map" : `tracking.markets.${market}.${provider === "weship" ? "status_rules" : "status_map"}`}</span>:
                     </p>
                     <ul className="mt-1 space-y-0.5 font-mono text-xs text-amber-800/70 dark:text-amber-200/60">
                         {unknownStatuses.map((u) => <li key={u.value}>{u.count}× “{u.value}”</li>)}
@@ -312,7 +328,15 @@ export default function TALPHATrackingTab({ dateRange }: Props) {
                     </div>
                 </div>
             )}
-            {hasKey && lastSync && (
+            {hasKey && lastSync && provider === "weship" && (
+                <p className={cn("text-xs", lastSync.ok && !lastSync.failed ? "text-muted-foreground" : "text-rose-600 dark:text-rose-400")}>
+                    WeShip · lần tra cuối {new Date(lastSync.at).toLocaleString("vi-VN", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit" })}
+                    {lastSync.ok ? ` · tra được ${lastSync.checked ?? 0}/${lastSync.targets ?? 0} mã` : ` · LỖI: ${lastSync.error || "không rõ"}`}
+                    {lastSync.ok && lastSync.not_found ? ` · ${lastSync.not_found} mã WeShip báo không có` : ""}
+                    {lastSync.ok && lastSync.failed ? ` · ${lastSync.error}` : ""}
+                </p>
+            )}
+            {hasKey && lastSync && provider !== "weship" && (
                 <p className={cn("text-xs", lastSync.ok && !lastSync.quota_out && !lastSync.keys?.some((k) => !k.ok)
                     ? "text-muted-foreground" : "text-rose-600 dark:text-rose-400")}>
                     17TRACK · lần đồng bộ cuối {new Date(lastSync.at).toLocaleString("vi-VN", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit" })}
@@ -390,6 +414,7 @@ export default function TALPHATrackingTab({ dateRange }: Props) {
                                                     <span className="text-foreground">{s.customer || "(chưa có tên)"}</span>
                                                     <span className="font-mono text-violet-600/85 dark:text-violet-300/80">{s.phone || "(chưa có SĐT)"}</span>
                                                     <span className="font-mono text-indigo-600/70 dark:text-indigo-300/60">{s.tracking}</span>
+                                                    {s.city && <span>{s.city}</span>}
                                                     {s.store_name && <span className="text-amber-700 dark:text-amber-400">{s.store_name}{s.store_code ? ` · mã ${s.store_code}` : ""}</span>}
                                                     {s.marketer && <span>mkt {s.marketer}</span>}
                                                 </div>
@@ -443,7 +468,7 @@ export default function TALPHATrackingTab({ dateRange }: Props) {
                                         <td className="px-3 py-2">
                                             <span className={cn("rounded-full px-2 py-0.5 text-[11px] font-medium",
                                                 STATUS_STYLE[s.status || ""] || "bg-slate-100 text-slate-600 dark:bg-slate-500/15 dark:text-slate-400")}>
-                                                {STATUS_VI[s.status || ""] || (s.registered ? "chưa có tin" : "chưa đăng ký")}
+                                                {STATUS_VI[s.status || ""] || (s.raw_status ? `“${s.raw_status}”` : s.registered ? "chưa có tin" : "chưa đăng ký")}
                                             </span>
                                         </td>
                                         <td className="px-3 py-2 text-right font-mono tabular-nums">{s.cod_local ? money(s.cod_local) : "—"}</td>
@@ -453,7 +478,7 @@ export default function TALPHATrackingTab({ dateRange }: Props) {
                                         </td>
                                         <td className={cn("px-3 py-2", !s.sale && "text-muted-foreground")}>{s.sale || "—"}</td>
                                         <td className="px-3 py-2 text-xs text-muted-foreground">
-                                            {s.source === "17track" ? "17TRACK" : s.source === "doi_tac" ? "file đối tác" : "—"}
+                                            {s.source === "17track" ? "17TRACK" : s.source === "weship" ? "WeShip" : s.source === "doi_tac" ? "file đối tác" : posSource ? "POS" : "—"}
                                         </td>
                                     </tr>
                                 ))}
@@ -468,12 +493,21 @@ export default function TALPHATrackingTab({ dateRange }: Props) {
                 </div>
             )}
 
+            {provider === "weship" ? (
+                <p className="text-xs text-muted-foreground">
+                    UAE: đơn lấy từ POS, trạng thái tra thẳng trang <span className="font-mono">portal.weshipme.com</span> bằng
+                    mã AWB — miễn phí, không quota. Tự tra 06:00 và 21:30 mỗi ngày, hoặc bấm “Tra WeShip”. Đơn chưa có
+                    mã AWB quá <span className="font-mono">{cfg.stale_days}</span> ngày là “Chưa gửi hàng” — hỏi D&amp;T.
+                    Chữ trạng thái WeShip quy đổi ở <span className="font-mono">talpha_rules.json → tracking.markets.{market}.status_rules</span>.
+                </p>
+            ) : (
             <p className="text-xs text-muted-foreground">
                 Chỉ theo dõi đơn đã gửi đi, bỏ qua đơn huỷ và đơn thô để không phí quota.
                 Đăng ký mỗi mã vận đơn tốn quota <b>một lần</b>; sau đó cập nhật trạng thái miễn phí.
                 Mốc “sắp bị trả về” tính theo <span className="font-mono">{cfg.pickup_expire_days}</span> ngày —
                 sửa ở <span className="font-mono">talpha_rules.json → tracking.pickup_expire_days</span> nếu hãng vận chuyển quy định khác.
             </p>
+            )}
         </div>
     );
 }

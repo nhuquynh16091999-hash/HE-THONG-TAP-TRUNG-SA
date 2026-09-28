@@ -4,7 +4,8 @@
 #   1. Nạp bảng đơn đối tác (Google Sheet NAZA) vào kho `tracking`.
 #   2. Đồng bộ 17TRACK cho Đài Loan rồi từng nước trong tracking.markets (Singapore…): đăng ký đơn mới (TỐN QUOTA — luật chọn ở planRegister, không bao
 #      giờ quá quota còn lại) rồi hỏi trạng thái (miễn phí). Chưa có khoá TRACK17_API_KEY
-#      thì bỏ qua, không tính là hỏng.
+#      thì bỏ qua, không tính là hỏng. UAE (provider weship, 28/09/2026) cùng route nhưng tra
+#      thẳng trang WeShip — không khoá, không quota; WeShip lỗi thì unit đỏ như 17TRACK lỗi.
 # Chạy tay: bash /opt/talpha/ops/deploy/tracking-import.sh
 #
 # Gọi CHÍNH route dashboard đang dùng (nút "Đọc bảng đối tác", "Đồng bộ 17TRACK"), không
@@ -46,7 +47,7 @@ NUOC_KHAC=$(python3 -c 'import json,sys; m=json.load(open(sys.argv[1]))["trackin
 
 dong_bo_17track() {   # $1 = mã nước ("" = Đài Loan)
     local mk="$1" ten="${1:-TW}" code kq17
-    echo "── 2/2 · Đồng bộ 17TRACK · ${ten}"
+    echo "── 2/2 · Đồng bộ vận đơn · ${ten} (17TRACK, UAE: WeShip)"
     code=$(curl -sS -o /tmp/talpha-17track.json -w '%{http_code}' -X POST --max-time 600 \
         "${BASE}/api/talpha/tracking?from=${TU}&to=${DEN}${mk:+&market=$mk}") || code="000"
     kq17=$(cat /tmp/talpha-17track.json 2>/dev/null || true)
@@ -65,7 +66,7 @@ dong_bo_17track() {   # $1 = mã nước ("" = Đài Loan)
         fi
         return 0
     fi
-    echo "→ đồng bộ 17TRACK ${ten} THẤT BẠI (HTTP $code): ${kq17:0:300}"
+    echo "→ đồng bộ vận đơn ${ten} THẤT BẠI (HTTP $code): ${kq17:0:300}"
     return 1
 }
 

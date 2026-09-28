@@ -37,7 +37,8 @@
     "quotaWarn": 200,
     "markets": [
       "TW",
-      "SG"
+      "SG",
+      "AE"
     ],
     "toiAt": "22:00",
     "toiCatchUpMinutes": 60,

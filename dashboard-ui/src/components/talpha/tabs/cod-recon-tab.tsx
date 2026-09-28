@@ -185,7 +185,7 @@ type DonNuoc = {
 };
 type NuocData = {
     market: { code: string; display: string; currency: string; symbol: string; rate_vnd: number };
-    nguon: { loai: "doi_tac" | "pos"; nhan: string; cap_nhat: string | null };
+    nguon: { loai: "doi_tac" | "weship" | "pos"; nhan: string; cap_nhat: string | null };
     sao_ke: number;
     tong: {
         da_giao: KhoanNuoc;
@@ -238,7 +238,7 @@ function CodNuocKhac({ code }: { code: string }) {
                 <div className="text-amber-900 dark:text-amber-200">
                     <div className="font-medium">Chưa có sao kê của bên giao hàng {m.display}</div>
                     <p className="mt-1 text-amber-800/80 dark:text-amber-200/70">
-                        Đơn lấy từ {d.nguon.nhan}{capNhat ? ` · nạp lúc ${capNhat}` : ""}. Số VND quy theo tỷ giá {gia},
+                        Đơn lấy từ {d.nguon.nhan}{capNhat ? ` · ${d.nguon.loai === "weship" ? "tra" : "nạp"} lúc ${capNhat}` : ""}. Số VND quy theo tỷ giá {gia},
                         <b className="font-semibold"> chưa trừ phí ship và phí thu hộ</b>. Có file sao kê mẫu thì làm tiếp phần khớp từng kỳ như Đài Loan.
                     </p>
                 </div>

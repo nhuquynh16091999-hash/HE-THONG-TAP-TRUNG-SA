@@ -155,6 +155,47 @@ const sang = (d, o = {}) => buildVanDonSang(d, { today: TODAY, nowTs: NOW, phuTr
         assert.deepStrictEqual(r.goi, ["JT2026092201"]);
     });
 
+    // ── SÁNG · UAE (WeShip, 28/09/2026) ──
+    const AE = (o = {}) => DATA({ market: { code: "AE", label: "UAE", currency: "AED" }, provider: "weship",
+        last_sync: { at: "2026-09-25T23:03:00Z", ok: true, provider: "weship", targets: 27, checked: 27, failed: 0 },
+        last_import: null, counts: { InTransit: 4, InfoReceived: 13, OutForDelivery: 1 }, totals: { at_store_value: 0 }, ...o });
+    const uae = (o) => don({ tracking: "VS1068045", track17_code: "VS1068045", order_id: "12", customer: "Maria", phone: "0501234567",
+        city: "Dubai", store_name: "", store_code: "", cod_local: 159, source: "weship", status: "DeliveryFailure", ...o });
+    await t("UAE: nguồn ghi WeShip (không quota), tiêu đề nước", () => {
+        const m = tron(sang(AE()).text);
+        const dong = m.split("\n");
+        assert.strictEqual(dong[0], "☀️ VẬN ĐƠN UAE · SÁNG 26/09");
+        assert.strictEqual(dong[1], "WeShip 06:03 ✓");
+        assert.ok(!m.includes("17TRACK"), m);
+    });
+    await t("UAE: gọi khách từ chối / không nghe máy / hẹn lại — lý do, số lần, ghi chú đơn, tin tiếng Anh theo lý do", () => {
+        const r = sang(AE({ alerts: [
+            canh("giao_hong", { level: "canh_bao" }, uae({ sub_status: "DeliveryFailure_Rejected", raw_status: "REFUSED", fail_count: 2, note: "Flat 426 K1 Building Al Rigga" })),
+            canh("giao_hong", { level: "canh_bao" }, uae({ order_id: "5", tracking: "VS1068349", track17_code: "VS1068349", customer: "Ann",
+                sub_status: "DeliveryFailure_NoResponse", raw_status: "NO RESPONSE", fail_count: 1, city: "Dibba, Fujairah" })),
+            canh("giao_hong", { level: "canh_bao" }, uae({ order_id: "4", tracking: "VS1068056", track17_code: "VS1068056", customer: "Liza",
+                sub_status: "DeliveryFailure_Rescheduled", raw_status: "Rescheduled", fail_count: 2 })),
+        ] }));
+        const m = tron(r.text);
+        assert.ok(m.includes("☎️ @Thương · GỌI 3 KHÁCH GIAO HỎNG / HẸN LẠI"), m);
+        assert.ok(m.includes("1. #12 · 159 AED · khách từ chối lần 2\n👤 Maria · 0501234567 · Dubai\n📝 Ghi chú đơn: \"Flat 426 K1 Building Al Rigga\"\n"
+            + "💬 Hi Maria, the courier reported that your order (parcel VS1068045) was refused."), m);
+        assert.ok(m.includes("2. #5 · 159 AED · không nghe máy\n👤 Ann · 0501234567 · Dibba, Fujairah\n💬 Hi Ann, the courier tried to deliver"), m);
+        assert.ok(m.includes("3. #4 · 159 AED · hẹn giao lại lần 2\n"), m);
+        assert.ok(m.includes("parcel VS1068056) was rescheduled"), m);
+        assert.ok(!m.includes("J&T"), "tin UAE không được nói J&T");
+        assert.deepStrictEqual(r.goi, ["VS1068045", "VS1068349", "VS1068056"]);
+    });
+    await t("UAE: WeShip lỗi vài mã / lượt hỏng → tin tự nói", () => {
+        const m1 = tron(sang(AE({ last_sync: { at: "2026-09-25T23:03:00Z", ok: true, provider: "weship", targets: 27, checked: 25, failed: 2,
+            error: "2/27 mã lỗi — VS1: WeShip HTTP 503" } })).text);
+        assert.ok(m1.includes("⚠️ WeShip lỗi 2 mã: 2/27 mã lỗi — VS1: WeShip HTTP 503"), m1);
+        const m2 = tron(sang(AE({ last_sync: { at: "2026-09-25T23:03:00Z", ok: false, provider: "weship", error: "fetch failed" } })).text);
+        assert.ok(m2.includes("⚠️ WeShip lỗi 06:03 26/09: fetch failed"), m2);
+        const m3 = tron(sang(AE({ last_sync: null })).text);
+        assert.ok(m3.includes("⚠️ WeShip chưa tra lần nào"), m3);
+    });
+
     // ── TỐI ──
     const TOI_NOW = Date.parse("2026-09-26T15:00:00Z");       // 22:00 giờ VN
     const toi = (d, o = {}) => tron(buildVanDonToi(d, { today: TODAY, nowTs: TOI_NOW, ...o }));

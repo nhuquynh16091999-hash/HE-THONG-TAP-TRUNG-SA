@@ -483,7 +483,10 @@ t("SG khai trong rules: sổ riêng, J&T Express (SG) 100229, SGD, đứng im 7 
     assert.strictEqual(SG.carrier, 100229);
     assert.strictEqual(SG.currency, "SGD");
     assert.strictEqual(SG.stale_days, 7);
-    assert.deepStrictEqual(T.TRACK_MARKETS.map((m) => m.code), ["TW", "SG"]);
+    assert.strictEqual(SG.provider, "17track");
+    assert.strictEqual(SG.source, "partner");
+    // UAE (28/09/2026) theo dõi qua trang WeShip — test riêng ở weship.test.cjs.
+    assert.deepStrictEqual(T.TRACK_MARKETS.map((m) => m.code), ["TW", "SG", "AE"]);
 });
 t("mã thị trường lạ hoặc trống → Đài (sổ gốc)", () => {
     assert.strictEqual(T.trackMarket(null).code, "TW");

@@ -4,7 +4,9 @@
 //     chép gửi luôn — đọc tin là làm, không mở dashboard, không cần lệnh.
 //   • 22:00 TỐI: hôm nay làm được gì — khách phải gọi sáng nay đã lấy chưa, cứu được bao
 //     nhiêu tiền, khách nào còn treo sang mai; và số cả ngày.
-// Mỗi thị trường một nhóm (VẬN ĐƠN TW, VẬN ĐƠN SGP). Việc giao cho người phụ trách (@Thương).
+// Mỗi thị trường một nhóm (VẬN ĐƠN TW, VẬN ĐƠN SGP, VẬN ĐƠN UAE). Việc giao cho người phụ trách
+// (@Thương). UAE (28/09/2026) không qua 17TRACK: trạng thái tra thẳng trang WeShip — tin ghi
+// "WeShip" ở chỗ Đài/Singapore ghi "17TRACK" (d.provider).
 //
 // Số lấy từ ĐÚNG route màn "Theo dõi vận đơn" (/api/talpha/tracking?market=…), nên tin và
 // màn hình không lệch được: cùng luật cảnh báo buildAlerts, cùng mốc hạn lấy hàng.
@@ -30,6 +32,8 @@ function ngayVN(iso) {
     return Number.isNaN(t) ? null : new Date(t + 7 * 3600000).toISOString().slice(0, 10);
 }
 const cat = (s, n) => { const x = String(s || "").replace(/\s+/g, " ").trim(); return x.length > n ? x.slice(0, n - 1) + "…" : x; };
+/** Tên nguồn trạng thái của nước này — "WeShip" (UAE) hay "17TRACK". */
+const tenNguon = (d) => (d && d.provider === "weship" ? "WeShip" : "17TRACK");
 
 async function fetchVanDon(cfg, today, f = fetch, market = "") {
     if (!cfg || !cfg.url) throw new Error("thiếu vanDon.url trong config");
@@ -51,9 +55,16 @@ function dongNguon(d, nowTs, { quotaWarn = 200, staleHours = 26 } = {}) {
     const cu = (iso) => iso && nowTs - Date.parse(iso) > staleHours * 3600000;
     const ra = [];
     const ls = d.last_sync;
-    if (d.has_api_key && !ls) ra.push(`⚠️ ${B("17TRACK chưa đồng bộ lần nào")} — số theo bảng đối tác, trễ ~2 ngày`);
-    else if (ls && !ls.ok) ra.push(`⚠️ ${B(`17TRACK lỗi ${gioVN(ls.at)}`)}: ${cat(ls.error, 90)}`);
-    else if (ls && cu(ls.at)) ra.push(`⚠️ ${B(`17TRACK chưa chạy từ ${gioVN(ls.at)}`)} — số có thể trễ`);
+    const ten = tenNguon(d);
+    if (d.has_api_key && !ls) {
+        ra.push(d.provider === "weship"
+            ? `⚠️ ${B("WeShip chưa tra lần nào")} — chưa biết đơn nào giao hỏng`
+            : `⚠️ ${B("17TRACK chưa đồng bộ lần nào")} — số theo bảng đối tác, trễ ~2 ngày`);
+    }
+    else if (ls && !ls.ok) ra.push(`⚠️ ${B(`${ten} lỗi ${gioVN(ls.at)}`)}: ${cat(ls.error, 90)}`);
+    else if (ls && cu(ls.at)) ra.push(`⚠️ ${B(`${ten} chưa chạy từ ${gioVN(ls.at)}`)} — số có thể trễ`);
+    // WeShip: lượt vẫn chạy khi vài mã lỗi — nhưng mã lỗi đứng im, phải nói.
+    if (ls && ls.ok && Number(ls.failed) > 0) ra.push(`⚠️ ${B(`WeShip lỗi ${fmt(ls.failed)} mã`)}: ${cat(ls.error, 80)}`);
     // Nhiều khoá: một khoá chết thì lượt vẫn chạy bằng khoá khác — nhưng mã của khoá chết
     // đứng im, nên phải nêu đích danh.
     if (ls && ls.ok) {
@@ -84,6 +95,9 @@ function lyDo(s) {
     if (/Returned/.test(sub)) return "da_hoan";
     if (s.source !== "17track" && /hẹn/i.test(raw)) return "khách hẹn giao lại";
     if (/Rejected/.test(sub) || /từ chối/i.test(raw)) return "khách từ chối";
+    // Hai lý do riêng của WeShip (UAE).
+    if (/NoResponse/.test(sub)) return "không nghe máy";
+    if (/Rescheduled/.test(sub)) return "hẹn giao lại";
     if (/NoBody/.test(sub) || /vắng/i.test(raw)) return "vắng nhà";
     if (/InvalidAddress/.test(sub)) return "sai địa chỉ";
     if (s.status === "DeliveryFailure") return "giao hỏng";
@@ -93,7 +107,8 @@ const laHoan = (s) => s.status === "Returned" || s.status === "Expired"
     || (s.status === "Exception" && /Return/.test(String(s.sub_status || "")))
     || ["dang_hoan", "da_hoan"].includes(lyDo(s)) && (s.status === "Exception" || s.status === "DeliveryFailure");
 
-const maDon = (s) => (s || {}).order_id || (s || {}).tracking || "?";
+// Mã đơn POS toàn số (UAE: "14") thêm "#" — "1. 14 · 119 AED" đọc lẫn với số thứ tự.
+const maDon = (s) => { const x = String((s || {}).order_id || (s || {}).tracking || "?"); return /^\d+$/.test(x) ? `#${x}` : x; };
 
 // ─── Tin nhắn soạn sẵn gửi khách ─────────────────────────────────────────────
 // Cùng câu chữ với nút "Chép tin" trên dashboard (tracking-tab.tsx → soanTin): khách Đài
@@ -115,19 +130,35 @@ function tinKhachSing(s) {
     return `Hi ${ten}, J&T could not deliver your parcel ${ma}. Please reply with a good time for delivery and keep your phone on. Thank you!`;
 }
 
+// UAE giao tận nhà qua WeShip: câu theo lý do — khách từ chối thì hỏi còn lấy không, không
+// nghe máy / hẹn lại thì xin giờ giao, sai địa chỉ thì xin địa chỉ đủ.
+function tinKhachUae(s) {
+    const ten = s.customer || "there";
+    const ma = s.track17_code || s.tracking;
+    const sub = String(s.sub_status || "");
+    if (/Rejected/.test(sub)) return `Hi ${ten}, the courier reported that your order (parcel ${ma}) was refused. If you still want it, please reply with a good time and we will deliver it again. Thank you!`;
+    if (/NoResponse/.test(sub)) return `Hi ${ten}, the courier tried to deliver your order (parcel ${ma}) but could not reach you by phone. Please reply with a good time for delivery and keep your phone on. Thank you!`;
+    if (/InvalidAddress/.test(sub)) return `Hi ${ten}, the courier could not find your address for order (parcel ${ma}). Please reply with your full address and a good time for delivery. Thank you!`;
+    return `Hi ${ten}, the delivery of your order (parcel ${ma}) was rescheduled. Please reply with a good time for delivery and keep your phone on. Thank you!`;
+}
+const tinKhachNha = (s, ma) => (ma === "AE" ? tinKhachUae(s) : tinKhachSing(s));
+
 const hanChu = (a) => a.days_left == null ? "" : a.days_left <= 0 ? "HẾT HẠN HÔM NAY" : `còn ${a.days_left} ngày`;
 
 /** Khối một khách phải GỌI: dòng đầu đậm, rồi khách, chỗ lấy, ghi chú, tin soạn sẵn. */
-function khoiGoi(a, i, tien, giaoTanNha) {
+function khoiGoi(a, i, tien, giaoTanNha, ma = "") {
     const s = a.shipment || {};
+    // "hẹn giao lại lần 3" — khách hẹn mãi là khách sắp bỏ đơn, gọi trước.
+    const lan = Number(s.fail_count) > 1 ? ` lần ${s.fail_count}` : "";
     const dau = [maDon(s), s.cod_local ? `${fmt(Math.round(s.cod_local))} ${tien}` : "",
-        a.code === "giao_hong" ? lyDo(s) : hanChu(a)].filter(Boolean).join(" · ");
+        a.code === "giao_hong" ? lyDo(s) + lan : hanChu(a)].filter(Boolean).join(" · ");
     const dong = [B(`${i + 1}. ${dau}`)];
     const khach = [s.customer, s.phone, giaoTanNha ? s.city : ""].filter(Boolean).join(" · ");
     if (khach) dong.push(`👤 ${khach}`);
     if (!giaoTanNha && s.store_name) dong.push(`🏪 ${s.store_name}${s.store_code ? ` · mã lấy hàng ${s.store_code}` : ""}`);
-    if (s.note) dong.push(`📝 Đối tác ghi: "${cat(s.note, 80)}"`);
-    const tin = giaoTanNha ? tinKhachSing(s) : tinKhachDai(s, a.days_left);
+    // UAE không có bảng đối tác — ghi chú là của đơn POS (thường là địa chỉ, hẹn ngày giao).
+    if (s.note) dong.push(`📝 ${ma === "AE" ? "Ghi chú đơn" : "Đối tác ghi"}: "${cat(s.note, 80)}"`);
+    const tin = giaoTanNha ? tinKhachNha(s, ma) : tinKhachDai(s, a.days_left);
     if (tin) dong.push(`💬 ${tin}`);
     return dong.join("\n");
 }
@@ -221,7 +252,7 @@ function buildVanDonSang(d, opts = {}) {
     const dong = [B(opts.tieuDe || `☀️ VẬN ĐƠN ${ten} · SÁNG ${ddmm(today)}`)];
     const nguon = [];
     if (!d.has_api_key) nguon.push("theo bảng đối tác, trễ ~2 ngày");
-    else if (ls && ls.ok) nguon.push(`17TRACK ${gioVN(ls.at).slice(0, 5)} ✓` + (ls.quota ? ` · quota còn ${fmt(ls.quota.remain)}/${fmt(ls.quota.total)}` : ""));
+    else if (ls && ls.ok) nguon.push(`${tenNguon(d)} ${gioVN(ls.at).slice(0, 5)} ✓` + (ls.quota ? ` · quota còn ${fmt(ls.quota.remain)}/${fmt(ls.quota.total)}` : ""));
     if (nguon.length) dong.push(I(nguon.join(" · ")));
     const canhBao = dongNguon(d, nowTs, opts);
     if (canhBao) dong.push(canhBao);
@@ -240,7 +271,7 @@ function buildVanDonSang(d, opts = {}) {
     if (goi.length) {
         const viec = giaoTanNha ? "GIAO HỎNG / HẸN LẠI" : "SẮP BỊ TRẢ VỀ";
         dong.push("", `☎️ ${nguoi(opts)}${B(`GỌI ${fmt(goi.length)} KHÁCH ${viec}`)}`);
-        goi.slice(0, maxGoi).forEach((a, i) => dong.push("", khoiGoi(a, i, tien, giaoTanNha)));
+        goi.slice(0, maxGoi).forEach((a, i) => dong.push("", khoiGoi(a, i, tien, giaoTanNha, nuoc.code)));
         if (goi.length > maxGoi) dong.push("", I(`… ${fmt(goi.length - maxGoi)} khách nữa trên dashboard`));
     } else {
         dong.push("", `☎️ ${B("Không có khách nào phải gọi gấp hôm nay")} ✅`);
@@ -289,7 +320,7 @@ function buildVanDonToi(d, opts = {}) {
     const hanCon = new Map((d.alerts || []).filter((a) => a.days_left != null).map((a) => [(a.shipment || {}).tracking, a.days_left]));
 
     const dong = [B(`🌙 VẬN ĐƠN ${ten} · TỐI ${ddmm(today)} · HÔM NAY LÀM ĐƯỢC GÌ`)];
-    if (ls && ls.ok) dong.push(I(`17TRACK cập nhật ${gioVN(ls.at).slice(0, 5)} ✓`));
+    if (ls && ls.ok) dong.push(I(`${tenNguon(d)} cập nhật ${gioVN(ls.at).slice(0, 5)} ✓`));
     const canhBao = dongNguon(d, nowTs, opts);
     if (canhBao) dong.push(canhBao);
 
@@ -342,4 +373,4 @@ function buildVanDonToi(d, opts = {}) {
     return dong.join("\n");
 }
 
-module.exports = { buildVanDonSang, buildVanDonToi, fetchVanDon, dongNguon, lyDo, suKienNgay, tinKhachDai, tinKhachSing };
+module.exports = { buildVanDonSang, buildVanDonToi, fetchVanDon, dongNguon, lyDo, suKienNgay, tinKhachDai, tinKhachSing, tinKhachUae };

@@ -8,7 +8,7 @@
 //   /baocao team          chỉ số TỔNG TEAM, không kèm campaign
 //   /canhbao              camp đốt tiền 0 tin nhắn + chi tiêu bất thường, ngay lúc gõ
 //   /vandon               vận đơn cần xử lý mọi nước (CHỈ trả lời ở nhóm vận đơn — tin có SĐT khách)
-//   /vandon sg · /vandon tw   chỉ Singapore · chỉ Đài Loan
+//   /vandon sg · /vandon tw · /vandon uae   chỉ Singapore · chỉ Đài Loan · chỉ UAE
 //   /bot                  cách dùng
 // Có dấu hay không dấu, hoa hay thường đều được. Không bắt đầu bằng "/" → không phải lệnh,
 // bot im — tin báo cáo của chính bot cũng đi qua đây nên điều này là bắt buộc.
@@ -49,8 +49,9 @@ function docLenh(text, { today, nguoi = [] }) {
         if (!nuoc) return { lenh };
         if (["sg", "sing", "singapore", "sgp"].includes(nuoc)) return { lenh, nuoc: "SG" };
         if (["tw", "dai", "dailoan", "taiwan"].includes(nuoc)) return { lenh, nuoc: "TW" };
+        if (["ae", "uae", "dubai"].includes(nuoc)) return { lenh, nuoc: "AE" };
         // Mang theo lenh "vandon" để lỗi được trả lời ở nhóm VẬN ĐƠN (lỗi trơn bị bỏ ở đó).
-        return { lenh, loi: `Không hiểu "${con.join(" ")}". Gõ /vandon, /vandon sg hoặc /vandon tw.` };
+        return { lenh, loi: `Không hiểu "${con.join(" ")}". Gõ /vandon, /vandon sg, /vandon tw hoặc /vandon uae.` };
     }
     if (lenh !== "baocao") return { lenh };
 
@@ -102,11 +103,11 @@ function huongDan({ at, toi, nguoi = [] } = {}) {
         + `${I("Có dấu hay không dấu đều được.")}`;
 }
 
-function huongDanVanDon({ at, toi, nuoc } = {}) {
+function huongDanVanDon({ at, toi, nuoc, nguon } = {}) {
     return `📦 ${B(`Bot TALPHA — vận đơn${nuoc ? ` ${nuoc}` : ""}`)}\n`
         + `Tự gửi ${at || "08:30"}: hôm qua ra sao + khách phải gọi, nhắn hôm nay (đủ tên, SĐT, chỗ lấy hàng, tin nhắn soạn sẵn).\n`
         + (toi ? `Tự gửi ${toi}: hôm nay làm được gì — khách đã lấy chưa, khách còn treo sang mai.\n` : "")
-        + `Trạng thái lấy từ bảng đối tác + 17TRACK (cập nhật 6h và 21:30).\n\n`
+        + `Trạng thái lấy từ ${nguon || "bảng đối tác + 17TRACK"} (cập nhật 6h và 21:30).\n\n`
         + `${B("Gõ trong nhóm:")}\n`
         + `• /vandon — danh sách mới nhất ngay lúc gõ\n`
         + `• /bot — cách dùng\n`

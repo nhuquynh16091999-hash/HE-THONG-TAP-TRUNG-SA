@@ -16,7 +16,7 @@ import {
 } from "@/lib/talpha/track17";
 import { track17CodeFor } from "@/lib/talpha/partner-file";
 import { readStoreFresh, updateStore } from "@/lib/talpha/store";
-import { loadPartnerMarketShipments } from "@/lib/talpha/tracking-market";
+import { loadMarketShipments, syncWeshipMarket } from "@/lib/talpha/tracking-market";
 
 export const dynamic = "force-dynamic";
 
@@ -43,6 +43,9 @@ const BQ_DATASET = process.env.DATASET || "TALPHA_Dataset";
 // ?market=SG (Sỹ Anh chốt 25/09/2026): mỗi thị trường một SỔ RIÊNG, đọc bảng đối tác
 // riêng — Đài từ data/tracking.json (nút "Đọc bảng đối tác"), nước khác từ BigQuery
 // partner_orders. Không có market (hoặc mã lạ) = Đài Loan. Khoá 17TRACK dùng chung.
+//
+// ?market=AE (Sỹ Anh chốt 28/09/2026): UAE không có bảng đối tác, không qua 17TRACK — đơn đọc
+// từ POS, POST tra thẳng trang WeShip (miễn phí, không quota; lib/talpha/weship.ts).
 // ═══════════════════════════════════════════════════════════════════
 
 /** `number` = mã đã đưa cho 17TRACK (7-Eleven có tiền tố 73N, khác khoá sổ). */
@@ -115,7 +118,7 @@ const emptyStore = (): Store => ({ registered: {}, statuses: {}, partner: {} });
 const clean = (x?: string | null) => String(x || "").replace(/[^A-Za-z0-9]/g, "").toUpperCase();
 
 async function loadShipments(mk: TrackMarket, from: string, to: string): Promise<{ shipments: Shipment[]; store: Store; lastImport: string | null }> {
-    if (mk.code !== "TW") return loadPartnerMarket(mk);
+    if (mk.code !== "TW") return loadMarket(mk);
     const store = await readStoreFresh<Store>(mk.store, emptyStore());
     const partner = store.partner || {};
     const byTracking = new Map<string, Shipment>();
@@ -240,12 +243,12 @@ async function loadShipments(mk: TrackMarket, from: string, to: string): Promise
 }
 
 /** Thị trường ngoài Đài — đọc chung với màn Đối soát COD (lib/talpha/tracking-market.ts). */
-const loadPartnerMarket = (mk: TrackMarket) => loadPartnerMarketShipments<Store>(mk, emptyStore);
+const loadMarket = (mk: TrackMarket) => loadMarketShipments<Store>(mk, emptyStore);
 
 function chuaKhai(shipments: Shipment[]): { value: string; count: number }[] {
     const dem = new Map<string, number>();
     for (const s of shipments) {
-        if (s.source !== "doi_tac" || s.status || !s.raw_status) continue;
+        if ((s.source !== "doi_tac" && s.source !== "weship") || s.status || !s.raw_status) continue;
         dem.set(s.raw_status, (dem.get(s.raw_status) || 0) + 1);
     }
     return [...dem].map(([value, count]) => ({ value, count })).sort((a, b) => b.count - a.count);
@@ -269,9 +272,12 @@ export async function GET(req: NextRequest) {
         const alerts = buildAlerts(shipments, new Date(), { staleDays: mk.stale_days });
         return NextResponse.json({
             from, to,
-            market: { code: mk.code, label: mk.label, currency: mk.currency },
+            market: { code: mk.code, label: mk.label, currency: mk.currency, provider: mk.provider, source: mk.source },
             markets: TRACK_MARKETS.map((m) => ({ code: m.code, label: m.label })),
-            has_api_key: hasApiKey(),
+            // Tên nguồn trạng thái cho màn hình và bot Zalo ("17TRACK" / "WeShip").
+            provider: mk.provider,
+            // WeShip không cần khoá — "có khoá" = tra được.
+            has_api_key: mk.provider === "weship" ? true : hasApiKey(),
             last_sync: store.last_sync ?? null,
             last_import: lastImport,
             config: {
@@ -290,7 +296,10 @@ export async function GET(req: NextRequest) {
                 registered: shipments.filter((s) => s.registered).length,
                 // Chỉ đếm mã SẼ được đăng ký (đơn chưa kết thúc, còn mới) — đếm cả đơn đã
                 // giao xong thì con số này không bao giờ về 0 và chẳng nói lên gì.
-                pending_register: planRegister(shipments, new Date(), { staleDays: mk.stale_days }).eligible,
+                pending_register: mk.provider === "weship"
+                    // WeShip không đăng ký — "chưa theo dõi" = có mã AWB mà chưa tra lần nào.
+                    ? shipments.filter((s) => s.track17_code && !s.registered).length
+                    : planRegister(shipments, new Date(), { staleDays: mk.stale_days }).eligible,
                 at_store_value: shipments
                     .filter((s) => s.status === "AvailableForPickup")
                     .reduce((n, s) => n + s.cod_local, 0),
@@ -306,6 +315,7 @@ export async function POST(req: NextRequest) {
     const { from, to, ok } = range(req);
     if (!ok) return NextResponse.json({ error: "from/to phải dạng YYYY-MM-DD" }, { status: 400 });
     const mk = trackMarket(req.nextUrl.searchParams.get("market"));
+    if (mk.provider === "weship") return syncWeship(mk, from, to);
     const STORE = mk.store;
     const keys = apiKeys();
     if (!keys.length) {
@@ -536,5 +546,28 @@ export async function POST(req: NextRequest) {
         }
         console.error("tracking POST lỗi:", e);
         return NextResponse.json({ error: "Đồng bộ thất bại" }, { status: 500 });
+    }
+}
+
+/**
+ * UAE: tra lại mọi mã AWB chưa kết thúc trên trang WeShip. Không khoá, không quota — chạy
+ * bao nhiêu lần cũng được (nút "Tra WeShip", việc nền 06:00 và 21:30 cùng gọi route này).
+ */
+async function syncWeship(mk: TrackMarket, from: string, to: string) {
+    try {
+        const ls = await syncWeshipMarket(mk);
+        if (!ls.ok) return NextResponse.json({ error: `Tra WeShip thất bại: ${ls.error || "không rõ"}` }, { status: 502 });
+        const { shipments } = await loadShipments(mk, from, to);
+        return NextResponse.json({
+            ok: true, provider: "weship", registered: 0,
+            targets: ls.targets, checked: ls.checked, status_changed: ls.changed,
+            not_found: ls.not_found, failed: ls.failed, error_note: ls.error ?? null,
+            alerts: buildAlerts(shipments, new Date(), { staleDays: mk.stale_days }),
+            counts: countByStatus(shipments),
+        });
+    } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        console.error("tracking POST (WeShip) lỗi:", e);
+        return NextResponse.json({ error: `Tra WeShip thất bại: ${msg}` }, { status: 500 });
     }
 }

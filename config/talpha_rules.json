@@ -868,6 +868,40 @@
           "Huỷ đơn": "Cancelled"
         },
         "_status_note": "Cột 'Trạng thái' của bảng 'BS UP DATA SGP' → trạng thái chuẩn. Giá trị lạ KHÔNG bị nuốt: hiện nguyên văn để khai thêm. 'Khách hẹn lúc khác giao' xếp vào giao hỏng để sale gọi hẹn lại — cột Ghi chú (vd 'khách muốn nhận ngày 9/10') đi kèm trong tin."
+      },
+      "AE": {
+        "label": "UAE",
+        "store": "tracking_ae",
+        "source": "pos",
+        "pos_market": "AE",
+        "provider": "weship",
+        "currency": "AED",
+        "carrier": null,
+        "_source_note": "Sỹ Anh chốt 28/09/2026: theo dõi vận đơn UAE bằng trang tra đơn WeShip (https://portal.weshipme.com/tracking) — hãng giao của D&T Fulfillment, POS ghi 'UAE EXP'. UAE KHÔNG có bảng đơn đối tác như Singapore: đơn đọc thẳng từ POS (shop 101090498), mã AWB (dạng VS1068057) nằm ở sale_order.partner → extend_code. 17TRACK KHÔNG có hãng này (soát 3.523 hãng ngày 28/09/2026) → tự tra WeShip: không cần khoá, không tốn quota, mỗi lượt tra lại MỌI đơn chưa kết thúc. Trạng thái POS của UAE KHÔNG tin được — lượt tra đầu thấy 3 đơn khách từ chối mà POS vẫn ghi 'shipped'.",
+        "weship": {
+          "url": "https://portal.weshipme.com/tracking",
+          "tz_offset": "+04:00",
+          "concurrency": 3,
+          "timeout_ms": 20000,
+          "_tz_note": "Giờ trên trang WeShip là giờ UAE (UTC+4) — suy từ giờ làm việc của shipper (xuất phát 09:41, giao 17:40) và mốc 'Submitted 11:56' khớp lúc POS nhận mã AWB (08:00 UTC) cách 4 phút. Sai múi giờ thì mọi mốc lệch 3 tiếng.",
+          "_page_note": "Trang trả HTML, không có API: gửi form trackno=<AWB>, mỗi lượt MỘT mã (gửi nhiều mã cùng lúc trang báo không thấy). Ô 'Delivered On' ở phần tóm tắt ghi SAI giờ (lấy giờ OUT FOR DELIVERY) → mọi mốc lấy từ bảng History."
+        },
+        "stale_days": 4,
+        "_stale_note": "UAE giao nội địa 1–3 ngày: 4 ngày không có cập nhật là đơn kẹt. Đơn chưa có mã AWB quá 4 ngày = 'Chưa gửi hàng' — hỏi D&T.",
+        "status_rules": [
+          { "match": "^delivered$", "status": "Delivered", "vi": "Đã giao" },
+          { "match": "return(ed)?\\s*to\\s*(shipper|origin|sender|client)|\\brto\\b|^returned$", "status": "Returned", "vi": "Đã hoàn về" },
+          { "match": "return", "status": "Exception", "sub_status": "Exception_Returning", "vi": "Đang hoàn" },
+          { "match": "refused|cancel", "status": "DeliveryFailure", "sub_status": "DeliveryFailure_Rejected", "vi": "Khách từ chối nhận" },
+          { "match": "no\\s*response|not\\s*(answer|reachable)|unreachable|switch(ed)?\\s*off", "status": "DeliveryFailure", "sub_status": "DeliveryFailure_NoResponse", "vi": "Khách không nghe máy" },
+          { "match": "reschedul|postpone", "status": "DeliveryFailure", "sub_status": "DeliveryFailure_Rescheduled", "vi": "Hẹn giao lại" },
+          { "match": "address", "status": "DeliveryFailure", "sub_status": "DeliveryFailure_InvalidAddress", "vi": "Sai / thiếu địa chỉ" },
+          { "match": "out\\s*for\\s*delivery|dispatched", "status": "OutForDelivery", "vi": "Đang đi giao" },
+          { "match": "scheduled", "status": "InTransit", "sub_status": "InTransit_Scheduled", "vi": "Đã hẹn ngày giao" },
+          { "match": "check-?in|hub|transit|processing|received|arrived", "status": "InTransit", "vi": "Đã vào kho hãng" },
+          { "match": "submitted|collection\\s*point|collected|picked", "status": "InfoReceived", "vi": "Hãng đã nhận đơn" }
+        ],
+        "_status_rules_note": "Chữ trạng thái WeShip (ô Current Status, không khớp thì hoạt động mới nhất trong History) → trạng thái chuẩn, so KHÔNG phân biệt hoa thường, luật TRÊN thắng luật dưới. Đã gặp thật 28/09/2026: Submitted, Shipment at Collection Point, Check-in process done at hub, DELIVERY SCHEDULED ON NEXT DAY, Dispatched, OUT FOR DELIVERY, Rescheduled, NO RESPONSE, REFUSED (hoạt động CUSTOMER CANCELLED / package cancelled), Delivered. Luật hoàn (return…) là ĐOÁN — chưa gặp đơn hoàn nào; gặp chữ lạ thì màn Theo dõi vận đơn báo 'Có trạng thái chưa khai' để thêm luật. REFUSED xếp giao hỏng chứ không phải hoàn: hãng còn đi giao lại (đơn 12, 14 bị từ chối 26/09 rồi 28/09 đi tiếp) — gọi khách vẫn cứu được."
       }
     },
     "code_fixes": [

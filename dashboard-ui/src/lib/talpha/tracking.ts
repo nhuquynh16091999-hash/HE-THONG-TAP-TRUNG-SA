@@ -38,17 +38,32 @@ type TrackingConfig = {
 type MarketCfgRaw = {
     label?: string; store?: string; partner_market?: string; currency?: string;
     carrier?: number | null; stale_days?: number; status_map?: Record<string, string>;
+    source?: string; pos_market?: string; provider?: string;
+    weship?: { url?: string; tz_offset?: string; concurrency?: number; timeout_ms?: number };
+    status_rules?: { match: string; status: string; sub_status?: string; vi?: string }[];
 };
+
+/** Luật chữ trạng thái của hãng (WeShip) → trạng thái chuẩn; luật trên thắng luật dưới. */
+export type StatusRule = { match: RegExp; status: string; sub_status: string | null; vi: string };
 
 /**
  * Thị trường theo dõi vận đơn. "TW" là thị trường gốc (bảng đối tác nạp tay, luật cửa hàng
- * tiện lợi ở phần chung); các nước khác khai ở tracking.markets — sổ riêng, bảng đối tác
- * đọc từ BigQuery partner_orders, hãng và ngưỡng đứng im riêng.
+ * tiện lợi ở phần chung); các nước khác khai ở tracking.markets — sổ riêng, hãng và ngưỡng
+ * đứng im riêng. Hai kiểu nguồn:
+ *   • source "partner" (Singapore): bảng đối tác trong BigQuery partner_orders + 17TRACK;
+ *   • source "pos" (UAE): đơn đọc thẳng từ POS, trạng thái tra ở trang của hãng (provider
+ *     "weship") — không có bảng đối tác, không tốn quota 17TRACK.
  */
 export type TrackMarket = {
     code: string; label: string; store: string; partner_market: string | null;
     currency: string; carrier: number | null; stale_days: number;
     status_map: Record<string, string>;
+    source: "partner" | "pos";
+    provider: "17track" | "weship";
+    /** Mã nước trong vw_orders_std.market (source "pos"). */
+    pos_market: string | null;
+    weship: { url: string; tz_offset: string; concurrency: number; timeout_ms: number } | null;
+    status_rules: StatusRule[];
 };
 
 /**
@@ -165,8 +180,9 @@ export type Shipment = {
     last_event_time: string | null;
     last_event: string | null;
     registered: boolean;
-    /** Trạng thái đến từ đâu — để UI nói rõ số này mới tới mức nào. */
-    source?: "doi_tac" | "17track" | null;
+    /** Trạng thái đến từ đâu — để UI nói rõ số này mới tới mức nào. "weship" = tra thẳng
+     *  trang của hãng giao UAE (không qua 17TRACK). */
+    source?: "doi_tac" | "17track" | "weship" | null;
     raw_status?: string | null;
     /** Ngày xuất kho theo file đối tác — đồng hồ đáng tin hơn status_since. */
     ship_date?: string | null;
@@ -178,6 +194,8 @@ export type Shipment = {
     t17_status?: string | null;
     t17_sub_status?: string | null;
     t17_event?: string | null;
+    /** Số lần giao hỏng hãng đã ghi (UAE/WeShip) — "hẹn lại lần 3" là khách sắp bỏ đơn. */
+    fail_count?: number | null;
 };
 
 /** gấp = sắp mất hàng · canh_bao = cần người xử · nhac = việc thường ngày. */
@@ -570,14 +588,39 @@ const RAW_MARKETS: Record<string, MarketCfgRaw> = (() => {
 const TW_MARKET: TrackMarket = {
     code: "TW", label: "Đài Loan", store: "tracking", partner_market: null,
     currency: "NT$", carrier: TRACK_CFG.carrier, stale_days: TRACK_CFG.stale_days, status_map: {},
+    source: "partner", provider: "17track", pos_market: null, weship: null, status_rules: [],
 };
 
+/** Luật khai sai (regex hỏng, thiếu trạng thái) thì bỏ luật đó chứ không làm sập cả màn. */
+function docLuat(rules: MarketCfgRaw["status_rules"]): StatusRule[] {
+    const out: StatusRule[] = [];
+    for (const r of rules || []) {
+        if (!r || !r.match || !r.status) continue;
+        try {
+            out.push({ match: new RegExp(r.match, "i"), status: r.status, sub_status: r.sub_status || null, vi: r.vi || r.status });
+        } catch (e) {
+            console.warn(`tracking: luật trạng thái hỏng "${r.match}":`, e);
+        }
+    }
+    return out;
+}
+
 /** Các thị trường theo dõi được: TW trước, rồi các nước khai ở tracking.markets. */
-export const TRACK_MARKETS: TrackMarket[] = [TW_MARKET, ...Object.entries(RAW_MARKETS).map(([code, m]) => ({
+export const TRACK_MARKETS: TrackMarket[] = [TW_MARKET, ...Object.entries(RAW_MARKETS).map(([code, m]): TrackMarket => ({
     code, label: m.label || code, store: m.store || `tracking_${code.toLowerCase()}`,
     partner_market: m.partner_market || null, currency: m.currency || "",
     carrier: m.carrier ?? null, stale_days: Number(m.stale_days ?? TRACK_CFG.stale_days),
     status_map: m.status_map || {},
+    source: m.source === "pos" ? "pos" : "partner",
+    provider: m.provider === "weship" ? "weship" : "17track",
+    pos_market: m.pos_market || null,
+    weship: m.provider === "weship" ? {
+        url: m.weship?.url || "https://portal.weshipme.com/tracking",
+        tz_offset: /^[+-]\d{2}:\d{2}$/.test(m.weship?.tz_offset || "") ? m.weship!.tz_offset! : "+04:00",
+        concurrency: Math.min(5, Math.max(1, Number(m.weship?.concurrency ?? 3))),
+        timeout_ms: Math.max(5000, Number(m.weship?.timeout_ms ?? 20000)),
+    } : null,
+    status_rules: docLuat(m.status_rules),
 }))];
 
 /** Mã thị trường lạ → TW (thị trường gốc) — đọc nhầm sổ nước khác là trộn đơn hai nước. */
