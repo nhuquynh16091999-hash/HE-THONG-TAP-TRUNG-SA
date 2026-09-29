@@ -8,6 +8,9 @@ import {
     CalendarDays, Layers, Hourglass, ReceiptText, BadgeCheck, SearchCheck, PenLine,
     type LucideIcon,
 } from "lucide-react";
+import {
+    ResponsiveContainer, ComposedChart, Area, Line, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine,
+} from "recharts";
 import TabSkeleton, { ErrorState } from "@/components/ui/tab-skeleton";
 import { formatNumber, cn } from "../utils";
 import { TWD, VND } from "./ledger-shared";
@@ -952,65 +955,70 @@ function CodDaiLoan({ dateRange }: Props) {
                             sub={fx.best_period ? `kỳ chốt ${dmy(fx.best_period)}` : ""} tone="green" />
                         <KpiTeNhat rows={fx.rows} />
                     </div>
-                    <p className="flex items-start gap-2 border-b border-border/70 bg-muted/30 px-5 py-3 text-[12.5px] leading-relaxed text-muted-foreground">
+                    <p className="flex items-start gap-2 border-b border-border/70 bg-muted/30 px-5 py-2.5 text-[12.5px] leading-relaxed text-muted-foreground">
                         <Info className="mt-0.5 h-4 w-4 flex-none" />
                         <span>
-                            Tỷ giá NAZA tự đặt và mình phải chịu, nên phần trăm lên xuống không giúp quyết định gì.
-                            Bảng này trả lời đúng một câu: <b className="font-semibold text-foreground">nó đã lấy của mình bao nhiêu tiền</b> —
-                            lấy mốc là kỳ tốt nhất chính NAZA từng đặt, nên không cãi được là mốc quá đáng.
-                            Tính trên tích cả hai chặng NT$ → ¥ → đ.
+                            Tỷ giá NAZA tự đặt, mình phải chịu — nên chỉ hỏi: <b className="font-semibold text-foreground">nó đã lấy của mình bao nhiêu tiền</b>.
+                            Mốc là kỳ tốt nhất chính NAZA từng đặt; tiền thiệt = chênh đồng/NT$ × tiền COD cả kỳ. Rê chuột lên từng kỳ để xem số.
                         </span>
                     </p>
-                    <div className="overflow-x-auto">
-                        <table className="w-full min-w-[720px] whitespace-nowrap text-[13px]">
-                            <thead>
-                                <tr className="border-b border-border/70 bg-muted/40 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                                    <th className="px-5 py-2.5 text-left">Kỳ chốt</th>
-                                    <th className="px-3 py-2.5 text-right">TWD→RMB</th>
-                                    <th className="px-3 py-2.5 text-right">RMB→VND</th>
-                                    <th className="px-3 py-2.5 text-right">Đồng / NT$</th>
-                                    <th className="px-3 py-2.5 text-right">Tiền COD</th>
-                                    <th className="px-5 py-2.5 text-right">Thiệt so kỳ tốt nhất</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-border/60">
-                                {(() => {
-                                    const thietMax = Math.max(0, ...fx.rows.map((r) => r.thiet_vnd ?? 0));
-                                    return fx.rows.map((r) => (
-                                        <tr key={r.filename}
-                                            className={cn("transition-colors",
-                                                r.filename === period?.filename ? "bg-orange-50/70 dark:bg-orange-500/[0.07]" : "hover:bg-muted/30")}>
-                                            <td className="px-5 py-2.5 font-semibold tabular-nums text-foreground">{dmy(r.period_date)}</td>
-                                            <td className="px-3 py-2.5 text-right tabular-nums text-sky-700 dark:text-sky-300">{r.rate_twd_rmb ?? "—"}</td>
-                                            <td className="px-3 py-2.5 text-right tabular-nums text-violet-700 dark:text-violet-300">{r.rate_rmb_vnd ?? "—"}</td>
-                                            <td className="px-3 py-2.5 text-right font-semibold tabular-nums text-foreground">
-                                                {r.vnd_per_twd != null ? r.vnd_per_twd.toFixed(2) : "—"}
-                                            </td>
-                                            <td className="px-3 py-2.5 text-right tabular-nums text-foreground/80">{TWD(r.cod_twd)}</td>
-                                            <td className="px-5 py-2.5 text-right">
-                                                {r.thiet_vnd == null ? <span className="text-muted-foreground">—</span>
-                                                    : r.tot_nhat ? (
-                                                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[12px] font-semibold text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-300">
-                                                            <BadgeCheck className="h-3.5 w-3.5" />tốt nhất
-                                                        </span>
-                                                    ) : (
-                                                        <div className="flex items-center justify-end gap-3">
-                                                            <span className="hidden h-1.5 w-24 overflow-hidden rounded-full bg-rose-100 sm:block dark:bg-rose-500/15">
-                                                                <span className="block h-full rounded-full bg-rose-500"
-                                                                    style={{ width: `${thietMax > 0 ? Math.max(4, (r.thiet_vnd / thietMax) * 100) : 0}%` }} />
+                    <BieuDoTyGia fx={fx} kyDangXem={period?.filename} />
+                    <details className="group border-t border-border/70">
+                        <summary className="flex cursor-pointer list-none items-center gap-1.5 px-5 py-2.5 text-[12.5px] font-semibold text-muted-foreground transition-colors hover:text-foreground [&::-webkit-details-marker]:hidden">
+                            <ChevronDown className="h-4 w-4 transition-transform group-open:rotate-180" />
+                            Xem bảng số từng kỳ
+                        </summary>
+                        <div className="overflow-x-auto border-t border-border/70">
+                            <table className="w-full min-w-[720px] whitespace-nowrap text-[13px]">
+                                <thead>
+                                    <tr className="border-b border-border/70 bg-muted/40 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                                        <th className="px-5 py-2.5 text-left">Kỳ chốt</th>
+                                        <th className="px-3 py-2.5 text-right">TWD→RMB</th>
+                                        <th className="px-3 py-2.5 text-right">RMB→VND</th>
+                                        <th className="px-3 py-2.5 text-right">Đồng / NT$</th>
+                                        <th className="px-3 py-2.5 text-right">Tiền COD</th>
+                                        <th className="px-5 py-2.5 text-right">Thiệt so kỳ tốt nhất</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-border/60">
+                                    {(() => {
+                                        const thietMax = Math.max(0, ...fx.rows.map((r) => r.thiet_vnd ?? 0));
+                                        return fx.rows.map((r) => (
+                                            <tr key={r.filename}
+                                                className={cn("transition-colors",
+                                                    r.filename === period?.filename ? "bg-orange-50/70 dark:bg-orange-500/[0.07]" : "hover:bg-muted/30")}>
+                                                <td className="px-5 py-2.5 font-semibold tabular-nums text-foreground">{dmy(r.period_date)}</td>
+                                                <td className="px-3 py-2.5 text-right tabular-nums text-sky-700 dark:text-sky-300">{r.rate_twd_rmb ?? "—"}</td>
+                                                <td className="px-3 py-2.5 text-right tabular-nums text-violet-700 dark:text-violet-300">{r.rate_rmb_vnd ?? "—"}</td>
+                                                <td className="px-3 py-2.5 text-right font-semibold tabular-nums text-foreground">
+                                                    {r.vnd_per_twd != null ? r.vnd_per_twd.toFixed(2) : "—"}
+                                                </td>
+                                                <td className="px-3 py-2.5 text-right tabular-nums text-foreground/80">{TWD(r.cod_twd)}</td>
+                                                <td className="px-5 py-2.5 text-right">
+                                                    {r.thiet_vnd == null ? <span className="text-muted-foreground">—</span>
+                                                        : r.tot_nhat ? (
+                                                            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[12px] font-semibold text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-300">
+                                                                <BadgeCheck className="h-3.5 w-3.5" />tốt nhất
                                                             </span>
-                                                            <span className="font-semibold tabular-nums text-rose-600 dark:text-rose-400">
-                                                                −{VND(r.thiet_vnd)}
-                                                            </span>
-                                                        </div>
-                                                    )}
-                                            </td>
-                                        </tr>
-                                    ));
-                                })()}
-                            </tbody>
-                        </table>
-                    </div>
+                                                        ) : (
+                                                            <div className="flex items-center justify-end gap-3">
+                                                                <span className="hidden h-1.5 w-24 overflow-hidden rounded-full bg-rose-100 sm:block dark:bg-rose-500/15">
+                                                                    <span className="block h-full rounded-full bg-rose-500"
+                                                                        style={{ width: `${thietMax > 0 ? Math.max(4, (r.thiet_vnd / thietMax) * 100) : 0}%` }} />
+                                                                </span>
+                                                                <span className="font-semibold tabular-nums text-rose-600 dark:text-rose-400">
+                                                                    −{VND(r.thiet_vnd)}
+                                                                </span>
+                                                            </div>
+                                                        )}
+                                                </td>
+                                            </tr>
+                                        ));
+                                    })()}
+                                </tbody>
+                            </table>
+                        </div>
+                    </details>
                 </Khoi>
             )}
         </div>
@@ -1389,6 +1397,118 @@ function KpiTeNhat({ rows }: { rows: FxRow[] }) {
     return (
         <Kpi label="Kỳ tệ nhất" value={w ? VND(w.thiet_vnd ?? 0) : "—"}
             sub={w ? `kỳ chốt ${dmy(w.period_date)}` : "chưa đủ kỳ để so"} tone={w ? "cho" : undefined} />
+    );
+}
+
+/* ⑤ Tỷ giá qua các kỳ — MỘT đường, MỘT trục.
+   Đường = đồng thực nhận trên mỗi NT$ (tích hai chặng). Nét đứt = kỳ tốt nhất chính
+   NAZA từng đặt. Vùng đỏ giữa hai đường = phần tỷ giá lấy của mình. Tiền thiệt từng
+   kỳ còn tuỳ tiền COD kỳ đó nên nằm trong ô rê chuột, không in lên từng điểm.
+   Màu đã chạy bộ kiểm mù màu: xanh–đỏ đạt, xanh lá–đỏ KHÔNG đạt (ΔE 5,8) — nên mốc
+   tốt nhất là nét đứt xám có nhãn chứ không tô xanh lá. */
+type DiemTyGia = FxRow & { nhan: string; vung: [number, number] };
+
+function BieuDoTyGia({ fx, kyDangXem }: { fx: Fx; kyDangXem?: string }) {
+    const best = fx.best_vnd_per_twd;
+    const data: DiemTyGia[] = [...fx.rows].reverse()
+        .filter((r) => r.vnd_per_twd != null)
+        .map((r) => ({
+            ...r,
+            nhan: r.period_date ? `${r.period_date.slice(8, 10)}/${r.period_date.slice(5, 7)}` : r.filename,
+            vung: [r.vnd_per_twd!, best ?? r.vnd_per_twd!],
+        }));
+    if (best == null || data.length < 2) return null;
+
+    const thap = Math.min(...data.map((d) => d.vnd_per_twd!));
+    const buoc = best - thap > 8 ? 4 : 2;
+    const day = Math.floor((thap - 1) / buoc) * buoc;
+    const dinh = Math.ceil((best + 1) / buoc) * buoc;
+    const ticks = Array.from({ length: (dinh - day) / buoc + 1 }, (_, i) => day + i * buoc);
+    const cuoi = data[data.length - 1];
+
+    return (
+        <div className="px-3 pb-2 pt-3 [--fx-line:#0284c7] [--fx-loss:#e11d48] dark:[--fx-loss:#f43f5e] sm:px-5">
+            <div className="mb-1 flex flex-wrap items-center gap-x-4 gap-y-1 px-2 text-[12px] text-muted-foreground sm:px-0">
+                <span className="inline-flex items-center gap-1.5">
+                    <span className="h-0.5 w-4 rounded-full" style={{ background: "var(--fx-line)" }} />
+                    Đồng thực nhận / NT$
+                </span>
+                <span className="inline-flex items-center gap-1.5">
+                    <span className="w-4 border-t-2 border-dashed border-muted-foreground/70" />
+                    Kỳ tốt nhất NAZA từng đặt
+                </span>
+                <span className="inline-flex items-center gap-1.5">
+                    <span className="h-2.5 w-4 rounded-sm" style={{ background: "var(--fx-loss)", opacity: 0.22 }} />
+                    Phần tỷ giá lấy của mình
+                </span>
+            </div>
+            <ResponsiveContainer width="100%" height={220}>
+                <ComposedChart data={data} margin={{ top: 22, right: 16, bottom: 0, left: 0 }}>
+                    <CartesianGrid vertical={false} stroke="hsl(var(--border))" />
+                    <XAxis dataKey="nhan" tickLine={false} axisLine={false} interval="preserveStartEnd"
+                        tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} tickMargin={8} />
+                    <YAxis domain={[day, dinh]} ticks={ticks} width={40} tickLine={false} axisLine={false}
+                        tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
+                    <Tooltip content={<OTyGia />} cursor={{ stroke: "hsl(var(--muted-foreground))", strokeOpacity: 0.4, strokeWidth: 1 }} />
+                    <Area type="linear" dataKey="vung" stroke="none" fill="var(--fx-loss)" fillOpacity={0.14}
+                        isAnimationActive={false} activeDot={false} />
+                    <ReferenceLine y={best} stroke="hsl(var(--muted-foreground))" strokeOpacity={0.8}
+                        strokeDasharray="5 4" strokeWidth={1.5} ifOverflow="extendDomain"
+                        label={{ value: `tốt nhất ${best.toFixed(2)}`, position: "insideBottomLeft", offset: 6,
+                            fontSize: 11, fontWeight: 600, fill: "hsl(var(--muted-foreground))" }} />
+                    <Line type="linear" dataKey="vnd_per_twd" stroke="var(--fx-line)" strokeWidth={2}
+                        isAnimationActive={false}
+                        activeDot={{ r: 6, fill: "var(--fx-line)", stroke: "hsl(var(--card))", strokeWidth: 2 }}
+                        dot={(p: { cx?: number; cy?: number; index?: number; payload?: DiemTyGia }) => {
+                            const { cx, cy, payload } = p;
+                            if (cx == null || cy == null || !payload) return <g key={`d${p.index}`} />;
+                            const chon = payload.filename === kyDangXem;
+                            return (
+                                <g key={payload.filename}>
+                                    {chon && <circle cx={cx} cy={cy} r={10} fill="var(--fx-line)" fillOpacity={0.15} />}
+                                    <circle cx={cx} cy={cy} r={chon ? 5.5 : 4} fill="var(--fx-line)"
+                                        stroke="hsl(var(--card))" strokeWidth={2} />
+                                    {payload === cuoi && (
+                                        <text x={cx + 6} y={cy - 12} textAnchor="end" fontSize={11.5} fontWeight={700}
+                                            fill="hsl(var(--foreground))">
+                                            {payload.vnd_per_twd!.toFixed(2)}
+                                        </text>
+                                    )}
+                                </g>
+                            );
+                        }} />
+                </ComposedChart>
+            </ResponsiveContainer>
+        </div>
+    );
+}
+
+function OTyGia({ active, payload }: { active?: boolean; payload?: { payload: DiemTyGia }[] }) {
+    const d = active ? payload?.[0]?.payload : undefined;
+    if (!d) return null;
+    return (
+        <div className="min-w-[210px] rounded-xl border border-border bg-card px-3.5 py-2.5 text-[12.5px] shadow-lg">
+            <div className="mb-1.5 font-semibold text-foreground">Kỳ chốt {dmy(d.period_date)}</div>
+            <div className="flex items-baseline justify-between gap-4">
+                <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+                    <span className="h-2 w-2 rounded-full" style={{ background: "var(--fx-line)" }} />Đồng / NT$
+                </span>
+                <span className="font-bold tabular-nums text-foreground">{d.vnd_per_twd?.toFixed(2)}</span>
+            </div>
+            <div className="mt-0.5 text-right text-[11.5px] tabular-nums text-muted-foreground">
+                {d.rate_twd_rmb} × {d.rate_rmb_vnd}
+            </div>
+            <div className="mt-1.5 flex items-baseline justify-between gap-4 border-t border-border/70 pt-1.5">
+                <span className="text-muted-foreground">Tiền COD</span>
+                <span className="tabular-nums text-foreground">{TWD(d.cod_twd)}</span>
+            </div>
+            <div className="mt-0.5 flex items-baseline justify-between gap-4">
+                <span className="text-muted-foreground">Thiệt so kỳ tốt nhất</span>
+                {d.tot_nhat
+                    ? <span className="font-semibold text-emerald-700 dark:text-emerald-300">kỳ tốt nhất</span>
+                    : <span className="font-bold tabular-nums text-rose-600 dark:text-rose-400">−{VND(d.thiet_vnd ?? 0)}</span>}
+            </div>
+        </div>
     );
 }
 

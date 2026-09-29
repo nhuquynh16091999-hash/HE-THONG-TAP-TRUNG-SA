@@ -327,12 +327,16 @@ export async function GET(req: NextRequest) {
         // Sỹ Anh chốt: tỷ giá NAZA đặt thì phải chịu, không cãi được. Vậy bảng
         // phần trăm không giúp quyết định gì. Đổi sang câu trả lời được: nó lấy
         // mất bao nhiêu TIỀN, lấy kỳ tốt nhất chính NAZA từng đặt làm mốc.
+        //
+        // Tiền đem nhân là COD của CẢ KỲ theo sheet TỔNG — NAZA quy đổi cả khoản
+        // đó bằng tỷ giá của họ. Trước 29/09/2026 lấy `total_twd` (chỉ đơn khớp
+        // sổ đơn), thành ra 5 kỳ hụt tổng 9.340 NT$ và tiền thiệt bị tính thiếu.
         const fx = fxLoss(byPeriod.map((p) => ({
             filename: p.filename,
             period_date: p.period_date,
             rate_twd_rmb: p.settlement?.rate_twd_rmb ?? null,
             rate_rmb_vnd: p.settlement?.rate_rmb_vnd ?? null,
-            cod_twd: p.total_twd,
+            cod_twd: p.settlement?.cod_twd ?? p.total_twd,
         })));
 
         // Loại lệch thứ 2 KHÔNG thuộc kỳ nào: đơn đã giao mà chưa kỳ nào trả
