@@ -4,7 +4,9 @@
 // Sỹ Anh chốt 15/09/2026: tự động CHỈ gửi mốc 8h30, còn lại gửi khi có người yêu cầu.
 // - 08:30: tin TỔNG TEAM + từng marketer, số HÔM QUA (đã chốt ngày).
 // - Lệnh gõ trong nhóm (commands.js): /baocao [homqua | dd/mm] [tên | team] · /canhbao · /bot
-// - Mốc giữa ngày (dailyReport.intradaySlots): 20:00 + 22:00, số HÔM NAY đang chạy.
+// - Mốc giữa ngày (dailyReport.intradaySlots): 13:00 + 18:00 + 22:00, số HÔM NAY đang chạy
+//   (Sỹ Anh thêm 13:00, 18:00 ngày 29/09/2026). 13:00/18:00 so ▲▼ với CÙNG MỐC hôm qua,
+//   22:00 so với cả ngày hôm qua như mẫu đã duyệt.
 // - Sync đang đứng thì tin vẫn gửi ĐÚNG KHUNG GIỜ (mang dòng "SỐ CHƯA ĐỦ") và bot NHỚ số
 //   đã báo; vòng sync nào lấy đủ số thì bot tự gửi thêm MỘT tin ĐÍNH CHÍNH nêu rõ chỗ lệch
 //   (Sỹ Anh chốt 22/09/2026). Hạn chờ: dailyReport.dinhChinhHanGio giờ, tin giữa ngày chỉ
@@ -21,6 +23,7 @@
 //       node bot.js --lenh "/baocao homqua"  (làm như có người gõ lệnh đó trong nhóm)
 //       node bot.js --report [YYYY-MM-DD]    (gửi ngay báo cáo ngày đó — mặc định hôm qua)
 //       node bot.js --vandon                 (gửi ngay tin vận đơn cần xử lý vào nhóm vận đơn)
+//       node bot.js --moc 13:00              (gửi ngay tin một mốc giữa ngày: 13:00 · 18:00 · 22:00)
 //       thêm --dry-run: IN tin ra màn hình, không đăng nhập, không gửi.
 // ═══════════════════════════════════════════════════════════════════
 const fs = require("fs");
@@ -174,14 +177,27 @@ async function guiLoat(texts, nhom = nhomDich) {
     return da;
 }
 
-// kieu: "sang" (08:30, kết quả hôm qua) · "toi" (22:00, kết quả hôm nay) · "" (gõ tay / đính chính).
-async function dungBaoCao(ngay, homNay, label, staleCoSan, kieu = "") {
+// Mốc giữa ngày → kiểu tin: trước 16h là TRƯA, trước 20h là CHIỀU, còn lại TỐI.
+const kieuMoc = (hhmm) => (toMin(hhmm) < 16 * 60 ? "trua" : toMin(hhmm) < 20 * 60 ? "chieu" : "toi");
+
+// kieu: "sang" (08:30, kết quả hôm qua) · "trua" / "chieu" (13:00 / 18:00) · "toi" (22:00,
+//       kết quả hôm nay) · "" (gõ tay / đính chính).
+// moc:  mốc giữa ngày ("13:00") — trưa/chiều lấy số bot đã báo mốc đó hôm qua để so ▲▼.
+async function dungBaoCao(ngay, homNay, label, staleCoSan, kieu = "", moc = "") {
     const stale = staleCoSan === undefined ? await fetchStale() : staleCoSan;
     const gio = vnHHMM(), today = vnDateStr();
-    let tieuDe, nguon;
+    let tieuDe, nguon, them = {};
     if (kieu === "sang") {
         tieuDe = `☀️ ADS · SÁNG ${ddmm(today)} · KẾT QUẢ ${ddmm(ngay)}`;
         nguon = "Số chốt từ file TỔNG TEAM" + (stale && stale.lastOkTs ? ` · sync ${gioCua(stale.lastOkTs)} ✓` : "");
+    } else if (kieu === "trua" || kieu === "chieu") {
+        tieuDe = `${kieu === "trua" ? "🌤 ADS · TRƯA" : "🌇 ADS · CHIỀU"} ${ddmm(ngay)} · KẾT QUẢ TỚI ${moc || gio}`;
+        nguon = "Số đang chạy" + (stale && stale.lastOkTs ? ` · sync ${gioCua(stale.lastOkTs)} ✓` : "")
+            + " · ngày chưa chốt, còn lên tiếp";
+        // So với CÙNG MỐC hôm qua (số bot đã báo lúc đó, state.json → soMoc). Chưa có thì
+        // không ▲▼ — so 13:00 với cả ngày hôm qua thì chữ nào cũng ▼ nửa, báo động giả.
+        const cu = (loadState().soMoc || {})[moc];
+        them = { khongSoCaNgay: true, soCungGio: cu && cu.ngay === homQua(ngay) ? { so: cu.so, nhan: `${moc} hôm qua` } : null };
     } else if (kieu === "toi") {
         tieuDe = `🌙 ADS · TỐI ${ddmm(ngay)} · KẾT QUẢ HÔM NAY`;
         nguon = `Số tới ${gio} · ngày chưa chốt, còn lên nhẹ`;
@@ -193,7 +209,7 @@ async function dungBaoCao(ngay, homNay, label, staleCoSan, kieu = "") {
         nguon = "Số từ file TỔNG TEAM";
     }
     return buildMarketerReports(DR, ngay,
-        { intraday: homNay, label: label || (homNay ? slotLabel(gio) : undefined), stale, log, tieuDe, nguon });
+        { intraday: homNay, label: label || (homNay ? slotLabel(gio) : undefined), stale, log, tieuDe, nguon, ...them });
 }
 
 // MỘT tin cho mốc tự gửi (Sỹ Anh chốt 16/09/2026: trước đây 1 tin tổng + 1 tin mỗi
@@ -202,10 +218,23 @@ async function dungBaoCao(ngay, homNay, label, staleCoSan, kieu = "") {
 // theoDoi: khoá xếp lịch ĐÍNH CHÍNH. Chỉ mốc tự gửi và `--report` truyền vào — lệnh
 // /baocao gõ trong nhóm là người ta HỎI số lúc này, không phải bản tin chính thức, nên
 // không sinh tin đính chính (ai gõ 10 lần thì 10 tin đính chính là loạn nhóm).
-function guiBaoCao(ngay, { homNay = false, label, theoDoi, kieu = "" } = {}) {
+// nho: mốc tự gửi đúng giờ mới nhớ số (gửi tay `--moc 13:00` lúc 15h thì số 15h không được
+// thành "số 13:00 hôm qua" của ngày mai).
+function guiBaoCao(ngay, { homNay = false, label, theoDoi, kieu = "", moc = "", nho = true } = {}) {
     return lanLuot(async () => {
-        const r = await dungBaoCao(ngay, homNay, label, undefined, kieu);
+        const r = await dungBaoCao(ngay, homNay, label, undefined, kieu, moc);
         const n = await guiLoat([r.tinGop]);
+        if (moc && homNay && nho && !DRY) {
+            // Mốc giữa ngày mới đã ra thì đính chính của mốc giữa ngày TRƯỚC cùng ngày thành
+            // thừa: sync đứng từ trưa, 13:00 và 18:00 cùng chờ → sync chạy lại là hai tin
+            // đính chính y hệt số. Tin mới nhất (vừa gửi) mới là tin người ta đang đọc.
+            markState((s) => {
+                for (const [k, p] of Object.entries(s.dinhChinh || {})) if (p && p.intraday && p.ngay === ngay) delete s.dinhChinh[k];
+            });
+            // Nhớ số đã báo mốc này để mai cùng giờ so ▲▼. Số chưa đủ thì không nhớ — so với
+            // số thiếu là ▲ giả.
+            if (!r.chuaDu) markState((s) => { (s.soMoc = s.soMoc || {})[moc] = { ngay, so: r.so }; });
+        }
         if (theoDoi && r.chuaDu && !DRY) xepDinhChinh(theoDoi, r, ngay, homNay);
         return { n, marketers: r.nguoi.length, chuaDu: r.chuaDu };
     });
@@ -429,7 +458,7 @@ async function ratMoc() {
     for (const slot of INTRADAY_SLOTS) {
         const nay = vnDateStr();
         await chayMoc(slot, slot, Number(DR.intradayCatchUpMinutes || 60),
-            () => guiBaoCao(nay, { homNay: true, label: slotLabel(slot), theoDoi: `${slot}:${nay}`, kieu: "toi" }));
+            () => guiBaoCao(nay, { homNay: true, label: slotLabel(slot), theoDoi: `${slot}:${nay}`, kieu: kieuMoc(slot), moc: slot }));
     }
     // Tin vận đơn: dashboard lỗi thì vòng 5' sau thử lại, quá catchUpMinutes thì bỏ hôm đó.
     // Vận đơn: mỗi nước một mốc sáng + một mốc tối, rà riêng.
@@ -522,7 +551,7 @@ async function chayDichVu() {
 
 async function main() {
     const lenh = argAfter("--lenh");
-    if (lenh || ARGS.includes("--report") || ARGS.includes("--vandon")) {
+    if (lenh || ARGS.includes("--report") || ARGS.includes("--vandon") || ARGS.includes("--moc")) {
         if (!DRY) {
             const z = require("./zalo");
             nhomDich = z.docNhomDich();
@@ -537,6 +566,12 @@ async function main() {
                 await guiVanDon(m, kieu);
                 log(DRY ? `In thử tin vận đơn ${m} (${kieu}).` : `Đã gửi tin vận đơn ${m} (${kieu}) vào "${nhomVanDon[m].name}".`);
             }
+        } else if (ARGS.includes("--moc")) {
+            // --moc 13:00: gửi ngay tin của một mốc giữa ngày (khuôn trưa/chiều/tối), số hôm nay.
+            const moc = /^\d{1,2}:\d{2}$/.test(argAfter("--moc")) ? argAfter("--moc") : (INTRADAY_SLOTS[0] || "13:00");
+            const nay = vnDateStr();
+            const r = await guiBaoCao(nay, { homNay: true, label: slotLabel(moc), theoDoi: `${moc}:${nay}`, kieu: kieuMoc(moc), moc, nho: false });
+            log(`${DRY ? "In thử" : "Đã gửi"} tin mốc ${moc}: 1 tin gộp, ${r.marketers} marketer trong bảng.`);
         } else if (lenh) {
             if (!(await lamLenh(lenh))) log(`"${lenh}" không phải lệnh của bot.`);
         } else {

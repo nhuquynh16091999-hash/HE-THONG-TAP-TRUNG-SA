@@ -2,11 +2,12 @@
 
 Gửi vào **một nhóm Zalo** — hiện là **BOT AI NHẬN THÔNG BÁO** — chỉ tin **ads**.
 Sỹ Anh chốt 15/09/2026: **tự động chỉ gửi mốc 8h30**, còn lại gửi khi có người gõ lệnh.
+(Sau đó thêm dần mốc giữa ngày — nay là 13:00 · 18:00 · 22:00, xem bảng dưới.)
 
 | Khi nào | Tin |
 |---|---|
 | **08:30** mỗi ngày | **Một tin duy nhất**: số tổng + bảng xếp hạng + camp đáng xử — số **hôm qua** |
-| **20:00** và **22:00** mỗi ngày | Cùng khuôn tin đó nhưng là số **ĐANG CHẠY HÔM NAY** (nhãn `HÔM NAY dd/mm · giờ`) — Sỹ Anh chốt 20/09/2026 |
+| **13:00**, **18:00** và **22:00** mỗi ngày | Cùng khuôn tin đó nhưng là số **ĐANG CHẠY HÔM NAY** — 22:00 từ 26/09, 13:00 + 18:00 Sỹ Anh thêm 29/09/2026 |
 | Có người gõ lệnh trong nhóm | Xem bảng lệnh dưới |
 
 Không tự gửi từ 23h đến 7h (lệnh gõ tay thì trả lời bất cứ lúc nào). Không có tồn kho,
@@ -25,6 +26,12 @@ Nguyên tắc: **đọc xong tin là làm được ngay**, không mở dashboard
 | **VẬN ĐƠN UAE** (28/09/2026) | Cùng khuôn Singapore; trạng thái tra ở **trang WeShip** (không qua 17TRACK). Gọi = khách **từ chối / không nghe máy / hẹn giao lại** kèm số lần, khu vực, ghi chú đơn POS, **💬 tin tiếng Anh theo lý do** | Như Singapore |
 
 * Bỏ phần "việc hôm nay" của ads, bỏ lệnh /tin và /xong (Sỹ Anh chốt).
+* **Ads 13:00 (TRƯA) · 18:00 (CHIỀU)** — Sỹ Anh thêm 29/09/2026. Cùng khuôn tin 22:00, số
+  lấy từ vòng ghi Sheet mới nhất (chạy phút :20 mỗi giờ, dòng nguồn in giờ sync). ▲▼ so với
+  **cùng mốc hôm qua** (bot nhớ số đã báo mỗi mốc ở `state.json → soMoc`), KHÔNG so với cả
+  ngày hôm qua — 13:00 mà so cả ngày thì chữ nào cũng ▼ nửa. Ngày đầu chưa có số hôm qua thì
+  tin không có ▲▼. Mốc sau đã gửi thì đính chính còn chờ của mốc trước cùng ngày bị bỏ (tin
+  mới nhất đã mang số mới hơn). In thử: `node bot.js --dry-run --moc 13:00`.
 * @Thương là **nhắc tên thật** (mention Zalo) — `vanDon.phuTrach` trong `config.json`.
 * Tin sáng lưu danh sách khách phải gọi/nhắn vào `state.json → vanDonSang` để tin tối chấm.
   17TRACK cập nhật lại 21:30 (`talpha-tracking.timer`) trước tin 22:00.
@@ -148,6 +155,7 @@ Ghép lại khi bot đang chạy: xong thì `pm2 restart talpha-zalo-alerts`.
 ```bash
 node bot.js --lenh "/baocao homqua"   # làm như có người gõ lệnh đó trong nhóm (gửi thật)
 node bot.js --report 2026-09-14       # gửi báo cáo ngày đó (bỏ ngày = hôm qua)
+node bot.js --moc 18:00               # gửi ngay tin mốc 18:00 (số hôm nay, không ghi đè số đã nhớ)
 node bot.js --dry-run --lenh "/baocao Lộc"   # --dry-run: chỉ in, không đăng nhập, không gửi
 node pair.js --groups                 # nick phụ đang ở những nhóm nào
 pm2 logs talpha-zalo-alerts --lines 40
@@ -171,7 +179,7 @@ Chạy thử từ máy Mac: `TALPHA_DASHBOARD_URL=http://139.180.131.21:3000 nod
 | Khoá | Đang để | Nghĩa |
 |---|---|---|
 | `dailyReport.at` / `atCatchUpMinutes` | `08:30` / 210 | Giờ tin sáng; quá 210' (12:00) thì bỏ hôm đó |
-| `dailyReport.intradaySlots` | `["22:00"]` | Mốc tự gửi số ĐANG CHẠY HÔM NAY (bỏ 20:00 từ 26/09/2026). Trễ quá `intradayCatchUpMinutes` (60') thì bỏ mốc đó, không dồn sang mốc sau |
+| `dailyReport.intradaySlots` | `["13:00", "18:00", "22:00"]` | Mốc tự gửi số ĐANG CHẠY HÔM NAY (bỏ 20:00 từ 26/09, thêm 13:00 + 18:00 từ 29/09/2026). Trước 16h là tin TRƯA, trước 20h là CHIỀU, còn lại TỐI. Trễ quá `intradayCatchUpMinutes` (60') thì bỏ mốc đó, không dồn sang mốc sau |
 | `adsPollMinutes` | `0` — **tắt** | Tự gửi cảnh báo ads mỗi N phút (bot WhatsApp để 180) |
 | `adsWasteSpend` | 300000 | Camp tiêu từ mức này mà 0 tin nhắn là camp đốt tiền |
 | `adsSpikeRatio` / `adsMinTotalForSpike` | 1,5 / 3000000 | Chi tiêu hôm nay ≥ 1,5 lần TB 7 ngày VÀ ≥ 3tr là bất thường |

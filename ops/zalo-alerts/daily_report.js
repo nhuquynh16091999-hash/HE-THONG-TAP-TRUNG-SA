@@ -146,13 +146,19 @@ const soDauBai = (sheet) => ({
 // opts.intraday — số chưa chốt ngày: thêm dòng nhắc + đổi lời chú thích DS giao.
 // opts.stale    — tuổi số từ /api/talpha/sync-health (null = không biết, không cảnh báo).
 // opts.fetch    — thay fetch khi test.
+// opts.soCungGio — { so: soDauBai, nhan: "13:00 hôm qua" }: ▲▼ so với số bot đã báo CÙNG
+//                  MỐC hôm qua, thay cho cả ngày hôm qua (mốc 13:00 · 18:00, Sỹ Anh thêm 29/09/2026).
+// opts.khongSoCaNgay — true: không so với cả ngày hôm qua (13:00 mà so cả ngày thì chữ nào
+//                  cũng ▼ nửa, đọc thành báo động giả). Thiếu soCungGio thì tin không có ▲▼.
 async function buildMarketerReports(cfg, dateStr, opts = {}) {
     const f = opts.fetch || fetch;
     const label = opts.label || ddmm(dateStr);
     const sheet = await fetchSheetReport(cfg, dateStr, f);
     // Tin tối so với CẢ NGÀY hôm qua (▲▼). Hỏng thì bỏ phần so sánh, tin vẫn đi.
     let sheetTruoc = null;
-    if (opts.intraday) {
+    if (opts.intraday && opts.soCungGio && opts.soCungGio.so) {
+        sheetTruoc = { team: opts.soCungGio.so, nhan: opts.soCungGio.nhan };
+    } else if (opts.intraday && !opts.khongSoCaNgay) {
         try { sheetTruoc = await fetchSheetReport(cfg, homQuaCua(dateStr), f); }
         catch (e) { if (opts.log) opts.log(`không lấy được số hôm qua để so: ${e.message}`); }
     }
@@ -295,7 +301,7 @@ function buildTinAds({ dateStr, sheet, sheetTruoc, camps, cfg, canhBaoCamp, opts
     });
     const un = (sheet.marketers || []).find((r) => r.tab === KHONG_GAN);
     if (un && (un.doanh_so > 0 || un.don > 0)) dong.push(`📍 Chưa gán cho ai: ${gonTien(un.doanh_so)} · ${fmt(un.don)} đơn`);
-    if (soSanh) dong.push(I("▲▼ so với cả ngày hôm qua"));
+    if (soSanh) dong.push(I(`▲▼ so với ${sheetTruoc.nhan || "cả ngày hôm qua"}`));
 
     // ── Chi tiết camp theo marketer ──
     dong.push("", B(opts.intraday ? "📋 CHI TIẾT CAMP HÔM NAY" : "📋 CHI TIẾT CAMP"));
