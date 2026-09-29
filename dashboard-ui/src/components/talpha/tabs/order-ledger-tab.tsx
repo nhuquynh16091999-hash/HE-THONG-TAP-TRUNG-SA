@@ -7,7 +7,6 @@ import TabSkeleton, { ErrorState } from "@/components/ui/tab-skeleton";
 import { formatNumber, cn } from "../utils";
 import { TWD, VND, RMB, d6, STRIPE, PIN_TINT, rowCls, statusCls, mkCls, type Light, type LedgerRowUI } from "./ledger-shared";
 import ThanhNhapBangDon, { type NhapBangDon } from "@/components/talpha/nhap-bang-don";
-import WaLink from "@/components/talpha/wa-link";
 import SoDonNuoc from "./order-ledger-market";
 
 interface Props { dateRange?: { from: Date; to: Date }; projectId?: string }
@@ -122,12 +121,12 @@ function SoDonDai({ dateRange }: Props) {
     const exportCsv = () => {
         const head = ["Đèn", "Mã đơn", "Trạng thái", "Đối soát (tay)", "Ngày lên đơn", "Ngày xuất kho",
             "Kỳ chờ", "PTVC", "Vận đơn", "Mã đơn hoàn", "Mã 17TRACK", "SKU", "SL", "Tên khách",
-            "Điện thoại", "WhatsApp", "Marketer", "COD (NT$)", "3PL trả (NT$)", "Lệch (NT$)", "Kỳ sao kê",
+            "Điện thoại", "Marketer", "COD (NT$)", "3PL trả (NT$)", "Lệch (NT$)", "Kỳ sao kê",
             "Ngày về tiền", "Phí ship (¥)", "Phí thao tác (¥)", "Giá vốn (đ)", "Còn lại (đ)", "Ghi chú"];
         const esc = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
         const body = shown.map((r) => [r.light, r.order_no, r.status_raw, r.recon_manual,
             r.order_date, r.ship_date, r.ky_da_qua, r.ship_method, r.tracking, r.return_order_no,
-            r.track17_code, r.sku, r.quantity, r.contact_name, r.phone, r.wa ?? "", r.marketer,
+            r.track17_code, r.sku, r.quantity, r.contact_name, r.phone, r.marketer,
             r.cod_twd, r.paid_twd ?? "", r.diff_twd ?? "", r.paid_period, r.paid_date,
             r.ship_fee_rmb ?? "", r.op_fee_rmb ?? "", r.cogs_vnd ?? "",
             r.net_vnd === null ? "" : Math.round(r.net_vnd),
@@ -325,7 +324,7 @@ function SoDonDai({ dateRange }: Props) {
                                     </Td>
                                     <Td num>{r.quantity}</Td>
                                     <Td grp>{r.contact_name || "·"}</Td>
-                                    <Td className={C.tel}>{r.phone || "·"}<WaLink href={r.wa} /></Td>
+                                    <Td className={C.tel}>{r.phone || "·"}</Td>
                                     <Td>{r.marketer
                                         ? <span className={cn("rounded-full px-1.5 py-px text-[10px] font-semibold", mkCls(r.marketer))}>{r.marketer}</span>
                                         : <span className={C.faint}>·</span>}</Td>
@@ -373,7 +372,6 @@ function SoDonDai({ dateRange }: Props) {
                 <span><i className="mr-1.5 inline-block h-3 w-[3px] rounded-sm bg-slate-300 align-[-2px] dark:bg-slate-600" />không đòi</span>
                 <span><b className="text-foreground">Kỳ chờ</b> = đã qua mấy kỳ sao kê mà tiền chưa về; từ 2 kỳ là phải đòi</span>
                 <span><b className="text-foreground">Còn lại</b> vàng = chưa trừ giá vốn, số đang cao hơn thật</span>
-                <span><b className="text-emerald-700 dark:text-emerald-300">WA</b> = mở WhatsApp của khách</span>
                 <span className="ml-auto font-mono">{formatNumber(shown.length)} / {formatNumber(rows.length)} đơn — không phân trang</span>
             </div>
         </div>

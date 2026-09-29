@@ -15,13 +15,17 @@ const R = require("../.test-build/rules.js");
 let pass = 0;
 const t = (name, fn) => { fn(); pass++; console.log("  ✓", name); };
 
-const TW = R.PHONE_RULES.TW, SG = R.PHONE_RULES.SG, AE = R.PHONE_RULES.AE;
+const AE = R.PHONE_RULES.AE;
+// Đài, Singapore không bật WhatsApp (Sỹ Anh chốt 29/09/2026) nhưng luật chuẩn hoá số vẫn phải
+// đúng nếu sau này bật lại — test bằng đúng luật đang khai trong talpha_rules.json.
+const TW = { cc: "886", national_len: 9, trunk: "0" }, SG = { cc: "65", national_len: 8 };
 
-console.log("── Luật mã nước khai ở talpha_rules.json ──");
-t("ba nước đều có luật", () => {
-    assert.deepStrictEqual(TW, { cc: "886", national_len: 9, trunk: "0" });
-    assert.deepStrictEqual(SG, { cc: "65", national_len: 8 });
+console.log("── Luật WhatsApp khai ở talpha_rules.json ──");
+t("CHỈ UAE bật WhatsApp; Đài, Singapore không có luật → không có nút", () => {
+    assert.deepStrictEqual(Object.keys(R.PHONE_RULES), ["AE"]);
     assert.deepStrictEqual(AE, { cc: "971", national_len: 9, trunk: "0" });
+    assert.strictEqual(W.waLink("970150630", R.PHONE_RULES.TW), null);
+    assert.strictEqual(W.waLink("83123456", R.PHONE_RULES.SG), null);
 });
 
 console.log("── Đài Loan ──");
@@ -71,6 +75,30 @@ t("không có luật nước → không dựng", () => {
     assert.strictEqual(W.waLink("563086727", null), null);
 });
 
+console.log("── Tin xác nhận đơn soạn sẵn ──");
+t("đủ hàng, tiền, địa chỉ; gọi khách bằng tên đầu", () => {
+    const x = W.tinXacNhan({ customer: "Raquel Dimaano Arellano", product: "Gold Bracelet 001", quantity: 2,
+        cod: 119, currency: "AED", address: "Villa 3, 33A Street,  Al Mamourah" });
+    assert.ok(x.startsWith("Hi Raquel, thank you for your order!"), x);
+    assert.ok(x.includes("- Item: Gold Bracelet 001 x2"), x);
+    assert.ok(x.includes("- Total: 119 AED (cash on delivery)"), x);
+    assert.ok(x.includes("- Address: Villa 3, 33A Street, Al Mamourah"), x);
+    assert.ok(x.includes("reply YES to confirm"), x);
+});
+t("thiếu ô nào bỏ dòng đó — không bao giờ in 'undefined'", () => {
+    const x = W.tinXacNhan({ customer: "", cod: 0 });
+    assert.ok(x.startsWith("Hi there,"), x);
+    assert.ok(!/undefined|null|Item|Total|Address/.test(x), x);
+});
+t("hàng đã ghi ×2 thì không thêm số lượng lần nữa", () => {
+    const x = W.tinXacNhan({ product: "Oralhoe Dental 002 ×2", quantity: 2 });
+    assert.ok(x.includes("- Item: Oralhoe Dental 002 ×2\n"), x);
+});
+t("link kèm tin: mã hoá URL, mở đúng số", () => {
+    const l = W.waLink("563086727", AE, "Hi Ann,\nTotal: 119 AED");
+    assert.strictEqual(l, "https://wa.me/971563086727?text=Hi%20Ann%2C%0ATotal%3A%20119%20AED");
+});
+
 console.log("── Sổ đơn Singapore / UAE ──");
 const NOW = new Date("2026-09-29T08:00:00Z");
 const ship = (o = {}) => ({
@@ -82,14 +110,15 @@ const ship = (o = {}) => ({
 });
 const dung = (shipments, products = new Map()) =>
     L.buildMarketLedger(shipments, products, require("../.test-build/tracking.js").buildAlerts(shipments, NOW, { staleDays: 4 }),
-        { rateVnd: 7000, phone: AE, carrier: "WeShip" });
+        { rateVnd: 7000, phone: AE, carrier: "WeShip", currency: "AED" });
 
 t("giao hỏng → đèn đỏ kèm lý do, có link WhatsApp", () => {
     const [r] = dung([ship({ status: "DeliveryFailure", sub_status: "DeliveryFailure_Rejected", last_event: "Khách từ chối nhận (lần 2)", fail_count: 2 })]);
     assert.strictEqual(r.light, "do");
     assert.match(r.light_note, /Giao không thành công/);
     assert.strictEqual(r.status_vi, "Giao hỏng, chờ giao lại");
-    assert.strictEqual(r.wa, "https://wa.me/971563086727");
+    assert.ok(r.wa.startsWith("https://wa.me/971563086727?text=Hi%20Maria"), r.wa);
+    assert.ok(decodeURIComponent(r.wa).includes("Total: 119 AED"), r.wa);
     assert.strictEqual(r.cod_vnd, 833000);
     assert.strictEqual(r.carrier, "WeShip");
 });

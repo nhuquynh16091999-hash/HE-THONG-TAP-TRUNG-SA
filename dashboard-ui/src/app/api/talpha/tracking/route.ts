@@ -17,7 +17,7 @@ import {
 import { track17CodeFor } from "@/lib/talpha/partner-file";
 import { readStoreFresh, updateStore } from "@/lib/talpha/store";
 import { loadMarketShipments, syncWeshipMarket } from "@/lib/talpha/tracking-market";
-import { waLink } from "@/lib/talpha/whatsapp";
+import { tinXacNhan, waLink } from "@/lib/talpha/whatsapp";
 
 export const dynamic = "force-dynamic";
 
@@ -270,8 +270,16 @@ export async function GET(req: NextRequest) {
 
     try {
         const { shipments: raw, store, lastImport } = await loadShipments(mk, from, to);
-        // Link WhatsApp của khách (29/09/2026) — gắn TRƯỚC buildAlerts để cảnh báo mang theo luôn.
-        const shipments = raw.map((s) => ({ ...s, wa: waLink(s.phone, PHONE_RULES[mk.code]) }));
+        // Nút WhatsApp kèm tin xác nhận đơn (29/09/2026, chỉ nước bật whatsapp — UAE) — gắn TRƯỚC
+        // buildAlerts để cảnh báo mang theo luôn.
+        const luat = PHONE_RULES[mk.code];
+        const shipments = raw.map((s) => ({
+            ...s,
+            wa: luat ? waLink(s.phone, luat, tinXacNhan({
+                customer: s.customer, cod: s.cod_local, currency: mk.currency,
+                address: s.address || s.city, tracking: s.track17_code,
+            })) : null,
+        }));
         const alerts = buildAlerts(shipments, new Date(), { staleDays: mk.stale_days });
         return NextResponse.json({
             from, to,

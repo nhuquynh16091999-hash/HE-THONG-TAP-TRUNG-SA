@@ -293,10 +293,12 @@ docs/                    TALPHA_METRIC_RULES.md là source of truth về chỉ s
 
 ---
 
-**Link WhatsApp của khách** (29/09/2026): Sổ đơn ba nước và Theo dõi vận đơn có chip “WA” cạnh
-số điện thoại, mở `wa.me/<số quốc tế>`. Số chuẩn hoá ở `lib/talpha/whatsapp.ts` theo luật
-`talpha_rules.json → markets.*.phone` (mã nước, độ dài số trong nước, số 0 đầu); số không khớp
-luật thì không có link, để khỏi nhắn nhầm người.
+**Nút WhatsApp — chỉ UAE** (Sỹ Anh chốt 29/09/2026): Sổ đơn UAE có cột ghim “Xác nhận khách”,
+Theo dõi vận đơn UAE có nút to dưới mỗi khách. Bấm là mở `wa.me/<số quốc tế>` kèm tin xác nhận
+đơn soạn sẵn tiếng Anh (hàng, tiền COD, địa chỉ POS, hỏi giờ giao — `tinXacNhan`). Bật/tắt từng
+nước ở `talpha_rules.json → markets.*.phone.whatsapp` (Đài, Singapore: false). Số chuẩn hoá ở
+`lib/talpha/whatsapp.ts` (mã nước, độ dài số trong nước, số 0 đầu); số không khớp luật thì
+không có nút, để khỏi nhắn nhầm người.
 
 ## 10. Còn nợ
 

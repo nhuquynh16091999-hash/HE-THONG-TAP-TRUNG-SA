@@ -53,8 +53,37 @@ export function waNumber(raw: string | null | undefined, r: PhoneRule | null | u
     return null;
 }
 
-/** Link mở khung chat WhatsApp với khách, hoặc null nếu số không chắc. */
-export function waLink(raw: string | null | undefined, r: PhoneRule | null | undefined): string | null {
+/**
+ * Link mở khung chat WhatsApp với khách, hoặc null nếu số không chắc. Có `text` thì khung chat
+ * mở sẵn tin soạn sẵn — người gửi vẫn sửa được trước khi bấm gửi.
+ */
+export function waLink(raw: string | null | undefined, r: PhoneRule | null | undefined, text?: string | null): string | null {
     const n = waNumber(raw, r);
-    return n ? `https://wa.me/${n}` : null;
+    if (!n) return null;
+    return text ? `https://wa.me/${n}?text=${encodeURIComponent(text)}` : `https://wa.me/${n}`;
+}
+
+/**
+ * Tin XÁC NHẬN ĐƠN gửi khách qua WhatsApp (Sỹ Anh 29/09/2026: "tao hay phải xác nhận lại với
+ * khách"). Tiếng Anh — khách UAE phần lớn là lao động Philippines. Nhắc đủ thứ hay làm giao hỏng:
+ * hàng gì, bao nhiêu tiền mặt phải trả, địa chỉ, giờ nhận. Thiếu ô nào thì bỏ dòng đó, không
+ * viết "undefined".
+ */
+export function tinXacNhan(o: {
+    customer?: string | null; product?: string | null; quantity?: number | null;
+    cod?: number | null; currency?: string | null; address?: string | null; tracking?: string | null;
+}): string {
+    const ten = String(o.customer || "").trim().split(/\s+/)[0] || "there";
+    const dong = [`Hi ${ten}, thank you for your order! Please confirm the details:`];
+    const hang = String(o.product || "").trim();
+    if (hang) dong.push(`- Item: ${hang}${o.quantity && o.quantity > 1 && !/×\d/.test(hang) ? ` x${o.quantity}` : ""}`);
+    if (o.cod && o.cod > 0) {
+        const tien = Math.round(o.cod * 100) / 100;
+        dong.push(`- Total: ${tien} ${o.currency || ""} (cash on delivery)`.replace(/\s+\(/, " ("));
+    }
+    const dc = String(o.address || "").replace(/\s+/g, " ").trim();
+    if (dc) dong.push(`- Address: ${dc}`);
+    if (o.tracking) dong.push(`- Parcel: ${o.tracking}`);
+    dong.push("", "Please reply YES to confirm, and tell us a good time for delivery. Thank you!");
+    return dong.join("\n");
 }

@@ -15,7 +15,7 @@
  * Hàm thuần — để test được.
  */
 import { TERMINAL, type Shipment, type TrackAlert } from "./tracking";
-import { waLink, type PhoneRule } from "./whatsapp";
+import { tinXacNhan, waLink, type PhoneRule } from "./whatsapp";
 
 export type Light = "xanh" | "vang" | "do" | "xam";
 
@@ -37,8 +37,10 @@ export type MarketLedgerRow = {
     quantity: number | null;
     customer: string;
     phone: string;
+    /** Link WhatsApp kèm tin xác nhận đơn soạn sẵn — chỉ nước bật whatsapp (UAE); còn lại null. */
     wa: string | null;
     city: string;
+    address: string;
     note: string;
     marketer: string;
     cod_local: number;
@@ -81,7 +83,7 @@ export function buildMarketLedger(
     shipments: Shipment[],
     products: Map<string, ProductInfo>,
     alerts: TrackAlert[],
-    opt: { rateVnd: number; phone?: PhoneRule | null; carrier?: string },
+    opt: { rateVnd: number; phone?: PhoneRule | null; carrier?: string; currency?: string },
 ): MarketLedgerRow[] {
     const canhBao = new Map<string, TrackAlert>();
     for (const a of alerts) {
@@ -121,8 +123,12 @@ export function buildMarketLedger(
             quantity: p?.quantity ?? null,
             customer: s.customer || "",
             phone: s.phone || "",
-            wa: waLink(s.phone, opt.phone),
+            wa: waLink(s.phone, opt.phone, tinXacNhan({
+                customer: s.customer, product: p?.sku, quantity: p?.quantity,
+                cod: Number(s.cod_local) || 0, currency: opt.currency, address: s.address || s.city,
+            })),
             city: s.city || "",
+            address: s.address || "",
             note: s.note || "",
             marketer: s.marketer || "",
             cod_local: Number(s.cod_local) || 0,

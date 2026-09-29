@@ -83,6 +83,7 @@ export async function GET(req: NextRequest) {
             rateVnd: m.rate_vnd,
             phone: PHONE_RULES[code] ?? null,
             carrier: tm.provider === "weship" ? "WeShip" : undefined,
+            currency: m.currency,
         });
         const laPos = tm.source === "pos";
         return NextResponse.json({

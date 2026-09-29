@@ -100,6 +100,7 @@ export async function loadPosMarketShipments<S extends MarketStoreBase>(
                        SAFE_DIVIDE(o.cod, NULLIF(v.pos_money_divisor, 0)) AS cod,
                        o.partner, o.bill_full_name AS customer, o.bill_phone_number AS phone,
                        o.shipping_province AS province, o.shipping_district AS district,
+                       o.shipping_address AS address,
                        o.note, o.time_send_partner
                 FROM \`${BQ_PROJECT}.${BQ_DATASET}.vw_orders_std\` v
                 LEFT JOIN \`${BQ_PROJECT}.${BQ_DATASET}.sale_order\` o

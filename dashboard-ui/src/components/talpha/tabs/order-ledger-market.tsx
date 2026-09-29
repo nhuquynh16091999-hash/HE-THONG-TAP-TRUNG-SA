@@ -17,7 +17,7 @@ type Row = {
     tracking: string; carrier: string; status: string | null; status_vi: string; raw_status: string | null;
     last_event: string | null; last_event_time: string | null; fail_count: number | null;
     sku: string; quantity: number | null; customer: string; phone: string; wa: string | null;
-    city: string; note: string; marketer: string; cod_local: number; cod_vnd: number | null;
+    city: string; address: string; note: string; marketer: string; cod_local: number; cod_vnd: number | null;
     light: Light; light_note: string;
 };
 type Data = {
@@ -89,14 +89,19 @@ export default function SoDonNuoc({ code }: { code: string }) {
     const tien = (n: number) => `${(Math.round(n * 100) / 100).toLocaleString("vi-VN")} ${m.symbol}`;
     const count = (l: Light) => rows.filter((r) => r.light === l).length;
     const capNhat = gioNgan(d.nguon.cap_nhat);
+    // Nút WhatsApp chỉ có ở nước bật whatsapp (UAE — Sỹ Anh chốt 29/09/2026). Có thì thêm một cột
+    // GHIM ngay sau số thứ tự: xác nhận đơn là việc làm hằng ngày, không bắt cuộn ngang mới thấy nút.
+    const coWa = rows.some((r) => r.wa);
+    const WA_W = 116;
+    const leftMa = 34 + (coWa ? WA_W : 0);
 
     const exportCsv = () => {
         const head = ["Đèn", "Mã đơn", "Trạng thái", "Ngày lên đơn", "Ngày gửi", "Hãng", "Vận đơn",
-            "Sự kiện cuối", "Hàng", "SL", "Tên khách", "Điện thoại", "WhatsApp", "Khu vực", "Marketer",
+            "Sự kiện cuối", "Hàng", "SL", "Tên khách", "Điện thoại", "Khu vực", "Địa chỉ", "Marketer",
             `COD (${m.currency})`, "Quy VND", "Ghi chú đơn", "Việc cần làm"];
         const esc = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
         const body = shown.map((r) => [r.light, r.order_no, r.status_vi, r.order_date, r.ship_date, r.carrier,
-            r.tracking, r.last_event, r.sku, r.quantity, r.customer, r.phone, r.wa, r.city, r.marketer,
+            r.tracking, r.last_event, r.sku, r.quantity, r.customer, r.phone, r.city, r.address, r.marketer,
             r.cod_local, r.cod_vnd ?? "", r.note, r.light_note].map(esc).join(","));
         const blob = new Blob(["﻿" + [head.map(esc).join(","), ...body].join("\n")], { type: "text/csv;charset=utf-8" });
         const a = document.createElement("a");
@@ -151,12 +156,14 @@ export default function SoDonNuoc({ code }: { code: string }) {
                 <table className="border-separate border-spacing-0 whitespace-nowrap text-[11.5px]">
                     <thead>
                         <tr className="text-[9.5px] font-bold uppercase tracking-wide text-muted-foreground">
-                            {["#", "Mã đơn · trạng thái", "Lên đơn", "Gửi hàng", "Hãng", "Vận đơn", "Sự kiện cuối", "Hàng", "SL",
-                                "Tên khách", "Điện thoại", "Khu vực", "MKT", "COD", "Quy VND", "Ghi chú đơn"].map((h, i) => (
+                            {([["#", 0], ...(coWa ? [["Xác nhận khách", 34]] : []), ["Mã đơn · trạng thái", leftMa]] as [string, number][]).map(([h, left], i) => (
+                                <th key={h} style={{ left, ...(i === 0 ? { width: 34, minWidth: 34 } : h === "Xác nhận khách" ? { width: WA_W, minWidth: WA_W } : {}) }}
+                                    className={cn("sticky top-0 z-40 bg-muted px-1.5 py-[6px]", i === 0 ? "text-right" : "text-left")}>{h}</th>
+                            ))}
+                            {["Lên đơn", "Gửi hàng", "Hãng", "Vận đơn", "Sự kiện cuối", "Hàng", "SL",
+                                "Tên khách", "Điện thoại", "Khu vực · địa chỉ", "MKT", "COD", "Quy VND", "Ghi chú đơn"].map((h) => (
                                 <th key={h} className={cn("sticky top-0 z-30 bg-muted/95 px-1.5 py-[6px] backdrop-blur",
-                                    ["#", "SL", "COD", "Quy VND"].includes(h) ? "text-right" : "text-left",
-                                    i <= 1 && "z-40 bg-muted", i === 0 && "left-0 w-[34px] min-w-[34px]")}
-                                    style={i === 1 ? { left: 34 } : undefined}>{h}</th>
+                                    ["SL", "COD", "Quy VND"].includes(h) ? "text-right" : "text-left")}>{h}</th>
                             ))}
                         </tr>
                     </thead>
@@ -164,7 +171,12 @@ export default function SoDonNuoc({ code }: { code: string }) {
                         {shown.map((r, i) => (
                             <tr key={r.key} className={rowCls(r.light)}>
                                 <td className={cn("sticky left-0 z-20 w-[34px] min-w-[34px] border-b border-border bg-card px-1.5 py-[3px] text-right tabular-nums text-muted-foreground/60", PIN_TINT[r.light])}>{i + 1}</td>
-                                <td style={{ left: 34 }} className={cn("sticky z-20 border-b border-r border-border bg-card px-1.5 py-[3px]", PIN_TINT[r.light])}>
+                                {coWa && (
+                                    <td style={{ left: 34, width: WA_W, minWidth: WA_W }} className={cn("sticky z-20 border-b border-border bg-card px-1.5 py-1", PIN_TINT[r.light])}>
+                                        {r.wa ? <WaLink href={r.wa} /> : <span className={cn("text-[10.5px]", C.faint)} title="Số điện thoại không đúng dạng — sửa trên POS">số sai</span>}
+                                    </td>
+                                )}
+                                <td style={{ left: leftMa }} className={cn("sticky z-20 border-b border-r border-border bg-card px-1.5 py-[3px]", PIN_TINT[r.light])}>
                                     <span className="flex items-center">
                                         <i title={r.light_note} className={cn("mr-1.5 inline-block h-[14px] w-[3px] flex-none rounded-sm", STRIPE[r.light])} />
                                         <b>{r.order_no || "·"}</b>
@@ -189,9 +201,13 @@ export default function SoDonNuoc({ code }: { code: string }) {
                                     <span className="inline-block max-w-[160px] truncate align-middle" title={r.customer}>{r.customer || "·"}</span>
                                 </td>
                                 <td className={cn("border-b border-border px-1.5 py-[3px]", C.tel)}>
-                                    {r.phone || "·"}<WaLink href={r.wa} />
+                                    {r.phone || "·"}
                                 </td>
-                                <td className="border-b border-border px-1.5 py-[3px] text-[10.5px]">{r.city || "·"}</td>
+                                <td className="border-b border-border px-1.5 py-[3px] text-[10.5px]">
+                                    <span className="inline-block max-w-[280px] truncate align-middle" title={[r.city, r.address].filter(Boolean).join(" — ")}>
+                                        {r.city || "·"}{r.address ? <span className="text-muted-foreground"> · {r.address}</span> : null}
+                                    </span>
+                                </td>
                                 <td className="border-b border-border px-1.5 py-[3px]">{r.marketer
                                     ? <span className={cn("rounded-full px-1.5 py-px text-[10px] font-semibold", mkCls(r.marketer))}>{r.marketer}</span>
                                     : <span className={C.faint}>·</span>}</td>
@@ -203,7 +219,7 @@ export default function SoDonNuoc({ code }: { code: string }) {
                             </tr>
                         ))}
                         {!shown.length && (
-                            <tr><td colSpan={16} className="px-3 py-12 text-center text-muted-foreground">Không có đơn nào trong nhóm này.</td></tr>
+                            <tr><td colSpan={coWa ? 17 : 16} className="px-3 py-12 text-center text-muted-foreground">Không có đơn nào trong nhóm này.</td></tr>
                         )}
                     </tbody>
                 </table>
@@ -214,7 +230,7 @@ export default function SoDonNuoc({ code }: { code: string }) {
                 <span><i className="mr-1.5 inline-block h-3 w-[3px] rounded-sm bg-rose-500 align-[-2px]" />phải xử — giao hỏng, đứng im, chưa gửi hàng</span>
                 <span><i className="mr-1.5 inline-block h-3 w-[3px] rounded-sm bg-amber-400 align-[-2px]" />đang chờ — đang đi, hoặc đã giao chờ tiền về</span>
                 <span><i className="mr-1.5 inline-block h-3 w-[3px] rounded-sm bg-slate-300 align-[-2px] dark:bg-slate-600" />không đòi — hoàn, huỷ</span>
-                <span><b className="text-emerald-700 dark:text-emerald-300">WA</b> = mở WhatsApp của khách</span>
+                {coWa && <span><b className="text-emerald-700 dark:text-emerald-300">WhatsApp</b> = mở chat với khách kèm tin xác nhận đơn soạn sẵn (hàng, tiền, địa chỉ) — sửa được trước khi gửi</span>}
                 <span className="ml-auto font-mono">{formatNumber(shown.length)} / {formatNumber(rows.length)} đơn — không phân trang</span>
             </div>
         </div>

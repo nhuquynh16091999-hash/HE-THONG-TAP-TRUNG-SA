@@ -177,7 +177,7 @@ export type PosOrderRow = {
     status_name?: string | null; status_category?: string | null;
     cod?: number | null; partner?: string | null;
     customer?: string | null; phone?: string | null;
-    province?: string | null; district?: string | null; note?: string | null;
+    province?: string | null; district?: string | null; note?: string | null; address?: string | null;
     marketer?: string | null; time_send_partner?: string | null;
 };
 
@@ -235,6 +235,7 @@ export function posWeshipShipment(row: PosOrderRow, saved: WeshipSaved | undefin
         ship_date: guiLuc ? guiLuc.slice(0, 10) : null,
         note: String(row.note || "").trim() || null,
         city: noi || null,
+        address: String(row.address || "").replace(/\s+/g, " ").trim() || null,
         fail_count: co ? (saved!.fail_count ?? null) : null,
     };
 }

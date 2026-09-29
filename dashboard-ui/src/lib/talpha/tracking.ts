@@ -196,8 +196,10 @@ export type Shipment = {
     t17_event?: string | null;
     /** Số lần giao hỏng hãng đã ghi (UAE/WeShip) — "hẹn lại lần 3" là khách sắp bỏ đơn. */
     fail_count?: number | null;
-    /** Link WhatsApp của khách (lib/talpha/whatsapp.ts); null = số không chắc, không dựng. */
+    /** Link WhatsApp của khách (lib/talpha/whatsapp.ts); null = số không chắc hoặc nước không bật. */
     wa?: string | null;
+    /** Địa chỉ giao đầy đủ (UAE, từ POS) — để tin xác nhận đơn nhắc khách soát địa chỉ. */
+    address?: string | null;
 };
 
 /** gấp = sắp mất hàng · canh_bao = cần người xử · nhac = việc thường ngày. */

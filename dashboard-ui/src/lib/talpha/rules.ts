@@ -14,7 +14,7 @@ type MarketInfo = {
     rate_vnd: number | null; pos_money_divisor: number | null;
     display?: string; status?: MarketStatus; flag?: string;
     orders_from?: string | null; pos_money_divisor_confirmed?: boolean;
-    phone?: { cc: string; national_len: number; trunk?: string };
+    phone?: { cc: string; national_len: number; trunk?: string; whatsapp?: boolean };
 };
 type ScanRule = { key: string; substrings?: string[]; word_tokens?: string[]; regex?: string };
 type ShipFee = { partner?: string; packing: number; delivery: number; cod_pct: number; cod_flat: number };
@@ -114,11 +114,12 @@ export const MARKETS_PUBLIC: { primary: string | null; markets: MarketPublic[] }
     })),
 };
 
-// ── Luật số điện thoại từng nước → link WhatsApp (lib/talpha/whatsapp.ts) ──
-// Khoá = mã nước của shop (TW, SG, AE). Nước khai thiếu/sai thì không có luật → không dựng link.
+// ── Luật số điện thoại từng nước → nút WhatsApp (lib/talpha/whatsapp.ts) ──
+// Khoá = mã nước của shop (TW, SG, AE). CHỈ nước bật phone.whatsapp = true (Sỹ Anh chốt
+// 29/09/2026: chỉ UAE). Nước không có khoá ở đây thì không dựng link, nút không hiện.
 export const PHONE_RULES: Record<string, { cc: string; national_len: number; trunk?: string }> = Object.fromEntries(
     MARKET_ENTRIES
-        .filter(([, v]) => v.phone && /^\d{1,4}$/.test(String(v.phone.cc)) && Number(v.phone.national_len) > 0)
+        .filter(([, v]) => v.phone?.whatsapp === true && /^\d{1,4}$/.test(String(v.phone.cc)) && Number(v.phone.national_len) > 0)
         .map(([, v]) => [v.shop_label, {
             cc: String(v.phone!.cc), national_len: Number(v.phone!.national_len),
             ...(v.phone!.trunk ? { trunk: String(v.phone!.trunk) } : {}),

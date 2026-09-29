@@ -72,8 +72,6 @@ export type LedgerRowUI = {
     order_date: string; ship_date: string; age_days: number | null; ky_da_qua: number;
     ship_method: string; sku: string; product_codes: string[]; quantity: number;
     contact_name: string; phone: string; marketer: string;
-    /** Link WhatsApp của khách, dựng ở máy chủ; null = số không chắc. */
-    wa?: string | null;
     status: string; status_raw: string; recon_manual: string;
     cod_twd: number; paid_twd: number | null; paid_date: string; paid_period: string;
     matched_by: "tracking" | "order_id_giao_lai" | null; diff_twd: number | null;
