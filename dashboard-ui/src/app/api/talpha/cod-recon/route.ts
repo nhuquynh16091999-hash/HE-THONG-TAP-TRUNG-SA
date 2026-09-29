@@ -11,6 +11,7 @@ import {
 import {
     parseNazaStatement, type NazaStatement,
 } from "@/lib/talpha/naza-statement";
+import { ngaySaoKe } from "@/lib/talpha/purchase-sheet";
 import { readStoreFresh, updateStore } from "@/lib/talpha/store";
 import { MAX_UPLOAD_BYTES, tooBigMessage } from "@/lib/talpha/upload-limit";
 
@@ -366,11 +367,18 @@ export async function GET(req: NextRequest) {
  * So tên theo dạng Unicode NFC. Máy Mac có lúc gửi tên file tách dấu (NFD):
  * "ĐỐI SOÁT COD 2026.9.11.xlsx" lưu 30 ký tự, tải lại gửi 27 ký tự — nhìn y
  * hệt mà so chuỗi thì khác, thành hai bản cùng một kỳ. Đã dính thật 13/09/2026.
+ *
+ * Và bản sửa của 3PL thường ĐỔI TÊN file: kỳ 24/09 bản đầu "ĐỐI SOÁT COD
+ * 2026.09.24", bản sửa (bỏ đơn Singapore) "ĐỐI SOÁT COD TAIWAN 2026.09.24". Nên
+ * cùng NGÀY trên tên file cũng là cùng kỳ → thay. Kho này chỉ chứa sao kê Đài,
+ * NAZA gửi một file mỗi tuần, nên một ngày là một kỳ.
  */
 const tenFile = (name: string) => name.normalize("NFC").trim();
 function replaceSameFile(list: Statement[], filename: string): Statement[] {
     const key = tenFile(filename).toLowerCase();
-    return list.filter((s) => tenFile(s.filename).toLowerCase() !== key);
+    const ngay = ngaySaoKe(tenFile(filename));
+    return list.filter((s) => tenFile(s.filename).toLowerCase() !== key
+        && !(ngay && ngaySaoKe(tenFile(s.filename)) === ngay));
 }
 
 export async function POST(req: NextRequest) {

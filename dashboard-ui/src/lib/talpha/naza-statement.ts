@@ -163,10 +163,17 @@ function findHeader(grid: Grid, anchors: string[]): { row: number; cols: string[
  *
  * Luật: có cột 操作费 thì đó là phí thao tác, và phí ship là 速递运费 hoặc (nếu
  * không có) 快递运费. Không có 操作费 thì theo kiểu file cũ: 快递运费 là phí thao tác.
+ *
+ * Từ kỳ 2026.09.24 NAZA đổi tiếp: phí thao tác ghi là 打包费 (phí đóng gói), và
+ * chen thêm cột 头程运费 (phí chặng đầu, chỉ đơn Singapore có số) ngay sau cột
+ * phí ship. Bộ đọc cũ không thấy 操作费 nên lấy "cột ngay sau phí ship" — chính là
+ * cột chặng đầu — báo 96 đơn thu 0¥/7¥ và chi tiết lệch sheet TỔNG −288¥, trong
+ * khi file đúng từng đồng.
  */
-export function cotPhi(cols: string[]): { iFee: number; iOp: number } {
+export function cotPhi(cols: string[]): { iFee: number; iOp: number; iFirstLeg: number } {
     const tim = (tok: string) => cols.findIndex((c) => c.includes(tok));
-    const iThaoTac = tim("操作费");
+    const iThaoTac = tim("操作费") >= 0 ? tim("操作费") : tim("打包费");
+    const iFirstLeg = tim("头程运费");
     const iSuDi = tim("速递运费");
     const iKuaiDi = tim("快递运费");
     let iFee: number, iOp: number;
@@ -177,9 +184,10 @@ export function cotPhi(cols: string[]): { iFee: number; iOp: number } {
         iFee = iSuDi >= 0 ? iSuDi : iKuaiDi;
         iOp = iSuDi >= 0 && iKuaiDi >= 0 ? iKuaiDi : -1;
     }
-    // Vẫn không thấy cột phí thao tác thì lấy cột ngay sau cột phí ship (như cũ).
-    if (iOp < 0 || iOp === iFee) iOp = iFee >= 0 ? iFee + 1 : -1;
-    return { iFee, iOp };
+    // Vẫn không thấy cột phí thao tác thì lấy cột ngay sau cột phí ship (như cũ) —
+    // trừ khi cột đó là cột chặng đầu.
+    if (iOp < 0 || iOp === iFee) iOp = iFee >= 0 && iFee + 1 !== iFirstLeg ? iFee + 1 : -1;
+    return { iFee, iOp, iFirstLeg };
 }
 
 function colIndex(cols: string[], anchorKey: string): number {
@@ -209,7 +217,9 @@ export type NazaFeeLine = {
     channel: string;            // 运输方式
     chargeable_kg: number | null; // 计费重
     ship_fee: number;           // 速递运费 (RMB)
-    op_fee: number;             // 操作费 (RMB)
+    op_fee: number;             // 操作费 / 打包费 (RMB)
+    /** 头程运费 — phí chặng đầu, chỉ đơn Singapore có. Kho cũ chưa có trường này. */
+    first_leg_fee?: number;
     /** Phí đúng theo bảng giá; null khi không nhận ra kênh giao hàng. */
     expected_ship_fee: number | null;
     channel_code: string | null;
@@ -313,9 +323,11 @@ async function toGrids(buf: Buffer): Promise<{ name: string; grid: Grid }[]> {
 /** Sheet TỔNG là bảng hai cột nhãn + một cột số. Đọc bằng nhãn tiếng Trung ở
  *  cột A, vì cột B (tiếng Việt) đổi cách gọi gần như mỗi kỳ. */
 function readSummary(grid: Grid): NazaSummary {
+    // Bỏ hết dấu cách trong nhãn trước khi so: kỳ 2026.09.24 ghi '本期应退金额 VND '
+    // (có cách) nên dò '本期应退金额VND' trượt, số phải nhận của kỳ thành trống.
     const pick = (...keys: string[]): number | null => {
         for (const row of grid) {
-            const label = cellText((row || [])[0]);
+            const label = cellText((row || [])[0]).replace(/\s+/g, "");
             if (!label) continue;
             if (keys.some((k) => label.includes(k))) {
                 const v = toNumber((row || [])[2]);
@@ -400,7 +412,7 @@ export async function parseNazaStatement(buf: Buffer, fileName = ""): Promise<Na
             const iShp = colIndex(h.cols, "ship_date");
             const iKg = colIndex(h.cols, "chargeable_kg");
             const iCh = h.cols.findIndex((c) => c.includes("运输方式"));
-            const { iFee, iOp } = cotPhi(h.cols);
+            const { iFee, iOp, iFirstLeg } = cotPhi(h.cols);
             for (let r = h.row + 1; r < sFee.grid.length; r++) {
                 const row = sFee.grid[r] || [];
                 const ord = iOrd >= 0 ? cellText(row[iOrd]) : "";
@@ -417,6 +429,7 @@ export async function parseNazaStatement(buf: Buffer, fileName = ""): Promise<Na
                     chargeable_kg: kg,
                     ship_fee: fee,
                     op_fee: iOp >= 0 ? toNumber(row[iOp]) ?? 0 : 0,
+                    first_leg_fee: iFirstLeg >= 0 ? toNumber(row[iFirstLeg]) ?? 0 : 0,
                     expected_ship_fee: expectedShipFee(ch, kg),
                     channel_code: ch?.code ?? null,
                 });
@@ -426,9 +439,18 @@ export async function parseNazaStatement(buf: Buffer, fileName = ""): Promise<Na
 
     // ── Kiểm chéo nội bộ file ────────────────────────────────────────────
     const codDetail = cod_lines.reduce((s, l) => s + l.cod_twd, 0);
-    const shipDetail = fee_lines.reduce((s, l) => s + l.ship_fee, 0);
+    // Phí chặng đầu đi chung dòng '速递运费' ở sheet TỔNG nên cộng vào phí ship.
+    const shipDetail = fee_lines.reduce((s, l) => s + l.ship_fee + (l.first_leg_fee ?? 0), 0);
     const opDetail = fee_lines.reduce((s, l) => s + l.op_fee, 0);
     const abs = (n: number | null) => (n === null ? null : Math.abs(n));
+
+    // Sheet TỔNG không có dòng 操作费 riêng mà sheet phí vẫn có phí thao tác
+    // (kỳ 2026.09.24: '速递运费 RMB' −2.575 = ship 2.323 + thao tác 252) thì đó là
+    // một kiểu GỘP nữa, chỉ là nhãn không ghi chữ 操作费.
+    if (summary.op_fee_rmb == null && summary.ship_fee_rmb != null && opDetail > 0) {
+        summary.fees_combined = true;
+        summary.op_fee_rmb = 0;
+    }
 
     let mathOk: boolean | null = null;
     let mathNote = "Thiếu số ở sheet TỔNG, không kiểm được phép quyết toán.";
@@ -474,7 +496,7 @@ export async function parseNazaStatement(buf: Buffer, fileName = ""): Promise<Na
     const duplicates: NazaStatement["fee_audit"]["duplicates"] = [];
     for (const [tracking, ls] of byTrack) {
         if (ls.length < 2) continue;
-        const each = ls.map((l) => l.ship_fee + l.op_fee);
+        const each = ls.map((l) => l.ship_fee + l.op_fee + (l.first_leg_fee ?? 0));
         duplicates.push({
             tracking,
             order_ids: [...new Set(ls.map((l) => l.order_id))],

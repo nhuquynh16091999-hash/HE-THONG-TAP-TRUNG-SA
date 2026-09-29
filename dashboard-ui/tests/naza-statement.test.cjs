@@ -231,5 +231,53 @@ const FEE_OK = [
         assert.strictEqual(cols[iOp], "操作费");
     });
 
+    console.log("── Kỳ 2026.09.24: 打包费 + 头程运费, TỔNG chỉ một dòng phí ──");
+    // File thật: cột phí ship 速递运费, rồi 头程运费 (chặng đầu, chỉ đơn Sing), rồi
+    // 打包费 (phí thao tác). Bộ đọc cũ lấy nhầm cột chặng đầu làm phí thao tác.
+    await t("打包费 là phí THAO TÁC, 头程运费 KHÔNG phải", () => {
+        const cols = ["序号", "原单号", "转单号", "计费重", "速递运费 phí vận chuyển", "头程运费 chặng đầu", "打包费 phí thao tác", "总金额"];
+        const { iFee, iOp, iFirstLeg } = N.cotPhi(cols);
+        assert.ok(cols[iFee].startsWith("速递运费"));
+        assert.ok(cols[iOp].startsWith("打包费"));
+        assert.ok(cols[iFirstLeg].startsWith("头程运费"));
+    });
+    await t("không có cột thao tác thì KHÔNG lấy cột chặng đầu thay vào", () => {
+        const cols = ["原单号", "转单号", "速递运费", "头程运费", "总金额"];
+        assert.strictEqual(N.cotPhi(cols).iOp, -1);
+    });
+    await t("file kiểu 24/09: chi tiết (ship + chặng đầu + thao tác) khớp dòng phí duy nhất ở TỔNG", async () => {
+        const wb = new ExcelJS.Workbook();
+        const s = wb.addWorksheet("汇总 TỔNG");
+        [["NAZA供应链"],
+            ["本期回款金额", "Tổng cod thu về", 10000],
+            ["汇率", "Tỷ giá", 0.2],
+            ["台币折人民币", "Quy đổi", 2000],
+            // 27+3 (Đài) + 28+7+3 (Sing) = 68 — phí thao tác nằm TRONG dòng này
+            ["速递运费  RMB", "Phí vận chuyển (RMB)", -68],
+            ["本期应退金额RMB", "COD cần hoàn trả", 1932],
+            ["汇率", "Tỷ giá", 3860],
+            ["台湾本期采购费 VND", "Phí mua hàng", 1000000],
+            ["本期应退金额 VND ", "COD cần hoàn trả (VND)", 6457520],   // nhãn CÓ dấu cách
+        ].forEach((r) => s.addRow(r));
+        const c = wb.addWorksheet("COD 对账 Đối soát COD ");
+        c.addRow(["收货日期", "原单号", "转单号", "产品名称", "国家名称", "COD金额"]);
+        c.addRow(["2026-09-16 17:06:53", "T1", "18050703", "STWCOD专线-711", "中国台湾", 10000]);
+        const f = wb.addWorksheet("速递运费 PHÍ VẬN CHUYỂN( RMB)");
+        f.addRow(["序号", "出货日期", "原单号", "转单号", "运输方式", "计费重",
+            "速递运费 phí vận chuyển nội địa", "头程运费 Phí chặng đầu", "打包费 phí thao tác", "总金额 Tổng"]);
+        f.addRow([1, "2026-09-18", "T1", "18050703", "STWCOD专线-711", 0.2, 27, null, 3, 30]);
+        f.addRow([2, "2026-09-18", "S1", "JT2026", "S新加坡CODJT专线", 0.2, 28, 7, 3, 38]);
+        const st = await N.parseNazaStatement(Buffer.from(await wb.xlsx.writeBuffer()), "ĐỐI SOÁT COD TAIWAN 2026.09.24.xlsx");
+        assert.deepStrictEqual(st.fee_lines.map((l) => l.op_fee), [3, 3], "phí thao tác đọc từ 打包费");
+        assert.deepStrictEqual(st.fee_lines.map((l) => l.first_leg_fee), [0, 7]);
+        assert.strictEqual(st.fee_audit.op_wrong.length, 0, "không còn báo thu sai phí thao tác");
+        assert.strictEqual(st.summary.fees_combined, true, "TỔNG gộp phí thao tác vào dòng 速递运费");
+        assert.strictEqual(st.checks.ship_fee_detail_total, 68, "27+3+28+7+3");
+        assert.strictEqual(st.checks.ship_fee_summary_total, 68);
+        assert.strictEqual(st.checks.math_ok, true);
+        assert.strictEqual(st.summary.payable_vnd, 6457520, "nhãn '本期应退金额 VND ' có dấu cách vẫn đọc được");
+        assert.strictEqual(st.summary.purchase_vnd, 1000000);
+    });
+
     console.log(`\n${pass} phép thử — tất cả đạt.`);
 })().catch((e) => { console.error("\n✗ HỎNG:", e.message); process.exit(1); });
