@@ -20,8 +20,8 @@
         },
         {
           "id": "act_620354173588998",
-          "name": "Sỹ Anh Taiwan 6",
-          "status": "unsettled"
+          "name": "ANTALO 4 - CHẠY VPCS + THUẾ ( 7890 )",
+          "status": "active"
         },
         {
           "id": "act_355509637365145",
@@ -51,17 +51,23 @@
         {
           "id": "act_1308534557829101",
           "name": "Sỹ Anh Taiwan 1",
-          "status": "disabled"
+          "status": "died",
+          "died_at": "2026-09-29",
+          "_khong_sync": "Sỹ Anh đá khỏi BM và cấp token mới 29/09/2026 (từ 09:23 sáng đó Meta báo #200 has NOT grant ads_read, tài khoản rơi khỏi /me/adaccounts). ĐÃ BỎ khỏi config/projects/talpha.yaml → ad_account_ids. Sỹ Anh: không cần quan tâm nữa, chỉ lưu lịch sử — chi tiêu CŨ vẫn nằm trong fb_ads_data; GIỮ trong roster này để số cũ còn nhãn tên và không bị báo 'TKQC ngoài roster'. status died để billing thôi gọi Meta cho tài khoản này."
         },
         {
           "id": "act_1637376841235385",
           "name": "ATHAINX TK1",
-          "status": "active"
+          "status": "died",
+          "died_at": "2026-09-29",
+          "_khong_sync": "Sỹ Anh đá khỏi BM và cấp token mới 29/09/2026 (từ 09:23 sáng đó Meta báo #200 has NOT grant ads_read, tài khoản rơi khỏi /me/adaccounts). ĐÃ BỎ khỏi config/projects/talpha.yaml → ad_account_ids. Sỹ Anh: không cần quan tâm nữa, chỉ lưu lịch sử — chi tiêu CŨ vẫn nằm trong fb_ads_data; GIỮ trong roster này để số cũ còn nhãn tên và không bị báo 'TKQC ngoài roster'. status died để billing thôi gọi Meta cho tài khoản này."
         },
         {
           "id": "act_1570211464587435",
           "name": "ATHAINX TK2",
-          "status": "active"
+          "status": "died",
+          "died_at": "2026-09-29",
+          "_khong_sync": "Sỹ Anh đá khỏi BM và cấp token mới 29/09/2026 (từ 09:23 sáng đó Meta báo #200 has NOT grant ads_read, tài khoản rơi khỏi /me/adaccounts). ĐÃ BỎ khỏi config/projects/talpha.yaml → ad_account_ids. Sỹ Anh: không cần quan tâm nữa, chỉ lưu lịch sử — chi tiêu CŨ vẫn nằm trong fb_ads_data; GIỮ trong roster này để số cũ còn nhãn tên và không bị báo 'TKQC ngoài roster'. status died để billing thôi gọi Meta cho tài khoản này."
         },
         {
           "id": "act_838409015631682",
@@ -72,12 +78,16 @@
         {
           "id": "act_191133507087352",
           "name": "ANTALO 1 - CHẠY ĐÀI",
-          "status": "active"
+          "status": "died",
+          "died_at": "2026-09-29",
+          "_khong_sync": "Sỹ Anh đá khỏi BM và cấp token mới 29/09/2026 (từ 09:23 sáng đó Meta báo #200 has NOT grant ads_read, tài khoản rơi khỏi /me/adaccounts). ĐÃ BỎ khỏi config/projects/talpha.yaml → ad_account_ids. Sỹ Anh: không cần quan tâm nữa, chỉ lưu lịch sử — chi tiêu CŨ vẫn nằm trong fb_ads_data; GIỮ trong roster này để số cũ còn nhãn tên và không bị báo 'TKQC ngoài roster'. status died để billing thôi gọi Meta cho tài khoản này."
         },
         {
           "id": "act_1285779533102675",
           "name": "ANTALO 2 - CHẠY SING",
-          "status": "active"
+          "status": "died",
+          "died_at": "2026-09-29",
+          "_khong_sync": "Sỹ Anh đá khỏi BM và cấp token mới 29/09/2026 (từ 09:23 sáng đó Meta báo #200 has NOT grant ads_read, tài khoản rơi khỏi /me/adaccounts). ĐÃ BỎ khỏi config/projects/talpha.yaml → ad_account_ids. Sỹ Anh: không cần quan tâm nữa, chỉ lưu lịch sử — chi tiêu CŨ vẫn nằm trong fb_ads_data; GIỮ trong roster này để số cũ còn nhãn tên và không bị báo 'TKQC ngoài roster'. status died để billing thôi gọi Meta cho tài khoản này."
         },
         {
           "id": "act_2288460614931544",
@@ -91,9 +101,24 @@
           "name": "TK CỦA XUYẾN",
           "status": "unsettled",
           "_khong_sync": "Meta thu quyền đọc đêm 21→22/09/2026 (#200 has NOT grant ads_read) và tài khoản rơi khỏi /me/adaccounts của token. ĐÃ BỎ khỏi config/projects/talpha.yaml → ad_account_ids ngày 22/09/2026 vì để lại thì mỗi vòng sync rc=1 và báo cáo Sheet đứng im. GIỮ trong roster này để chi tiêu CŨ còn nhãn tên và không bị báo 'TKQC ngoài roster'. Cấp lại quyền thì khai lại id vào yaml."
+        },
+        {
+          "id": "act_2201353496727281",
+          "name": "K NEED khang ve 22",
+          "status": "active"
+        },
+        {
+          "id": "act_1005930495298028",
+          "name": "1005930495298028",
+          "status": "active"
+        },
+        {
+          "id": "act_1298353682322779",
+          "name": "Quynh Vien",
+          "status": "active"
         }
       ],
-      "_note": "Danh sách này lấy THẲNG từ /me/adaccounts của token System User: lần đầu 08/09/2026, thêm ba tài khoản 18/09/2026 (ATHAINX TK1 · ATHAINX TK2 · NEW - XT VIỆT). Mục nào có khoá _khong_sync là KHÔNG còn trong danh sách sync (xem chính khoá đó để biết vì sao) — sync đọc yaml, roster này chỉ để dashboard tra tên và đối soát chi phí. Bản cũ khai 15 tài khoản của hệ thống trước (Mỹ phẩm, Nhật Bản, Dubai, Kuwait, Saudi) — token mới KHÔNG có quyền một cái nào, nên mỗi vòng sync đốt 24 phút thử lại vô ích rồi ghi 0 dòng.",
+      "_note": "Danh sách này lấy THẲNG từ /me/adaccounts của token System User: lần đầu 08/09/2026, thêm ba tài khoản 18/09/2026 (ATHAINX TK1 · ATHAINX TK2 · NEW - XT VIỆT); 29/09/2026 token mới: thêm K NEED khang ve 22 · 1005930495298028 · Quynh Vien, bỏ 5 tài khoản bị đá khỏi BM (status died). Mục nào có khoá _khong_sync là KHÔNG còn trong danh sách sync (xem chính khoá đó để biết vì sao) — sync đọc yaml, roster này chỉ để dashboard tra tên và đối soát chi phí. Bản cũ khai 15 tài khoản của hệ thống trước (Mỹ phẩm, Nhật Bản, Dubai, Kuwait, Saudi) — token mới KHÔNG có quyền một cái nào, nên mỗi vòng sync đốt 24 phút thử lại vô ích rồi ghi 0 dòng.",
       "_nguon": "SYNC đọc config/projects/talpha.yaml → meta_ads (xem sync/config_loader.py: yaml thắng file này). File này là roster cho phía dashboard — /api/ad-accounts, /api/talpha/billing và đối soát chi phí quảng cáo (TKQC ngoài roster là cảnh báo đỏ). Thêm tài khoản thì phải khai ở CẢ HAI. Ghi chú cũ bảo chạy scripts/refresh_ad_accounts.py — script đó KHÔNG có trong repo (kiểm 18/09/2026), nên vẫn là sửa tay rồi soát lại bằng: python3 ops/talpha_reports/check_meta_token.py"
     }
   }

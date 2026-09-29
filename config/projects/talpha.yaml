@@ -26,6 +26,21 @@ meta_ads:
   # Thêm tài khoản mới: khai đủ ở CẢ BA mục dưới, thiếu một chỗ là spend bị đếm
   # thiếu mà không có cảnh báo nào.
   #
+  # ĐỔI TOKEN 29/09/2026 — Sỹ Anh đá 5 tài khoản khỏi BM rồi cấp token mới (System User
+  # "Dashboard", app "Dashboard Sỹ Anh Ngoài", không hết hạn). Từ 09:23 sáng đó cả 5 báo
+  # `#200 has NOT grant ads_read`, mỗi vòng sync rc=1 → Sheet đứng ở số 09:23.
+  #   ĐÃ BỎ khỏi danh sách (Sỹ Anh: "không cần quan tâm nữa, chỉ lưu lịch sử"):
+  #     act_1308534557829101  Sỹ Anh Taiwan 1
+  #     act_1637376841235385  ATHAINX TK1
+  #     act_1570211464587435  ATHAINX TK2
+  #     act_191133507087352   ANTALO 1 - CHẠY ĐÀI
+  #     act_1285779533102675  ANTALO 2 - CHẠY SING
+  #   Chi tiêu CŨ của cả 5 vẫn nằm trong fb_ads_data (sync nối-rồi-dựng-lại, không xoá dòng
+  #   của tài khoản không còn trong danh sách) → báo cáo các ngày đã qua giữ nguyên. Tên và
+  #   múi giờ của cả 5 VẪN GIỮ ở hai mục dưới để số cũ còn nhãn.
+  #   THÊM 3 tài khoản mới, lấy THẲNG từ `/me/adaccounts` của token mới (VND, giờ VN, tháng 9
+  #   chưa chi đồng nào): act_2201353496727281 · act_1005930495298028 · act_1298353682322779.
+  #
   # TẠM NGƯNG 22/09/2026 — ba tài khoản dưới đây ĐÃ BỎ khỏi danh sách:
   #   act_838409015631682   NEW - XT VIỆT
   #   act_2288460614931544  Sỹ Anh 5 - CANADA
@@ -57,7 +72,7 @@ meta_ads:
   # mặt trong mọi báo cáo chỉ là danh sách này.
   ad_account_ids:
     - "act_256210853826298"   # Sỹ Anh Taiwan 4 — đang chạy
-    - "act_620354173588998"   # CN1 (Meta đã đổi tên, trước là Sỹ Anh Taiwan 6) — chưa thanh toán
+    - "act_620354173588998"   # ANTALO 4 - CHẠY VPCS + THUẾ (Meta đổi tên 29/09; trước là CN1, Sỹ Anh Taiwan 6)
     - "act_355509637365145"   # Sỹ Anh Taiwan 5 — đang chạy
     - "act_9429066663871702"  # TKQC Chạy Đài Loan — đã tắt
     - "act_1044243500995626"  # Sỹ Anh Taiwan 3 — đã tắt
@@ -66,9 +81,10 @@ meta_ads:
     # đứng ở số 09:24. Dùng lại: cấp quyền trước, rồi mới bỏ dấu # hai dòng dưới.
     # - "act_1623263399046753"  # TK BM Thuyên ngu 02
     # - "act_2033341657422931"  # TK BM Thuyên 01
-    - "act_1308534557829101"  # Sỹ Anh Taiwan 1 — đã tắt
-    - "act_1637376841235385"  # ATHAINX TK1 — đang chạy, chi từ 09/09/2026
-    - "act_1570211464587435"  # ATHAINX TK2 — đang chạy, chưa chi đồng nào
+    # BỎ 29/09/2026 — Sỹ Anh đá khỏi BM (khối ĐỔI TOKEN ở đầu mục):
+    # - "act_1308534557829101"  # Sỹ Anh Taiwan 1 — đã tắt
+    # - "act_1637376841235385"  # ATHAINX TK1 — chi từ 09/09/2026
+    # - "act_1570211464587435"  # ATHAINX TK2 — chưa chi đồng nào
     # NEW - XT VIỆT mang theo 57,7 triệu đ chi tiêu CŨ: 12/2025 · 05/2026 · 07/2026
     # 6,9 triệu · 08/2026 49,6 triệu, còn tháng 9 không chi đồng nào. Tên campaign
     # kiểu cũ (`TRI/27-7`, `DDVS/24-7`) nên KHÔNG ô nào ghi nước hay marketer: cả
@@ -91,13 +107,19 @@ meta_ads:
     #     của team. 418.493đ sẽ nằm ở "(không gán)" trong chi phí Đài Loan.
     # → Cả hai ĐÃ BỎ 22/09/2026 cùng NEW - XT VIỆT: mất quyền ads_read (khối TẠM NGƯNG
     #   ở đầu mục). Hai cái ANTALO vẫn đọc được bình thường, vẫn trong danh sách.
-    - "act_191133507087352"   # ANTALO 1 - CHẠY ĐÀI (VIA Hồ Sỹ Aanh GL) — đang chạy
-    - "act_1285779533102675"  # ANTALO 2 - CHẠY SING (VIA Đông Quân Land) — đang chạy
+    # → Hai cái ANTALO 1, 2 cũng BỎ 29/09/2026 — Sỹ Anh đá khỏi BM:
+    # - "act_191133507087352"   # ANTALO 1 - CHẠY ĐÀI (VIA Hồ Sỹ Aanh GL)
+    # - "act_1285779533102675"  # ANTALO 2 - CHẠY SING (VIA Đông Quân Land)
+    #
+    # THÊM 29/09/2026 — token mới thấy thêm 3 tài khoản (xem khối ĐỔI TOKEN ở đầu mục).
+    - "act_2201353496727281"  # K NEED khang ve 22 — 1 camp tương tác đã tạm dừng, tháng 9 chi 0đ
+    - "act_1005930495298028"  # (Meta chưa đặt tên, tên = id) — chưa có camp
+    - "act_1298353682322779"  # Quynh Vien — chưa có camp
   ad_account_names:
     act_2316553302504985: "TK CÁ NHÂN NEW 1"
     act_1025294735296964: "NEW3"
     act_256210853826298: "Sỹ Anh Taiwan 4"
-    act_620354173588998: "Sỹ Anh Taiwan 6"
+    act_620354173588998: "ANTALO 4 - CHẠY VPCS + THUẾ ( 7890 )"
     act_355509637365145: "Sỹ Anh Taiwan 5"
     act_9429066663871702: "TKQC Chạy Đài Loan"
     act_1044243500995626: "Sỹ Anh Taiwan 3"
@@ -111,6 +133,9 @@ meta_ads:
     act_1285779533102675: "ANTALO 2 - CHẠY SING"
     act_2288460614931544: "Sỹ Anh 5 - CANADA"
     act_4936675229754644: "TK CỦA XUYẾN"
+    act_2201353496727281: "K NEED khang ve 22"
+    act_1005930495298028: "1005930495298028"
+    act_1298353682322779: "Quynh Vien"
   # Múi giờ từng tài khoản — lấy từ Meta API, KHÔNG đoán theo tên.
   # Cột `date` của spend đã theo múi giờ NÀY, nên 2 tài khoản Bangkok lệch ngày
   # so với 8 tài khoản còn lại; cả tháng mới khớp (rule #6 TALPHA_METRIC_RULES).
@@ -134,6 +159,9 @@ meta_ads:
     # khoản còn lại, đúng bẫy của rule #6 (cột date đã theo múi giờ NÀY).
     act_2288460614931544: "Etc/GMT-5"
     act_4936675229754644: "Asia/Ho_Chi_Minh"
+    act_2201353496727281: "Asia/Ho_Chi_Minh"
+    act_1005930495298028: "Asia/Ho_Chi_Minh"
+    act_1298353682322779: "Asia/Ho_Chi_Minh"
 
 # ─── 4. POS / ORDER MANAGEMENT ───
 pos_system: poscake
