@@ -130,7 +130,7 @@ Vào `/` → middleware kiểm đăng nhập → `/talpha` → `components/talph
 | 📋 Báo cáo | Tổng quan | `tabs/ceo-overview-tab.tsx` | `/api/talpha/sheet-report?from&to` (đọc thẳng file TỔNG TEAM) + `targets` |
 | | P&L | `tabs/pnl-tab.tsx` | `sheet-report?from&to` + `pnl-costs` |
 | | P&L theo SP | `tabs/product-pnl-tab.tsx` | `/api/talpha/product-pnl` (đơn đã chốt × giá vốn × ads theo mã SP trong tên camp) |
-| 🧾 Đơn hàng & Đối soát | Sổ đơn hàng | `tabs/order-ledger-tab.tsx` | `/api/talpha/order-ledger` |
+| 🧾 Đơn hàng & Đối soát | Sổ đơn hàng | `tabs/order-ledger-tab.tsx` · `tabs/order-ledger-market.tsx` | `/api/talpha/order-ledger` (Đài) · `order-ledger/market` (Singapore, UAE) |
 | | Đối soát COD | `tabs/cod-recon-tab.tsx` | `/api/talpha/order-ledger` + `cod-recon` (Đài) · `cod-recon/market` (Singapore, UAE) |
 | | Theo dõi vận đơn | `tabs/tracking-tab.tsx` | `/api/talpha/tracking` |
 | 📦 Sản phẩm | Sản phẩm & Kho | `tabs/products-tab.tsx` | `/api/talpha/inventory` |
@@ -177,7 +177,8 @@ cookie `activeDataset` (shell đặt `TALPHA_Dataset`).
 |:--|:--|:--|
 | `realtime` | Meta + POS live, dựng số Ads Command Center | Giao diện, bot WA |
 | `inventory` | Tồn kho POS live; POS chết → snapshot BQ | Giao diện, bot WA |
-| `order-ledger` | Sổ đơn: mỗi đơn một dòng, khách + tiền + vòng đời | Giao diện |
+| `order-ledger` | Sổ đơn Đài: mỗi đơn một dòng, khách + tiền + vòng đời (bảng NAZA + sao kê) | Giao diện |
+| `order-ledger/market?market=SG\|AE` | Sổ đơn Singapore, UAE (29/09/2026): đơn + khách + hàng + trạng thái giao + đèn việc phải làm; cùng nguồn `loadMarketShipments` với Theo dõi vận đơn và Đối soát COD. Hàng: Sing ở cột SKU bảng đối tác, UAE ở `order_items`. Chưa có sao kê nên chưa có cột tiền về | Giao diện (nút Đài Loan / Singapore / UAE) |
 | `cod-recon` | Khớp sao kê 3PL với đơn đã giao | Giao diện |
 | `cod-recon/market?market=SG\|AE` | Đối soát COD nước ngoài Đài, bước 1 (26/09/2026): tiền còn ở đâu — đã giao / chưa giao / hoàn-huỷ. SG đọc bảng đối tác + 17TRACK, UAE (từ 28/09/2026) đọc đơn POS + trạng thái tra ở WeShip — cả hai chung `lib/talpha/tracking-market.ts` với Theo dõi vận đơn. Chưa có sao kê → chưa khớp từng kỳ | Giao diện (nút Đài Loan / Singapore / UAE) |
 | `tracking` · `tracking/import` | 17TRACK + nạp bảng đơn đối tác. `?market=SG`: Singapore sổ riêng (`data/tracking_sg.json`), đơn đọc từ BigQuery `partner_orders`. `?market=AE` (28/09/2026): UAE không có bảng đối tác, 17TRACK không có hãng — đơn đọc từ POS (mã AWB ở `sale_order.partner → extend_code`), POST tra thẳng trang WeShip `portal.weshipme.com/tracking` (`lib/talpha/weship.ts`, miễn phí, không quota), sổ `data/tracking_ae.json` | Giao diện (nút Đài Loan / Singapore / UAE, nút “Tra WeShip”) · `talpha-tracking.timer` 6h + 21:30 (nạp bảng Đài + đồng bộ từng nước) · bot Zalo 08:30 + 22:00 (mỗi nước một tin, nhóm riêng) |
@@ -291,6 +292,11 @@ docs/                    TALPHA_METRIC_RULES.md là source of truth về chỉ s
    Đối chiếu thẳng Meta API cho chi phí và POS API cho đơn.
 
 ---
+
+**Link WhatsApp của khách** (29/09/2026): Sổ đơn ba nước và Theo dõi vận đơn có chip “WA” cạnh
+số điện thoại, mở `wa.me/<số quốc tế>`. Số chuẩn hoá ở `lib/talpha/whatsapp.ts` theo luật
+`talpha_rules.json → markets.*.phone` (mã nước, độ dài số trong nước, số 0 đầu); số không khớp
+luật thì không có link, để khỏi nhắn nhầm người.
 
 ## 10. Còn nợ
 

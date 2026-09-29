@@ -13,6 +13,8 @@ import {
     docTienHang, ghepDotVaoKy, ngaySaoKe, type DotTienHang,
 } from "@/lib/talpha/purchase-sheet";
 import { PARTNER_STATUS_VI } from "@/lib/talpha/partner-file";
+import { PHONE_RULES } from "@/lib/talpha/rules";
+import { waLink } from "@/lib/talpha/whatsapp";
 import {
     bankKey, doneKey, doiLabel, emptyActions, fxLoss, periodState,
     shouldResurface, STATE_LABEL, BANK_TOLERANCE_VND,
@@ -835,7 +837,8 @@ export async function GET(req: NextRequest) {
                 // Hiện ở cả màn Đối soát COD — màn đó không có danh sách cảnh báo.
                 ma_trung: dups.length,
             },
-            rows,
+            // Link WhatsApp của khách (Sỹ Anh yêu cầu 29/09/2026) — luật mã nước ở markets.Taiwan.phone.
+            rows: rows.map((r) => ({ ...r, wa: waLink(r.phone, PHONE_RULES.TW) })),
             summary,
             extra,
             status_vi: PARTNER_STATUS_VI,

@@ -5,6 +5,7 @@ import { format } from "date-fns";
 import { RefreshCw, AlertTriangle, Store, PackageX, Clock, Download, Upload, FileSpreadsheet, ShieldAlert, Copy, Phone, Truck } from "lucide-react";
 import TabSkeleton, { ErrorState } from "@/components/ui/tab-skeleton";
 import { formatNumber, cn } from "../utils";
+import WaLink from "@/components/talpha/wa-link";
 
 interface Props { dateRange?: { from: Date; to: Date }; projectId?: string }
 
@@ -18,6 +19,8 @@ type Shipment = {
     raw_status?: string | null;
     store_name?: string; store_code?: string; ship_method?: string;
     city?: string | null; fail_count?: number | null;
+    /** Link WhatsApp của khách, dựng ở máy chủ (29/09/2026); null = số không chắc. */
+    wa?: string | null;
 };
 type Alert = {
     level: "gap" | "canh_bao" | "nhac";
@@ -412,7 +415,7 @@ export default function TALPHATrackingTab({ dateRange }: Props) {
                                                 <p className="mt-1 text-sm text-muted-foreground">{a.detail}</p>
                                                 <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
                                                     <span className="text-foreground">{s.customer || "(chưa có tên)"}</span>
-                                                    <span className="font-mono text-violet-600/85 dark:text-violet-300/80">{s.phone || "(chưa có SĐT)"}</span>
+                                                    <span className="font-mono text-violet-600/85 dark:text-violet-300/80">{s.phone || "(chưa có SĐT)"}<WaLink href={s.wa} /></span>
                                                     <span className="font-mono text-indigo-600/70 dark:text-indigo-300/60">{s.tracking}</span>
                                                     {s.city && <span>{s.city}</span>}
                                                     {s.store_name && <span className="text-amber-700 dark:text-amber-400">{s.store_name}{s.store_code ? ` · mã ${s.store_code}` : ""}</span>}
@@ -435,6 +438,7 @@ export default function TALPHATrackingTab({ dateRange }: Props) {
                                                                 <Phone className="mr-1 inline h-3 w-3" />Gọi
                                                             </a>
                                                         )}
+                                                        <WaLink href={s.wa} variant="button" />
                                                     </div>
                                                 )}
                                             </div>
@@ -474,7 +478,7 @@ export default function TALPHATrackingTab({ dateRange }: Props) {
                                         <td className="px-3 py-2 text-right font-mono tabular-nums">{s.cod_local ? money(s.cod_local) : "—"}</td>
                                         <td className="px-3 py-2">
                                             <div className="max-w-[160px] truncate">{s.customer || "—"}</div>
-                                            <div className="text-xs text-muted-foreground">{s.phone}</div>
+                                            <div className="text-xs text-muted-foreground">{s.phone}<WaLink href={s.wa} /></div>
                                         </td>
                                         <td className={cn("px-3 py-2", !s.sale && "text-muted-foreground")}>{s.sale || "—"}</td>
                                         <td className="px-3 py-2 text-xs text-muted-foreground">

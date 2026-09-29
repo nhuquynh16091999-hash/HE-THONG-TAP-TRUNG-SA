@@ -28,6 +28,18 @@ export const ROWBG: Record<Light, string> = {
     xanh: "", xam: "opacity-60",
 };
 
+/** Lớp của cả DÒNG trong bảng có cột ghim. Đèn xám làm chữ nhạt thay vì opacity: opacity trên
+ *  dòng làm luôn cả ô ghim trong suốt, cuộn ngang là chữ các cột sau lộ qua (gặp thật 29/09/2026). */
+export const rowCls = (l: Light) => (l === "xam" ? "text-muted-foreground/70" : ROWBG[l]);
+
+/** Nền ô GHIM (số thứ tự, mã đơn): nền ĐẶC bg-card, màu đèn phủ bằng bóng inset — nền màu
+ *  trong suốt như ROWBG thì chữ các cột cuộn ngang lộ qua ô ghim. Cùng màu với ROWBG. */
+export const PIN_TINT: Record<Light, string> = {
+    do: "shadow-[inset_0_0_0_999px_rgb(255_241_242_/_0.7)] dark:shadow-[inset_0_0_0_999px_rgb(244_63_94_/_0.07)]",
+    vang: "shadow-[inset_0_0_0_999px_rgb(255_251_235_/_0.5)] dark:shadow-[inset_0_0_0_999px_rgb(245_158_11_/_0.05)]",
+    xanh: "", xam: "",
+};
+
 /** Trạng thái giao hàng tô theo NHÓM ý nghĩa, không phải mỗi trạng thái một
  *  màu — mười hai màu thì mắt không nhớ nổi cái nào là cái nào. */
 const STATUS_STYLE: { m: RegExp; c: string }[] = [
@@ -60,6 +72,8 @@ export type LedgerRowUI = {
     order_date: string; ship_date: string; age_days: number | null; ky_da_qua: number;
     ship_method: string; sku: string; product_codes: string[]; quantity: number;
     contact_name: string; phone: string; marketer: string;
+    /** Link WhatsApp của khách, dựng ở máy chủ; null = số không chắc. */
+    wa?: string | null;
     status: string; status_raw: string; recon_manual: string;
     cod_twd: number; paid_twd: number | null; paid_date: string; paid_period: string;
     matched_by: "tracking" | "order_id_giao_lai" | null; diff_twd: number | null;

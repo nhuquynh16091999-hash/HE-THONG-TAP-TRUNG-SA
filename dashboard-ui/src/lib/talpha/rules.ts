@@ -14,6 +14,7 @@ type MarketInfo = {
     rate_vnd: number | null; pos_money_divisor: number | null;
     display?: string; status?: MarketStatus; flag?: string;
     orders_from?: string | null; pos_money_divisor_confirmed?: boolean;
+    phone?: { cc: string; national_len: number; trunk?: string };
 };
 type ScanRule = { key: string; substrings?: string[]; word_tokens?: string[]; regex?: string };
 type ShipFee = { partner?: string; packing: number; delivery: number; cod_pct: number; cod_flat: number };
@@ -112,6 +113,17 @@ export const MARKETS_PUBLIC: { primary: string | null; markets: MarketPublic[] }
         tokens: RULES.camp_market_tokens.filter((t) => RULES.market_aliases[t] === key),
     })),
 };
+
+// ── Luật số điện thoại từng nước → link WhatsApp (lib/talpha/whatsapp.ts) ──
+// Khoá = mã nước của shop (TW, SG, AE). Nước khai thiếu/sai thì không có luật → không dựng link.
+export const PHONE_RULES: Record<string, { cc: string; national_len: number; trunk?: string }> = Object.fromEntries(
+    MARKET_ENTRIES
+        .filter(([, v]) => v.phone && /^\d{1,4}$/.test(String(v.phone.cc)) && Number(v.phone.national_len) > 0)
+        .map(([, v]) => [v.shop_label, {
+            cc: String(v.phone!.cc), national_len: Number(v.phone!.national_len),
+            ...(v.phone!.trunk ? { trunk: String(v.phone!.trunk) } : {}),
+        }]),
+);
 
 // ── KPI doanh số theo tháng ──
 // Khoá "YYYY-MM" → VND. Nguồn: khối `targets` trong talpha_rules.json (chép từ

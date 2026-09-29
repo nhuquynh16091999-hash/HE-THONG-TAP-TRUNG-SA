@@ -5,8 +5,10 @@ import { format } from "date-fns";
 import { AlertTriangle, Download, Search, RefreshCw, ChevronDown } from "lucide-react";
 import TabSkeleton, { ErrorState } from "@/components/ui/tab-skeleton";
 import { formatNumber, cn } from "../utils";
-import { TWD, VND, RMB, d6, STRIPE, ROWBG, statusCls, mkCls, type Light, type LedgerRowUI } from "./ledger-shared";
+import { TWD, VND, RMB, d6, STRIPE, PIN_TINT, rowCls, statusCls, mkCls, type Light, type LedgerRowUI } from "./ledger-shared";
 import ThanhNhapBangDon, { type NhapBangDon } from "@/components/talpha/nhap-bang-don";
+import WaLink from "@/components/talpha/wa-link";
+import SoDonNuoc from "./order-ledger-market";
 
 interface Props { dateRange?: { from: Date; to: Date }; projectId?: string }
 
@@ -49,7 +51,39 @@ function Tick({ on, title }: { on: boolean; title: string }) {
     );
 }
 
-export default function TALPHAOrderLedgerTab({ dateRange }: Props) {
+/**
+ * Nút chọn nước (Sỹ Anh yêu cầu 29/09/2026): Đài Loan giữ nguyên sổ NAZA + sao kê; Singapore,
+ * UAE dùng sổ theo vận đơn (SoDonNuoc) vì chưa có sao kê. Danh sách nước lấy từ
+ * /api/talpha/markets — không gõ cứng ở giao diện.
+ */
+export default function TALPHAOrderLedgerTab(props: Props) {
+    const [nuoc, setNuoc] = useState("TW");
+    const [ds, setDs] = useState<{ code: string; display: string }[]>([]);
+    useEffect(() => {
+        fetch("/api/talpha/markets").then((r) => r.json())
+            .then((d: { markets?: { code: string; display: string; status?: string }[] }) =>
+                setDs((d.markets || []).filter((m) => m.status !== "sap_chay").map((m) => ({ code: m.code, display: m.display }))))
+            .catch(() => { /* không lấy được danh sách nước thì vẫn hiện sổ Đài như cũ */ });
+    }, []);
+    return (
+        <div className="space-y-4">
+            {ds.length > 1 && (
+                <div className="inline-flex rounded-lg border border-border bg-muted/40 p-1">
+                    {ds.map((m) => (
+                        <button key={m.code} onClick={() => setNuoc(m.code)}
+                            className={cn("rounded-md px-4 py-1.5 text-sm font-medium transition-colors",
+                                nuoc === m.code ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}>
+                            {m.display}
+                        </button>
+                    ))}
+                </div>
+            )}
+            {nuoc === "TW" ? <SoDonDai {...props} /> : <SoDonNuoc key={nuoc} code={nuoc} />}
+        </div>
+    );
+}
+
+function SoDonDai({ dateRange }: Props) {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
     const [rows, setRows] = useState<LedgerRowUI[]>([]);
@@ -88,12 +122,12 @@ export default function TALPHAOrderLedgerTab({ dateRange }: Props) {
     const exportCsv = () => {
         const head = ["Đèn", "Mã đơn", "Trạng thái", "Đối soát (tay)", "Ngày lên đơn", "Ngày xuất kho",
             "Kỳ chờ", "PTVC", "Vận đơn", "Mã đơn hoàn", "Mã 17TRACK", "SKU", "SL", "Tên khách",
-            "Điện thoại", "Marketer", "COD (NT$)", "3PL trả (NT$)", "Lệch (NT$)", "Kỳ sao kê",
+            "Điện thoại", "WhatsApp", "Marketer", "COD (NT$)", "3PL trả (NT$)", "Lệch (NT$)", "Kỳ sao kê",
             "Ngày về tiền", "Phí ship (¥)", "Phí thao tác (¥)", "Giá vốn (đ)", "Còn lại (đ)", "Ghi chú"];
         const esc = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
         const body = shown.map((r) => [r.light, r.order_no, r.status_raw, r.recon_manual,
             r.order_date, r.ship_date, r.ky_da_qua, r.ship_method, r.tracking, r.return_order_no,
-            r.track17_code, r.sku, r.quantity, r.contact_name, r.phone, r.marketer,
+            r.track17_code, r.sku, r.quantity, r.contact_name, r.phone, r.wa ?? "", r.marketer,
             r.cod_twd, r.paid_twd ?? "", r.diff_twd ?? "", r.paid_period, r.paid_date,
             r.ship_fee_rmb ?? "", r.op_fee_rmb ?? "", r.cogs_vnd ?? "",
             r.net_vnd === null ? "" : Math.round(r.net_vnd),
@@ -246,7 +280,7 @@ export default function TALPHAOrderLedgerTab({ dateRange }: Props) {
                             const cho = r.paid_twd === null && /thành công/i.test(r.status_raw || "");
                             const skuM = (r.sku || "").match(/^(\d{3})(.*)$/);
                             return (
-                                <tr key={r.tracking + r.order_no} className={cn("group", ROWBG[r.light])}>
+                                <tr key={r.tracking + r.order_no} className={cn("group", rowCls(r.light))}>
                                     {/* Số thứ tự theo danh sách ĐANG HIỆN, không phải id đơn —
                                         lọc hay tìm thì đánh số lại từ 1, để đếm được còn bao
                                         nhiêu dòng trong nhóm mình đang xem. */}
@@ -291,7 +325,7 @@ export default function TALPHAOrderLedgerTab({ dateRange }: Props) {
                                     </Td>
                                     <Td num>{r.quantity}</Td>
                                     <Td grp>{r.contact_name || "·"}</Td>
-                                    <Td className={C.tel}>{r.phone || "·"}</Td>
+                                    <Td className={C.tel}>{r.phone || "·"}<WaLink href={r.wa} /></Td>
                                     <Td>{r.marketer
                                         ? <span className={cn("rounded-full px-1.5 py-px text-[10px] font-semibold", mkCls(r.marketer))}>{r.marketer}</span>
                                         : <span className={C.faint}>·</span>}</Td>
@@ -339,6 +373,7 @@ export default function TALPHAOrderLedgerTab({ dateRange }: Props) {
                 <span><i className="mr-1.5 inline-block h-3 w-[3px] rounded-sm bg-slate-300 align-[-2px] dark:bg-slate-600" />không đòi</span>
                 <span><b className="text-foreground">Kỳ chờ</b> = đã qua mấy kỳ sao kê mà tiền chưa về; từ 2 kỳ là phải đòi</span>
                 <span><b className="text-foreground">Còn lại</b> vàng = chưa trừ giá vốn, số đang cao hơn thật</span>
+                <span><b className="text-emerald-700 dark:text-emerald-300">WA</b> = mở WhatsApp của khách</span>
                 <span className="ml-auto font-mono">{formatNumber(shown.length)} / {formatNumber(rows.length)} đơn — không phân trang</span>
             </div>
         </div>
@@ -372,9 +407,9 @@ function Td({ children, grp, num, pin, pinAfter, stt, light, className }: {
         <td style={stt ? { width: STT_W, minWidth: STT_W } : pinAfter ? { left: STT_W } : undefined}
             className={cn("border-b border-border px-1.5 py-[3px]",
                 num && "text-right tabular-nums", grp && "border-l border-border",
-                ghim && cn("sticky z-20 bg-card", light && ROWBG[light]),
+                ghim && cn("sticky z-20 bg-card", light && PIN_TINT[light]),
                 stt && "left-0",
-                pinAfter && "shadow-[1px_0_0_var(--border)]",
+                pinAfter && "border-r border-border",
                 className)}>{children}</td>
     );
 }

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { bigquery } from "@/lib/bigquery";
 import {
     DISPLAY, UNASSIGNED, SALE_DISPLAY, SALE_UNASSIGNED,
-    attributeOrder, buildAdidOwner, resolveSale, normPosMarketer,
+    attributeOrder, buildAdidOwner, resolveSale, normPosMarketer, PHONE_RULES,
 } from "@/lib/talpha/rules";
 import { trackingFromLink } from "@/lib/talpha/cod-recon";
 import {
@@ -17,6 +17,7 @@ import {
 import { track17CodeFor } from "@/lib/talpha/partner-file";
 import { readStoreFresh, updateStore } from "@/lib/talpha/store";
 import { loadMarketShipments, syncWeshipMarket } from "@/lib/talpha/tracking-market";
+import { waLink } from "@/lib/talpha/whatsapp";
 
 export const dynamic = "force-dynamic";
 
@@ -268,7 +269,9 @@ export async function GET(req: NextRequest) {
     const mk = trackMarket(req.nextUrl.searchParams.get("market"));
 
     try {
-        const { shipments, store, lastImport } = await loadShipments(mk, from, to);
+        const { shipments: raw, store, lastImport } = await loadShipments(mk, from, to);
+        // Link WhatsApp của khách (29/09/2026) — gắn TRƯỚC buildAlerts để cảnh báo mang theo luôn.
+        const shipments = raw.map((s) => ({ ...s, wa: waLink(s.phone, PHONE_RULES[mk.code]) }));
         const alerts = buildAlerts(shipments, new Date(), { staleDays: mk.stale_days });
         return NextResponse.json({
             from, to,
