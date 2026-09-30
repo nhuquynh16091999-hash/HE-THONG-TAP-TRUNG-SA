@@ -18,6 +18,9 @@ type Shipment = {
     source?: "doi_tac" | "17track" | "weship" | null;
     raw_status?: string | null;
     store_name?: string; store_code?: string; ship_method?: string;
+    /** Mã khách đọc khi lấy hàng = mã tracking (máy chủ tính, xem maLayHang). */
+    pickup_code?: string | null;
+    track17_code?: string | null;
     city?: string | null; fail_count?: number | null;
     /** Link WhatsApp kèm tin xác nhận đơn, dựng ở máy chủ — chỉ UAE (29/09/2026); còn lại null. */
     wa?: string | null;
@@ -27,22 +30,33 @@ type Alert = {
     code: string; title: string; detail: string; days: number | null; shipment: Shipment;
 };
 
+/** Mã khách đọc cho nhân viên cửa hàng = mã TRACKING, không phải store_code (mã cửa
+ *  hàng — sai tới 30/09/2026). Máy chủ tính sẵn pickup_code; thiếu thì tự tính y hệt. */
+const maLayHang = (s: Shipment) =>
+    String(s.pickup_code || s.track17_code || s.tracking || "").trim().replace(/^73N/i, "");
+
 /**
- * Tin nhắn tiếng Trung báo khách ra lấy hàng.
+ * Tin nhắn tiếng Trung báo khách ra lấy hàng — CÙNG CÂU CHỮ với bot Zalo
+ * (ops/zalo-alerts/van_don.js → tinKhachDai).
  *
  * Sale không phải tự gõ tiếng Trung — gõ tay mỗi ngày vài chục tin là vừa chậm
  * vừa sai tên cửa hàng. Chỉ điền được khi có tên cửa hàng; thiếu thì trả null
  * chứ KHÔNG soạn tin cụt, vì tin thiếu chỗ lấy hàng thì khách đọc xong vẫn
  * không biết đi đâu.
+ *
+ * LUÔN GIỤC LẤY HÔM NAY (Sỹ Anh chốt 30/09/2026): ghi đúng "còn 5 ngày" thì khách
+ * thong thả rồi quên, hàng bị trả về. Hạn thật chỉ hiện cho sale ở nhãn bên trên.
  */
 function soanTin(s: Shipment, conLai: number | null): string | null {
     if (!s.store_name) return null;
     const ten = s.customer || "客戶";
-    const ma = s.store_code ? `，取貨編號 ${s.store_code}` : "";
-    const han = conLai != null && conLai > 0
-        ? `請於 ${conLai} 天內領取，逾期將退回。`
-        : "請盡快領取，逾期將退回。";
-    return `您好 ${ten}，您的包裹已送達 ${s.store_name}${ma}。${han} 謝謝！`;
+    const ma = maLayHang(s);
+    const cho = `${s.store_name}${ma ? `（取貨編號 ${ma}）` : ""}`;
+    const tien = s.cod_local > 0 ? `，取貨時請準備 NT$${Math.round(s.cod_local).toLocaleString("en-US")}` : "";
+    if (conLai != null && conLai <= 0) {
+        return `【最後通知】${ten} 您好，您的包裹在 ${cho}${tien}。今天是最後取件日，今天沒取件包裹將直接退回、訂單取消！請務必今天前往門市取貨，謝謝！`;
+    }
+    return `【緊急取貨通知】${ten} 您好，您的包裹已送達 ${cho}${tien}。包裹保管期即將到期，請今天就前往門市取貨，逾期將退回、訂單取消。謝謝！`;
 }
 
 const STATUS_VI: Record<string, string> = {
@@ -418,7 +432,7 @@ export default function TALPHATrackingTab({ dateRange }: Props) {
                                                     <span className="font-mono text-violet-600/85 dark:text-violet-300/80">{s.phone || "(chưa có SĐT)"}</span>
                                                     <span className="font-mono text-indigo-600/70 dark:text-indigo-300/60">{s.tracking}</span>
                                                     {s.city && <span>{s.city}</span>}
-                                                    {s.store_name && <span className="text-amber-700 dark:text-amber-400">{s.store_name}{s.store_code ? ` · mã ${s.store_code}` : ""}</span>}
+                                                    {s.store_name && <span className="text-amber-700 dark:text-amber-400">{s.store_name}{maLayHang(s) ? ` · mã lấy hàng ${maLayHang(s)}` : ""}</span>}
                                                     {s.marketer && <span>mkt {s.marketer}</span>}
                                                 </div>
 

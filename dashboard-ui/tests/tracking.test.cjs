@@ -383,6 +383,14 @@ t("mã khác giữ nguyên (giao tận nhà 187…, 7-Eleven)", () => {
     assert.strictEqual(T.fixTrack17Code(null), null);
 });
 
+console.log("── Mã lấy hàng trong tin báo khách (Sỹ Anh sửa 30/09/2026) ──");
+t("= mã TRACKING, không phải mã cửa hàng: 7-11 bỏ 73N, FamilyMart có lại số 0", () => {
+    assert.strictEqual(T.maLayHang("18050703", "73N18050703"), "18050703");
+    assert.strictEqual(T.maLayHang("6722460150", "06722460150"), "06722460150");
+    assert.strictEqual(T.maLayHang("6722460150", null), "06722460150", "chưa có mã 17TRACK vẫn sửa số 0");
+    assert.strictEqual(T.maLayHang(null, null), "");
+});
+
 console.log("── 17TRACK: chọn mã hỏi trạng thái (miễn phí) ──");
 t("chỉ hỏi mã đã đăng ký, bỏ mã 17TRACK đã tự báo kết thúc", () => {
     const xs = [

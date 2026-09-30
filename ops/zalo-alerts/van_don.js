@@ -112,16 +112,34 @@ const maDon = (s) => { const x = String((s || {}).order_id || (s || {}).tracking
 
 // ─── Tin nhắn soạn sẵn gửi khách ─────────────────────────────────────────────
 // Cùng câu chữ với nút "Chép tin" trên dashboard (tracking-tab.tsx → soanTin): khách Đài
-// lấy hàng ở cửa hàng tiện lợi, nên tin phải có TÊN CỬA HÀNG + MÃ LẤY HÀNG + HẠN — thiếu
-// cửa hàng thì không soạn (tin cụt, khách đọc xong vẫn không biết đi đâu).
+// lấy hàng ở cửa hàng tiện lợi, nên tin phải có TÊN CỬA HÀNG + MÃ LẤY HÀNG — thiếu cửa
+// hàng thì không soạn (tin cụt, khách đọc xong vẫn không biết đi đâu).
+
+/** Mã khách đọc cho nhân viên cửa hàng = MÃ TRACKING, không phải store_code (mã cửa hàng
+ *  7-11 #265155 — sai tới 30/09/2026). API đã tính sẵn pickup_code; bản cũ thì tự tính:
+ *  mã đã sửa cho 17TRACK, bỏ tiền tố 73N chỉ 17TRACK cần. */
+const maLayHang = (s) => String(s.pickup_code || s.track17_code || s.tracking || "").trim().replace(/^73N/i, "");
+
+/**
+ * Tin báo khách Đài ra lấy hàng — LUÔN GIỤC LẤY HÔM NAY (Sỹ Anh chốt 30/09/2026).
+ *
+ * Bản cũ ghi đúng hạn thật "請於 5 天內領取": khách thấy còn năm ngày thì thong thả, rồi
+ * quên, rồi hàng bị trả về — mất cả tiền ship hai chiều lẫn đơn. Nên tin không nói còn
+ * bao nhiêu ngày: hàng đã tới là giục đi lấy ngay hôm nay, kèm số tiền cần mang để khách
+ * khỏi lấy cớ "để hôm khác có tiền". Ngày cuối thật thì nói thẳng là thông báo cuối.
+ * Hạn thật vẫn hiện cho Thương ở dòng đầu khối (HẾT HẠN HÔM NAY / còn N ngày).
+ */
 function tinKhachDai(s, conLai) {
     if (!s.store_name) return null;
     const ten = s.customer || "客戶";
-    const ma = s.store_code ? `，取貨編號 ${s.store_code}` : "";
-    const han = conLai == null ? "請盡快領取，逾期將退回。"
-        : conLai <= 0 ? "今天是最後取件日，逾期將退回。"
-            : `請於 ${conLai} 天內領取，逾期將退回。`;
-    return `您好 ${ten}，您的包裹已送達 ${s.store_name}${ma}。${han}謝謝！`;
+    const ma = maLayHang(s);
+    const cho = `${s.store_name}${ma ? `（取貨編號 ${ma}）` : ""}`;
+    const tien = Number(s.cod_local) > 0
+        ? `，取貨時請準備 NT$${Math.round(Number(s.cod_local)).toLocaleString("en-US")}` : "";
+    if (conLai != null && conLai <= 0) {
+        return `【最後通知】${ten} 您好，您的包裹在 ${cho}${tien}。今天是最後取件日，今天沒取件包裹將直接退回、訂單取消！請務必今天前往門市取貨，謝謝！`;
+    }
+    return `【緊急取貨通知】${ten} 您好，您的包裹已送達 ${cho}${tien}。包裹保管期即將到期，請今天就前往門市取貨，逾期將退回、訂單取消。謝謝！`;
 }
 // Singapore giao tận nhà (J&T): việc là hẹn lại giờ giao.
 function tinKhachSing(s) {
@@ -155,7 +173,7 @@ function khoiGoi(a, i, tien, giaoTanNha, ma = "") {
     const dong = [B(`${i + 1}. ${dau}`)];
     const khach = [s.customer, s.phone, giaoTanNha ? s.city : ""].filter(Boolean).join(" · ");
     if (khach) dong.push(`👤 ${khach}`);
-    if (!giaoTanNha && s.store_name) dong.push(`🏪 ${s.store_name}${s.store_code ? ` · mã lấy hàng ${s.store_code}` : ""}`);
+    if (!giaoTanNha && s.store_name) dong.push(`🏪 ${s.store_name}${maLayHang(s) ? ` · mã lấy hàng ${maLayHang(s)}` : ""}`);
     // UAE không có bảng đối tác — ghi chú là của đơn POS (thường là địa chỉ, hẹn ngày giao).
     if (s.note) dong.push(`📝 ${ma === "AE" ? "Ghi chú đơn" : "Đối tác ghi"}: "${cat(s.note, 80)}"`);
     const tin = giaoTanNha ? tinKhachNha(s, ma) : tinKhachDai(s, a.days_left);
@@ -168,7 +186,7 @@ function khoiMoiToi(a, tien) {
     const s = a.shipment || {};
     const dong = [B([maDon(s), s.cod_local ? `${fmt(Math.round(s.cod_local))} ${tien}` : "", hanChu(a)].filter(Boolean).join(" · "))];
     const khach = [s.customer, s.phone].filter(Boolean).join(" · ");
-    const cho = s.store_name ? `🏪 ${s.store_name}${s.store_code ? ` #${s.store_code}` : ""}` : "";
+    const cho = s.store_name ? `🏪 ${s.store_name}${maLayHang(s) ? ` · mã lấy hàng ${maLayHang(s)}` : ""}` : "";
     if (khach || cho) dong.push([khach ? `👤 ${khach}` : "", cho].filter(Boolean).join(" · "));
     const tin = tinKhachDai(s, a.days_left);
     if (tin) dong.push(`💬 ${tin}`);
@@ -373,4 +391,4 @@ function buildVanDonToi(d, opts = {}) {
     return dong.join("\n");
 }
 
-module.exports = { buildVanDonSang, buildVanDonToi, fetchVanDon, dongNguon, lyDo, suKienNgay, tinKhachDai, tinKhachSing, tinKhachUae };
+module.exports = { buildVanDonSang, buildVanDonToi, fetchVanDon, dongNguon, lyDo, maLayHang, suKienNgay, tinKhachDai, tinKhachSing, tinKhachUae };

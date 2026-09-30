@@ -166,7 +166,10 @@ export type Shipment = {
     /** Cửa hàng tiện lợi khách ra lấy, và mã lấy hàng — cần để soạn tin nhắn
      *  báo khách. Chỉ file đối tác có, POS không ghi. */
     store_name?: string;
+    /** MÃ CỬA HÀNG (7-11 #265155) — KHÔNG phải mã khách đọc khi lấy hàng. */
     store_code?: string;
+    /** Mã khách đọc cho nhân viên cửa hàng khi lấy hàng = mã tracking (xem maLayHang). */
+    pickup_code?: string | null;
     ship_method?: string;
     phone: string;
     marketer: string | null;
@@ -738,4 +741,16 @@ export function fixTrack17Code(n?: string | null): string | null {
     if (!n) return null;
     for (const r of TRACK_CFG.code_fixes) if (r.match.test(n)) return r.prefix + n;
     return n;
+}
+
+/**
+ * MÃ LẤY HÀNG ghi trong tin báo khách = MÃ TRACKING của kiện hàng.
+ *
+ * Trước 30/09/2026 tin ghi "取貨編號" bằng store_code — đó là mã CỬA HÀNG (7-11
+ * 靜安 #265155), khách đọc cho nhân viên thì không tìm ra kiện nào. Sỹ Anh sửa: phải
+ * là mã tracking. Lấy bản đã qua code_fixes (FamilyMart có lại số 0 đầu mà Sheet
+ * nuốt mất), rồi bỏ tiền tố 73N — tiền tố đó chỉ 17TRACK cần cho mã 7-Eleven.
+ */
+export function maLayHang(tracking?: string | null, track17Code?: string | null): string {
+    return String(track17Code || fixTrack17Code(tracking) || "").trim().replace(/^73N/i, "");
 }

@@ -6,7 +6,7 @@ import {
 } from "@/lib/talpha/rules";
 import { trackingFromLink } from "@/lib/talpha/cod-recon";
 import {
-    buildAlerts, carrierFor, countByStatus, fixTrack17Code, mergeStatus, planRegister, planTrack,
+    buildAlerts, carrierFor, countByStatus, fixTrack17Code, maLayHang, mergeStatus, planRegister, planTrack,
     trackMarket, TERMINAL, TRACK_CFG, TRACK_MARKETS,
     type Shipment, type TrackMarket,
 } from "@/lib/talpha/tracking";
@@ -149,6 +149,8 @@ async function loadShipments(mk: TrackMarket, from: string, to: string): Promise
             // Cần cho việc soạn tin nhắn báo khách ra lấy hàng.
             store_name: pm?.store_name || "",
             store_code: pm?.store_code || "",
+            // Mã khách đọc khi ra cửa hàng lấy — mã tracking, không phải mã cửa hàng.
+            pickup_code: maLayHang(clean(pm?.tracking || tracking), t17),
             ship_method: pm?.ship_method || "",
             // Tên trong file đối tác phải đi qua luật gán người, không dùng thô:
             // họ ghi "Lâm" mà trong hệ thống là "Lộc" — cùng một người.
