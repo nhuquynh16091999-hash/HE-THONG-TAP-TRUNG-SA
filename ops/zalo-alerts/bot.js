@@ -32,7 +32,7 @@ const CFG = require("./config");
 const { buildMarketerReports, buildTinDinhChinh } = require("./daily_report");
 const { buildAdsAlert, buildAdsStatus } = require("./ads_alerts");
 const { docLenh, huongDan, huongDanVanDon, homQua } = require("./commands");
-const { buildVanDonSang, buildVanDonToi, fetchVanDon } = require("./van_don");
+const { buildVanDonSang, buildVanDonToi, fetchVanDon, ghiSoNhac } = require("./van_don");
 const { slotAction, toMin, canDinhChinh, hanDinhChinh } = require("./schedule");
 const { toZalo, chiaTin } = require("./zalo_text");
 const { MARKETERS, DISPLAY } = require("./rules");
@@ -254,7 +254,9 @@ const NGUON_NUOC = { AE: "đơn POS + tra trang WeShip" };
 async function dungTinVanDon(m, kieu) {
     const today = vnDateStr();
     const d = await fetchVanDon(VD, today, fetch, m);
-    const base = { today, maxGoi: VD.maxGap, maxMoiToi: VD.maxMoiToi, quotaWarn: VD.quotaWarn, phuTrach: VD.phuTrach };
+    const base = { today, maxGoi: VD.maxGap, maxMoiToi: VD.maxMoiToi, quotaWarn: VD.quotaWarn, phuTrach: VD.phuTrach,
+        // Sổ nhắc: khách Đài đã được nhắn những ngày nào — để nhắc lại khách chưa lấy (30/09/2026).
+        soNhac: (loadState().vanDonNhac || {})[m] || {} };
     if (kieu === "toi") {
         const sang = (loadState().vanDonSang || {})[m];
         return { text: buildVanDonToi(d, { ...base, sangNay: sang && sang.ngay === today ? sang : null }) };
@@ -272,7 +274,12 @@ function guiVanDon(m, kieu = "sang") {
         const r = await dungTinVanDon(m, kieu);
         const n = await guiLoat([r.text], nhom);
         if (kieu === "sang" && !DRY) {
-            markState((s) => { (s.vanDonSang = s.vanDonSang || {})[m] = { ngay: vnDateStr(), goi: r.goi || [], moiToi: r.moiToi || [] }; });
+            const nay = vnDateStr();
+            markState((s) => {
+                (s.vanDonSang = s.vanDonSang || {})[m] = { ngay: nay, goi: r.goi || [], moiToi: r.moiToi || [], nhacLai: r.nhacLai || [] };
+                // Chỉ ghi sổ sau khi GỬI THẬT: khách có câu soạn sẵn trong tin sáng nay = đã nhắn thêm một lần.
+                (s.vanDonNhac = s.vanDonNhac || {})[m] = ghiSoNhac(s.vanDonNhac[m], r.daNhan, nay);
+            });
         }
         return { n, ghiChu: `tin vận đơn ${m} ${kieu || "gõ tay"} (${n} tin)` };
     });

@@ -21,7 +21,7 @@ Nguyên tắc: **đọc xong tin là làm được ngay**, không mở dashboard
 | Nhóm | 08:30 | 22:00 |
 |---|---|---|
 | **BÁO CÁO ADS** | Kết quả hôm qua: tiền ads · DS · %ads · đơn · mess · chốt, từng nước, xếp hạng marketer, **chi tiết mọi camp có tiêu tiền** (tên đầy đủ như trên Meta, theo marketer, tiêu nhiều trước) | Cùng khuôn, số hôm nay, **▲▼ so với cả ngày hôm qua** |
-| **VẬN ĐƠN TW** | Hôm qua (khách đã lấy, mới tới, bắt đầu hoàn) + **@Thương gọi khách sắp bị trả về** và **nhắn khách mới tới**: mỗi khách đủ tên, SĐT, cửa hàng, mã lấy hàng, hạn, **💬 tin tiếng Trung soạn sẵn** · hỏi đối tác · kiểm đơn lệch | Khách phải gọi sáng nay: đã lấy (cứu bao nhiêu tiền) / chưa lấy (MAI HẾT HẠN) / bị trả về · khách mới tới đã lấy chưa · số cả ngày |
+| **VẬN ĐƠN TW** | Hôm qua (khách đã lấy, mới tới, bắt đầu hoàn) + **@Thương gọi khách sắp bị trả về** và **nhắn khách mới tới** + **🔁 nhắc lại khách đã nhắn mà chưa lấy** (mỗi sáng tới khi lấy; sổ nhắc ở state.json → vanDonNhac): mỗi khách đủ tên, SĐT, cửa hàng, mã lấy hàng (= mã tracking), hạn, **💬 tin tiếng Trung soạn sẵn** (lần đầu nhẹ nhàng, nhắc lại gấp hơn) · hỏi đối tác · kiểm đơn lệch | Khách phải gọi sáng nay: đã lấy (cứu bao nhiêu tiền) / chưa lấy (MAI HẾT HẠN) / bị trả về · khách mới tới đã lấy chưa · số cả ngày |
 | **VẬN ĐƠN SGP** | Cùng khuôn; gọi = **đơn giao hỏng / khách hẹn giao lại**, kèm khu vực, ghi chú đối tác, **💬 tin tiếng Anh soạn sẵn** | Đơn hẹn lại đã giao chưa · số cả ngày |
 | **VẬN ĐƠN UAE** (28/09/2026) | Cùng khuôn Singapore; trạng thái tra ở **trang WeShip** (không qua 17TRACK). Gọi = khách **từ chối / không nghe máy / hẹn giao lại** kèm số lần, khu vực, ghi chú đơn POS, **💬 tin tiếng Anh theo lý do** | Như Singapore |
 

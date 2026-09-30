@@ -1,7 +1,7 @@
 // node van_don.test.js   (không gọi mạng, không cần cài zca-js)
 // Số liệu dưới đây là số DỰNG cho test, không phải đơn thật.
 const assert = require("assert");
-const { buildVanDonSang, buildVanDonToi, fetchVanDon, maLayHang, suKienNgay, tinKhachDai } = require("./van_don");
+const { buildVanDonSang, buildVanDonToi, fetchVanDon, ghiSoNhac, lanTruoc, maLayHang, suKienNgay, tinKhachDai } = require("./van_don");
 const { toZalo, chiaTin } = require("./zalo_text");
 
 let ok = 0;
@@ -62,15 +62,15 @@ const sang = (d, o = {}) => buildVanDonSang(d, { today: TODAY, nowTs: NOW, phuTr
         ] }));
         const m = tron(r.text);
         assert.ok(m.includes("☎️ @Thương · GỌI 2 KHÁCH SẮP BỊ TRẢ VỀ"), m);
-        // Mã lấy hàng = mã TRACKING (73N bỏ đi), không phải mã cửa hàng 211114.
-        assert.ok(m.includes("1. T1577 · 1.399 NT$ · HẾT HẠN HÔM NAY\n👤 Ana · 0912345359\n🏪 觀月 · mã lấy hàng 18024614\n"
-            + "💬 Ana 您好～提醒您，您的包裹在 觀月（取貨編號 18024614），取貨時請準備 NT$1,399。"
-            + "今天是最後取件日，麻煩您今天抽空到門市領取喔，逾期包裹會被退回。謝謝您！"), m);
+        // Mã lấy hàng = mã TRACKING (73N bỏ đi), không phải mã cửa hàng 211114. Hàng tới từ
+        // 20/09 (trước hôm qua) → đã được nhắn lúc mới tới → câu NHẮC LẠI, gấp hơn.
+        assert.ok(m.includes("1. T1577 · 1.399 NT$ · HẾT HẠN HÔM NAY · đã nhắn lúc mới tới\n👤 Ana · 0912345359\n🏪 觀月 · mã lấy hàng 18024614\n"
+            + "💬 Ana 您好，再次提醒您：您的包裹已經在 觀月（取貨編號 18024614） 放了 3 天，還沒有領取喔！"
+            + "今天是最後取件日，今天沒領取包裹就會被退回，請您務必今天抽空去領取！取貨時請準備 NT$1,399。如果有任何問題請直接回覆我們，謝謝您！"), m);
         assert.ok(!m.includes("211114"), "mã cửa hàng không được ghi là mã lấy hàng");
-        assert.ok(m.includes("2. CON2 · 1.499 NT$ · còn 2 ngày"), "hạn THẬT vẫn báo cho Thương ở dòng đầu");
+        assert.ok(m.includes("2. CON2 · 1.499 NT$ · còn 2 ngày · đã nhắn lúc mới tới"), "hạn THẬT vẫn báo cho Thương ở dòng đầu");
         assert.ok(!m.includes("天內領取"), "tin gửi khách KHÔNG ghi còn mấy ngày");
-        assert.ok(m.includes("Ghen 您好～您的包裹已送達") && m.includes("方便的話請儘早到門市領取喔"), "còn ngày: nhắc nhẹ lấy sớm");
-        assert.ok(!/緊急|訂單取消|務必/.test(m), "không giục gắt (Sỹ Anh chốt giọng nhẹ nhàng)");
+        assert.ok(m.includes("門市保管期快到了"), "còn 2 ngày: nhắc lại nói sắp hết hạn giữ, không nói số ngày còn");
         assert.deepStrictEqual(r.goi, ["K0", "K2"], "bot lưu đúng khoá, đúng thứ tự gọi");
     });
 
@@ -81,17 +81,22 @@ const sang = (d, o = {}) => buildVanDonSang(d, { today: TODAY, nowTs: NOW, phuTr
         assert.strictEqual(m.uid, "3346668495041864321");
     });
 
-    await t("khách MỚI TỚI: chỉ hàng tới hôm qua/hôm nay, mỗi khách kèm tin nhắn soạn sẵn", () => {
+    await t("khách MỚI TỚI: hàng tới hôm qua/hôm nay, câu nhẹ nhàng nói tới mấy ngày; tới trước đó → NHẮC LẠI", () => {
         const r = sang(DATA({ alerts: [
-            canh("toi_cua_hang", { level: "nhac", days_left: 6 }, { order_id: "T1701", tracking: "M1", status_since: luc("2026-09-25"), customer: "Maria", phone: "0905123118", store_name: "全家台南金華店", store_code: "024301", cod_local: 999 }),
-            canh("toi_cua_hang", { level: "nhac", days_left: 4 }, { order_id: "CU", tracking: "M2", status_since: luc("2026-09-22") }),
+            canh("toi_cua_hang", { level: "nhac", days: 1, days_left: 6 }, { order_id: "T1701", tracking: "M1", status_since: luc("2026-09-25"), customer: "Maria", phone: "0905123118", store_name: "全家台南金華店", store_code: "024301", cod_local: 999 }),
+            canh("toi_cua_hang", { level: "nhac", days: 4, days_left: 3 }, { order_id: "CU", tracking: "M2", status_since: luc("2026-09-22") }),
         ] }));
         const m = tron(r.text);
         assert.ok(m.includes("📬 @Thương · NHẮN 1 KHÁCH HÀNG MỚI TỚI"), m);
         assert.ok(m.includes("T1701 · 999 NT$ · còn 6 ngày\n👤 Maria · 0905123118 · 🏪 全家台南金華店 · mã lấy hàng 18024614\n"
-            + "💬 Maria 您好～您的包裹已送達 全家台南金華店（取貨編號 18024614），取貨時請準備 NT$999。"), m);
-        assert.ok(!m.includes("CU ·"), "hàng tới từ 22/09 đã nhắn rồi, không nhắn lại");
+            + "💬 Maria 您好～您的包裹已經送到 全家台南金華店（取貨編號 18024614） 1 天了，取貨時請準備 NT$999。"
+            + "麻煩您抽空到門市領取喔，逾期包裹會被退回。謝謝您！"), m);
+        assert.ok(m.includes("🔁 @Thương · NHẮC LẠI 1 KHÁCH ĐÃ NHẮN MÀ CHƯA LẤY"), "tới từ 22/09 mà chưa lấy → nhắc lại");
+        assert.ok(m.includes("CU · 1.499 NT$ · tới 4 ngày · đã nhắn lúc mới tới"), m);
+        assert.ok(m.includes("Ghen 您好，再次提醒您：您的包裹已經在 全家新城康樂店（取貨編號 18024614） 放了 4 天，還沒有領取喔！"), m);
         assert.deepStrictEqual(r.moiToi, ["M1"]);
+        assert.deepStrictEqual(r.nhacLai, ["M2"]);
+        assert.deepStrictEqual(r.daNhan.sort(), ["M1", "M2"], "cả hai khách có câu soạn sẵn → ghi sổ");
     });
 
     await t("không có khách phải gọi thì nói rõ", () => {
@@ -259,11 +264,50 @@ const sang = (d, o = {}) => buildVanDonSang(d, { today: TODAY, nowTs: NOW, phuTr
         assert.strictEqual(maLayHang({ tracking: "18050703" }), "18050703", "kho cũ chưa có track17_code");
     });
 
-    await t("tin khách: không có hạn vẫn nhắc lấy sớm; không có tiền thì bỏ vế mang tiền", () => {
-        const tin = tinKhachDai(don({ customer: "Emelita", store_name: "靜安", store_code: "265155", tracking: "18050703", track17_code: "73N18050703", cod_local: 0 }), null);
-        assert.strictEqual(tin, "Emelita 您好～您的包裹已送達 靜安（取貨編號 18050703）。"
-            + "方便的話請儘早到門市領取喔，以免超過保管期被退回。謝謝您！");
-        assert.strictEqual(tinKhachDai(don({ store_name: "" }), 3), null, "thiếu cửa hàng thì không soạn");
+    await t("tin khách lần đầu: đếm XUÔI số ngày đã tới, hôm nay tới thì nói hôm nay; không tiền thì bỏ vế mang tiền", () => {
+        const s = don({ customer: "Emelita", store_name: "靜安", store_code: "265155", tracking: "18050703", track17_code: "73N18050703", cod_local: 0 });
+        assert.strictEqual(tinKhachDai(s, { ngay: 2, conLai: 5 }),
+            "Emelita 您好～您的包裹已經送到 靜安（取貨編號 18050703） 2 天了。麻煩您抽空到門市領取喔，逾期包裹會被退回。謝謝您！");
+        assert.ok(tinKhachDai(s, { ngay: 0 }).includes("今天已經送達 靜安"));
+        assert.ok(!tinKhachDai(s, { ngay: 2, conLai: 5 }).includes("5 天"), "không nói còn mấy ngày");
+        assert.strictEqual(tinKhachDai(don({ store_name: "" }), { ngay: 3 }), null, "thiếu cửa hàng thì không soạn");
+    });
+
+    await t("tin khách nhắc lại: gấp hơn — mai / hôm nay là ngày cuối thì nói thẳng", () => {
+        const s = don({ customer: "Emelita", store_name: "靜安", tracking: "18050703", track17_code: "73N18050703", cod_local: 1499 });
+        const mai = tinKhachDai(s, { ngay: 6, conLai: 1, nhacLai: true });
+        assert.ok(mai.startsWith("Emelita 您好，再次提醒您：您的包裹已經在 靜安（取貨編號 18050703） 放了 6 天，還沒有領取喔！明天就是最後取件日了"), mai);
+        assert.ok(mai.includes("取貨時請準備 NT$1,499。"));
+        assert.ok(tinKhachDai(s, { ngay: 7, conLai: 0, nhacLai: true }).includes("今天是最後取件日，今天沒領取包裹就會被退回"));
+    });
+
+    await t("sổ nhắc: mỗi ngày +1 lần, gửi lại trong ngày không cộng, 14 ngày không nhắc thì bỏ", () => {
+        let so = ghiSoNhac({}, ["A", "B"], "2026-09-26");
+        assert.deepStrictEqual(so.A, { lan: 1, dau: "2026-09-26", cuoi: "2026-09-26" });
+        so = ghiSoNhac(so, ["A"], "2026-09-26");
+        assert.strictEqual(so.A.lan, 1, "cùng ngày không cộng");
+        so = ghiSoNhac(so, ["A"], "2026-09-27");
+        assert.deepStrictEqual(so.A, { lan: 2, dau: "2026-09-26", cuoi: "2026-09-27" });
+        assert.strictEqual(lanTruoc(so, "A", "2026-09-27"), 1, "tin hôm nay chưa tính là lần TRƯỚC");
+        assert.strictEqual(lanTruoc(so, "A", "2026-09-28"), 2);
+        so = ghiSoNhac(so, [], "2026-10-12");
+        assert.ok(!so.B && !so.A, "lâu không nhắc → bỏ khỏi sổ");
+    });
+
+    await t("sổ nhắc: khách mới tới HÔM QUA mà sáng qua đã nhắn → sáng nay sang NHẮC LẠI, ghi 'đã nhắn 1 lần'", () => {
+        const r = sang(DATA({ alerts: [
+            canh("toi_cua_hang", { level: "nhac", days: 1, days_left: 6 }, { order_id: "T1701", tracking: "M1", status_since: luc("2026-09-25", "07:00") }),
+        ] }), { soNhac: { M1: { lan: 1, dau: "2026-09-25", cuoi: "2026-09-25" } } });
+        const m = tron(r.text);
+        assert.ok(!m.includes("MỚI TỚI"), m);
+        assert.ok(m.includes("T1701 · 1.499 NT$ · tới 1 ngày · đã nhắn 1 lần"), m);
+        assert.deepStrictEqual(r.nhacLai, ["M1"]);
+    });
+
+    await t("tin tối chấm cả khách nhắc lại", () => {
+        const d = DATA({ shipments: [don({ tracking: "M2", status: "Delivered" }), don({ tracking: "M3" })] });
+        const m = tron(buildVanDonToi(d, { today: TODAY, nowTs: Date.parse("2026-09-26T15:00:00Z"), sangNay: { goi: [], moiToi: [], nhacLai: ["M2", "M3"] } }));
+        assert.ok(m.includes("🔁 2 KHÁCH NHẮC LẠI → 1 đã lấy (1.499 NT$) · 1 còn chờ, sáng mai nhắc tiếp"), m);
     });
 
     console.log(`van_don: ${ok} phép thử — tất cả đạt.`);

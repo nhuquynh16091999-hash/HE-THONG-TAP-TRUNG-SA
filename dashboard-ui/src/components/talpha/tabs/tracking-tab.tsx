@@ -28,6 +28,8 @@ type Shipment = {
 type Alert = {
     level: "gap" | "canh_bao" | "nhac";
     code: string; title: string; detail: string; days: number | null; shipment: Shipment;
+    /** Còn mấy ngày là bị trả về (API tính, âm = quá hạn) — chỉ đơn đang ở cửa hàng. */
+    days_left?: number | null;
 };
 
 /** Mã khách đọc cho nhân viên cửa hàng = mã TRACKING, không phải store_code (mã cửa
@@ -44,19 +46,31 @@ const maLayHang = (s: Shipment) =>
  * chứ KHÔNG soạn tin cụt, vì tin thiếu chỗ lấy hàng thì khách đọc xong vẫn
  * không biết đi đâu.
  *
- * Không ghi "còn 5 ngày" (khách thong thả rồi quên), chỉ nhờ khách ghé lấy sớm — giọng
- * nhẹ nhàng, không giục gắt (Sỹ Anh chốt 30/09/2026). Hạn thật chỉ hiện cho sale ở nhãn bên trên.
+ * Sỹ Anh chốt 30/09/2026:
+ *  • lần đầu — nhẹ nhàng, nói hàng ĐÃ TỚI được mấy ngày (đếm xuôi), không nói còn
+ *    mấy ngày (khách thấy còn nhiều ngày thì thong thả rồi quên);
+ *  • nhắc lại — khách đã được nhắn mà chưa lấy: gấp hơn, mai/hôm nay là ngày cuối
+ *    thì nói thẳng. Bot biết chắc ai đã nhắn (sổ nhắc); ở đây không có sổ nên dùng
+ *    đúng luật dự phòng của bot: hàng nằm từ 2 ngày trở lên = đã nhắn lúc mới tới.
  */
-function soanTin(s: Shipment, conLai: number | null): string | null {
+function soanTin(s: Shipment, han: { ngay: number | null; conLai: number | null }): string | null {
     if (!s.store_name) return null;
     const ten = s.customer || "客戶";
     const ma = maLayHang(s);
     const cho = `${s.store_name}${ma ? `（取貨編號 ${ma}）` : ""}`;
-    const tien = s.cod_local > 0 ? `，取貨時請準備 NT$${Math.round(s.cod_local).toLocaleString("en-US")}` : "";
-    if (conLai != null && conLai <= 0) {
-        return `${ten} 您好～提醒您，您的包裹在 ${cho}${tien}。今天是最後取件日，麻煩您今天抽空到門市領取喔，逾期包裹會被退回。謝謝您！`;
+    const tien = s.cod_local > 0 ? `NT$${Math.round(s.cod_local).toLocaleString("en-US")}` : "";
+    const { ngay, conLai } = han;
+    const cuoi = conLai != null && conLai <= 0;
+    if (ngay != null && ngay >= 2) {
+        const hanChu = cuoi ? "今天是最後取件日，今天沒領取包裹就會被退回，請您務必今天抽空去領取！"
+            : conLai === 1 ? "明天就是最後取件日了，逾期包裹會被退回，請您盡快去領取！"
+                : "門市保管期快到了，逾期包裹會被退回，請您盡快去領取！";
+        return `${ten} 您好，再次提醒您：您的包裹已經在 ${cho} 放了 ${ngay} 天，還沒有領取喔！${hanChu}`
+            + `${tien ? `取貨時請準備 ${tien}。` : ""}如果有任何問題請直接回覆我們，謝謝您！`;
     }
-    return `${ten} 您好～您的包裹已送達 ${cho}${tien}。方便的話請儘早到門市領取喔，以免超過保管期被退回。謝謝您！`;
+    const toi = ngay ? `已經送到 ${cho} ${ngay} 天了` : ngay === 0 ? `今天已經送達 ${cho}` : `已經送達 ${cho}`;
+    const hanChu = cuoi ? "今天是最後取件日，麻煩您今天抽空到門市領取喔" : "麻煩您抽空到門市領取喔";
+    return `${ten} 您好～您的包裹${toi}${tien ? `，取貨時請準備 ${tien}` : ""}。${hanChu}，逾期包裹會被退回。謝謝您！`;
 }
 
 const STATUS_VI: Record<string, string> = {
@@ -405,7 +419,9 @@ export default function TALPHATrackingTab({ dateRange }: Props) {
                                     // Còn mấy ngày nữa bị trả về — hạn lưu ở cửa hàng là 7 ngày.
                                     const conLai = a.code === "sap_bi_tra_ve" && a.days != null
                                         ? cfg.pickup_expire_days - a.days : null;
-                                    const tin = soanTin(s, conLai);
+                                    const tin = s.status === "AvailableForPickup"
+                                        ? soanTin(s, { ngay: a.days, conLai: a.days_left ?? conLai })
+                                        : null;
                                     const key = `${s.tracking}-${i}`;
                                     return (
                                         <div key={key} className="grid grid-cols-[4px_1fr] gap-4 p-4">
