@@ -112,7 +112,11 @@ meta_ads:
     # - "act_1285779533102675"  # ANTALO 2 - CHẠY SING (VIA Đông Quân Land)
     #
     # THÊM 29/09/2026 — token mới thấy thêm 3 tài khoản (xem khối ĐỔI TOKEN ở đầu mục).
-    - "act_2201353496727281"  # K NEED khang ve 22 — 1 camp tương tác đã tạm dừng, tháng 9 chi 0đ
+    # BỎ 30/09/2026 — chiều 29/09 (từ vòng 17:20) Meta báo #200 has NOT grant ads_read và tài
+    # khoản rơi khỏi /me/adaccounts của token → mỗi vòng sync rc=1, Sheet đứng ở số 16:26
+    # tới trưa 30/09 (tin Zalo 13:00 báo "sync đứng 20 giờ 38 phút"). Tháng 9 chi 0đ nên bỏ
+    # không mất số nào. Cấp lại quyền rồi mới bỏ dấu # dòng dưới.
+    # - "act_2201353496727281"  # K NEED khang ve 22 — 1 camp tương tác đã tạm dừng, tháng 9 chi 0đ
     - "act_1005930495298028"  # (Meta chưa đặt tên, tên = id) — chưa có camp
     - "act_1298353682322779"  # Quynh Vien — chưa có camp
   ad_account_names:

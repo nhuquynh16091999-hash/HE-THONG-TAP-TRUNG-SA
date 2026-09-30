@@ -105,7 +105,9 @@
         {
           "id": "act_2201353496727281",
           "name": "K NEED khang ve 22",
-          "status": "active"
+          "status": "died",
+          "died_at": "2026-09-30",
+          "_khong_sync": "Chiều 29/09/2026 (từ vòng 17:20) Meta báo #200 has NOT grant ads_read và tài khoản rơi khỏi /me/adaccounts của token — mới thêm sáng cùng ngày. ĐÃ BỎ khỏi config/projects/talpha.yaml → ad_account_ids 30/09/2026 vì mỗi vòng sync rc=1 làm Sheet đứng. Tháng 9 chi 0đ. GIỮ trong roster để số cũ (nếu có) còn nhãn. Cấp lại quyền thì khai lại id vào yaml."
         },
         {
           "id": "act_1005930495298028",
