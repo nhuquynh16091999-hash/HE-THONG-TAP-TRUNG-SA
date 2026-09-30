@@ -9,7 +9,7 @@ import {
     MATCH_KEY, type PosOrder, type StatementRow,
 } from "@/lib/talpha/cod-recon";
 import {
-    parseNazaStatement, type NazaStatement,
+    canhBaoGopSing, laFileSing, parseNazaStatement, type NazaStatement,
 } from "@/lib/talpha/naza-statement";
 import { ngaySaoKe } from "@/lib/talpha/purchase-sheet";
 import { readStoreFresh, updateStore } from "@/lib/talpha/store";
@@ -53,6 +53,8 @@ type Statement = {
         checks: NazaStatement["checks"];
         fee_audit: NazaStatement["fee_audit"];
         fee_lines: NazaStatement["fee_lines"];
+        /** Phần Singapore NAZA gộp vào kỳ này (chỉ kỳ 24/09/2026). Kho cũ không có. */
+        sg_gop?: NazaStatement["sg_gop"];
     };
 };
 
@@ -205,10 +207,11 @@ function warnings(st?: Statement): string[] {
     }
     if (n.summary.purchase_vnd) {
         w.push(
-            `Kỳ này bị trừ ${vnd(n.summary.purchase_vnd)} VND phí mua hàng trước khi chuyển tiền về. ` +
+            `Kỳ này bị trừ ${vnd(n.summary.purchase_vnd)} VND phí mua hàng Đài trước khi chuyển tiền về. ` +
             "Khoản này không nằm trong bảng giá vận chuyển — đối chiếu với đơn mua hàng.",
         );
     }
+    if (n.sg_gop) w.push(canhBaoGopSing(n.sg_gop, n.summary.payable_vnd));
     return w;
 }
 
@@ -371,7 +374,10 @@ export async function GET(req: NextRequest) {
  * Và bản sửa của 3PL thường ĐỔI TÊN file: kỳ 24/09 bản đầu "ĐỐI SOÁT COD
  * 2026.09.24", bản sửa (bỏ đơn Singapore) "ĐỐI SOÁT COD TAIWAN 2026.09.24". Nên
  * cùng NGÀY trên tên file cũng là cùng kỳ → thay. Kho này chỉ chứa sao kê Đài,
- * NAZA gửi một file mỗi tuần, nên một ngày là một kỳ.
+ * NAZA gửi một file mỗi tuần, nên một ngày là một kỳ. (30/09/2026 Sỹ Anh chốt
+ * dùng lại bản GỘP Sing cho kỳ 24/09 — đúng số tiền về; tải lên là thay bản
+ * TAIWAN.) Từ kỳ sau NAZA gửi thêm file Sing CÙNG NGÀY — file đó bị chặn ở
+ * POST (laFileSing), không thì nó đè mất kỳ Đài.
  */
 const tenFile = (name: string) => name.normalize("NFC").trim();
 function replaceSameFile(list: Statement[], filename: string): Statement[] {
@@ -380,6 +386,10 @@ function replaceSameFile(list: Statement[], filename: string): Statement[] {
     return list.filter((s) => tenFile(s.filename).toLowerCase() !== key
         && !(ngay && ngaySaoKe(tenFile(s.filename)) === ngay));
 }
+
+const SING_CHUA_NHAN =
+    "Đây là sao kê SINGAPORE. Màn này là sổ COD Đài Loan (tiền đọc như TWD, và file cùng ngày " +
+    "sẽ thay kỳ Đài) nên chưa nhận file Sing. Gửi file này cho Claude để dựng phần đối soát COD Sing.";
 
 export async function POST(req: NextRequest) {
     try {
@@ -406,6 +416,9 @@ export async function POST(req: NextRequest) {
                         "hoặc Lưu thành .csv rồi tải lại.",
                 }, { status: 422 });
             }
+            if (laFileSing(file.name, naza.market)) {
+                return NextResponse.json({ error: SING_CHUA_NHAN }, { status: 422 });
+            }
             if (!naza.cod_lines.length) {
                 return NextResponse.json({
                     error: "Mở được file nhưng không thấy dòng COD nào. Sao kê NAZA phải có sheet " +
@@ -414,7 +427,8 @@ export async function POST(req: NextRequest) {
             }
 
             // Quy về StatementRow để dùng chung một hàm đối soát với đường CSV.
-            const rows: StatementRow[] = naza.cod_lines.map((l) => ({
+            // Chỉ dòng COD Đài: tiền đơn Sing là SGD, cộng vào sổ TWD là sai.
+            const rows: StatementRow[] = naza.cod_lines.filter((l) => l.market !== "SG").map((l) => ({
                 tracking: l.tracking,
                 order_id: l.order_id,
                 amount: l.cod_twd,
@@ -437,6 +451,7 @@ export async function POST(req: NextRequest) {
                     checks: naza.checks,
                     fee_audit: naza.fee_audit,
                     fee_lines: naza.fee_lines,
+                    sg_gop: naza.sg_gop,
                 },
             };
 
@@ -457,6 +472,9 @@ export async function POST(req: NextRequest) {
             });
         }
 
+        if (laFileSing(file.name, null)) {
+            return NextResponse.json({ error: SING_CHUA_NHAN }, { status: 422 });
+        }
         const text = await file.text();
         const { rows, mapping, header } = parseStatement(text);
 

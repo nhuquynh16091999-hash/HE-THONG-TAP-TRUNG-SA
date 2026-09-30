@@ -233,6 +233,27 @@ tới từng đồng; đợt 14/08 còn nợ 1.405.597 VND.
 Đọc file hỏng hay không ghép được đợt nào thì màn hình **nói rõ**, vẫn chạy phần
 còn lại — không lặng lẽ coi tiền hàng là 0.
 
+### Kỳ 24/09/2026 — NAZA gộp Singapore vào sao kê Đài
+
+Kỳ này NAZA gửi hai bản: bản đầu **gộp Singapore** ("ĐỐI SOÁT COD 2026.09.24") và bản
+sửa bỏ Sing ("ĐỐI SOÁT COD TAIWAN 2026.09.24"). **Sỹ Anh chốt 30/09/2026 dùng bản gộp**
+— đúng số NAZA chuyển về. Tiền COD vẫn chỉ của Đài (54.857 NT$), nhưng trừ thêm:
+
+| Phần Sing | Số |
+|---|---|
+| Phí 12 đơn Sing (28¥ nội địa + 7¥ chặng đầu + 3¥ đóng gói) | 456¥ ≈ 1.760.160đ |
+| Tiền hàng Sing (`新加坡本期采购费`) | 1.840.046đ |
+| **Phải nhận** | **28.630.337đ** (bản TAIWAN: 32.230.543đ, chênh đúng 3.600.206đ) |
+
+Bộ đọc tách phần này ra (`sg_gop`, `purchase_sg_vnd`): tiền hàng Đài vẫn đem so file tiền
+hàng Đài như mọi kỳ, tiền hàng Sing trừ trong luồng theo số NAZA (tab Đài không có khoản
+này), đơn Sing không soát theo bảng giá Đài.
+
+**Từ kỳ sau NAZA tách file Sing riêng.** Màn Đối soát COD **chặn** file Sing (nhận bằng
+nội dung — không dòng COD Đài nào — hoặc tên file có SING / SIG / SG): kho này là sổ TWD,
+và file Sing cùng ngày sẽ theo luật "cùng ngày là cùng kỳ" **đè mất** kỳ Đài. File Sing
+đầu tiên là mẫu để dựng bước 2 đối soát COD Sing.
+
 ---
 
 ## Tiền về — đã gửi bao nhiêu, còn phải gửi bao nhiêu

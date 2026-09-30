@@ -208,7 +208,53 @@ export type NazaCodLine = {
     tracking: string;           // 转单号 — mã vận đơn (khoá chính)
     channel: string;            // 产品名称
     cod_twd: number;            // COD金额
+    /** Nước của đơn (国家名称 / tên kênh). Kho cũ chưa có trường này = Đài. */
+    market?: NazaMarket;
 };
+
+/** NAZA gửi sao kê Đài và Singapore — có kỳ gộp chung một file (24/09/2026). */
+export type NazaMarket = "TW" | "SG";
+
+/**
+ * File sao kê RIÊNG của Singapore — NAZA tách từ kỳ sau 24/09/2026.
+ *
+ * Kho sao kê là sổ tiền COD ĐÀI: số tiền đọc như TWD và khớp với đơn Đài. Nhận
+ * file Sing vào đó thì (1) tiền SGD bị cộng như TWD, và (2) tệ hơn, luật "cùng
+ * ngày trên tên file là cùng kỳ" cho file Sing ĐÈ MẤT file Đài cùng ngày. Nên
+ * chặn, cho tới khi có chỗ đối soát COD Sing riêng (bước 2).
+ *
+ * Nhận bằng NỘI DUNG trước (không dòng COD nào của Đài), rồi bằng tên file —
+ * nhóm gọi Sing là SING / SIG / SG. Kỳ gộp 24/09 tên chỉ ghi "ĐỐI SOÁT COD
+ * 2026.09.24" và có dòng COD Đài, nên vẫn là file Đài.
+ */
+const TEN_SING = /(^|[^A-Z])(SING|SINGAPORE|SIG|SG)([^A-Z]|$)|新加坡/;
+export function laFileSing(filename: string, market: NazaMarket | null | undefined): boolean {
+    if (market === "SG") return true;
+    const ten = filename.normalize("NFC").toUpperCase();
+    if (/TAIWAN|ĐÀI|台湾/.test(ten)) return false;
+    return TEN_SING.test(ten);
+}
+
+/** Câu giải thích kỳ NAZA gộp Singapore vào sao kê Đài (kỳ 24/09/2026). */
+export function canhBaoGopSing(sg: NazaSgPart, payable: number | null): string {
+    const so = (n: number) => Math.round(n).toLocaleString("vi-VN");
+    const phan = [
+        sg.don ? `phí ship ${sg.don} đơn Sing ${so(sg.phi_rmb)}¥` +
+            (sg.phi_vnd != null ? ` (≈ ${so(sg.phi_vnd)}đ)` : "") : "",
+        sg.tien_hang_vnd != null ? `tiền hàng Sing ${so(sg.tien_hang_vnd)}đ` : "",
+    ].filter(Boolean).join(" và ");
+    return `Kỳ này NAZA GỘP Singapore vào sao kê Đài: ${phan} trừ thẳng vào tiền COD Đài` +
+        (sg.tong_vnd != null ? ` — tổng ${so(sg.tong_vnd)}đ` : "") + ". " +
+        (payable != null ? `Phải nhận ${so(payable)}đ là số SAU khi trừ phần Sing. ` : "") +
+        "Từ kỳ sau NAZA tách file Sing riêng.";
+}
+
+/** Đơn Singapore nhận ra bằng cột nước (目的国家 · 国家名称 = 新加坡) hoặc tên kênh
+ *  ('S新加坡CODJT专线'). Không có dấu hiệu Sing thì là Đài, như mọi kỳ trước. */
+export function nuocCuaDong(country: string, channel: string): NazaMarket {
+    const s = `${country} ${channel}`.toUpperCase();
+    return s.includes("新加坡") || /\bSINGAPORE\b/.test(s) ? "SG" : "TW";
+}
 
 export type NazaFeeLine = {
     ship_date: string | null;   // 出货日期
@@ -223,6 +269,27 @@ export type NazaFeeLine = {
     /** Phí đúng theo bảng giá; null khi không nhận ra kênh giao hàng. */
     expected_ship_fee: number | null;
     channel_code: string | null;
+    /** Nước của đơn. Kho cũ chưa có trường này = Đài. */
+    market?: NazaMarket;
+};
+
+/**
+ * PHẦN SINGAPORE NAZA GỘP VÀO SAO KÊ ĐÀI.
+ *
+ * Kỳ 2026.09.24 NAZA gửi một file cho cả hai nước: tiền COD chỉ của Đài, nhưng
+ * phí ship đơn Sing và tiền hàng Sing trừ thẳng vào đó. Nên "phải nhận" của kỳ
+ * là số SAU khi đã trừ phần Sing — đúng số NAZA chuyển về tài khoản. Bản sửa
+ * "TAIWAN 2026.09.24" bỏ phần Sing ra thì phải nhận cao hơn đúng 3.600.206đ, và
+ * không khớp tiền thật về. Từ kỳ sau NAZA tách file Sing riêng (Sỹ Anh báo 30/09).
+ *
+ * Phần này KHÔNG đem so với file tiền hàng Đài: tab đó chỉ ghi tiền hàng Đài.
+ */
+export type NazaSgPart = {
+    don: number;                    // số dòng phí của đơn Sing
+    phi_rmb: number;                // phí ship + chặng đầu + đóng gói của các đơn đó
+    phi_vnd: number | null;         // quy theo tỷ giá RMB→VND của kỳ
+    tien_hang_vnd: number | null;   // 新加坡本期采购费 VND
+    tong_vnd: number | null;        // tổng phần Sing đã trừ vào tiền Đài
 };
 
 export type NazaSummary = {
@@ -233,7 +300,11 @@ export type NazaSummary = {
     op_fee_rmb: number | null;      // 操作费
     net_rmb: number | null;         // 本期应退金额RMB
     rate_rmb_vnd: number | null;
-    purchase_vnd: number | null;    // 采购费 — phí mua hàng, trừ thẳng vào tiền về
+    /** 采购费 — phí mua hàng ĐÀI, trừ thẳng vào tiền về. Đây là số đem so với file
+     *  tiền hàng Đài, nên KHÔNG gồm dòng tiền hàng Sing ở kỳ gộp. */
+    purchase_vnd: number | null;
+    /** 新加坡本期采购费 — tiền hàng Sing NAZA trừ vào COD Đài (chỉ kỳ gộp). */
+    purchase_sg_vnd?: number | null;
     payable_vnd: number | null;     // 本期应退金额VND
     /** Có file gộp '速递运费 + 操作费' vào MỘT dòng. Khi đó ship_fee_rmb đã
      *  gồm cả phí thao tác và op_fee_rmb là 0 — không được cộng thêm lần nữa. */
@@ -246,6 +317,10 @@ export type NazaStatement = {
     summary: NazaSummary;
     cod_lines: NazaCodLine[];
     fee_lines: NazaFeeLine[];
+    /** File của nước nào: có dòng COD Đài là file Đài (kể cả kỳ gộp Sing). */
+    market: NazaMarket;
+    /** Phần Singapore gộp vào file Đài; null nếu file không có gì của Sing. */
+    sg_gop: NazaSgPart | null;
     /** Kiểm chéo NỘI BỘ file: chi tiết có cộng ra đúng con số ở sheet TỔNG không. */
     checks: {
         cod_detail_total: number;
@@ -325,10 +400,11 @@ async function toGrids(buf: Buffer): Promise<{ name: string; grid: Grid }[]> {
 function readSummary(grid: Grid): NazaSummary {
     // Bỏ hết dấu cách trong nhãn trước khi so: kỳ 2026.09.24 ghi '本期应退金额 VND '
     // (có cách) nên dò '本期应退金额VND' trượt, số phải nhận của kỳ thành trống.
-    const pick = (...keys: string[]): number | null => {
+    const pick = (...keys: string[]): number | null => pickIf(() => true, ...keys);
+    const pickIf = (hop: (label: string) => boolean, ...keys: string[]): number | null => {
         for (const row of grid) {
             const label = cellText((row || [])[0]).replace(/\s+/g, "");
-            if (!label) continue;
+            if (!label || !hop(label)) continue;
             if (keys.some((k) => label.includes(k))) {
                 const v = toNumber((row || [])[2]);
                 if (v !== null) return v;
@@ -364,7 +440,11 @@ function readSummary(grid: Grid): NazaSummary {
         op_fee_rmb: combined ? 0 : pick("操作费"),
         net_rmb: pick("本期应退金额RMB"),
         rate_rmb_vnd: rates.find((r) => r >= 100) ?? null,
-        purchase_vnd: pick("采购费"),
+        // Kỳ 2026.09.24 có HAI dòng tiền hàng: '台湾本期采购费' rồi '新加坡本期采购费'.
+        // Bộ đọc cũ lấy dòng đầu nên bỏ sót 1.840.046đ tiền hàng Sing — luồng tiền
+        // trên màn hình không cộng trừ ra được "phải nhận".
+        purchase_vnd: pickIf((l) => !l.includes("新加坡"), "采购费"),
+        purchase_sg_vnd: pickIf((l) => l.includes("新加坡"), "采购费"),
         payable_vnd: pick("本期应退金额VND"),
         fees_combined: combined,
     };
@@ -386,17 +466,20 @@ export async function parseNazaStatement(buf: Buffer, fileName = ""): Promise<Na
             const iAmt = colIndex(h.cols, "cod_amount");
             const iRcv = colIndex(h.cols, "recv_date");
             const iCh = colIndex(h.cols, "channel");
+            const iNuoc = h.cols.findIndex((c) => c.includes("国家"));
             for (let r = h.row + 1; r < sCod.grid.length; r++) {
                 const row = sCod.grid[r] || [];
                 const amt = iAmt >= 0 ? toNumber(row[iAmt]) : null;
                 const ord = iOrd >= 0 ? cellText(row[iOrd]) : "";
                 if (amt === null || !ord) continue;
+                const channel = iCh >= 0 ? cellText(row[iCh]) : "";
                 cod_lines.push({
                     recv_date: iRcv >= 0 ? toIsoDate(row[iRcv]) : null,
                     order_id: ord,
                     tracking: iTrk >= 0 ? cellText(row[iTrk]) : "",
-                    channel: iCh >= 0 ? cellText(row[iCh]) : "",
+                    channel,
                     cod_twd: amt,
+                    market: nuocCuaDong(iNuoc >= 0 ? cellText(row[iNuoc]) : "", channel),
                 });
             }
         }
@@ -412,6 +495,7 @@ export async function parseNazaStatement(buf: Buffer, fileName = ""): Promise<Na
             const iShp = colIndex(h.cols, "ship_date");
             const iKg = colIndex(h.cols, "chargeable_kg");
             const iCh = h.cols.findIndex((c) => c.includes("运输方式"));
+            const iNuoc = h.cols.findIndex((c) => c.includes("国家"));
             const { iFee, iOp, iFirstLeg } = cotPhi(h.cols);
             for (let r = h.row + 1; r < sFee.grid.length; r++) {
                 const row = sFee.grid[r] || [];
@@ -420,7 +504,9 @@ export async function parseNazaStatement(buf: Buffer, fileName = ""): Promise<Na
                 if (!ord || fee === null) continue;
                 const channel = iCh >= 0 ? cellText(row[iCh]) : "";
                 const kg = iKg >= 0 ? toNumber(row[iKg]) : null;
-                const ch = matchChannel(channel);
+                const market = nuocCuaDong(iNuoc >= 0 ? cellText(row[iNuoc]) : "", channel);
+                // Bảng giá ở đây là bảng Đài — đơn Sing đem soát theo nó là báo sai.
+                const ch = market === "TW" ? matchChannel(channel) : null;
                 fee_lines.push({
                     ship_date: iShp >= 0 ? toIsoDate(row[iShp]) : null,
                     order_id: ord,
@@ -432,6 +518,7 @@ export async function parseNazaStatement(buf: Buffer, fileName = ""): Promise<Na
                     first_leg_fee: iFirstLeg >= 0 ? toNumber(row[iFirstLeg]) ?? 0 : 0,
                     expected_ship_fee: expectedShipFee(ch, kg),
                     channel_code: ch?.code ?? null,
+                    market,
                 });
             }
         }
@@ -466,9 +553,12 @@ export async function parseNazaStatement(buf: Buffer, fileName = ""): Promise<Na
     }
 
     // ── Soát phí với bảng giá ────────────────────────────────────────────
+    // Chỉ soát đơn Đài: bảng giá và mức phí thao tác khai ở đây là của Đài.
+    // Đơn Sing gộp vào kỳ 24/09 nằm riêng ở `sg_gop`, không tính là "không nhận ra kênh".
+    const feeTw = fee_lines.filter((l) => l.market !== "SG");
     const auditLines: NazaStatement["fee_audit"]["lines"] = [];
     let ok = 0, unknown = 0;
-    for (const l of fee_lines) {
+    for (const l of feeTw) {
         if (l.expected_ship_fee === null) { unknown++; continue; }
         const diff = l.ship_fee - l.expected_ship_fee;
         if (Math.abs(diff) < 0.01) { ok++; continue; }
@@ -510,9 +600,27 @@ export async function parseNazaStatement(buf: Buffer, fileName = ""): Promise<Na
     // vài trăm đơn mỗi kỳ thì 1¥ lệch cũng thành tiền thật.
     const opExpected = OP_FEE_PER_PARCEL;
     const opWrong = opExpected > 0
-        ? fee_lines.filter((l) => Math.abs(l.op_fee - opExpected) > 0.01)
+        ? feeTw.filter((l) => Math.abs(l.op_fee - opExpected) > 0.01)
             .map((l) => ({ tracking: l.tracking, order_id: l.order_id, charged: l.op_fee, expected: opExpected }))
         : [];
+
+    // ── PHẦN SINGAPORE ───────────────────────────────────────────────────
+    const feeSg = fee_lines.filter((l) => l.market === "SG");
+    const sgPhiRmb = feeSg.reduce((t, l) => t + l.ship_fee + l.op_fee + (l.first_leg_fee ?? 0), 0);
+    const sgTienHang = s.purchase_sg_vnd ?? null;
+    const coSg = feeSg.length > 0 || sgTienHang != null;
+    const sgPhiVnd = coSg && s.rate_rmb_vnd != null ? sgPhiRmb * s.rate_rmb_vnd : null;
+    const sg_gop: NazaSgPart | null = coSg ? {
+        don: feeSg.length,
+        phi_rmb: sgPhiRmb,
+        phi_vnd: sgPhiVnd,
+        tien_hang_vnd: sgTienHang,
+        tong_vnd: sgPhiVnd == null ? null : sgPhiVnd + (sgTienHang ?? 0),
+    } : null;
+    // Không dòng COD nào của Đài mà có dòng Sing → đây là file Sing riêng
+    // (NAZA tách từ kỳ sau 24/09), không phải file Đài gộp Sing.
+    const coCodTw = cod_lines.some((l) => l.market !== "SG");
+    const market: NazaMarket = !coCodTw && (cod_lines.length > 0 || feeSg.length > 0) ? "SG" : "TW";
 
     return {
         file: fileName,
@@ -520,6 +628,8 @@ export async function parseNazaStatement(buf: Buffer, fileName = ""): Promise<Na
         summary,
         cod_lines,
         fee_lines,
+        market,
+        sg_gop,
         checks: {
             cod_detail_total: codDetail,
             cod_summary_total: s.cod_twd,
@@ -534,7 +644,7 @@ export async function parseNazaStatement(buf: Buffer, fileName = ""): Promise<Na
             math_note: mathNote,
         },
         fee_audit: {
-            checked: fee_lines.length,
+            checked: feeTw.length,
             ok,
             wrong: auditLines.length,
             unknown_channel: unknown,

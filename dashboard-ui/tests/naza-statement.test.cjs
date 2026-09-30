@@ -279,5 +279,113 @@ const FEE_OK = [
         assert.strictEqual(st.summary.purchase_vnd, 1000000);
     });
 
+    console.log("── Kỳ 2026.09.24 bản GỘP Singapore (Sỹ Anh chốt dùng bản này 30/09) ──");
+    // Hình dạng file thật: COD chỉ đơn Đài, sheet phí có cả đơn Sing (cột 目的国家
+    // = 新加坡, kênh 'S新加坡CODJT专线'), TỔNG có HAI dòng tiền hàng Đài + Sing.
+    async function fileGop() {
+        const wb = new ExcelJS.Workbook();
+        const s = wb.addWorksheet("汇总 TỔNG");
+        [["NAZA供应链"],
+            ["本期回款金额", "Tổng cod thu về ", 10000],
+            ["汇率", "Tỷ giá", 0.2],
+            ["台币折人民币", "Quy đổi", 2000],
+            ["速递运费  RMB", "Phí vận chuyển (RMB)", -106],     // Đài 30 + Sing 2×38
+            ["本期应退金额RMB", "COD cần hoàn trả (RMB )", 1894],
+            ["汇率", "Tỷ giá", 3860],
+            ["台湾本期采购费 VND", "Phí mua hàng TAIWAN (VND)", 624232],
+            ["新加坡本期采购费 VND", "Phí mua hàng Singapore  (VND)", 1840046],
+            ["本期应退金额 VND ", "COD cần hoàn trả kỳ này (VND)", 1894 * 3860 - 624232 - 1840046],
+        ].forEach((r) => s.addRow(r));
+        const c = wb.addWorksheet("COD 对账 Đối soát COD ");
+        c.addRow(["收货日期 Ngày xuất kho ", "原单号 Mã đơn hệ thống ", "客户的订单号", "转单号 Mã vận đơn ", "产品名称", "国家名称", "COD金额"]);
+        c.addRow(["2026-09-16 17:06:53", "T1-Z", "T1-Z", "18050703", "STWCOD专线-711(转寄)", "中国台湾", 10000]);
+        const f = wb.addWorksheet("速递运费 PHÍ VẬN CHUYỂN( RMB)");
+        f.addRow(["序号", "出货日期", "原单号 Mã đơn hệ thống ", "客户单号", "转单号 Mã tracking ", "运输方式 Phương thức vận chuyển ",
+            "目的国家 Quốc gia ", "货物类型", "件数", "实重", "材积重", "中文品名", "计费重 Trọng lượng tính phí ",
+            "速递运费 phí vận chuyển nội địa Singapore ", "头程运费 Phí vận chuyển chặng đầu ", "打包费 phí thao tác ", "总金额 Tổng "]);
+        f.addRow([1, "2026-09-18 17:29:58", "T1-Z", "T1-Z", "18050703", "STWCOD专线-711(转寄)", "中国台湾", "包裹", 1, 0.2, 0.2, "手链;", 0.2, 27, null, 3, 30]);
+        f.addRow([2, "2026-09-18 13:53:38", "20260915-1-950", "S1001", "JT20262609619441", "S新加坡CODJT专线", "新加坡", "包裹", 1, 0.056, 0.165, "手链;", 0.2, 28, 7, 3, 38]);
+        f.addRow([3, "2026-09-18 13:53:37", "20260915-2-2089", "S1004", "JT20262609619440", "S新加坡CODJT专线", "新加坡", "包裹", 1, 0.057, 0.165, "手链;", 0.2, 28, 7, 3, 38]);
+        return N.parseNazaStatement(Buffer.from(await wb.xlsx.writeBuffer()), "ĐỐI SOÁT COD 2026.09.24 (1).xlsx");
+    }
+    await t("hai dòng tiền hàng: Đài vào purchase_vnd (đem so file tiền hàng Đài), Sing tách riêng", async () => {
+        const st = await fileGop();
+        assert.strictEqual(st.summary.purchase_vnd, 624232, "không lẫn tiền hàng Sing");
+        assert.strictEqual(st.summary.purchase_sg_vnd, 1840046, "bộ đọc cũ bỏ sót dòng này");
+    });
+    await t("phần Sing: 2 đơn · 76¥ · tổng = phí quy VND + tiền hàng", async () => {
+        const st = await fileGop();
+        assert.strictEqual(st.market, "TW", "có COD Đài → file Đài (gộp Sing)");
+        assert.deepStrictEqual(st.fee_lines.map((l) => l.market), ["TW", "SG", "SG"]);
+        assert.strictEqual(st.sg_gop.don, 2);
+        assert.strictEqual(st.sg_gop.phi_rmb, 76, "28 + 7 + 3 mỗi đơn");
+        assert.strictEqual(st.sg_gop.phi_vnd, 76 * 3860);
+        assert.strictEqual(st.sg_gop.tien_hang_vnd, 1840046);
+        assert.strictEqual(st.sg_gop.tong_vnd, 76 * 3860 + 1840046);
+    });
+    await t("luồng VND cộng trừ ra đúng phải nhận khi trừ CẢ HAI dòng tiền hàng", async () => {
+        const st = await fileGop();
+        const s = st.summary;
+        assert.ok(Math.abs(s.net_rmb * s.rate_rmb_vnd - s.purchase_vnd - s.purchase_sg_vnd - s.payable_vnd) < 1);
+        assert.strictEqual(st.checks.math_ok, true);
+        assert.strictEqual(st.checks.ship_fee_detail_total, 106, "chi tiết gồm cả đơn Sing, khớp dòng phí TỔNG");
+    });
+    await t("đơn Sing KHÔNG soát theo bảng giá Đài, không báo 'không nhận ra kênh'", async () => {
+        const st = await fileGop();
+        assert.strictEqual(st.fee_audit.checked, 1);
+        assert.strictEqual(st.fee_audit.unknown_channel, 0);
+        assert.strictEqual(st.fee_audit.wrong, 0);
+        assert.strictEqual(st.fee_audit.op_wrong.length, 0);
+    });
+    await t("kỳ thường (không gì của Sing): sg_gop null, purchase_vnd như cũ", async () => {
+        const st = await N.parseNazaStatement(Buffer.from(await (async () => {
+            const wb = new ExcelJS.Workbook();
+            const s = wb.addWorksheet("TỔNG");
+            [["本期回款金额", "", 1000], ["汇率", "", 0.2], ["速递运费", "", -30], ["操作费", "", -3],
+                ["本期应退金额RMB", "", 167], ["汇率", "", 3860], ["本期采购费VND", "", 5000], ["本期应退金额VND", "", 639620]]
+                .forEach((r) => s.addRow(r));
+            const c = wb.addWorksheet("COD");
+            c.addRow(["收货日期", "原单号", "转单号", "产品名称", "国家名称", "COD金额"]);
+            c.addRow(["2026-09-01", "T9", "18000001", "STWCOD专线-711", "中国台湾", 1000]);
+            return wb.xlsx.writeBuffer();
+        })()), "ĐỐI SOÁT COD 2026.9.11.xlsx");
+        assert.strictEqual(st.sg_gop, null);
+        assert.strictEqual(st.summary.purchase_vnd, 5000);
+        assert.strictEqual(st.summary.purchase_sg_vnd, null);
+        assert.strictEqual(st.market, "TW");
+    });
+    await t("câu cảnh báo kỳ gộp nói đủ phí, tiền hàng, tổng và phải nhận", async () => {
+        const st = await fileGop();
+        const c = N.canhBaoGopSing(st.sg_gop, st.summary.payable_vnd);
+        assert.ok(c.includes("2 đơn Sing 76¥"), c);
+        assert.ok(c.includes("1.840.046đ"), c);
+        assert.ok(c.includes("tách file Sing riêng"), c);
+    });
+
+    console.log("── Kỳ sau: file Sing RIÊNG không được vào sổ COD Đài ──");
+    // Cùng ngày với file Đài → luật "cùng ngày là cùng kỳ" sẽ cho nó đè mất kỳ Đài.
+    await t("nhận file Sing bằng nội dung hoặc tên file", () => {
+        assert.strictEqual(N.laFileSing("ĐỐI SOÁT COD 2026.10.01.xlsx", "SG"), true, "nội dung toàn đơn Sing");
+        assert.strictEqual(N.laFileSing("ĐỐI SOÁT COD SINGAPORE 2026.10.01.xlsx", "TW"), true);
+        assert.strictEqual(N.laFileSing("ĐỐI SOÁT COD SING 2026.10.01.xlsx", null), true);
+        assert.strictEqual(N.laFileSing("ĐỐI SOÁT COD SIG 1.10.2026.csv", null), true);
+        assert.strictEqual(N.laFileSing("SG_COD_2026.10.01.xlsx", null), true);
+    });
+    await t("file Đài và bản gộp 24/09 KHÔNG bị chặn", () => {
+        assert.strictEqual(N.laFileSing("ĐỐI SOÁT COD 2026.09.24 (1).xlsx", "TW"), false, "bản gộp");
+        assert.strictEqual(N.laFileSing("ĐỐI SOÁT COD TAIWAN 2026.10.01.xlsx", "TW"), false);
+        assert.strictEqual(N.laFileSing("ĐỐI SOÁT COD 18.09.2026.xlsx", "TW"), false);
+        assert.strictEqual(N.laFileSing("A.THÁI COD TAIWAN 2026-7-24.xlsx", "TW"), false, "chữ THÁI/SIGN không dính");
+    });
+    await t("file Sing riêng: không dòng COD Đài → market SG", async () => {
+        const wb = new ExcelJS.Workbook();
+        wb.addWorksheet("TỔNG").addRow(["本期回款金额", "", 50]);
+        const c = wb.addWorksheet("COD");
+        c.addRow(["收货日期", "原单号", "转单号", "产品名称", "国家名称", "COD金额"]);
+        c.addRow(["2026-09-30", "S1001", "JT2026", "S新加坡CODJT专线", "新加坡", 50]);
+        const st = await N.parseNazaStatement(Buffer.from(await wb.xlsx.writeBuffer()), "x.xlsx");
+        assert.strictEqual(st.market, "SG");
+    });
+
     console.log(`\n${pass} phép thử — tất cả đạt.`);
 })().catch((e) => { console.error("\n✗ HỎNG:", e.message); process.exit(1); });

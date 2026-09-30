@@ -7,7 +7,7 @@ import {
 } from "@/lib/talpha/order-ledger";
 import type { StatementRow } from "@/lib/talpha/cod-recon";
 import {
-    expectedShipFee, matchChannel, OP_FEE_PER_PARCEL, type NazaStatement,
+    canhBaoGopSing, expectedShipFee, matchChannel, OP_FEE_PER_PARCEL, type NazaStatement,
 } from "@/lib/talpha/naza-statement";
 import {
     docTienHang, ghepDotVaoKy, ngaySaoKe, type DotTienHang,
@@ -59,6 +59,7 @@ type Statement = {
         fee_lines: NazaStatement["fee_lines"];
         checks: NazaStatement["checks"];
         fee_audit: NazaStatement["fee_audit"];
+        sg_gop?: NazaStatement["sg_gop"];
     };
 };
 
@@ -79,10 +80,17 @@ type Statement = {
 //     HÀNG nếu hai bên lệch — "phải nhận" tính lại theo file;
 //   • kỳ NAZA không ghi (24/07 → 14/08) → Sỹ Anh tự chuyển khoản riêng, tiền hàng
 //     là khoản chi riêng, KHÔNG trừ vào tiền NAZA trả.
+//
+// Kỳ 24/09/2026 NAZA GỘP Singapore (Sỹ Anh chốt dùng bản gộp 30/09): phí ship đơn
+// Sing đã nằm trong dòng phí, còn tiền hàng Sing là một dòng riêng. Tiền hàng Sing
+// trừ trong luồng theo số NAZA — file tiền hàng Đài không có nó nên không đem so.
 // ═══════════════════════════════════════════════════════════════════
 type SummaryNaza = NazaStatement["summary"];
 
-function luongTien(sm: SummaryNaza | null, dot: DotTienHang | null, soDongSaoKe: number) {
+function luongTien(
+    sm: SummaryNaza | null, dot: DotTienHang | null, soDongSaoKe: number,
+    sg: NazaStatement["sg_gop"] | null = null,
+) {
     if (!sm) return null;
     const cod = sm.cod_twd ?? null;
     const tw = sm.rate_twd_rmb ?? null;
@@ -97,10 +105,13 @@ function luongTien(sm: SummaryNaza | null, dot: DotTienHang | null, soDongSaoKe:
     const cachTra: "naza_tru" | "tu_chuyen" = nazaTru != null ? "naza_tru" : "tu_chuyen";
     // Số tiền hàng đem trừ trong luồng: kỳ NAZA trừ thì theo FILE (không có file
     // thì đành theo NAZA); kỳ tự chuyển khoản thì luồng NAZA không trừ gì.
-    const tienHangTrongLuong = cachTra === "naza_tru" ? (dot ? dot.tong_vnd : nazaTru!) : 0;
+    const tienHangDai = cachTra === "naza_tru" ? (dot ? dot.tong_vnd : nazaTru!) : 0;
+    const tienHangSing = sg?.tien_hang_vnd ?? sm.purchase_sg_vnd ?? 0;
+    const tienHangTrongLuong = tienHangDai + tienHangSing;
     const phaiNhan = sm.payable_vnd == null ? null
         // Giữ nguyên phần điều chỉnh kỳ trước NAZA đã tính: payable = VND − tiền hàng NAZA ± chuyển kỳ.
-        : cachTra === "naza_tru" ? sm.payable_vnd + nazaTru! - tienHangTrongLuong
+        // Chỉ phần Đài được tính lại theo file; phần Sing đã nằm sẵn trong payable.
+        : cachTra === "naza_tru" ? sm.payable_vnd + nazaTru! - tienHangDai
         : sm.payable_vnd;
 
     let daTra: number | null = null, conNo: number | null = null;
@@ -123,12 +134,17 @@ function luongTien(sm: SummaryNaza | null, dot: DotTienHang | null, soDongSaoKe:
                 no_ky_truoc_vnd: dot.no_ky_truoc_vnd, da_ghi_thanh_toan: dot.da_ghi_thanh_toan,
                 dong: dot.dong,
             } : null,
+            /** Tổng tiền hàng trừ trong luồng = Đài (theo file) + Sing (theo NAZA, kỳ gộp). */
             trong_luong_vnd: tienHangTrongLuong,
+            dai_vnd: tienHangDai,
+            sing_vnd: tienHangSing || null,
             lech_naza_vnd: cachTra === "naza_tru" && dot ? nazaTru! - dot.tong_vnd : null,
             da_tra_vnd: daTra,
             con_no_vnd: conNo,
         },
         phai_nhan_vnd: phaiNhan,
+        /** Phần Singapore NAZA gộp vào kỳ (chỉ kỳ 24/09/2026); null ở mọi kỳ khác. */
+        sg_gop: sg ?? null,
     };
 }
 
@@ -258,7 +274,7 @@ export async function GET(req: NextRequest) {
                 total_twd: mine.reduce((a, r) => a + (r.paid_twd ?? 0), 0),
                 fee_rmb: mine.reduce((a, r) => a + (r.ship_fee_rmb ?? 0) + (r.op_fee_rmb ?? 0), 0),
                 ngay_sao_ke: ngaySaoKe(st.filename),
-                luong: luongTien(n?.summary ?? null, dotCuaKy.get(st.id) ?? null, st.rows.length),
+                luong: luongTien(n?.summary ?? null, dotCuaKy.get(st.id) ?? null, st.rows.length, n?.sg_gop ?? null),
                 // Bốn loại lệch
                 lech_tien: lech.map((r) => ({
                     order_no: r.order_no, tracking: r.tracking,
@@ -278,6 +294,7 @@ export async function GET(req: NextRequest) {
                     op_fee_rmb: n.summary.op_fee_rmb,
                     rate_rmb_vnd: n.summary.rate_rmb_vnd,
                     purchase_vnd: n.summary.purchase_vnd,
+                    purchase_sg_vnd: n.summary.purchase_sg_vnd ?? null,
                     payable_vnd: n.summary.payable_vnd,
                     math_ok: n.checks.math_ok,
                     math_note: n.checks.math_note,
@@ -471,9 +488,12 @@ export async function GET(req: NextRequest) {
                 ok: soDongPhi === 0 && phiTong > 0 ? false : (fa?.wrong ?? 0) === 0,
                 chi_tiet: soDongPhi === 0 && phiTong > 0
                     ? `Không có dòng phí nào để soát, trong khi NAZA trừ ${vnd(phiTong)}¥ — xem mục A, tải lại file sao kê kỳ này.`
-                    : (fa?.wrong ?? 0) === 0
+                    : ((fa?.wrong ?? 0) === 0
                         ? `${fa?.ok ?? 0}/${soDongPhi} dòng phí CỦA KỲ NÀY đúng bảng giá — 7-Eleven/FamilyMart 27¥ · HCT 32¥ · Yamato 38¥.`
-                        : `${fa!.wrong} dòng sai, chênh ${vnd(fa!.overcharge_rmb)} ¥.`,
+                        : `${fa!.wrong} dòng sai, chênh ${vnd(fa!.overcharge_rmb)} ¥.`)
+                      + (stMoi?.naza?.sg_gop?.don
+                        ? ` ${stMoi.naza.sg_gop.don} đơn Sing gộp kỳ này (${vnd(stMoi.naza.sg_gop.phi_rmb)}¥) không soát theo bảng giá Đài.`
+                        : ""),
             });
             // Tiền hàng — so số NAZA trừ với file tiền hàng của Sỹ Anh.
             {
@@ -502,7 +522,19 @@ export async function GET(req: NextRequest) {
                         `Đã trả ${vnd(th.da_tra_vnd ?? 0)}đ` + ((th.con_no_vnd ?? 0) > 0 ? `, còn nợ ${vnd(th.con_no_vnd!)}đ.` : ".");
                 }
                 if (f && f.no_ky_truoc_vnd > 0) chi += ` Đợt này gồm ${vnd(f.no_ky_truoc_vnd)}đ nợ kỳ trước.`;
+                if (th?.sing_vnd) {
+                    chi += ` Ngoài ra NAZA trừ thêm ${vnd(th.sing_vnd)}đ tiền hàng Sing (kỳ gộp) — ` +
+                        "file tiền hàng Đài không có khoản này nên không đem so.";
+                }
                 checks.push({ nhom: "B", ten: "Tiền hàng khớp file tiền hàng", ok, chi_tiet: chi });
+            }
+            // Kỳ NAZA gộp Singapore vào sao kê Đài — tin để biết, không phải lỗi (dấu "i").
+            const sgMoi = stMoi?.naza?.sg_gop;
+            if (sgMoi) {
+                checks.push({
+                    nhom: "A", ten: "Kỳ gộp Singapore", ok: null,
+                    chi_tiet: canhBaoGopSing(sgMoi, stMoi?.naza?.summary?.payable_vnd ?? null),
+                });
             }
             const ow = fa?.op_wrong || [];
             checks.push({
