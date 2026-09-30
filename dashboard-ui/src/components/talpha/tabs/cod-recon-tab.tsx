@@ -63,12 +63,18 @@ type Luong = {
         cach_tra: "naza_tru" | "tu_chuyen";
         naza_tru_vnd: number | null;
         file: { ngay: string; tong_vnd: number; moi_vnd: number; no_ky_truoc_vnd: number; da_ghi_thanh_toan: boolean; dong: number } | null;
+        /** Tổng tiền hàng trừ trong luồng = Đài (theo file) + Sing (kỳ gộp, theo NAZA). */
         trong_luong_vnd: number;
+        dai_vnd?: number;
+        /** Tiền hàng Sing NAZA trừ vào COD Đài — chỉ kỳ gộp 24/09/2026. */
+        sing_vnd?: number | null;
         lech_naza_vnd: number | null;
         da_tra_vnd: number | null;
         con_no_vnd: number | null;
     };
     phai_nhan_vnd: number | null;
+    /** Phần Singapore NAZA gộp vào kỳ (chỉ kỳ 24/09/2026). */
+    sg_gop?: { don: number; phi_rmb: number; phi_vnd: number | null; tien_hang_vnd: number | null; tong_vnd: number | null } | null;
 };
 type UocTinh = { so_don: number; cod_twd: number; don_chua_tru_phi: number; phi_uoc_rmb: number; vnd_uoc: number | null };
 type TienVe = {
@@ -668,7 +674,17 @@ function CodDaiLoan({ dateRange }: Props) {
                                                 {TWD(p.luong?.cod_twd ?? p.total_twd)}
                                             </td>
                                             <td className="px-3 py-3 text-right">
-                                                {th?.file ? (
+                                                {th?.sing_vnd ? (
+                                                    // Kỳ gộp Sing: tiền hàng NAZA trừ gồm cả Đài lẫn Sing.
+                                                    <>
+                                                        <div className="font-semibold tabular-nums text-orange-600 dark:text-orange-400">
+                                                            {VND(th.trong_luong_vnd)}
+                                                        </div>
+                                                        <div className="text-[11.5px] text-muted-foreground">
+                                                            Đài {VND(th.dai_vnd ?? 0)} · Sing {VND(th.sing_vnd)}
+                                                        </div>
+                                                    </>
+                                                ) : th?.file ? (
                                                     <>
                                                         <div className="font-semibold tabular-nums text-orange-600 dark:text-orange-400">
                                                             {VND(th.file.tong_vnd)}
@@ -771,11 +787,15 @@ function CodDaiLoan({ dateRange }: Props) {
                                     <Kpi label="Tiền COD" value={l.cod_twd != null ? TWD(l.cod_twd) : "—"}
                                         sub="NAZA thu trong kỳ" tone="twd" />
                                     <Kpi label="Phí NAZA trừ" value={RMB2(l.phi_thao_tac_rmb + l.phi_ship_rmb)}
-                                        sub={l.phi_gop ? "ship + thao tác (gộp)" : `thao tác ${RMB2(l.phi_thao_tac_rmb)} · ship ${RMB2(l.phi_ship_rmb)}`}
+                                        sub={l.sg_gop?.don
+                                            ? `gồm ${l.sg_gop.don} đơn Sing ${RMB2(l.sg_gop.phi_rmb)}`
+                                            : l.phi_gop ? "ship + thao tác (gộp)" : `thao tác ${RMB2(l.phi_thao_tac_rmb)} · ship ${RMB2(l.phi_ship_rmb)}`}
                                         tone="rmb" />
                                     <Kpi label="Tiền hàng"
-                                        value={th.file ? VND(th.file.tong_vnd) : th.naza_tru_vnd != null ? VND(th.naza_tru_vnd) : "—"}
-                                        sub={th.cach_tra === "naza_tru" ? "NAZA trừ vào COD"
+                                        value={th.sing_vnd ? VND(th.trong_luong_vnd)
+                                            : th.file ? VND(th.file.tong_vnd) : th.naza_tru_vnd != null ? VND(th.naza_tru_vnd) : "—"}
+                                        sub={th.sing_vnd ? `Đài ${VND(th.dai_vnd ?? 0)} · Sing ${VND(th.sing_vnd)}`
+                                            : th.cach_tra === "naza_tru" ? "NAZA trừ vào COD"
                                             : (th.con_no_vnd ?? 0) > 0 ? `tự chuyển · còn nợ ${VND(th.con_no_vnd!)}` : "tự chuyển khoản riêng"}
                                         tone={(th.con_no_vnd ?? 0) > 0 ? "red" : "hang"} />
                                     {am
@@ -1190,8 +1210,12 @@ function MuiTen({ chu }: { chu: string }) {
 function LuongTien({ l }: { l: Luong }) {
     const th = l.tien_hang;
     const khongQuyDoi = l.vnd == null && (l.rmb_rong ?? 0) < 0;
+    // Kỳ gộp Sing (24/09/2026): tiền hàng Sing là một dòng riêng, trừ theo số NAZA —
+    // file tiền hàng Đài không có khoản này. Trong trong_luong_vnd đã gồm nó.
+    const sing = th.sing_vnd ?? 0;
+    const daiTrongLuong = th.dai_vnd ?? (th.trong_luong_vnd - sing);
     const chenhChuyenKy = l.vnd != null && l.phai_nhan_vnd != null
-        ? l.phai_nhan_vnd - (l.vnd - (th.cach_tra === "naza_tru" ? th.trong_luong_vnd : 0)) : 0;
+        ? l.phai_nhan_vnd - (l.vnd - (th.cach_tra === "naza_tru" ? th.trong_luong_vnd : sing)) : 0;
     const dot = th.file ? `${th.file.ngay.slice(8, 10)}/${th.file.ngay.slice(5, 7)}` : "";
     return (
         <div className="px-5 py-4">
@@ -1208,7 +1232,8 @@ function LuongTien({ l }: { l: Luong }) {
                 <ChangTien te="rmb" ten="Trung Quốc" mo="NAZA trừ phí">
                     <DongTien nhan="Quy ra nhân dân tệ" so={l.rmb != null ? RMB2(l.rmb) : "—"} />
                     <DongTien nhan="− Phí thao tác" so={l.phi_gop ? "(gộp vào phí ship)" : RMB2(-l.phi_thao_tac_rmb)} tru={!l.phi_gop} />
-                    <DongTien nhan="− Phí vận chuyển" so={RMB2(-l.phi_ship_rmb)} tru />
+                    <DongTien nhan="− Phí vận chuyển" so={RMB2(-l.phi_ship_rmb)} tru
+                        ghi={l.sg_gop?.don ? `gồm ${l.sg_gop.don} đơn Sing ${RMB2(l.sg_gop.phi_rmb)} (kỳ gộp)` : undefined} />
                     <DongTien nhan="= COD còn lại" so={l.rmb_rong != null ? RMB2(l.rmb_rong) : "—"} tong
                         mau={(l.rmb_rong ?? 0) < 0 ? "text-rose-600 dark:text-rose-400" : CHANG.rmb.so} />
                 </ChangTien>
@@ -1217,13 +1242,17 @@ function LuongTien({ l }: { l: Luong }) {
                     <DongTien nhan="Quy ra tiền Việt" so={khongQuyDoi ? "không quy đổi" : l.vnd != null ? VND(l.vnd) : "—"}
                         ghi={khongQuyDoi ? "số âm — NAZA mang sang trừ kỳ sau" : undefined} />
                     {th.cach_tra === "naza_tru" ? (
-                        <DongTien nhan="− Phí mua hàng" so={VND(-th.trong_luong_vnd)} tru
+                        <DongTien nhan={sing ? "− Tiền hàng Đài" : "− Phí mua hàng"} so={VND(-daiTrongLuong)} tru
                             ghi={th.lech_naza_vnd && Math.abs(th.lech_naza_vnd) >= 1
                                 ? `theo file tiền hàng · NAZA ghi ${VND(th.naza_tru_vnd!)}`
                                 : th.file ? `đợt ${dot}` : "theo sao kê NAZA"} />
                     ) : (
                         <DongTien nhan="− Phí mua hàng" so="không trừ"
                             ghi={th.file ? `tự chuyển khoản riêng ${VND(th.file.tong_vnd)}` : "kỳ này NAZA không trừ"} />
+                    )}
+                    {sing > 0 && (
+                        <DongTien nhan="− Tiền hàng Sing" so={VND(-sing)} tru
+                            ghi="kỳ gộp Singapore · theo sao kê NAZA" />
                     )}
                     {Math.abs(chenhChuyenKy) >= 1 && (
                         <DongTien nhan="± Điều chỉnh kỳ trước" so={VND(chenhChuyenKy)} tru={chenhChuyenKy < 0}
