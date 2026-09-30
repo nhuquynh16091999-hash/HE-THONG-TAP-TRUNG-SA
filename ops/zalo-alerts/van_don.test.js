@@ -64,12 +64,13 @@ const sang = (d, o = {}) => buildVanDonSang(d, { today: TODAY, nowTs: NOW, phuTr
         assert.ok(m.includes("☎️ @Thương · GỌI 2 KHÁCH SẮP BỊ TRẢ VỀ"), m);
         // Mã lấy hàng = mã TRACKING (73N bỏ đi), không phải mã cửa hàng 211114.
         assert.ok(m.includes("1. T1577 · 1.399 NT$ · HẾT HẠN HÔM NAY\n👤 Ana · 0912345359\n🏪 觀月 · mã lấy hàng 18024614\n"
-            + "💬 【最後通知】Ana 您好，您的包裹在 觀月（取貨編號 18024614），取貨時請準備 NT$1,399。"
-            + "今天是最後取件日，今天沒取件包裹將直接退回、訂單取消！請務必今天前往門市取貨，謝謝！"), m);
+            + "💬 Ana 您好～提醒您，您的包裹在 觀月（取貨編號 18024614），取貨時請準備 NT$1,399。"
+            + "今天是最後取件日，麻煩您今天抽空到門市領取喔，逾期包裹會被退回。謝謝您！"), m);
         assert.ok(!m.includes("211114"), "mã cửa hàng không được ghi là mã lấy hàng");
         assert.ok(m.includes("2. CON2 · 1.499 NT$ · còn 2 ngày"), "hạn THẬT vẫn báo cho Thương ở dòng đầu");
         assert.ok(!m.includes("天內領取"), "tin gửi khách KHÔNG ghi còn mấy ngày");
-        assert.ok(m.includes("【緊急取貨通知】Ghen 您好") && m.includes("請今天就前往門市取貨"), "còn ngày vẫn giục lấy hôm nay");
+        assert.ok(m.includes("Ghen 您好～您的包裹已送達") && m.includes("方便的話請儘早到門市領取喔"), "còn ngày: nhắc nhẹ lấy sớm");
+        assert.ok(!/緊急|訂單取消|務必/.test(m), "không giục gắt (Sỹ Anh chốt giọng nhẹ nhàng)");
         assert.deepStrictEqual(r.goi, ["K0", "K2"], "bot lưu đúng khoá, đúng thứ tự gọi");
     });
 
@@ -88,7 +89,7 @@ const sang = (d, o = {}) => buildVanDonSang(d, { today: TODAY, nowTs: NOW, phuTr
         const m = tron(r.text);
         assert.ok(m.includes("📬 @Thương · NHẮN 1 KHÁCH HÀNG MỚI TỚI"), m);
         assert.ok(m.includes("T1701 · 999 NT$ · còn 6 ngày\n👤 Maria · 0905123118 · 🏪 全家台南金華店 · mã lấy hàng 18024614\n"
-            + "💬 【緊急取貨通知】Maria 您好，您的包裹已送達 全家台南金華店（取貨編號 18024614），取貨時請準備 NT$999。"), m);
+            + "💬 Maria 您好～您的包裹已送達 全家台南金華店（取貨編號 18024614），取貨時請準備 NT$999。"), m);
         assert.ok(!m.includes("CU ·"), "hàng tới từ 22/09 đã nhắn rồi, không nhắn lại");
         assert.deepStrictEqual(r.moiToi, ["M1"]);
     });
@@ -258,10 +259,10 @@ const sang = (d, o = {}) => buildVanDonSang(d, { today: TODAY, nowTs: NOW, phuTr
         assert.strictEqual(maLayHang({ tracking: "18050703" }), "18050703", "kho cũ chưa có track17_code");
     });
 
-    await t("tin khách: không có hạn vẫn giục hôm nay; không có tiền thì bỏ vế mang tiền", () => {
+    await t("tin khách: không có hạn vẫn nhắc lấy sớm; không có tiền thì bỏ vế mang tiền", () => {
         const tin = tinKhachDai(don({ customer: "Emelita", store_name: "靜安", store_code: "265155", tracking: "18050703", track17_code: "73N18050703", cod_local: 0 }), null);
-        assert.strictEqual(tin, "【緊急取貨通知】Emelita 您好，您的包裹已送達 靜安（取貨編號 18050703）。"
-            + "包裹保管期即將到期，請今天就前往門市取貨，逾期將退回、訂單取消。謝謝！");
+        assert.strictEqual(tin, "Emelita 您好～您的包裹已送達 靜安（取貨編號 18050703）。"
+            + "方便的話請儘早到門市領取喔，以免超過保管期被退回。謝謝您！");
         assert.strictEqual(tinKhachDai(don({ store_name: "" }), 3), null, "thiếu cửa hàng thì không soạn");
     });
 

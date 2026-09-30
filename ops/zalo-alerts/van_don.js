@@ -121,12 +121,12 @@ const maDon = (s) => { const x = String((s || {}).order_id || (s || {}).tracking
 const maLayHang = (s) => String(s.pickup_code || s.track17_code || s.tracking || "").trim().replace(/^73N/i, "");
 
 /**
- * Tin báo khách Đài ra lấy hàng — LUÔN GIỤC LẤY HÔM NAY (Sỹ Anh chốt 30/09/2026).
+ * Tin báo khách Đài ra lấy hàng — NHẸ NHÀNG, nhắc lấy SỚM (Sỹ Anh chốt 30/09/2026).
  *
- * Bản cũ ghi đúng hạn thật "請於 5 天內領取": khách thấy còn năm ngày thì thong thả, rồi
- * quên, rồi hàng bị trả về — mất cả tiền ship hai chiều lẫn đơn. Nên tin không nói còn
- * bao nhiêu ngày: hàng đã tới là giục đi lấy ngay hôm nay, kèm số tiền cần mang để khách
- * khỏi lấy cớ "để hôm khác có tiền". Ngày cuối thật thì nói thẳng là thông báo cuối.
+ * Bản đầu ghi đúng hạn thật "請於 5 天內領取": khách thấy còn năm ngày thì thong thả rồi
+ * quên, hàng bị trả về. Nên tin KHÔNG nói còn bao nhiêu ngày, chỉ nhờ khách ghé lấy sớm,
+ * kèm số tiền cần mang. Bản giục gắt (【緊急取貨通知】…訂單取消！) Sỹ Anh thấy nặng quá,
+ * đổi lại giọng nhờ vả. Ngày cuối thật thì nhắc nhẹ là hôm nay là ngày cuối.
  * Hạn thật vẫn hiện cho Thương ở dòng đầu khối (HẾT HẠN HÔM NAY / còn N ngày).
  */
 function tinKhachDai(s, conLai) {
@@ -137,9 +137,9 @@ function tinKhachDai(s, conLai) {
     const tien = Number(s.cod_local) > 0
         ? `，取貨時請準備 NT$${Math.round(Number(s.cod_local)).toLocaleString("en-US")}` : "";
     if (conLai != null && conLai <= 0) {
-        return `【最後通知】${ten} 您好，您的包裹在 ${cho}${tien}。今天是最後取件日，今天沒取件包裹將直接退回、訂單取消！請務必今天前往門市取貨，謝謝！`;
+        return `${ten} 您好～提醒您，您的包裹在 ${cho}${tien}。今天是最後取件日，麻煩您今天抽空到門市領取喔，逾期包裹會被退回。謝謝您！`;
     }
-    return `【緊急取貨通知】${ten} 您好，您的包裹已送達 ${cho}${tien}。包裹保管期即將到期，請今天就前往門市取貨，逾期將退回、訂單取消。謝謝！`;
+    return `${ten} 您好～您的包裹已送達 ${cho}${tien}。方便的話請儘早到門市領取喔，以免超過保管期被退回。謝謝您！`;
 }
 // Singapore giao tận nhà (J&T): việc là hẹn lại giờ giao.
 function tinKhachSing(s) {

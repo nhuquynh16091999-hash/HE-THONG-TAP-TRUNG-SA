@@ -44,8 +44,8 @@ const maLayHang = (s: Shipment) =>
  * chứ KHÔNG soạn tin cụt, vì tin thiếu chỗ lấy hàng thì khách đọc xong vẫn
  * không biết đi đâu.
  *
- * LUÔN GIỤC LẤY HÔM NAY (Sỹ Anh chốt 30/09/2026): ghi đúng "còn 5 ngày" thì khách
- * thong thả rồi quên, hàng bị trả về. Hạn thật chỉ hiện cho sale ở nhãn bên trên.
+ * Không ghi "còn 5 ngày" (khách thong thả rồi quên), chỉ nhờ khách ghé lấy sớm — giọng
+ * nhẹ nhàng, không giục gắt (Sỹ Anh chốt 30/09/2026). Hạn thật chỉ hiện cho sale ở nhãn bên trên.
  */
 function soanTin(s: Shipment, conLai: number | null): string | null {
     if (!s.store_name) return null;
@@ -54,9 +54,9 @@ function soanTin(s: Shipment, conLai: number | null): string | null {
     const cho = `${s.store_name}${ma ? `（取貨編號 ${ma}）` : ""}`;
     const tien = s.cod_local > 0 ? `，取貨時請準備 NT$${Math.round(s.cod_local).toLocaleString("en-US")}` : "";
     if (conLai != null && conLai <= 0) {
-        return `【最後通知】${ten} 您好，您的包裹在 ${cho}${tien}。今天是最後取件日，今天沒取件包裹將直接退回、訂單取消！請務必今天前往門市取貨，謝謝！`;
+        return `${ten} 您好～提醒您，您的包裹在 ${cho}${tien}。今天是最後取件日，麻煩您今天抽空到門市領取喔，逾期包裹會被退回。謝謝您！`;
     }
-    return `【緊急取貨通知】${ten} 您好，您的包裹已送達 ${cho}${tien}。包裹保管期即將到期，請今天就前往門市取貨，逾期將退回、訂單取消。謝謝！`;
+    return `${ten} 您好～您的包裹已送達 ${cho}${tien}。方便的話請儘早到門市領取喔，以免超過保管期被退回。謝謝您！`;
 }
 
 const STATUS_VI: Record<string, string> = {
