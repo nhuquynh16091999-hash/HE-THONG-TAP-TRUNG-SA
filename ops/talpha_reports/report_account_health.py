@@ -49,12 +49,15 @@ SELECT 'ads' AS kind,
        -- CAST bắt buộc: bảng thật đang là INTEGER (runtime ghi autodetect) trong khi
        -- ADS_SCHEMA của repo khai STRING — schema drift đã biết, đừng bỏ CAST.
        CAST(account_id AS STRING) AS entity_id,
-       account_name AS entity_name,
+       -- Gộp theo ID, tên lấy bản MỚI NHẤT. Gộp theo cả tên thì Meta đổi tên TK là một TK
+       -- tách làm hai dòng, dòng tên mới ít dòng → báo "drop" oan (30/09/2026: Sỹ Anh Taiwan 6
+       -- đổi thành ANTALO 4, 248 dòng cũ vẫn nguyên mà bị báo tụt còn 6).
+       ARRAY_AGG(account_name ORDER BY date DESC LIMIT 1)[OFFSET(0)] AS entity_name,
        COUNT(*)     AS rows_total,
        COUNTIF(date >= DATE_SUB(CURRENT_DATE(), INTERVAL 1 DAY)) AS rows_recent,
        ROUND(SUM(spend)) AS metric
 FROM `{p}.{d}.fb_ads_data`
-GROUP BY 1, 2, 3
+GROUP BY 1
 UNION ALL
 SELECT 'orders',
        shop_label,
