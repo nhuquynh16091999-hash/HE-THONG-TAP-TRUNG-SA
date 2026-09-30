@@ -39,14 +39,16 @@ async function accountHealth() {
 }
 
 // Tên TKQC / shop đọc lỗi trong vòng chạy — daily_guarded.sh đặt đầu `detail` theo nhãn
-// "TKQC_LOI=a; b || SHOP_LOI=… || MAT_QUYEN=…". Không có nhãn = vòng đó không mục nào lỗi.
+// "TKQC_LOI=a; b || SHOP_LOI=… || MAT_QUYEN=… || TKQC_BO_QUA=…". Không có nhãn = vòng đó
+// không mục nào lỗi. bo_qua (30/09/2026): TK mất quyền mà 7 ngày không chi — sync bỏ qua, vòng
+// vẫn OK và vẫn ghi Sheet; chỉ trả tên ra để bot nhắc người cấp lại quyền / gỡ TK.
 function docLoiFetch(detail: unknown) {
     const s = String(detail || "");
     const lay = (nhan: string) => {
         const m = new RegExp(`${nhan}=([^|]*)`).exec(s);
         return m ? m[1].split(";").map((x) => x.trim()).filter(Boolean) : [];
     };
-    return { tkqc: lay("TKQC_LOI"), shops: lay("SHOP_LOI"), mat_quyen: lay("MAT_QUYEN") };
+    return { tkqc: lay("TKQC_LOI"), shops: lay("SHOP_LOI"), mat_quyen: lay("MAT_QUYEN"), bo_qua: lay("TKQC_BO_QUA") };
 }
 
 // Trạng thái chuỗi sync Sheet (Mac, launchd mỗi giờ). Bot WhatsApp poll route này

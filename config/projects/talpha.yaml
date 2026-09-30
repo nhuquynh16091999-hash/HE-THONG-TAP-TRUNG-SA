@@ -26,6 +26,10 @@ meta_ads:
   # Thêm tài khoản mới: khai đủ ở CẢ BA mục dưới, thiếu một chỗ là spend bị đếm
   # thiếu mà không có cảnh báo nào.
   #
+  # TỪ 30/09/2026: TK mất quyền (#200 has NOT grant) mà 7 ngày không tiêu đồng nào thì sync
+  # TỰ BỎ QUA — vòng vẫn OK, vẫn ghi Sheet, bot Zalo nhắc tên TK (sync/core/tk_loi.py). TK ĐANG
+  # tiêu tiền mà mất quyền thì vẫn chặn vòng ghi như luật 03/09 → cấp lại quyền hoặc bỏ id dưới đây.
+  #
   # ĐỔI TOKEN 29/09/2026 — Sỹ Anh đá 5 tài khoản khỏi BM rồi cấp token mới (System User
   # "Dashboard", app "Dashboard Sỹ Anh Ngoài", không hết hạn). Từ 09:23 sáng đó cả 5 báo
   # `#200 has NOT grant ads_read`, mỗi vòng sync rc=1 → Sheet đứng ở số 09:23.

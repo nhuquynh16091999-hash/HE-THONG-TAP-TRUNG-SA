@@ -113,6 +113,16 @@ Cách chạy:
    22:00" vào sáng hôm sau là tin rác. Quá hạn mà số vẫn chưa đủ → bỏ chờ, có log.
 5. Giờ im (23h–7h) thì đợi, không đánh thức nhóm giữa đêm.
 
+**TKQC mất quyền nhưng không tiêu tiền (30/09/2026).** Sync bỏ qua TK mất quyền mà 7 ngày
+không chi đồng nào (`sync/core/tk_loi.py`), vòng vẫn OK nên tin KHÔNG mang "SỐ CHƯA ĐỦ" — chỉ
+thêm dòng `ℹ️ TKQC mất quyền đọc, đã bỏ qua…` nêu tên để người ta cấp lại quyền hoặc gỡ TK.
+Tên lấy từ `/api/talpha/sync-health → fetch_errors.bo_qua` (nhãn `TKQC_BO_QUA` trong
+`daily_guarded.sh`).
+
+**Sheet chưa có số hôm nay.** Sheet tạo sẵn dòng cho mọi ngày, nên vòng ghi chưa chạy được
+lần nào từ 00:00 thì dòng hôm nay toàn 0. Tin giữa ngày khi đó KHÔNG in "Ads 0đ · 0 đơn" mà ghi
+`💰 Sheet chưa có số hôm nay` kèm tiền ads Meta trực tiếp; vẫn xếp lịch đính chính như thường.
+
 `node bot.js --report <ngày>` cũng xếp lịch đính chính (gửi lại tay lúc sync đang đứng là
 đúng ca cần); lệnh `/baocao` gõ trong nhóm thì **không** — đó là người ta hỏi số lúc này,
 gõ 10 lần mà 10 tin đính chính là loạn nhóm.

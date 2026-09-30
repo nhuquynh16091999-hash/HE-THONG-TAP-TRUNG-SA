@@ -35,6 +35,7 @@ from sync.core.bq_writer import (
 from sync.core.pos_client import PoscakeClient, PosFetchError
 from sync.core.partner_sheet import chuan_dong, doc_sheet
 from sync.core.meta_client import MetaAdsClient, TALPHA_AD_ACCOUNTS, MetaFetchError
+from sync.core.tk_loi import BO_QUA_NGAY, tach_tk_loi
 from sync.config_loader import get_active_accounts
 
 # ── Config ───────────────────────────────────────────────────────
@@ -484,6 +485,7 @@ def sync_fb_ads(days_back: int = 1, since: str = None, until: str = None) -> tup
     for acct in AD_ACCOUNTS:
         log.info(f"  {acct['name']} ({acct['id']})...")
         rows = None
+        mat_quyen = False
         # Retry cả account (ngoài retry trong _request) — account lớn hay timeout/limit.
         for attempt in range(3):
             try:
@@ -500,11 +502,14 @@ def sync_fb_ads(days_back: int = 1, since: str = None, until: str = None) -> tup
                 # để rồi vẫn ghi 0 dòng. Chỉ thử lại lỗi tạm thời (mạng, rate limit).
                 if _is_permanent_meta_error(e):
                     log.error(f"    ⚠️ {acct['name']}: lỗi phân quyền — bỏ qua, không thử lại.")
+                    # Chỉ "chưa cấp quyền" mới tính là MẤT QUYỀN để xét bỏ qua (tach_tk_loi).
+                    # Token hết hạn / sai cũng là lỗi vĩnh viễn nhưng hỏng MỌI TK — không bỏ qua.
+                    mat_quyen = "has not grant" in str(e).lower()
                     break
                 if attempt < 2:
                     time.sleep(30)
         if rows is None:
-            failed.append(acct['name'])
+            failed.append({'name': acct['name'], 'id': acct['id'], 'mat_quyen': mat_quyen})
             log.error(f"    ⚠️ {acct['name']}: fetch THẤT BẠI hẳn — KHÔNG nạp 0 đè, sẽ hủy load.")
             continue
         for r in rows:
@@ -537,11 +542,45 @@ def sync_fb_ads(days_back: int = 1, since: str = None, until: str = None) -> tup
         n_ads = n_adsets = 0
 
     if failed:
-        raise RuntimeError(
-            f"Đã ghi {n_ads} dòng ads nhưng {len(failed)} account fetch thất bại {failed} "
-            f"— spend account đó đang giữ bản cũ. Chạy lại khi Meta ổn."
-        )
+        # 30/09/2026: TK mất quyền mà BO_QUA_NGAY ngày không tiêu đồng nào thì chỉ cảnh báo,
+        # không chặn vòng ghi Sheet (xem sync/core/tk_loi.py). Dòng "TKQC BỎ QUA …" dưới đây
+        # được daily_guarded.sh bóc thành nhãn TKQC_BO_QUA để bot Zalo báo tên — đừng đổi chữ.
+        bo_qua, chan = tach_tk_loi(failed, _chi_gan_day([f['id'] for f in failed]))
+        if bo_qua:
+            log.warning(
+                f"  TKQC BỎ QUA (mất quyền, {BO_QUA_NGAY} ngày không chi): {[f['name'] for f in bo_qua]} "
+                f"— vẫn ghi số; cấp lại quyền trong Business Manager hoặc gỡ TK khỏi config/projects/talpha.yaml."
+            )
+        if chan:
+            raise RuntimeError(
+                f"Đã ghi {n_ads} dòng ads nhưng {len(chan)} account fetch thất bại {[f['name'] for f in chan]} "
+                f"— spend account đó đang giữ bản cũ. Chạy lại khi Meta ổn."
+            )
     return n_ads, n_adsets
+
+
+def _chi_gan_day(ids):
+    """{account_id không 'act_': tổng spend BO_QUA_NGAY ngày gần nhất} của các TK lỗi.
+
+    Đọc SAU khi đã ghi bảng — dòng của TK lỗi là bản cũ, đúng cái cần hỏi: "gần đây nó có
+    tiêu tiền không". Tra hỏng thì None → tach_tk_loi CHẶN hết, như luật 03/09.
+    """
+    try:
+        rows = client.query(
+            f"""
+            SELECT CAST(account_id AS STRING) AS acc, SUM(spend) AS sp
+            FROM `{P}.{DS}.{_tbl('fb_ads_data')}`
+            WHERE CAST(date AS DATE) >= DATE_SUB(CURRENT_DATE('Asia/Ho_Chi_Minh'), INTERVAL {BO_QUA_NGAY} DAY)
+              AND CAST(account_id AS STRING) IN UNNEST(@ids)
+            GROUP BY 1""",
+            job_config=bigquery.QueryJobConfig(query_parameters=[
+                bigquery.ArrayQueryParameter("ids", "STRING", [str(i).replace('act_', '') for i in ids]),
+            ]),
+        ).result()
+        return {r.acc: float(r.sp or 0) for r in rows}
+    except Exception as e:
+        log.error(f"  Không tra được chi tiêu gần đây của TK lỗi ({e}) — coi như CHẶN cả vòng.")
+        return None
 
 
 # ═══════════════════════════════════════════════════════════════════

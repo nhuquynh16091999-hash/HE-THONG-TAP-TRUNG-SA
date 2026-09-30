@@ -73,6 +73,10 @@ m = re.search(r"ORDERS FAIL.*?(?:shop (\[.*?\]) fetch thất bại|mọi shop fe
 if m: out.append("SHOP_LOI=" + "; ".join(ast.literal_eval(m.group(1) or m.group(2))))
 q = sorted(set(re.findall(r"⚠️ (.+?): lỗi phân quyền", t)))
 if q: out.append("MAT_QUYEN=" + "; ".join(q))
+# 30/09/2026: TK mất quyền mà 7 ngày không chi → engine BỎ QUA (vòng vẫn OK, vẫn ghi Sheet)
+# nhưng in dòng "TKQC BỎ QUA (…): [tên]" — bóc ra để bot Zalo vẫn báo tên TK cần xử lý.
+m = re.search(r"TKQC BỎ QUA[^\[]*(\[.*?\])", t)
+if m: out.append("TKQC_BO_QUA=" + "; ".join(ast.literal_eval(m.group(1))))
 print(" || ".join(out))' 2>/dev/null)
 DETAIL=$( { [ -n "$LOI" ] && printf '%s || ' "$LOI"; tail -3 "$LOG" | tr '\n' ' '; } | head -c 900)
 $PY $DIR/report_health.py --ok $OK --sync-rc $SYNC_RC --format-rc $FMT_RC --detail "$DETAIL" >> "$LOG" 2>&1 || true

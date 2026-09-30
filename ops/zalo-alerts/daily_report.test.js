@@ -256,6 +256,43 @@ function fakeFetch({ sheet = SHEET, camps = CAMPS, realtimeStatus = 200, sheetSt
         assert.ok(!hoi.some((u) => u.includes("date=2026-09-14")));
     });
 
+    // 30/09/2026: Sheet tạo sẵn dòng mọi ngày → vòng ghi chưa chạy từ 00:00 thì dòng hôm nay toàn 0.
+    const SHEET_0 = { ...SHEET, date: "2026-09-30",
+        team: { ads: 0, mess: 0, don: 0, doanh_so: 0, ds_giao_tc: 0, ty_le_chot: 0, phan_tram_ads: 0 },
+        marketers: SHEET.marketers.map((r) => ({ ...r, ads: 0, mess: 0, don: 0, doanh_so: 0 })) };
+    const LUC_OK_HOM_QUA = Date.parse("2026-09-29T16:26:00+07:00");
+
+    await t("tin giữa ngày: Sheet chưa ghi được từ 00:00 thì nói 'chưa có số', không in 0đ", async () => {
+        const r = await buildMarketerReports(CFG, "2026-09-30", { fetch: fakeFetch({ sheet: SHEET_0 }), intraday: true,
+            stale: { okAge: 1238, limit: 120, lastOkTs: LUC_OK_HOM_QUA, loi: null } });
+        const g = tron(r.tinGop);
+        assert.ok(g.includes("💰 Sheet chưa có số hôm nay — vòng ghi Sheet chưa chạy được lần nào từ 00:00."), g);
+        assert.ok(!g.includes("Ads 0đ"), g);
+        assert.ok(g.includes("Ads theo Meta (trực tiếp): 1.690.000đ · 120 mess"), g);   // cộng đúng các camp ở phần chi tiết
+        assert.ok(!g.includes("🏆"), "không xếp hạng khi không có số");
+        assert.ok(g.includes("📋 CHI TIẾT CAMP HÔM NAY"), g);
+        assert.ok(g.includes("⚠️ SỐ CHƯA ĐỦ"), "vẫn cảnh báo số chưa đủ");
+        assert.strictEqual(r.chuaDu, true, "vẫn xếp lịch đính chính");
+    });
+
+    await t("tin giữa ngày: số 0 mà vòng ghi đã chạy sau 00:00 thì 0 là số thật, in như cũ", async () => {
+        const r = await buildMarketerReports(CFG, "2026-09-30", { fetch: fakeFetch({ sheet: SHEET_0 }), intraday: true,
+            stale: { okAge: 20, limit: 120, lastOkTs: Date.parse("2026-09-30T00:20:00+07:00"), loi: null } });
+        const g = tron(r.tinGop);
+        assert.ok(g.includes("💰 Ads 0đ"), g);
+        assert.ok(!g.includes("chưa có số"), g);
+    });
+
+    await t("TK mất quyền bị sync bỏ qua: nhắc tên, KHÔNG báo số chưa đủ", async () => {
+        const r = await buildMarketerReports(CFG, "2026-09-15", { fetch: fakeFetch(), intraday: true,
+            stale: { okAge: 10, limit: 120, lastOkTs: Date.now(), loi: { tkqc: [], shops: [], mat_quyen: ["K NEED khang ve 22"], bo_qua: ["K NEED khang ve 22"] } } });
+        const g = tron(r.tinGop);
+        assert.ok(g.startsWith("ℹ️ TKQC mất quyền đọc, đã bỏ qua vì 7 ngày không tiêu đồng nào: K NEED khang ve 22."), g);
+        assert.ok(!g.includes("SỐ CHƯA ĐỦ"), g);
+        assert.ok(g.includes("💰 Ads 3.000.000đ"), g);
+        assert.strictEqual(r.chuaDu, false);
+    });
+
     await t("realtime lỗi vẫn gửi đủ tin, chỉ thiếu phần campaign", async () => {
         const nhat = [];
         const r = await buildMarketerReports(CFG, "2026-09-14", { fetch: fakeFetch({ realtimeStatus: 502 }), log: (x) => nhat.push(x) });

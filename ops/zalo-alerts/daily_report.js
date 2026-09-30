@@ -113,6 +113,27 @@ function lyDoLoi(loi) {
     return cau.length ? `${I(cau.join(" "))}\n` : "";
 }
 
+// TK mất quyền mà 7 ngày không tiêu đồng nào: sync BỎ QUA nó, vẫn ghi Sheet (Sỹ Anh chốt
+// 30/09/2026, sync/core/tk_loi.py). Số vẫn đủ nên KHÔNG phải "SỐ CHƯA ĐỦ" — chỉ nhắc tên để
+// người ta cấp lại quyền hoặc gỡ TK. "7 ngày" = BO_QUA_NGAY bên Python, đổi thì sửa cả hai.
+function ghiChuBoQua(stale) {
+    const ten = stale && stale.loi && stale.loi.bo_qua;
+    if (!ten || !ten.length) return "";
+    return `ℹ️ ${I(`TKQC mất quyền đọc, đã bỏ qua vì 7 ngày không tiêu đồng nào: ${ten.join(", ")}. `
+        + "Số vẫn đủ — cấp lại quyền trong Business Manager hoặc gỡ TK khỏi danh sách sync.")}`;
+}
+
+// Sheet tạo sẵn dòng cho MỌI ngày trong tháng, nên vòng ghi chưa chạy được lần nào từ 00:00
+// thì dòng hôm nay toàn số 0. In "Ads 0đ · 0 đơn" là nói sai: 30/09/2026 tin 13:00 in đúng như
+// vậy trong khi Meta đã tiêu 1,3tr. Chỉ kết luận "chưa có số" khi BIẾT vòng ghi OK gần nhất
+// còn trước nửa đêm — không biết tuổi số thì in như cũ.
+const batDauNgay = (d) => Date.parse(`${d}T00:00:00+07:00`);
+function sheetChuaCoSoHomNay(T, opts, dateStr) {
+    if (!opts.intraday || !opts.stale || opts.stale.lastOkTs == null) return false;
+    if (["ads", "don", "mess", "doanh_so"].some((k) => Number(T[k] || 0) !== 0)) return false;
+    return opts.stale.lastOkTs < batDauNgay(dateStr);
+}
+
 function canhBaoSoCu(stale, dateStr, intraday) {
     if (!stale) return "";
     const lyDo = lyDoLoi(stale.loi);
@@ -274,9 +295,20 @@ function buildTinAds({ dateStr, sheet, sheetTruoc, camps, cfg, canhBaoCamp, opts
     const dong = [];
     const cb = canhBaoCuaTin(opts, dateStr);
     if (cb) dong.push(cb.replace(/\n+$/, ""), "");
+    const bq = ghiChuBoQua(opts.stale);
+    if (bq) dong.push(bq, "");
     dong.push(B(opts.tieuDe || `📊 ADS ${opts.label || ddmm(dateStr)}`));
     if (opts.nguon) dong.push(I(opts.nguon));
     dong.push("");
+    if (sheetChuaCoSoHomNay(T, opts, dateStr)) {
+        // Không có số Sheet → không in 0đ, không xếp hạng, không ▲▼. Tiền Meta trực tiếp thì có
+        // (cùng nguồn với phần chi tiết camp bên dưới) nên vẫn đưa ra cho người đọc biết đang tiêu.
+        dong.push(`💰 ${B("Sheet chưa có số hôm nay")} — vòng ghi Sheet chưa chạy được lần nào từ 00:00.`);
+        const tien = camps.reduce((s, c) => s + (c.spend_vnd || 0), 0);
+        const mess = camps.reduce((s, c) => s + (c.messages || 0), 0);
+        if (tien > 0) dong.push(`Ads theo Meta (trực tiếp): ${B(fmt(Math.round(tien)) + "đ")} · ${fmt(mess)} mess — từng camp ở dưới`);
+        return ghepChiTietCamp(dong, { camps, cfg, canhBaoCamp, opts });
+    }
     dong.push(`💰 Ads ${B(fmt(Math.round(T.ads)) + "đ")}${mt("ads", true)} · DS ${B(fmt(Math.round(T.doanh_so)) + "đ")}${mt("doanh_so", true)}`
         + ` · %ads ${B(T.doanh_so > 0 ? p1(T.phan_tram_ads) + "%" : "—")}`);
     dong.push(`🛒 ${fmt(T.don)} đơn${mt("don")} · ${fmt(T.mess)} mess${mt("mess")} · chốt ${p1(T.ty_le_chot)}%`);
@@ -302,8 +334,11 @@ function buildTinAds({ dateStr, sheet, sheetTruoc, camps, cfg, canhBaoCamp, opts
     const un = (sheet.marketers || []).find((r) => r.tab === KHONG_GAN);
     if (un && (un.doanh_so > 0 || un.don > 0)) dong.push(`📍 Chưa gán cho ai: ${gonTien(un.doanh_so)} · ${fmt(un.don)} đơn`);
     if (soSanh) dong.push(I(`▲▼ so với ${sheetTruoc.nhan || "cả ngày hôm qua"}`));
+    return ghepChiTietCamp(dong, { camps, cfg, canhBaoCamp, opts });
+}
 
-    // ── Chi tiết camp theo marketer ──
+// ── Chi tiết camp theo marketer — nối vào cuối các dòng đầu tin rồi trả cả tin ──
+function ghepChiTietCamp(dong, { camps, cfg, canhBaoCamp, opts }) {
     dong.push("", B(opts.intraday ? "📋 CHI TIẾT CAMP HÔM NAY" : "📋 CHI TIẾT CAMP"));
     if (canhBaoCamp) {
         dong.push(I("(chưa lấy được chi tiết camp lúc này — số tổng ở trên vẫn đúng theo Sheet)"));
