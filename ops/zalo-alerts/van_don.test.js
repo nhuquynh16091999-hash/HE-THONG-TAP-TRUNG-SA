@@ -193,24 +193,29 @@ const sang = (d, o = {}) => buildVanDonSang(d, { today: TODAY, nowTs: NOW, phuTr
         assert.ok(m.includes("Hi Cat, J&T tried to deliver your parcel (JT3) but couldn't reach you."), "lần đầu vẫn giọng thường");
     });
 
-    await t("SG: BÁO TRƯỚC khách sắp nhận hàng — đã vào J&T / đang đi giao, mỗi mốc một lần", () => {
+    await t("SG: BÁO TRƯỚC khách sắp nhận hàng — đi giao hôm nay / đã vào J&T, mỗi mốc một lần, bỏ đơn cũ", () => {
+        const sg = (o) => don({ store_name: "", source: "17track", status: "InTransit", last_event_time: luc("2026-09-25"), ...o });
         const sh = [
-            don({ order_id: "S1066", tracking: "JT10", track17_code: "JT10", customer: "Dan", phone: "81112222", city: "Jurong", store_name: "", source: "17track", status: "InTransit" }),
-            don({ order_id: "S1067", tracking: "JT11", track17_code: "JT11", customer: "Eve", store_name: "", source: "17track", status: "OutForDelivery" }),
-            don({ order_id: "S1068", tracking: "JT12", store_name: "", source: "doi_tac", status: "InTransit" }),
-            don({ order_id: "S1069", tracking: "JT13", store_name: "", source: "17track", status: "InTransit" }),
+            sg({ order_id: "S1066", tracking: "JT10", track17_code: "JT10", customer: "Dan", phone: "81112222", city: "Jurong" }),
+            sg({ order_id: "S1067", tracking: "JT11", track17_code: "JT11", customer: "Eve", status: "OutForDelivery", last_event_time: luc(TODAY, "07:00") }),
+            sg({ order_id: "S1068", tracking: "JT12", source: "doi_tac" }),
+            sg({ order_id: "S1069", tracking: "JT13" }),
+            sg({ order_id: "S1070", tracking: "JT14", last_event_time: luc("2026-09-20") }),
+            sg({ order_id: "S1071", tracking: "JT15", track17_code: "JT15", customer: "Fay", status: "OutForDelivery" }),
         ];
-        const r = sang(SG({ shipments: sh }), { soNhac: { "InTransit:JT13": { lan: 1, dau: "2026-09-25", cuoi: "2026-09-25" } } });
+        const r = sang(SG({ shipments: sh }), { soNhac: { "SapGiao:JT13": { lan: 1, dau: "2026-09-25", cuoi: "2026-09-25" } } });
         const m = tron(r.text);
-        assert.ok(m.includes("🚚 @Thương · BÁO TRƯỚC 2 KHÁCH SẮP NHẬN HÀNG — nhắn khách mở máy, để ý điện thoại"), m);
-        assert.ok(m.includes("S1067 · 1.499 SGD · J&T ĐANG ĐI GIAO HÔM NAY\n👤 Eve · 0975475359\n💬 Hi Eve, your parcel (JT11) is out for delivery with J&T today!"), "đi giao hôm nay lên đầu");
+        assert.ok(m.includes("🚚 @Thương · BÁO TRƯỚC 3 KHÁCH SẮP NHẬN HÀNG — nhắn khách mở máy, để ý điện thoại"), m);
+        assert.ok(m.includes("S1067 · 1.499 SGD · GIAO HÔM NAY\n👤 Eve · 0975475359\n💬 Hi Eve, your parcel (JT11) is out for delivery with J&T today!"), "đi giao HÔM NAY lên đầu");
         assert.ok(m.includes("S1066 · 1.499 SGD · đã vào J&T, sắp giao\n👤 Dan · 81112222 · Jurong\n"
             + "💬 Hi Dan, your parcel (JT10) is now with J&T and will be delivered soon (usually within 1–2 days). Please keep your phone on"), m);
         assert.ok(m.includes("🇻🇳 Dịch: Chào Dan, hàng của bạn (JT10) đã tới J&T và sắp được giao (thường trong 1–2 ngày)."), m);
+        assert.ok(m.includes("S1071 · 1.499 SGD · đã vào J&T, sắp giao"), "đi giao từ HÔM QUA thì không nói 'hôm nay' — báo chung sắp giao");
         assert.ok(!m.includes("S1068"), "'đang vận chuyển' của bảng đối tác có thể còn ở chặng Trung Quốc — không báo");
         assert.ok(!m.includes("S1069"), "mốc đã báo hôm trước — không báo lại");
-        assert.deepStrictEqual(r.sapGiao, ["JT11", "JT10"]);
-        assert.deepStrictEqual(r.daNhan, ["OutForDelivery:JT11", "InTransit:JT10"], "ghi sổ theo khoá mốc");
+        assert.ok(!m.includes("S1070"), "sự kiện cũ quá 2 ngày — đơn đứng im, không báo trước");
+        assert.deepStrictEqual(r.sapGiao, ["JT11", "JT10", "JT15"]);
+        assert.deepStrictEqual(r.daNhan, ["HomNay:JT11", "SapGiao:JT10", "SapGiao:JT15"], "ghi sổ theo khoá mốc");
         assert.ok(!tron(sang(DATA({ shipments: sh })).text).includes("BÁO TRƯỚC"), "Đài không có mục này");
     });
 
@@ -243,14 +248,48 @@ const sang = (d, o = {}) => buildVanDonSang(d, { today: TODAY, nowTs: NOW, phuTr
         ] }));
         const m = tron(r.text);
         assert.ok(m.includes("☎️ @Thương · GỌI 3 KHÁCH GIAO HỎNG / HẸN LẠI"), m);
+        // Từ chối lần 2 → nhắc lại: hỏi còn lấy không, không trả lời thì huỷ (Sỹ Anh duyệt 01/10/2026).
         assert.ok(m.includes("1. #12 · 159 AED · khách từ chối lần 2\n👤 Maria · 0501234567 · Dubai\n📝 Ghi chú đơn: \"Flat 426 K1 Building Al Rigga\"\n"
-            + "💬 Hi Maria, the courier reported that your order (parcel VS1068045) was refused."), m);
-        assert.ok(m.includes("2. #5 · 159 AED · không nghe máy\n👤 Ann · 0501234567 · Dibba, Fujairah\n💬 Hi Ann, the courier tried to deliver"), m);
+            + "💬 Hi Maria, we haven't heard back from you about your order (parcel VS1068045), which was refused at delivery. Do you still want it?"), m);
+        assert.ok(m.includes("🇻🇳 Dịch: Chào Maria, shop chưa nhận được phản hồi của bạn về đơn (mã VS1068045) bị từ chối nhận hôm trước."), m);
+        // Không nghe máy lần đầu → bảo xem cuộc gọi nhỡ, chủ động gọi lại tài xế.
+        assert.ok(m.includes("2. #5 · 159 AED · không nghe máy\n👤 Ann · 0501234567 · Dibba, Fujairah\n"
+            + "💬 Hi Ann, the courier tried to deliver your order (parcel VS1068349) but couldn't reach you by phone. Please check your phone for missed calls"), m);
         assert.ok(m.includes("3. #4 · 159 AED · hẹn giao lại lần 2\n"), m);
-        assert.ok(m.includes("parcel VS1068056) was rescheduled"), m);
+        assert.ok(m.includes("Hi Liza, this is another reminder: the courier has tried to deliver your order (parcel VS1068056) 2 times and still couldn't complete it!"), m);
         assert.ok(!m.includes("J&T"), "tin UAE không được nói J&T");
         assert.deepStrictEqual(r.goi, ["VS1068045", "VS1068349", "VS1068056"]);
+        assert.deepStrictEqual(r.daNhan, ["VS1068045", "VS1068349", "VS1068056"], "UAE cũng ghi sổ nhắc");
     });
+    await t("UAE: lần đầu từ chối hỏi có vấn đề gì; sai địa chỉ xin địa chỉ / định vị", () => {
+        const r = sang(AE({ alerts: [
+            canh("giao_hong", { level: "canh_bao" }, uae({ sub_status: "DeliveryFailure_Rejected", fail_count: 1 })),
+            canh("giao_hong", { level: "canh_bao" }, uae({ order_id: "7", tracking: "VS7", track17_code: "VS7", customer: "Omar", sub_status: "DeliveryFailure_InvalidAddress", fail_count: 1 })),
+        ] }));
+        const m = tron(r.text);
+        assert.ok(m.includes("Hi Maria, the courier told us your order (parcel VS1068045) was refused at delivery. Was there a problem with the order?"), m);
+        assert.ok(m.includes("Hi Omar, the courier couldn't find your address for your order (parcel VS7). Please reply with your full address (building, flat number, area) or send your location pin"), m);
+        assert.ok(m.includes("🇻🇳 Dịch: Chào Omar, bên giao hàng không tìm được địa chỉ của bạn"), m);
+    });
+
+    await t("UAE: BÁO TRƯỚC — hẹn giao ngày mai / hôm nay, đi giao hôm nay, đã vào kho hãng", () => {
+        const ae = (o) => uae({ status: "InTransit", sub_status: null, last_event_time: luc(TODAY, "06:00"), ...o });
+        const r = sang(AE({ shipments: [
+            ae({ order_id: "31", tracking: "VS31", track17_code: "VS31", customer: "Ali", sub_status: "InTransit_Scheduled", raw_status: "DELIVERY SCHEDULED ON NEXT DAY" }),
+            ae({ order_id: "32", tracking: "VS32", track17_code: "VS32", customer: "Bea", sub_status: "InTransit_Scheduled", raw_status: "DELIVERY SCHEDULED ON NEXT DAY", last_event_time: luc("2026-09-25") }),
+            ae({ order_id: "33", tracking: "VS33", track17_code: "VS33", customer: "Cid", status: "OutForDelivery", raw_status: "Dispatched" }),
+            ae({ order_id: "34", tracking: "VS34", track17_code: "VS34", customer: "Dee", raw_status: "Arrived at facility", last_event_time: luc("2026-09-25") }),
+        ] }));
+        const m = tron(r.text);
+        assert.ok(m.includes("🚚 @Thương · BÁO TRƯỚC 4 KHÁCH SẮP NHẬN HÀNG"), m);
+        assert.ok(m.includes("#32 · 159 AED · GIAO HÔM NAY\n👤 Bea · 0501234567 · Dubai\n💬 Hi Bea, your order (parcel VS32) is scheduled for delivery today!"), "hẹn từ hôm qua → hôm nay giao");
+        assert.ok(m.includes("#33 · 159 AED · GIAO HÔM NAY\n👤 Cid · 0501234567 · Dubai\n💬 Hi Cid, your order (parcel VS33) is out for delivery with the courier today!"), m);
+        assert.ok(m.includes("#31 · 159 AED · hẹn giao NGÀY MAI\n👤 Ali · 0501234567 · Dubai\n💬 Hi Ali, your order (parcel VS31) is scheduled for delivery tomorrow!"), m);
+        assert.ok(m.includes("🇻🇳 Dịch: Chào Ali, đơn của bạn (mã VS31) đã được hẹn giao vào ngày mai! Bạn nhớ mở máy và để ý cuộc gọi, tin nhắn của tài xế giao hàng"), m);
+        assert.ok(m.includes("#34 · 159 AED · đã vào kho hãng, sắp giao\n👤 Dee · 0501234567 · Dubai\n💬 Hi Dee, your order (parcel VS34) is now with the courier"), m);
+        assert.ok(!m.includes("J&T"), m);
+    });
+
     await t("UAE: WeShip lỗi vài mã / lượt hỏng → tin tự nói", () => {
         const m1 = tron(sang(AE({ last_sync: { at: "2026-09-25T23:03:00Z", ok: true, provider: "weship", targets: 27, checked: 25, failed: 2,
             error: "2/27 mã lỗi — VS1: WeShip HTTP 503" } })).text);

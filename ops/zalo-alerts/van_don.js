@@ -250,34 +250,94 @@ function tinKhachSing(s, { nhacLai = false, lan = null } = {}, lang = "en") {
         + "from the J&T driver and contact them directly to arrange a new delivery time. If you need help, just reply to us. Thank you!";
 }
 
-/** TH1 — báo trước khi giao. moc: "InTransit" (đã vào J&T, 1–2 ngày nữa giao) · "OutForDelivery" (hôm nay giao). */
-function tinSapGiaoSing(s, moc, lang = "en") {
+/**
+ * TH1 — mốc BÁO TRƯỚC khi giao (Sing + UAE). null = không báo.
+ *   "HomNay"  — đi giao / hẹn giao đúng HÔM NAY (sự kiện hôm nay, không lấy sự kiện hôm qua:
+ *               tin 08:30 VN là 05:30 UAE, trước giờ tài xế xuất phát);
+ *   "NgayMai" — WeShip "DELIVERY SCHEDULED ON NEXT DAY" (đúng kiểu báo trước 1 ngày);
+ *   "SapGiao" — đã vào kho hãng / đi giao từ hôm qua mà chưa xong.
+ * Sự kiện cũ quá 2 ngày thì thôi — đơn đứng im đã có mục hỏi đối tác. Sing chỉ tin 17TRACK:
+ * "đang vận chuyển" của bảng đối tác có thể còn ở chặng Trung Quốc.
+ */
+function mocSapGiao(s, today, nuoc) {
+    const ngay = ngayVN(s.last_event_time || s.status_since);
+    if (!ngay || ngay < cong(today, -2)) return null;
+    if (s.status === "OutForDelivery") return ngay === today ? "HomNay" : "SapGiao";
+    if (s.status !== "InTransit") return null;
+    if (nuoc === "SG" && s.source !== "17track") return null;
+    if (/Scheduled/.test(String(s.sub_status || "")) || /SCHEDULED\s*ON\s*NEXT\s*DAY/i.test(String(s.raw_status || ""))) {
+        const giao = cong(ngay, 1);
+        return giao === today ? "HomNay" : giao > today ? "NgayMai" : "SapGiao";
+    }
+    return "SapGiao";
+}
+
+/** TH1 — câu báo trước. Sing nói "J&T", UAE nói "the courier" và "order (parcel …)". */
+function tinSapGiao(s, moc, nuoc, lang = "en") {
     const vi = lang === "vi";
     const ten = s.customer || (vi ? "bạn" : "there");
     const ma = s.track17_code || s.tracking;
-    if (moc === "OutForDelivery") {
-        return vi
-            ? `Chào ${ten}, hàng của bạn (${ma}) đang được J&T đi giao trong hôm nay! Bạn nhớ mở máy và để ý cuộc gọi, tin nhắn của shipper J&T để không lỡ nhận hàng nhé. Cảm ơn bạn!`
-            : `Hi ${ten}, your parcel (${ma}) is out for delivery with J&T today! Please keep your phone on and watch for calls or SMS from the J&T driver so you don't miss it. Thank you!`;
+    const sg = nuoc === "SG";
+    if (vi) {
+        const hang = sg ? "J&T" : "bên giao hàng";
+        const tx = sg ? "shipper J&T" : "tài xế giao hàng";
+        const don = sg ? `hàng của bạn (${ma})` : `đơn của bạn (mã ${ma})`;
+        const luc = moc === "HomNay" ? `${don} sẽ được ${hang} giao trong hôm nay!`
+            : moc === "NgayMai" ? `${don} đã được hẹn giao vào ngày mai!`
+                : `${don} đã tới ${hang} và sắp được giao (thường trong 1–2 ngày).`;
+        return `Chào ${ten}, ${luc} Bạn nhớ mở máy và để ý cuộc gọi, tin nhắn của ${tx} để không lỡ nhận hàng nhé. Cảm ơn bạn!`;
     }
-    return vi
-        ? `Chào ${ten}, hàng của bạn (${ma}) đã tới J&T và sắp được giao (thường trong 1–2 ngày). Bạn nhớ mở máy và để ý cuộc gọi, tin nhắn của shipper J&T để không lỡ nhận hàng nhé. Cảm ơn bạn!`
-        : `Hi ${ten}, your parcel (${ma}) is now with J&T and will be delivered soon (usually within 1–2 days). Please keep your phone on and watch for calls or SMS from the J&T driver so you don't miss the delivery. Thank you!`;
+    const hang = sg ? "J&T" : "the courier";
+    const tx = sg ? "the J&T driver" : "the delivery driver";
+    const don = sg ? `your parcel (${ma})` : `your order (parcel ${ma})`;
+    const tn = sg ? "calls or SMS" : "calls or messages";
+    const luc = moc === "HomNay" ? (s.status === "OutForDelivery" ? `${don} is out for delivery with ${hang} today!` : `${don} is scheduled for delivery today!`)
+        : moc === "NgayMai" ? `${don} is scheduled for delivery tomorrow!`
+            : `${don} is now with ${hang} and will be delivered soon (usually within 1–2 days).`;
+    return `Hi ${ten}, ${luc} Please keep your phone on and watch for ${tn} from ${tx} so you don't miss the delivery. Thank you!`;
 }
 
-// UAE giao tận nhà qua WeShip: câu theo lý do — khách từ chối thì hỏi còn lấy không, không
-// nghe máy / hẹn lại thì xin giờ giao, sai địa chỉ thì xin địa chỉ đủ.
-function tinKhachUae(s) {
-    const ten = s.customer || "there";
+// UAE giao tận nhà qua WeShip — câu theo LÝ DO (Sỹ Anh duyệt 01/10/2026): khách từ chối thì hỏi
+// có vấn đề gì, còn lấy không; không nghe máy / hẹn lại thì bảo xem cuộc gọi nhỡ, chủ động gọi
+// lại tài xế; sai địa chỉ thì xin địa chỉ đủ hoặc định vị. Nhắc lại thì gấp hơn.
+function tinKhachUae(s, { nhacLai = false, lan = null } = {}, lang = "en") {
+    const vi = lang === "vi";
+    const ten = s.customer || (vi ? "bạn" : "there");
     const ma = s.track17_code || s.tracking;
     const sub = String(s.sub_status || "");
-    if (/Rejected/.test(sub)) return `Hi ${ten}, the courier reported that your order (parcel ${ma}) was refused. If you still want it, please reply with a good time and we will deliver it again. Thank you!`;
-    if (/NoResponse/.test(sub)) return `Hi ${ten}, the courier tried to deliver your order (parcel ${ma}) but could not reach you by phone. Please reply with a good time for delivery and keep your phone on. Thank you!`;
-    if (/InvalidAddress/.test(sub)) return `Hi ${ten}, the courier could not find your address for order (parcel ${ma}). Please reply with your full address and a good time for delivery. Thank you!`;
-    return `Hi ${ten}, the delivery of your order (parcel ${ma}) was rescheduled. Please reply with a good time for delivery and keep your phone on. Thank you!`;
+    if (/Rejected/.test(sub)) {
+        if (nhacLai) return vi
+            ? `Chào ${ten}, shop chưa nhận được phản hồi của bạn về đơn (mã ${ma}) bị từ chối nhận hôm trước. Bạn còn muốn nhận hàng không? Bạn trả lời shop trong hôm nay nhé, không thì đơn sẽ bị huỷ và hoàn về. Cảm ơn bạn!`
+            : `Hi ${ten}, we haven't heard back from you about your order (parcel ${ma}), which was refused at delivery. Do you still want it? Please reply today — otherwise the order will be cancelled and returned. Thank you!`;
+        return vi
+            ? `Chào ${ten}, bên giao hàng báo đơn của bạn (mã ${ma}) bị từ chối nhận. Đơn hàng có vấn đề gì không bạn? Nếu bạn vẫn muốn nhận, nhắn lại giờ tiện để shop giao lại nhé. Cảm ơn bạn!`
+            : `Hi ${ten}, the courier told us your order (parcel ${ma}) was refused at delivery. Was there a problem with the order? If you still want it, just reply with a good time and we'll deliver it again. Thank you!`;
+    }
+    const diaChi = /InvalidAddress/.test(sub);
+    if (nhacLai) {
+        if (vi) {
+            const lau = lan >= 2 ? `bên giao hàng đã giao đơn của bạn (mã ${ma}) ${lan} lần mà vẫn chưa giao được!` : `bên giao hàng vẫn chưa giao được đơn của bạn (mã ${ma})!`;
+            const viec = diaChi ? "Bạn gửi shop địa chỉ đầy đủ hoặc định vị ngay hôm nay nhé"
+                : "Bạn kiểm tra cuộc gọi nhỡ, tin nhắn của tài xế rồi liên hệ lại ngay hôm nay, hoặc nhắn shop giờ nhận hàng nhé";
+            return `Chào ${ten}, shop nhắc bạn lần nữa: ${lau} ${viec} — không giao được sớm thì hàng sẽ bị trả về. Cảm ơn bạn!`;
+        }
+        const lau = lan >= 2 ? `the courier has tried to deliver your order (parcel ${ma}) ${lan} times and still couldn't complete it!` : `the courier still hasn't been able to deliver your order (parcel ${ma})!`;
+        const viec = diaChi ? "Please reply today with your full address or location pin"
+            : "Please check your phone for missed calls or messages from the delivery driver and contact them today, or reply to us with a good time";
+        return `Hi ${ten}, this is another reminder: ${lau} ${viec} — if it can't be delivered soon, it will be returned. Thank you!`;
+    }
+    if (diaChi) return vi
+        ? `Chào ${ten}, bên giao hàng không tìm được địa chỉ của bạn cho đơn (mã ${ma}). Bạn nhắn lại giúp shop địa chỉ đầy đủ (toà nhà, số phòng, khu vực) hoặc gửi định vị, kèm giờ nhận hàng tiện cho bạn nhé. Cảm ơn bạn!`
+        : `Hi ${ten}, the courier couldn't find your address for your order (parcel ${ma}). Please reply with your full address (building, flat number, area) or send your location pin, plus a good time for delivery. Thank you!`;
+    if (/NoResponse/.test(sub)) return vi
+        ? `Chào ${ten}, bên giao hàng đã đi giao đơn của bạn (mã ${ma}) nhưng gọi không được. Bạn kiểm tra lại điện thoại xem có cuộc gọi nhỡ hoặc tin nhắn của tài xế không, rồi chủ động gọi lại để hẹn giờ giao, hoặc nhắn shop giờ nhận hàng tiện cho bạn nhé. Nhớ mở máy giúp shop. Cảm ơn bạn!`
+        : `Hi ${ten}, the courier tried to deliver your order (parcel ${ma}) but couldn't reach you by phone. Please check your phone for missed calls or messages from the delivery driver and call them back to arrange a delivery time, or reply to us with a good time. Please keep your phone on. Thank you!`;
+    return vi
+        ? `Chào ${ten}, đơn của bạn (mã ${ma}) đã được hẹn giao lại. Bạn kiểm tra điện thoại xem có cuộc gọi nhỡ hoặc tin nhắn của tài xế không, rồi liên hệ lại để chốt giờ giao, hoặc nhắn shop giờ nhận hàng tiện cho bạn nhé. Nhớ mở máy giúp shop. Cảm ơn bạn!`
+        : `Hi ${ten}, the delivery of your order (parcel ${ma}) has been rescheduled. Please check your phone for missed calls or messages from the delivery driver and contact them to confirm a delivery time, or reply to us with a good time. Please keep your phone on. Thank you!`;
 }
-const tinKhachNha = (s, ma) => (ma === "AE" ? tinKhachUae(s) : tinKhachSing(s));
-/** Hai dòng: câu tiếng Anh gửi khách + bản dịch cho anh em (Sing; UAE chưa duyệt mẫu mới). */
+const tinKhachNha = (s, ma, han, lang) => (ma === "AE" ? tinKhachUae(s, han, lang) : tinKhachSing(s, han, lang));
+/** Hai dòng: câu tiếng Anh gửi khách + bản dịch tiếng Việt cho anh em. */
 const haiDong = (f) => { const en = f("en"); return en ? [`💬 ${en}`, `🇻🇳 Dịch: ${f("vi")}`] : []; };
 
 const hanChu = (a) => a.days_left == null ? "" : a.days_left <= 0 ? "HẾT HẠN HÔM NAY" : `còn ${a.days_left} ngày`;
@@ -300,25 +360,23 @@ function khoiGoi(a, i, tien, giaoTanNha, ma = "") {
     if (!giaoTanNha && s.store_name) dong.push(`🏪 ${s.store_name}${maLayHang(s) ? ` · mã lấy hàng ${maLayHang(s)}` : ""}`);
     // UAE không có bảng đối tác — ghi chú là của đơn POS (thường là địa chỉ, hẹn ngày giao).
     if (s.note) dong.push(`📝 ${ma === "AE" ? "Ghi chú đơn" : "Đối tác ghi"}: "${cat(s.note, 80)}"`);
-    if (giaoTanNha && ma === "SG") {
-        dong.push(...haiDong((lang) => tinKhachSing(s, { nhacLai: !!a.nhac, lan: Number(s.fail_count) || null }, lang)));
-    } else if (giaoTanNha) {
-        const tin = tinKhachNha(s, ma);
-        if (tin) dong.push(`💬 ${tin}`);
+    if (giaoTanNha) {
+        dong.push(...haiDong((lang) => tinKhachNha(s, ma, { nhacLai: !!a.nhac, lan: Number(s.fail_count) || null }, lang)));
     } else {
         dong.push(...dongTinDai(s, { ngay: soNgayCho(a), conLai: a.days_left, nhacLai: !!a.nhac }));
     }
     return dong.join("\n");
 }
 
-/** Khối một khách Sing SẮP NHẬN HÀNG: 3–4 dòng, câu báo trước kèm bản dịch. */
-function khoiSapGiao(x, tien) {
+/** Khối một khách (Sing / UAE) SẮP NHẬN HÀNG: 3–4 dòng, câu báo trước kèm bản dịch. */
+function khoiSapGiao(x, tien, nuoc) {
     const s = x.shipment;
-    const dong = [B([maDon(s), s.cod_local ? `${fmt(Math.round(s.cod_local))} ${tien}` : "",
-        x.moc === "OutForDelivery" ? "J&T ĐANG ĐI GIAO HÔM NAY" : "đã vào J&T, sắp giao"].filter(Boolean).join(" · "))];
+    const nhan = x.moc === "HomNay" ? "GIAO HÔM NAY" : x.moc === "NgayMai" ? "hẹn giao NGÀY MAI"
+        : nuoc === "SG" ? "đã vào J&T, sắp giao" : "đã vào kho hãng, sắp giao";
+    const dong = [B([maDon(s), s.cod_local ? `${fmt(Math.round(s.cod_local))} ${tien}` : "", nhan].filter(Boolean).join(" · "))];
     const khach = [s.customer, s.phone, s.city].filter(Boolean).join(" · ");
     if (khach) dong.push(`👤 ${khach}`);
-    dong.push(...haiDong((lang) => tinSapGiaoSing(s, x.moc, lang)));
+    dong.push(...haiDong((lang) => tinSapGiao(s, x.moc, nuoc, lang)));
     return dong.join("\n");
 }
 
@@ -395,22 +453,23 @@ function phanLoai(d, today, giaoTanNha, soNhac = {}, nuoc = "") {
     const nhacLai = giaoTanNha ? [] : toi.filter((a) => a.nhac)
         .sort((a, b) => (soNgayCho(b) ?? 0) - (soNgayCho(a) ?? 0));
     // Giao tận nhà: đơn giao hỏng / hẹn lại là đơn cứu được bằng một cuộc gọi → lên danh sách gọi.
-    // Sing: khách đã nhắn ngày trước (sổ nhắc) hoặc đã hỏng ≥ 2 lần → câu nhắc lại, gấp hơn.
+    // Sing / UAE: khách đã nhắn ngày trước (sổ nhắc) hoặc đã hỏng ≥ 2 lần → câu nhắc lại, gấp hơn.
     const ganNhacNha = (a) => {
-        if (nuoc !== "SG") return a;
+        if (!giaoTanNha) return a;
         const s = a.shipment || {};
         const lan = lanTruoc(soNhac, s.tracking, today);
         return lan > 0 || Number(s.fail_count) >= 2 ? { ...a, nhac: { lan } } : a;
     };
     const goi = giaoTanNha ? [...sap, ...suCo].map(ganNhacNha) : sap.map(ganNhac);
-    // SẮP GIAO (Sing, Sỹ Anh 01/10/2026): báo trước một lần mỗi mốc — đã vào J&T (InTransit,
-    // chỉ tin 17TRACK: "đang vận chuyển" của bảng đối tác có thể còn ở chặng Trung Quốc) và
-    // J&T đi giao (OutForDelivery). Khoá sổ "<mốc>:<mã>" để không báo lại mỗi sáng.
-    const sapGiao = nuoc !== "SG" ? [] : (d.shipments || [])
-        .filter((s) => s.status === "OutForDelivery" || (s.status === "InTransit" && s.source === "17track"))
-        .map((s) => ({ shipment: s, moc: s.status, khoa: `${s.status}:${s.tracking}` }))
+    // SẮP GIAO (Sing + UAE, Sỹ Anh 01/10/2026): báo trước khách mở máy, để ý điện thoại — mỗi
+    // mốc một lần (xem mocSapGiao). Khoá sổ "<mốc>:<mã>" để không báo lại mỗi sáng.
+    const thuTu = { HomNay: 0, NgayMai: 1, SapGiao: 2 };
+    const sapGiao = !giaoTanNha ? [] : (d.shipments || [])
+        .map((s) => ({ shipment: s, moc: mocSapGiao(s, today, nuoc) }))
+        .filter((x) => x.moc)
+        .map((x) => ({ ...x, khoa: `${x.moc}:${x.shipment.tracking}` }))
         .filter((x) => !lanTruoc(soNhac, x.khoa, today))
-        .sort((a, b) => (a.moc === "OutForDelivery" ? 0 : 1) - (b.moc === "OutForDelivery" ? 0 : 1));
+        .sort((a, b) => thuTu[a.moc] - thuTu[b.moc]);
     return { sap, qua, suCo, dungIm, chuaGui, lech, moiToi, nhacLai, goi, sapGiao };
 }
 
@@ -473,7 +532,7 @@ function buildVanDonSang(d, opts = {}) {
 
     if (sapGiao.length) {
         dong.push("", `🚚 ${nguoi(opts)}${B(`BÁO TRƯỚC ${fmt(sapGiao.length)} KHÁCH SẮP NHẬN HÀNG`)} — nhắn khách mở máy, để ý điện thoại`);
-        sapGiao.slice(0, maxSapGiao).forEach((x) => dong.push("", khoiSapGiao(x, tien)));
+        sapGiao.slice(0, maxSapGiao).forEach((x) => dong.push("", khoiSapGiao(x, tien, nuoc.code)));
         if (sapGiao.length > maxSapGiao) dong.push("", I(`… ${fmt(sapGiao.length - maxSapGiao)} khách nữa trên dashboard`));
     }
 
@@ -510,10 +569,10 @@ function buildVanDonSang(d, opts = {}) {
         goi: ma(goi),
         moiToi: ma(moiToi),
         nhacLai: ma(nhacLai),
-        daNhan: nuoc.code === "SG"
-            // Sing: khách giao hỏng có câu soạn sẵn + mốc báo trước đã gửi (khoá "<mốc>:<mã>").
+        daNhan: giaoTanNha
+            // Sing / UAE: khách giao hỏng có câu soạn sẵn + mốc báo trước đã gửi (khoá "<mốc>:<mã>").
             ? [...ma(goi.slice(0, maxGoi)), ...sapGiao.slice(0, maxSapGiao).map((x) => x.khoa)]
-            : giaoTanNha ? [] : ma([...coTin(goi.slice(0, maxGoi)), ...coTin(moiToi.slice(0, maxMoiToi)), ...coTin(nhacLai.slice(0, maxNhacLai))]),
+            : ma([...coTin(goi.slice(0, maxGoi)), ...coTin(moiToi.slice(0, maxMoiToi)), ...coTin(nhacLai.slice(0, maxNhacLai))]),
         sapGiao: sapGiao.map((x) => (x.shipment || {}).tracking).filter(Boolean),
     };
 }
@@ -599,4 +658,4 @@ function buildVanDonToi(d, opts = {}) {
     return dong.join("\n");
 }
 
-module.exports = { buildVanDonSang, buildVanDonToi, fetchVanDon, dongNguon, ghiSoNhac, lanTruoc, lyDo, maLayHang, suKienNgay, tinKhachDai, tinKhachSing, tinKhachUae, tinSapGiaoSing };
+module.exports = { buildVanDonSang, buildVanDonToi, fetchVanDon, dongNguon, ghiSoNhac, lanTruoc, lyDo, maLayHang, suKienNgay, tinKhachDai, tinKhachSing, tinKhachUae, tinSapGiao, mocSapGiao };
