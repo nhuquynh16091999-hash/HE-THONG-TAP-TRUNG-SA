@@ -37,40 +37,67 @@ type Alert = {
 const maLayHang = (s: Shipment) =>
     String(s.pickup_code || s.track17_code || s.tracking || "").trim().replace(/^73N/i, "");
 
+/** Tên cửa hàng cho người không đọc tiếng Trung: thêm chuỗi (7-ELEVEN / FamilyMart)
+ *  theo kênh giao, trừ khi tên đã có sẵn ("全家新城康樂店"). */
+function tenCuaHang(s: Shipment): string {
+    const ten = String(s.store_name || "");
+    const kenh = String(s.ship_method || "");
+    const chuoi = /7.?ELEVEN|7-11|711/i.test(kenh) ? "7-ELEVEN" : /FAMILY|全家/i.test(kenh) ? "FamilyMart" : "";
+    return chuoi && !/全家|7-?11|ELEVEN|FAMILY/i.test(ten) ? `${chuoi} ${ten}` : ten;
+}
+
 /**
- * Tin nhắn tiếng Trung báo khách ra lấy hàng — CÙNG CÂU CHỮ với bot Zalo
- * (ops/zalo-alerts/van_don.js → tinKhachDai).
+ * Tin báo khách ra lấy hàng — TIẾNG ANH để gửi khách, kèm bản TIẾNG VIỆT cho sale đọc
+ * hiểu. CÙNG CÂU CHỮ với bot Zalo (ops/zalo-alerts/van_don.js → tinKhachDai).
  *
- * Sale không phải tự gõ tiếng Trung — gõ tay mỗi ngày vài chục tin là vừa chậm
- * vừa sai tên cửa hàng. Chỉ điền được khi có tên cửa hàng; thiếu thì trả null
- * chứ KHÔNG soạn tin cụt, vì tin thiếu chỗ lấy hàng thì khách đọc xong vẫn
- * không biết đi đâu.
+ * Sale không phải tự gõ — gõ tay mỗi ngày vài chục tin là vừa chậm vừa sai tên cửa
+ * hàng. Chỉ điền được khi có tên cửa hàng; thiếu thì trả null chứ KHÔNG soạn tin cụt,
+ * vì tin thiếu chỗ lấy hàng thì khách đọc xong vẫn không biết đi đâu.
  *
- * Sỹ Anh chốt 30/09/2026:
+ * Sỹ Anh chốt 30/09 → 01/10/2026:
+ *  • tiếng Anh (khách Đài phần lớn là lao động Philippines/Indonesia/Việt), không nhắc
+ *    chuẩn bị tiền;
  *  • lần đầu — nhẹ nhàng, nói hàng ĐÃ TỚI được mấy ngày (đếm xuôi), không nói còn
  *    mấy ngày (khách thấy còn nhiều ngày thì thong thả rồi quên);
  *  • nhắc lại — khách đã được nhắn mà chưa lấy: gấp hơn, mai/hôm nay là ngày cuối
  *    thì nói thẳng. Bot biết chắc ai đã nhắn (sổ nhắc); ở đây không có sổ nên dùng
  *    đúng luật dự phòng của bot: hàng nằm từ 2 ngày trở lên = đã nhắn lúc mới tới.
  */
-function soanTin(s: Shipment, han: { ngay: number | null; conLai: number | null }): string | null {
+function soanTin(s: Shipment, han: { ngay: number | null; conLai: number | null }, lang: "en" | "vi" = "en"): string | null {
     if (!s.store_name) return null;
-    const ten = s.customer || "客戶";
+    const vi = lang === "vi";
+    const ten = s.customer || (vi ? "bạn" : "there");
     const ma = maLayHang(s);
-    const cho = `${s.store_name}${ma ? `（取貨編號 ${ma}）` : ""}`;
-    const tien = s.cod_local > 0 ? `NT$${Math.round(s.cod_local).toLocaleString("en-US")}` : "";
+    const cho = `${tenCuaHang(s)}${ma ? (vi ? ` (mã lấy hàng ${ma})` : ` (pickup code ${ma})`) : ""}`;
     const { ngay, conLai } = han;
     const cuoi = conLai != null && conLai <= 0;
+    const soNgay = (n: number) => (vi ? `${n} ngày` : `${n} day${n === 1 ? "" : "s"}`);
     if (ngay != null && ngay >= 2) {
-        const hanChu = cuoi ? "今天是最後取件日，今天沒領取包裹就會被退回，請您務必今天抽空去領取！"
-            : conLai === 1 ? "明天就是最後取件日了，逾期包裹會被退回，請您盡快去領取！"
-                : "門市保管期快到了，逾期包裹會被退回，請您盡快去領取！";
-        return `${ten} 您好，再次提醒您：您的包裹已經在 ${cho} 放了 ${ngay} 天，還沒有領取喔！${hanChu}`
-            + `${tien ? `取貨時請準備 ${tien}。` : ""}如果有任何問題請直接回覆我們，謝謝您！`;
+        if (vi) {
+            const lau = `hàng của bạn đã nằm ở cửa hàng ${cho} ${soNgay(ngay)} rồi mà vẫn chưa được lấy!`;
+            const hanChu = cuoi ? "Hôm nay là NGÀY CUỐI để lấy hàng — hôm nay không lấy là hàng bị trả về. Bạn nhớ ghé lấy ngay trong hôm nay nhé!"
+                : conLai === 1 ? "Mai là ngày cuối để lấy hàng, quá hạn hàng sẽ bị trả về. Bạn ghé lấy sớm nhất có thể nhé!"
+                    : "Cửa hàng chỉ giữ hàng thêm vài ngày nữa là trả về. Bạn ghé lấy sớm nhất có thể nhé!";
+            return `Chào ${ten}, nhắc bạn lần nữa: ${lau} ${hanChu} Có gì thắc mắc bạn cứ nhắn lại cho shop nhé. Cảm ơn bạn!`;
+        }
+        const lau = `your parcel has been waiting at ${cho} for ${soNgay(ngay)} and hasn't been picked up yet!`;
+        const hanChu = cuoi ? "Today is the LAST DAY to pick it up — if it's not collected today, it will be returned. Please make sure to pick it up today!"
+            : conLai === 1 ? "Tomorrow is the last day to pick it up, after that it will be returned. Please pick it up as soon as possible!"
+                : "The store will only keep it for a few more days before sending it back. Please pick it up as soon as possible!";
+        return `Hi ${ten}, this is another reminder: ${lau} ${hanChu} If you have any questions, just reply to this message. Thank you!`;
     }
-    const toi = ngay ? `已經送到 ${cho} ${ngay} 天了` : ngay === 0 ? `今天已經送達 ${cho}` : `已經送達 ${cho}`;
-    const hanChu = cuoi ? "今天是最後取件日，麻煩您今天抽空到門市領取喔" : "麻煩您抽空到門市領取喔";
-    return `${ten} 您好～您的包裹${toi}${tien ? `，取貨時請準備 ${tien}` : ""}。${hanChu}，逾期包裹會被退回。謝謝您！`;
+    if (vi) {
+        const toi = ngay ? `hàng của bạn đã tới cửa hàng ${cho} được ${soNgay(ngay)} rồi`
+            : ngay === 0 ? `hàng của bạn đã tới cửa hàng ${cho} hôm nay` : `hàng của bạn đã tới cửa hàng ${cho}`;
+        const hanChu = cuoi ? "Hôm nay là ngày cuối để lấy hàng, phiền bạn ghé cửa hàng lấy trong hôm nay nhé, không thì hàng sẽ bị trả về."
+            : "Phiền bạn tranh thủ ghé cửa hàng lấy nhé, quá hạn hàng sẽ bị trả về.";
+        return `Chào ${ten}, ${toi}. ${hanChu} Cảm ơn bạn!`;
+    }
+    const toi = ngay ? `your parcel arrived at ${cho} ${soNgay(ngay)} ago`
+        : ngay === 0 ? `your parcel arrived at ${cho} today` : `your parcel has arrived at ${cho}`;
+    const hanChu = cuoi ? "Today is the last day to pick it up, so please drop by the store today — otherwise it will be returned."
+        : "Please drop by the store to pick it up when you can — if it's not picked up in time, it will be returned.";
+    return `Hi ${ten}, ${toi}. ${hanChu} Thank you!`;
 }
 
 const STATUS_VI: Record<string, string> = {
@@ -419,9 +446,9 @@ export default function TALPHATrackingTab({ dateRange }: Props) {
                                     // Còn mấy ngày nữa bị trả về — hạn lưu ở cửa hàng là 7 ngày.
                                     const conLai = a.code === "sap_bi_tra_ve" && a.days != null
                                         ? cfg.pickup_expire_days - a.days : null;
-                                    const tin = s.status === "AvailableForPickup"
-                                        ? soanTin(s, { ngay: a.days, conLai: a.days_left ?? conLai })
-                                        : null;
+                                    const han = { ngay: a.days, conLai: a.days_left ?? conLai };
+                                    const tin = s.status === "AvailableForPickup" ? soanTin(s, han) : null;
+                                    const tinVi = tin ? soanTin(s, han, "vi") : null;
                                     const key = `${s.tracking}-${i}`;
                                     return (
                                         <div key={key} className="grid grid-cols-[4px_1fr] gap-4 p-4">
@@ -459,9 +486,15 @@ export default function TALPHATrackingTab({ dateRange }: Props) {
                                                 {/* Tin nhắn soạn sẵn — sale chỉ việc chép và dán */}
                                                 {tin && (
                                                     <div className="mt-2 flex items-start gap-2">
-                                                        <p className="min-w-0 flex-1 rounded-lg border border-border bg-muted/40 px-3 py-2 text-[12.5px] leading-relaxed">
-                                                            {tin}
-                                                        </p>
+                                                        <div className="min-w-0 flex-1 rounded-lg border border-border bg-muted/40 px-3 py-2 text-[12.5px] leading-relaxed">
+                                                            <p>{tin}</p>
+                                                            {/* Bản dịch cho sale đọc hiểu — KHÔNG nằm trong nút Chép tin. */}
+                                                            {tinVi && (
+                                                                <p className="mt-1.5 border-t border-border/60 pt-1.5 text-[12px] italic text-muted-foreground">
+                                                                    🇻🇳 Dịch: {tinVi}
+                                                                </p>
+                                                            )}
+                                                        </div>
                                                         <button onClick={() => { navigator.clipboard?.writeText(tin); setCopied(key); setTimeout(() => setCopied(""), 2000); }}
                                                             className="flex-none rounded-lg border border-border px-2.5 py-1.5 text-[12px] hover:bg-muted">
                                                             <Copy className="mr-1 inline h-3 w-3" />{copied === key ? "Đã chép" : "Chép tin"}

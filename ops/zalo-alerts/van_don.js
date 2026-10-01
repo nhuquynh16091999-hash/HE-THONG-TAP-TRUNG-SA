@@ -126,38 +126,72 @@ const soNgayCho = (a) => {
     return (a || {}).days == null || !Number.isFinite(n) ? null : Math.max(0, Math.round(n));
 };
 
+/** Tên cửa hàng cho người không đọc tiếng Trung: thêm chuỗi (7-ELEVEN / FamilyMart) theo
+ *  kênh giao, trừ khi tên đã có sẵn ("全家新城康樂店"). */
+function tenCuaHang(s) {
+    const ten = String(s.store_name || "");
+    const kenh = String(s.ship_method || "");
+    const chuoi = /7.?ELEVEN|7-11|711/i.test(kenh) ? "7-ELEVEN" : /FAMILY|全家/i.test(kenh) ? "FamilyMart" : "";
+    return chuoi && !/全家|7-?11|ELEVEN|FAMILY/i.test(ten) ? `${chuoi} ${ten}` : ten;
+}
+
 /**
- * Tin báo khách Đài ra lấy hàng (Sỹ Anh chốt 30/09/2026).
+ * Tin báo khách Đài ra lấy hàng — TIẾNG ANH để gửi khách, kèm bản TIẾNG VIỆT cho anh em
+ * đọc hiểu (Sỹ Anh chốt 01/10/2026: khách Đài phần lớn là lao động Philippines/Indonesia/
+ * Việt đọc tiếng Anh; không nhắc chuẩn bị tiền nữa).
  *
  * • LẦN ĐẦU — nhẹ nhàng, nói hàng ĐÃ TỚI được mấy ngày (đếm xuôi) chứ không nói còn mấy
- *   ngày: ghi "còn 5 ngày" thì khách thong thả rồi quên. "Hàng của bạn đã tới cửa hàng
- *   2 ngày rồi, phiền bạn tranh thủ ghé lấy nhé, quá hạn hàng sẽ bị trả về."
- * • NHẮC LẠI — khách đã được nhắn mà vẫn chưa lấy: gấp hơn — "再次提醒", nói rõ nằm đó
- *   mấy ngày rồi mà chưa lấy, sắp hết hạn giữ; mai / hôm nay là ngày cuối thì nói thẳng.
- * Luôn có mã lấy hàng (mã tracking) + số tiền mang theo. Hạn thật hiện cho Thương ở dòng
- * đầu khối. Câu chữ PHẢI giống tracking-tab.tsx → soanTin.
+ *   ngày: ghi "còn 5 ngày" thì khách thong thả rồi quên.
+ * • NHẮC LẠI — khách đã được nhắn mà vẫn chưa lấy: gấp hơn, nói rõ nằm đó mấy ngày rồi mà
+ *   chưa lấy, sắp bị trả; mai / hôm nay là ngày cuối thì nói thẳng.
+ * Luôn có mã lấy hàng (mã tracking). Hạn thật hiện cho Thương ở dòng đầu khối.
+ * Câu chữ PHẢI giống tracking-tab.tsx → soanTin.
  *
- * @param han { ngay: số ngày đã nằm ở cửa hàng, conLai: còn mấy ngày (≤0 = hôm nay là
- *            ngày cuối), nhacLai: khách đã được nhắn trước hôm nay }
+ * @param han  { ngay: số ngày đã nằm ở cửa hàng, conLai: còn mấy ngày (≤0 = hôm nay là
+ *             ngày cuối), nhacLai: khách đã được nhắn trước hôm nay }
+ * @param lang "en" (gửi khách) · "vi" (bản dịch cho anh em)
  */
-function tinKhachDai(s, { ngay = null, conLai = null, nhacLai = false } = {}) {
+function tinKhachDai(s, { ngay = null, conLai = null, nhacLai = false } = {}, lang = "en") {
     if (!s.store_name) return null;
-    const ten = s.customer || "客戶";
+    const vi = lang === "vi";
+    const ten = s.customer || (vi ? "bạn" : "there");
     const ma = maLayHang(s);
-    const cho = `${s.store_name}${ma ? `（取貨編號 ${ma}）` : ""}`;
-    const tien = Number(s.cod_local) > 0 ? `NT$${Math.round(Number(s.cod_local)).toLocaleString("en-US")}` : "";
+    const cho = `${tenCuaHang(s)}${ma ? (vi ? ` (mã lấy hàng ${ma})` : ` (pickup code ${ma})`) : ""}`;
     const cuoi = conLai != null && conLai <= 0;
+    const soNgay = (n) => (vi ? `${n} ngày` : `${n} day${n === 1 ? "" : "s"}`);
     if (nhacLai) {
-        const lau = ngay ? `已經在 ${cho} 放了 ${ngay} 天` : `已經送達 ${cho} 好幾天了`;
-        const han = cuoi ? "今天是最後取件日，今天沒領取包裹就會被退回，請您務必今天抽空去領取！"
-            : conLai === 1 ? "明天就是最後取件日了，逾期包裹會被退回，請您盡快去領取！"
-                : "門市保管期快到了，逾期包裹會被退回，請您盡快去領取！";
-        return `${ten} 您好，再次提醒您：您的包裹${lau}，還沒有領取喔！${han}`
-            + `${tien ? `取貨時請準備 ${tien}。` : ""}如果有任何問題請直接回覆我們，謝謝您！`;
+        if (vi) {
+            const lau = `hàng của bạn đã nằm ở cửa hàng ${cho} ${ngay ? soNgay(ngay) : "mấy ngày"} rồi mà vẫn chưa được lấy!`;
+            const han = cuoi ? "Hôm nay là NGÀY CUỐI để lấy hàng — hôm nay không lấy là hàng bị trả về. Bạn nhớ ghé lấy ngay trong hôm nay nhé!"
+                : conLai === 1 ? "Mai là ngày cuối để lấy hàng, quá hạn hàng sẽ bị trả về. Bạn ghé lấy sớm nhất có thể nhé!"
+                    : "Cửa hàng chỉ giữ hàng thêm vài ngày nữa là trả về. Bạn ghé lấy sớm nhất có thể nhé!";
+            return `Chào ${ten}, nhắc bạn lần nữa: ${lau} ${han} Có gì thắc mắc bạn cứ nhắn lại cho shop nhé. Cảm ơn bạn!`;
+        }
+        const lau = `your parcel has been waiting at ${cho} for ${ngay ? soNgay(ngay) : "several days"} and hasn't been picked up yet!`;
+        const han = cuoi ? "Today is the LAST DAY to pick it up — if it's not collected today, it will be returned. Please make sure to pick it up today!"
+            : conLai === 1 ? "Tomorrow is the last day to pick it up, after that it will be returned. Please pick it up as soon as possible!"
+                : "The store will only keep it for a few more days before sending it back. Please pick it up as soon as possible!";
+        return `Hi ${ten}, this is another reminder: ${lau} ${han} If you have any questions, just reply to this message. Thank you!`;
     }
-    const toi = ngay ? `已經送到 ${cho} ${ngay} 天了` : ngay === 0 ? `今天已經送達 ${cho}` : `已經送達 ${cho}`;
-    const han = cuoi ? "今天是最後取件日，麻煩您今天抽空到門市領取喔" : "麻煩您抽空到門市領取喔";
-    return `${ten} 您好～您的包裹${toi}${tien ? `，取貨時請準備 ${tien}` : ""}。${han}，逾期包裹會被退回。謝謝您！`;
+    if (vi) {
+        const toi = ngay ? `hàng của bạn đã tới cửa hàng ${cho} được ${soNgay(ngay)} rồi`
+            : ngay === 0 ? `hàng của bạn đã tới cửa hàng ${cho} hôm nay` : `hàng của bạn đã tới cửa hàng ${cho}`;
+        const han = cuoi ? "Hôm nay là ngày cuối để lấy hàng, phiền bạn ghé cửa hàng lấy trong hôm nay nhé, không thì hàng sẽ bị trả về."
+            : "Phiền bạn tranh thủ ghé cửa hàng lấy nhé, quá hạn hàng sẽ bị trả về.";
+        return `Chào ${ten}, ${toi}. ${han} Cảm ơn bạn!`;
+    }
+    const toi = ngay ? `your parcel arrived at ${cho} ${soNgay(ngay)} ago`
+        : ngay === 0 ? `your parcel arrived at ${cho} today` : `your parcel has arrived at ${cho}`;
+    const han = cuoi ? "Today is the last day to pick it up, so please drop by the store today — otherwise it will be returned."
+        : "Please drop by the store to pick it up when you can — if it's not picked up in time, it will be returned.";
+    return `Hi ${ten}, ${toi}. ${han} Thank you!`;
+}
+
+/** Hai dòng trong tin Zalo: câu tiếng Anh để chép gửi khách, rồi bản dịch cho anh em. */
+function dongTinDai(s, han) {
+    const en = tinKhachDai(s, han, "en");
+    if (!en) return [];
+    return [`💬 ${en}`, `🇻🇳 Dịch: ${tinKhachDai(s, han, "vi")}`];
 }
 
 // ─── Sổ nhắc: khách nào đã được nhắn, mấy lần ───────────────────────────────
@@ -226,9 +260,12 @@ function khoiGoi(a, i, tien, giaoTanNha, ma = "") {
     if (!giaoTanNha && s.store_name) dong.push(`🏪 ${s.store_name}${maLayHang(s) ? ` · mã lấy hàng ${maLayHang(s)}` : ""}`);
     // UAE không có bảng đối tác — ghi chú là của đơn POS (thường là địa chỉ, hẹn ngày giao).
     if (s.note) dong.push(`📝 ${ma === "AE" ? "Ghi chú đơn" : "Đối tác ghi"}: "${cat(s.note, 80)}"`);
-    const tin = giaoTanNha ? tinKhachNha(s, ma)
-        : tinKhachDai(s, { ngay: soNgayCho(a), conLai: a.days_left, nhacLai: !!a.nhac });
-    if (tin) dong.push(`💬 ${tin}`);
+    if (giaoTanNha) {
+        const tin = tinKhachNha(s, ma);
+        if (tin) dong.push(`💬 ${tin}`);
+    } else {
+        dong.push(...dongTinDai(s, { ngay: soNgayCho(a), conLai: a.days_left, nhacLai: !!a.nhac }));
+    }
     return dong.join("\n");
 }
 
@@ -245,8 +282,7 @@ function khoiMoiToi(a, tien) {
     const khach = [s.customer, s.phone].filter(Boolean).join(" · ");
     const cho = s.store_name ? `🏪 ${s.store_name}${maLayHang(s) ? ` · mã lấy hàng ${maLayHang(s)}` : ""}` : "";
     if (khach || cho) dong.push([khach ? `👤 ${khach}` : "", cho].filter(Boolean).join(" · "));
-    const tin = tinKhachDai(s, { ngay: n, conLai: a.days_left, nhacLai: !!a.nhac });
-    if (tin) dong.push(`💬 ${tin}`);
+    dong.push(...dongTinDai(s, { ngay: n, conLai: a.days_left, nhacLai: !!a.nhac }));
     return dong.join("\n");
 }
 
