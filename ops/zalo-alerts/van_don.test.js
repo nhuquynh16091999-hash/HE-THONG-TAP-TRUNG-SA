@@ -167,11 +167,57 @@ const sang = (d, o = {}) => buildVanDonSang(d, { today: TODAY, nowTs: NOW, phuTr
         ] }));
         const m = tron(r.text);
         assert.ok(m.includes("☎️ @Thương · GỌI 1 KHÁCH GIAO HỎNG / HẸN LẠI"), m);
+        // TH2 (Sỹ Anh 01/10/2026): bảo khách xem cuộc gọi nhỡ / SMS của shipper, chủ động liên hệ lại.
         assert.ok(m.includes("1. S1011 · 69 SGD · khách hẹn giao lại\n👤 Joy · 81234567 · Tampines\n📝 Đối tác ghi: \"Giao lại vào 28\"\n"
-            + "💬 Hi Joy, J&T could not deliver your parcel JT2026092201."), m);
+            + "💬 Hi Joy, J&T tried to deliver your parcel (JT2026092201) but couldn't reach you. Please check your phone for any missed calls or SMS "
+            + "from the J&T driver and contact them directly to arrange a new delivery time. If you need help, just reply to us. Thank you!\n"
+            + "🇻🇳 Dịch: Chào Joy, J&T đã tới giao hàng (JT2026092201) nhưng không gặp được bạn. Bạn kiểm tra lại điện thoại xem có cuộc gọi nhỡ"), m);
         assert.ok(!m.includes("S1013"), "hàng đang hoàn không lên danh sách gọi");
         assert.ok(!m.includes("📬"), "Singapore không có mục khách mới tới cửa hàng");
         assert.deepStrictEqual(r.goi, ["JT2026092201"]);
+        assert.deepStrictEqual(r.daNhan, ["JT2026092201"], "khách giao hỏng đã có câu → ghi sổ để lần sau nhắc gấp hơn");
+    });
+
+    await t("SG: giao hỏng mà đã nhắn hôm trước (sổ) hoặc hỏng ≥ 2 lần → câu nhắc lại gấp hơn", () => {
+        const hong = (o) => canh("giao_hong", { level: "canh_bao" }, { store_name: "", source: "17track", status: "DeliveryFailure", sub_status: "DeliveryFailure_Other", ...o });
+        const r = sang(SG({ alerts: [
+            hong({ order_id: "S1039", tracking: "JT1", track17_code: "JT1", customer: "Ann" }),
+            hong({ order_id: "S1044", tracking: "JT2", track17_code: "JT2", customer: "Ben", fail_count: 3 }),
+            hong({ order_id: "S1050", tracking: "JT3", track17_code: "JT3", customer: "Cat" }),
+        ] }), { soNhac: { JT1: { lan: 1, dau: "2026-09-25", cuoi: "2026-09-25" } } });
+        const m = tron(r.text);
+        assert.ok(m.includes("S1039 · 1.499 SGD · giao hỏng · đã nhắn 1 lần"), m);
+        assert.ok(m.includes("Hi Ann, this is another reminder: J&T still hasn't been able to deliver your parcel (JT1)!"), m);
+        assert.ok(m.includes("Hi Ben, this is another reminder: J&T has tried to deliver your parcel (JT2) 3 times and still couldn't reach you!"), m);
+        assert.ok(m.includes("🇻🇳 Dịch: Chào Ben, shop nhắc bạn lần nữa: J&T đã giao hàng (JT2) 3 lần mà vẫn không gặp được bạn!"), m);
+        assert.ok(m.includes("Hi Cat, J&T tried to deliver your parcel (JT3) but couldn't reach you."), "lần đầu vẫn giọng thường");
+    });
+
+    await t("SG: BÁO TRƯỚC khách sắp nhận hàng — đã vào J&T / đang đi giao, mỗi mốc một lần", () => {
+        const sh = [
+            don({ order_id: "S1066", tracking: "JT10", track17_code: "JT10", customer: "Dan", phone: "81112222", city: "Jurong", store_name: "", source: "17track", status: "InTransit" }),
+            don({ order_id: "S1067", tracking: "JT11", track17_code: "JT11", customer: "Eve", store_name: "", source: "17track", status: "OutForDelivery" }),
+            don({ order_id: "S1068", tracking: "JT12", store_name: "", source: "doi_tac", status: "InTransit" }),
+            don({ order_id: "S1069", tracking: "JT13", store_name: "", source: "17track", status: "InTransit" }),
+        ];
+        const r = sang(SG({ shipments: sh }), { soNhac: { "InTransit:JT13": { lan: 1, dau: "2026-09-25", cuoi: "2026-09-25" } } });
+        const m = tron(r.text);
+        assert.ok(m.includes("🚚 @Thương · BÁO TRƯỚC 2 KHÁCH SẮP NHẬN HÀNG — nhắn khách mở máy, để ý điện thoại"), m);
+        assert.ok(m.includes("S1067 · 1.499 SGD · J&T ĐANG ĐI GIAO HÔM NAY\n👤 Eve · 0975475359\n💬 Hi Eve, your parcel (JT11) is out for delivery with J&T today!"), "đi giao hôm nay lên đầu");
+        assert.ok(m.includes("S1066 · 1.499 SGD · đã vào J&T, sắp giao\n👤 Dan · 81112222 · Jurong\n"
+            + "💬 Hi Dan, your parcel (JT10) is now with J&T and will be delivered soon (usually within 1–2 days). Please keep your phone on"), m);
+        assert.ok(m.includes("🇻🇳 Dịch: Chào Dan, hàng của bạn (JT10) đã tới J&T và sắp được giao (thường trong 1–2 ngày)."), m);
+        assert.ok(!m.includes("S1068"), "'đang vận chuyển' của bảng đối tác có thể còn ở chặng Trung Quốc — không báo");
+        assert.ok(!m.includes("S1069"), "mốc đã báo hôm trước — không báo lại");
+        assert.deepStrictEqual(r.sapGiao, ["JT11", "JT10"]);
+        assert.deepStrictEqual(r.daNhan, ["OutForDelivery:JT11", "InTransit:JT10"], "ghi sổ theo khoá mốc");
+        assert.ok(!tron(sang(DATA({ shipments: sh })).text).includes("BÁO TRƯỚC"), "Đài không có mục này");
+    });
+
+    await t("SG tối: chấm khách báo trước sáng nay đã nhận chưa", () => {
+        const d = SG({ shipments: [don({ tracking: "JT10", status: "Delivered", cod_local: 69 }), don({ tracking: "JT11", status: "OutForDelivery" })] });
+        const m = tron(buildVanDonToi(d, { today: TODAY, nowTs: Date.parse("2026-09-26T15:00:00Z"), sangNay: { goi: [], moiToi: [], sapGiao: ["JT10", "JT11"] } }));
+        assert.ok(m.includes("🚚 2 KHÁCH BÁO TRƯỚC SÁNG NAY → 1 đã nhận (69 SGD) · 1 chưa"), m);
     });
 
     // ── SÁNG · UAE (WeShip, 28/09/2026) ──

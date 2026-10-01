@@ -276,7 +276,7 @@ function guiVanDon(m, kieu = "sang") {
         if (kieu === "sang" && !DRY) {
             const nay = vnDateStr();
             markState((s) => {
-                (s.vanDonSang = s.vanDonSang || {})[m] = { ngay: nay, goi: r.goi || [], moiToi: r.moiToi || [], nhacLai: r.nhacLai || [] };
+                (s.vanDonSang = s.vanDonSang || {})[m] = { ngay: nay, goi: r.goi || [], moiToi: r.moiToi || [], nhacLai: r.nhacLai || [], sapGiao: r.sapGiao || [] };
                 // Chỉ ghi sổ sau khi GỬI THẬT: khách có câu soạn sẵn trong tin sáng nay = đã nhắn thêm một lần.
                 (s.vanDonNhac = s.vanDonNhac || {})[m] = ghiSoNhac(s.vanDonNhac[m], r.daNhan, nay);
             });

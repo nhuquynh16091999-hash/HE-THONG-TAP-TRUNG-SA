@@ -220,11 +220,49 @@ function ghiSoNhac(soNhac, trackings, today) {
     return so;
 }
 
-// Singapore giao tận nhà (J&T): việc là hẹn lại giờ giao.
-function tinKhachSing(s) {
-    const ten = s.customer || "there";
+// ─── Singapore giao tận nhà (J&T) — Sỹ Anh chốt 01/10/2026 ───────────────────
+// Tiếng Anh gửi khách + bản dịch tiếng Việt cho anh em, như Đài.
+//   TH1 — SẮP GIAO: 17TRACK thấy hàng đã vào tay J&T (InTransit) → báo trước khách mở máy,
+//         để ý điện thoại; J&T đi giao (OutForDelivery) → báo "hôm nay giao".
+//   TH2 — GIAO KHÔNG ĐƯỢC: bảo khách xem cuộc gọi nhỡ / tin nhắn của shipper J&T rồi CHỦ
+//         ĐỘNG liên hệ lại hẹn giờ. Đã nhắn mà vẫn chưa giao được (hoặc hỏng ≥ 2 lần) → gấp hơn.
+
+/** TH2 — J&T giao không được. han = { nhacLai, lan: số lần giao hỏng nếu biết }. */
+function tinKhachSing(s, { nhacLai = false, lan = null } = {}, lang = "en") {
+    const vi = lang === "vi";
+    const ten = s.customer || (vi ? "bạn" : "there");
     const ma = s.track17_code || s.tracking;
-    return `Hi ${ten}, J&T could not deliver your parcel ${ma}. Please reply with a good time for delivery and keep your phone on. Thank you!`;
+    if (nhacLai) {
+        if (vi) {
+            const lau = lan >= 2 ? `J&T đã giao hàng (${ma}) ${lan} lần mà vẫn không gặp được bạn!` : `J&T vẫn chưa giao được hàng (${ma}) cho bạn!`;
+            return `Chào ${ten}, shop nhắc bạn lần nữa: ${lau} Bạn kiểm tra điện thoại xem có cuộc gọi nhỡ hoặc tin nhắn của shipper J&T không, `
+                + "rồi liên hệ lại với họ ngay hôm nay để hẹn giờ giao nhé — không giao được sớm thì hàng sẽ bị trả về. Cảm ơn bạn!";
+        }
+        const lau = lan >= 2 ? `J&T has tried to deliver your parcel (${ma}) ${lan} times and still couldn't reach you!` : `J&T still hasn't been able to deliver your parcel (${ma})!`;
+        return `Hi ${ten}, this is another reminder: ${lau} Please check your phone for missed calls or SMS from the J&T driver `
+            + "and contact them today to arrange the delivery — if it can't be delivered soon, the parcel will be returned. Thank you!";
+    }
+    if (vi) {
+        return `Chào ${ten}, J&T đã tới giao hàng (${ma}) nhưng không gặp được bạn. Bạn kiểm tra lại điện thoại xem có cuộc gọi nhỡ hoặc tin nhắn `
+            + "của shipper J&T không, rồi chủ động liên hệ lại với họ để hẹn giờ giao nhé. Cần shop hỗ trợ thì bạn cứ nhắn lại. Cảm ơn bạn!";
+    }
+    return `Hi ${ten}, J&T tried to deliver your parcel (${ma}) but couldn't reach you. Please check your phone for any missed calls or SMS `
+        + "from the J&T driver and contact them directly to arrange a new delivery time. If you need help, just reply to us. Thank you!";
+}
+
+/** TH1 — báo trước khi giao. moc: "InTransit" (đã vào J&T, 1–2 ngày nữa giao) · "OutForDelivery" (hôm nay giao). */
+function tinSapGiaoSing(s, moc, lang = "en") {
+    const vi = lang === "vi";
+    const ten = s.customer || (vi ? "bạn" : "there");
+    const ma = s.track17_code || s.tracking;
+    if (moc === "OutForDelivery") {
+        return vi
+            ? `Chào ${ten}, hàng của bạn (${ma}) đang được J&T đi giao trong hôm nay! Bạn nhớ mở máy và để ý cuộc gọi, tin nhắn của shipper J&T để không lỡ nhận hàng nhé. Cảm ơn bạn!`
+            : `Hi ${ten}, your parcel (${ma}) is out for delivery with J&T today! Please keep your phone on and watch for calls or SMS from the J&T driver so you don't miss it. Thank you!`;
+    }
+    return vi
+        ? `Chào ${ten}, hàng của bạn (${ma}) đã tới J&T và sắp được giao (thường trong 1–2 ngày). Bạn nhớ mở máy và để ý cuộc gọi, tin nhắn của shipper J&T để không lỡ nhận hàng nhé. Cảm ơn bạn!`
+        : `Hi ${ten}, your parcel (${ma}) is now with J&T and will be delivered soon (usually within 1–2 days). Please keep your phone on and watch for calls or SMS from the J&T driver so you don't miss the delivery. Thank you!`;
 }
 
 // UAE giao tận nhà qua WeShip: câu theo lý do — khách từ chối thì hỏi còn lấy không, không
@@ -239,6 +277,8 @@ function tinKhachUae(s) {
     return `Hi ${ten}, the delivery of your order (parcel ${ma}) was rescheduled. Please reply with a good time for delivery and keep your phone on. Thank you!`;
 }
 const tinKhachNha = (s, ma) => (ma === "AE" ? tinKhachUae(s) : tinKhachSing(s));
+/** Hai dòng: câu tiếng Anh gửi khách + bản dịch cho anh em (Sing; UAE chưa duyệt mẫu mới). */
+const haiDong = (f) => { const en = f("en"); return en ? [`💬 ${en}`, `🇻🇳 Dịch: ${f("vi")}`] : []; };
 
 const hanChu = (a) => a.days_left == null ? "" : a.days_left <= 0 ? "HẾT HẠN HÔM NAY" : `còn ${a.days_left} ngày`;
 
@@ -253,19 +293,32 @@ function khoiGoi(a, i, tien, giaoTanNha, ma = "") {
     const lan = Number(s.fail_count) > 1 ? ` lần ${s.fail_count}` : "";
     const dau = [maDon(s), s.cod_local ? `${fmt(Math.round(s.cod_local))} ${tien}` : "",
         a.code === "giao_hong" ? lyDo(s) + lan : hanChu(a),
-        !giaoTanNha && a.nhac ? chuDaNhan(a.nhac.lan) : ""].filter(Boolean).join(" · ");
+        a.nhac ? (giaoTanNha ? (a.nhac.lan > 0 ? `đã nhắn ${a.nhac.lan} lần` : "") : chuDaNhan(a.nhac.lan)) : ""].filter(Boolean).join(" · ");
     const dong = [B(`${i + 1}. ${dau}`)];
     const khach = [s.customer, s.phone, giaoTanNha ? s.city : ""].filter(Boolean).join(" · ");
     if (khach) dong.push(`👤 ${khach}`);
     if (!giaoTanNha && s.store_name) dong.push(`🏪 ${s.store_name}${maLayHang(s) ? ` · mã lấy hàng ${maLayHang(s)}` : ""}`);
     // UAE không có bảng đối tác — ghi chú là của đơn POS (thường là địa chỉ, hẹn ngày giao).
     if (s.note) dong.push(`📝 ${ma === "AE" ? "Ghi chú đơn" : "Đối tác ghi"}: "${cat(s.note, 80)}"`);
-    if (giaoTanNha) {
+    if (giaoTanNha && ma === "SG") {
+        dong.push(...haiDong((lang) => tinKhachSing(s, { nhacLai: !!a.nhac, lan: Number(s.fail_count) || null }, lang)));
+    } else if (giaoTanNha) {
         const tin = tinKhachNha(s, ma);
         if (tin) dong.push(`💬 ${tin}`);
     } else {
         dong.push(...dongTinDai(s, { ngay: soNgayCho(a), conLai: a.days_left, nhacLai: !!a.nhac }));
     }
+    return dong.join("\n");
+}
+
+/** Khối một khách Sing SẮP NHẬN HÀNG: 3–4 dòng, câu báo trước kèm bản dịch. */
+function khoiSapGiao(x, tien) {
+    const s = x.shipment;
+    const dong = [B([maDon(s), s.cod_local ? `${fmt(Math.round(s.cod_local))} ${tien}` : "",
+        x.moc === "OutForDelivery" ? "J&T ĐANG ĐI GIAO HÔM NAY" : "đã vào J&T, sắp giao"].filter(Boolean).join(" · "))];
+    const khach = [s.customer, s.phone, s.city].filter(Boolean).join(" · ");
+    if (khach) dong.push(`👤 ${khach}`);
+    dong.push(...haiDong((lang) => tinSapGiaoSing(s, x.moc, lang)));
     return dong.join("\n");
 }
 
@@ -312,7 +365,7 @@ const tong = (xs) => xs.reduce((n, s) => n + (Number(s.cod_local) || 0), 0);
 
 /** Phân loại một khối đơn cho tin: gọi ngay, mới tới, nhắc lại, hỏi đối tác, lệch.
  *  soNhac: sổ nhắc của bot — khách Đài đã được nhắn trước hôm nay thì gắn a.nhac = { lan }. */
-function phanLoai(d, today, giaoTanNha, soNhac = {}) {
+function phanLoai(d, today, giaoTanNha, soNhac = {}, nuoc = "") {
     const alerts = d.alerts || [];
     const by = (code) => alerts.filter((a) => a.code === code);
     const gap = by("sap_bi_tra_ve");
@@ -342,8 +395,23 @@ function phanLoai(d, today, giaoTanNha, soNhac = {}) {
     const nhacLai = giaoTanNha ? [] : toi.filter((a) => a.nhac)
         .sort((a, b) => (soNgayCho(b) ?? 0) - (soNgayCho(a) ?? 0));
     // Giao tận nhà: đơn giao hỏng / hẹn lại là đơn cứu được bằng một cuộc gọi → lên danh sách gọi.
-    const goi = giaoTanNha ? [...sap, ...suCo] : sap.map(ganNhac);
-    return { sap, qua, suCo, dungIm, chuaGui, lech, moiToi, nhacLai, goi };
+    // Sing: khách đã nhắn ngày trước (sổ nhắc) hoặc đã hỏng ≥ 2 lần → câu nhắc lại, gấp hơn.
+    const ganNhacNha = (a) => {
+        if (nuoc !== "SG") return a;
+        const s = a.shipment || {};
+        const lan = lanTruoc(soNhac, s.tracking, today);
+        return lan > 0 || Number(s.fail_count) >= 2 ? { ...a, nhac: { lan } } : a;
+    };
+    const goi = giaoTanNha ? [...sap, ...suCo].map(ganNhacNha) : sap.map(ganNhac);
+    // SẮP GIAO (Sing, Sỹ Anh 01/10/2026): báo trước một lần mỗi mốc — đã vào J&T (InTransit,
+    // chỉ tin 17TRACK: "đang vận chuyển" của bảng đối tác có thể còn ở chặng Trung Quốc) và
+    // J&T đi giao (OutForDelivery). Khoá sổ "<mốc>:<mã>" để không báo lại mỗi sáng.
+    const sapGiao = nuoc !== "SG" ? [] : (d.shipments || [])
+        .filter((s) => s.status === "OutForDelivery" || (s.status === "InTransit" && s.source === "17track"))
+        .map((s) => ({ shipment: s, moc: s.status, khoa: `${s.status}:${s.tracking}` }))
+        .filter((x) => !lanTruoc(soNhac, x.khoa, today))
+        .sort((a, b) => (a.moc === "OutForDelivery" ? 0 : 1) - (b.moc === "OutForDelivery" ? 0 : 1));
+    return { sap, qua, suCo, dungIm, chuaGui, lech, moiToi, nhacLai, goi, sapGiao };
 }
 
 function nguoi(opts) {
@@ -369,7 +437,8 @@ function buildVanDonSang(d, opts = {}) {
     const giaoTanNha = !!nuoc.code && nuoc.code !== "TW";
     const ten = String(nuoc.label || "Đài Loan").toUpperCase();
     const homQua = cong(today, -1);
-    const { qua, suCo, dungIm, chuaGui, lech, moiToi, nhacLai, goi } = phanLoai(d, today, giaoTanNha, opts.soNhac);
+    const { qua, suCo, dungIm, chuaGui, lech, moiToi, nhacLai, goi, sapGiao } = phanLoai(d, today, giaoTanNha, opts.soNhac, nuoc.code);
+    const maxSapGiao = Number(opts.maxSapGiao) || 20;
     const hq = suKienNgay(d.shipments, homQua);
     const counts = d.counts || {};
     const ls = d.last_sync;
@@ -400,6 +469,12 @@ function buildVanDonSang(d, opts = {}) {
         if (goi.length > maxGoi) dong.push("", I(`… ${fmt(goi.length - maxGoi)} khách nữa trên dashboard`));
     } else {
         dong.push("", `☎️ ${B("Không có khách nào phải gọi gấp hôm nay")} ✅`);
+    }
+
+    if (sapGiao.length) {
+        dong.push("", `🚚 ${nguoi(opts)}${B(`BÁO TRƯỚC ${fmt(sapGiao.length)} KHÁCH SẮP NHẬN HÀNG`)} — nhắn khách mở máy, để ý điện thoại`);
+        sapGiao.slice(0, maxSapGiao).forEach((x) => dong.push("", khoiSapGiao(x, tien)));
+        if (sapGiao.length > maxSapGiao) dong.push("", I(`… ${fmt(sapGiao.length - maxSapGiao)} khách nữa trên dashboard`));
     }
 
     if (!giaoTanNha && moiToi.length) {
@@ -435,7 +510,11 @@ function buildVanDonSang(d, opts = {}) {
         goi: ma(goi),
         moiToi: ma(moiToi),
         nhacLai: ma(nhacLai),
-        daNhan: giaoTanNha ? [] : ma([...coTin(goi.slice(0, maxGoi)), ...coTin(moiToi.slice(0, maxMoiToi)), ...coTin(nhacLai.slice(0, maxNhacLai))]),
+        daNhan: nuoc.code === "SG"
+            // Sing: khách giao hỏng có câu soạn sẵn + mốc báo trước đã gửi (khoá "<mốc>:<mã>").
+            ? [...ma(goi.slice(0, maxGoi)), ...sapGiao.slice(0, maxSapGiao).map((x) => x.khoa)]
+            : giaoTanNha ? [] : ma([...coTin(goi.slice(0, maxGoi)), ...coTin(moiToi.slice(0, maxMoiToi)), ...coTin(nhacLai.slice(0, maxNhacLai))]),
+        sapGiao: sapGiao.map((x) => (x.shipment || {}).tracking).filter(Boolean),
     };
 }
 
@@ -489,6 +568,12 @@ function buildVanDonToi(d, opts = {}) {
         const m = cham(sang.moiToi);
         dong.push("", `📬 ${B(`${fmt(sang.moiToi.length)} KHÁCH HÀNG MỚI TỚI`)} → ${fmt(m.lay.length)} đã lấy · ${fmt(m.cho.length)} còn chờ`);
     }
+    if (sang && (sang.sapGiao || []).length) {
+        const m = cham(sang.sapGiao);
+        dong.push("", `🚚 ${B(`${fmt(sang.sapGiao.length)} KHÁCH BÁO TRƯỚC SÁNG NAY`)} → ${fmt(m.lay.length)} đã nhận`
+            + `${m.lay.length ? ` (${fmt(Math.round(tong(m.lay)))} ${tien})` : ""} · ${fmt(m.cho.length)} chưa`
+            + `${m.tra.length ? ` · ${fmt(m.tra.length)} bị trả về` : ""}`);
+    }
     if (!giaoTanNha && sang && (sang.nhacLai || []).length) {
         const m = cham(sang.nhacLai);
         dong.push("", `🔁 ${B(`${fmt(sang.nhacLai.length)} KHÁCH NHẮC LẠI`)} → ${fmt(m.lay.length)} đã lấy`
@@ -514,4 +599,4 @@ function buildVanDonToi(d, opts = {}) {
     return dong.join("\n");
 }
 
-module.exports = { buildVanDonSang, buildVanDonToi, fetchVanDon, dongNguon, ghiSoNhac, lanTruoc, lyDo, maLayHang, suKienNgay, tinKhachDai, tinKhachSing, tinKhachUae };
+module.exports = { buildVanDonSang, buildVanDonToi, fetchVanDon, dongNguon, ghiSoNhac, lanTruoc, lyDo, maLayHang, suKienNgay, tinKhachDai, tinKhachSing, tinKhachUae, tinSapGiaoSing };
