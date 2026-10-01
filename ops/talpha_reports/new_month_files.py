@@ -1,171 +1,70 @@
 #!/usr/bin/env python3
-"""Quét thư mục Drive của tháng mới → in sẵn map ID file cho format_all.py.
+"""Soát bộ file báo cáo của MỘT THÁNG trên Drive — CHỈ ĐỌC, không ghi gì lên Drive.
 
-CHỈ ĐỌC. Không ghi gì lên Drive, không sửa file nào — chép phần in ra vào đúng file JSON.
+    python3 new_month_files.py 2026-10                  # tìm thư mục "Tháng 10" trong thư mục gốc
+    python3 new_month_files.py <FOLDER_ID hoặc link>    # soát thẳng một thư mục
 
-    python3 new_month_files.py <FOLDER_ID hoặc link thư mục>
+Từ 01/10/2026 format_all.py TỰ tìm bộ file của tháng đang chạy (report_files.py) — không phải
+dán ID vào đâu nữa. Script này để soát trước: thư mục tháng mới đã đủ file chưa, file nào
+không xếp được (sai tên, .xlsx), ai tháng trước có file mà tháng này thiếu. Muốn ép một bộ ID
+thì lưu phần JSON in ra thành report_files/YYYY-MM.json (khai tay thắng quét Drive).
 
-In ra:
-    GRAND_KEY="…"            → dán vào format_all.py (file TỔNG TEAM THÁNG n)
-    # taiwan_files.json      → mỗi nước một file map {key marketer: ID}
-    # singapore_files.json
-    # uae_files.json …
-    # test_files.json
+Cách nhận file: người = tên thư mục chứa file (ANH, LOC, THAI…) hoặc tên file; nước = một từ
+trong tên file khớp market_aliases của talpha_rules.json ("TAIWAN T10", "SINGAPORE T10"…);
+"TỔNG TEAM" = file tổng; có chữ TEST = file test của người đó.
 
-Cách nhận file (16/09/2026 — mỗi marketer × mỗi nước một file):
-    người = tên thư mục chứa file (ANH, LOC, THAI…) hoặc tên file;
-    nước  = một từ trong tên file khớp market_aliases của talpha_rules.json
-            ("TAIWAN T10", "SINGAPORE T10", "UAE T10"…).
-Người và nước đều đọc từ talpha_rules.json — thêm người, thêm nước ở đó là script tự biết.
-
-Điều kiện: thư mục (và mọi thư mục con) đã share quyền Editor cho service account
+Điều kiện: thư mục gốc đã share quyền Editor cho service account
 talpha-dashboard@cty-507710.iam.gserviceaccount.com.
 """
-import os, sys, json, unicodedata
-from google.oauth2.service_account import Credentials
-from google.auth.transport.requests import AuthorizedSession
+import glob
+import json
+import os
+import re
+import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import talpha_paths
-from talpha_rules import ALLM, PRIMARY_MARKET, RULES
-KEY = talpha_paths.bq_key()
-SCOPES = ['https://www.googleapis.com/auth/drive']
-SHEET_MIME = 'application/vnd.google-apps.spreadsheet'
-FOLDER_MIME = 'application/vnd.google-apps.folder'
-# CEO hay tải file lên dạng .xlsx — Sheets API KHÔNG ghi được vào đó, job trượt im lặng.
-EXCEL_MIME = {'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-              'application/vnd.ms-excel'}
-
-
-def norm(s):
-    """Viết hoa, BỎ DẤU (Đ→D), mọi thứ không phải chữ/số thành khoảng trắng."""
-    s = unicodedata.normalize('NFD', (s or '').replace('đ', 'd').replace('Đ', 'D'))
-    s = ''.join(c for c in s if unicodedata.category(c) != 'Mn').upper()
-    return ' '.join(''.join(c if c.isalnum() else ' ' for c in s).split())
-
-
-# từ trong tên file → key thị trường ("SINGAPORE" → Singapore, "TW" → Taiwan…)
-MKT = {norm(tok): m for tok, m in RULES['market_aliases'].items() if not tok.startswith('_')}
-MKT.update({norm(m): m for m in ALLM})
-
-# cụm từ → key marketer. Thư mục đang đặt theo tên không dấu (ANH, LOC, QUYNH…), nên nhận
-# cả key, tên hiển thị, tên đầy đủ và TỪ CUỐI của tên hiển thị ("Sỹ Anh" → "ANH").
-# So theo TỪ nguyên vẹn chứ không theo chuỗi con: "ANH" không được khớp nhầm vào "THANH".
-NV = {}
-for key, v in RULES['marketers'].items():
-    ten = v.get('display') or ''
-    for cum in (key, ten, v.get('full'), ten.split()[-1] if ten else None):
-        if cum:
-            NV.setdefault(norm(cum), key)
-NV_DAI_TRUOC = sorted(NV, key=lambda c: -len(c.split()))   # cụm dài khớp trước cụm ngắn
-
-
-def _co_cum(cum, text):
-    t, c = norm(text).split(), cum.split()
-    # "THÁNG 10" bỏ dấu thành "THANG 10" — trùng tên Thắng. Chữ tháng + số thì bỏ khỏi phần dò người.
-    t = [x for i, x in enumerate(t) if not (x == 'THANG' and i + 1 < len(t) and t[i + 1].isdigit())]
-    return any(t[i:i + len(c)] == c for i in range(len(t) - len(c) + 1))
-
-
-def find_nv(*texts):
-    for t in texts:
-        for cum in NV_DAI_TRUOC:
-            if _co_cum(cum, t):
-                return NV[cum]
-    return None
-
-
-def find_mkt(*texts):
-    for t in texts:
-        for tok in norm(t).split():
-            if tok in MKT:
-                return MKT[tok]
-    return None
-
-
-def walk(sess, fid, path=()):
-    """Trả về (file, đường dẫn thư mục) cho mọi bảng tính, đệ quy vào thư mục con."""
-    page = None
-    while True:
-        params = {'q': f"'{fid}' in parents and trashed = false",
-                  'fields': 'nextPageToken,files(id,name,mimeType)',
-                  'pageSize': 200, 'supportsAllDrives': 'true',
-                  'includeItemsFromAllDrives': 'true'}
-        if page:
-            params['pageToken'] = page
-        r = sess.get('https://www.googleapis.com/drive/v3/files', params=params)
-        r.raise_for_status()
-        d = r.json()
-        for f in d.get('files', []):
-            if f['mimeType'] == FOLDER_MIME:
-                yield from walk(sess, f['id'], path + (f['name'],))
-            elif f['mimeType'] == SHEET_MIME or f['mimeType'] in EXCEL_MIME:
-                yield f, path
-        page = d.get('nextPageToken')
-        if not page:
-            break
+import report_files as rf
+from talpha_rules import ALLM, RULES
 
 
 def main():
     if len(sys.argv) < 2:
         print(__doc__)
         sys.exit(1)
-    fid = sys.argv[1].strip().rstrip('/').split('/')[-1].split('?')[0]
-    creds = Credentials.from_service_account_file(KEY, scopes=SCOPES)
-    sess = AuthorizedSession(creds)
+    arg = sys.argv[1].strip()
+    sess = rf.phien_drive(talpha_paths.bq_key())
+    m = re.fullmatch(r'(\d{4})-(\d{1,2})', arg)
+    if m:
+        y, th = int(m.group(1)), int(m.group(2))
+        root = (RULES.get('report_drive') or {}).get('root_folder_id')
+        fid = rf.tim_thu_muc_thang(sess, root, y, th)
+        if not fid:
+            print(f'KHÔNG THẤY thư mục "Tháng {th}" trong thư mục gốc {root}.')
+            print('→ Tạo thư mục đó, hoặc share thư mục gốc (Editor) cho talpha-dashboard@cty-507710.iam.gserviceaccount.com')
+            sys.exit(2)
+    else:
+        fid = arg.rstrip('/').split('/')[-1].split('?')[0]
 
-    items = list(walk(sess, fid))
+    items = list(rf.walk(sess, fid))
     if not items:
-        print(f'KHÔNG THẤY FILE NÀO trong thư mục {fid}.')
-        print('→ Thường là do chưa share. Mở thư mục trên Drive, bấm Share, thêm:')
-        print('     talpha-dashboard@cty-507710.iam.gserviceaccount.com   (Editor)')
-        print('  rồi chạy lại lệnh này.')
+        print(f'KHÔNG THẤY FILE NÀO trong thư mục {fid} — chưa có file, hoặc chưa share cho service account.')
         sys.exit(2)
+    bo, excel, la = rf.phan_loai(items)
+    print(f'# {len(items)} bảng tính · ' + ' · '.join(f'{len(bo["files"][x])} {x}' for x in ALLM)
+          + f' · {len(bo["test"])} Test · TỔNG TEAM: {"có" if bo["grand"] else "THIẾU"}\n')
+    print(json.dumps(bo, ensure_ascii=False, indent=1))
 
-    theo_nuoc = {m: {} for m in ALLM}
-    test, excel, la = {}, [], []
-    for f, path in items:
-        name, ctx = f['name'], ' / '.join(path)
-        if f['mimeType'] in EXCEL_MIME:
-            excel.append((f, ctx))
-            continue
-        # người: thư mục GẦN file nhất trước ("TAIWAN T9" không có tên người). Không dò cả
-        # đường dẫn một lượt: thư mục "Tháng 9" bỏ dấu thành "THANG" — trùng tên Thắng.
-        nv = find_nv(*reversed(path), name)
-        mkt = find_mkt(name, ctx)
-        u = norm(name)
-        if 'TEST' in u.split():
-            (test.setdefault(nv, f['id']) if nv else la.append((f, ctx, 'file test nhưng không rõ người')))
-        elif 'TONG TEAM' in u:
-            print(f'GRAND_KEY="{f["id"]}"   # {name}')
-        elif nv and mkt:
-            if nv in theo_nuoc[mkt]:
-                la.append((f, ctx, f'TRÙNG — {nv}/{mkt} đã nhận file {theo_nuoc[mkt][nv]}'))
-            else:
-                theo_nuoc[mkt][nv] = f['id']
-        else:
-            thieu = ' và '.join(x for x, co in (('người', nv), ('nước', mkt)) if not co)
-            la.append((f, ctx, f'không rõ {thieu}'))
-
-    print(f'\n# ── {len(items)} bảng tính · '
-          + ' · '.join(f'{len(theo_nuoc[m])} {m}' for m in ALLM) + f' · {len(test)} Test\n')
-    for m in ALLM:
-        print(f'# {m.lower()}_files.json:\n' + json.dumps(theo_nuoc[m], ensure_ascii=False, indent=1) + '\n')
-    if test:
-        print('# test_files.json:\n' + json.dumps(test, ensure_ascii=False, indent=1))
-
-    # So với map ĐANG DÙNG (tháng trước) chứ không so cả roster: người ngừng chạy vẫn nằm
-    # trong talpha_rules.json để đơn rơi rớt còn gán được (Sỹ Anh ngừng 16/09/2026), nhưng
-    # không còn file — kêu "thiếu" họ mỗi tháng là báo nhầm. Người tháng trước CÓ file mà
-    # tháng này không thấy thì mới đáng hỏi. Map nào chưa có (nước mới) thì bỏ qua.
+    # So với tháng KHAI TAY gần nhất (người ngừng chạy vẫn nằm trong talpha_rules.json nên
+    # không so với cả roster — kêu "thiếu" họ mỗi tháng là báo nhầm).
     here = os.path.dirname(os.path.abspath(__file__))
-    for m in ALLM:
-        p = os.path.join(here, f'{m.lower()}_files.json')
-        if not os.path.exists(p):
-            continue
-        thieu = [k for k in json.load(open(p, encoding='utf-8')) if k not in theo_nuoc[m]]
-        if thieu:
-            print(f'\nTHIẾU FILE {m.upper()} (tháng trước có): ' + ', '.join(thieu))
+    cu = sorted(glob.glob(os.path.join(here, 'report_files', '*.json')))
+    if cu:
+        truoc = json.load(open(cu[-1], encoding='utf-8'))
+        for x in ALLM:
+            thieu = [k for k in (truoc.get('files') or {}).get(x, {}) if k not in bo['files'][x]]
+            if thieu:
+                print(f'\nTHIẾU FILE {x.upper()} (so với {os.path.basename(cu[-1])}): ' + ', '.join(thieu))
     if excel:
         print('\nFILE EXCEL (.xlsx) — job KHÔNG ghi được. Mở file → File → Save as Google Sheets:')
         for f, ctx in excel:

@@ -1,4 +1,4 @@
-import os, collections, datetime, time, re, json
+import os, sys, collections, datetime, time, re, json
 # Key: env thắng → key runtime (máy chạy launchd) → key trong repo (máy dev). Trước đây
 # hardcode /Users/syanh/... nên script chỉ chạy được đúng một máy.
 _KEY_UNGVIEN=[os.environ.get('GOOGLE_APPLICATION_CREDENTIALS'),
@@ -11,9 +11,26 @@ import gspread
 from google.oauth2.service_account import Credentials
 from gspread.exceptions import APIError, SpreadsheetNotFound
 import calendar as _cal
-_T=datetime.date.today()
+# ── THÁNG ĐANG CHẠY + BỘ FILE CỦA CHÍNH THÁNG ĐÓ (Sỹ Anh chốt 01/10/2026) ──
+# Ngày theo giờ VIỆT NAM (máy chủ để UTC: date.today() làm tháng lật lúc 07:00 sáng ngày 1).
+# TALPHA_REPORT_MONTH=YYYY-MM: dựng lại một tháng đã qua (đủ ngày tháng đó).
+# Bộ file: report_files.py — khai tay report_files/YYYY-MM.json, không có thì quét thư mục
+# "Tháng N" trên Drive. Trước đây GRAND_KEY + <nước>_files.json là MỘT bộ ID cố định: 01/10/2026
+# sang tháng không ai đổi ID, 16 file tháng 9 bị xoá sạch rồi ghi số tháng 10.
+import report_files as _rf
+_T=_rf.ngay_chot(os.environ.get('TALPHA_REPORT_MONTH'))
+_HERE=os.path.dirname(os.path.abspath(__file__))
+_RT=os.environ.get('TALPHA_RUNTIME_DIR') or os.path.expanduser('~/talpha_reports/runtime')
+BO,NGUON_BO=_rf.bo_file_thang(_T.year,_T.month,here=_HERE,cache_dir=os.path.join(_RT,'report_files_cache'),key=KEY)
+print(f"THANG {_T.month}/{_T.year} (toi {_T}) · bo file: {NGUON_BO}")
+if not BO:
+    # KHÔNG ghi gì, KHÔNG lùi về file tháng khác. rc 3 → vòng chạy báo hỏng, bot Zalo báo số chưa đủ.
+    print(f"CANH BAO: CHUA CO BO FILE THANG {_T.month}/{_T.year} — KHONG GHI GI. {NGUON_BO}")
+    print(f"    Tao thu muc 'Tháng {_T.month}' trong BÁO CÁO ADS ANTALO + file 'TỔNG TEAM THÁNG {_T.month}' va file tung nguoi "
+          f"(hoac chay Apps Script tao_thang_moi.gs), share thu muc goc cho service account.")
+    sys.exit(3)
 PROJECT='cty-507710'; DS='TALPHA_Dataset'
-FROM=_T.replace(day=1).isoformat(); TO=_T.isoformat()  # ngày ĐỘNG: đầu tháng -> hôm nay
+FROM=_T.replace(day=1).isoformat(); TO=_T.isoformat()  # đầu tháng -> hôm nay (tháng cũ: -> cuối tháng)
 # ── RULE CHUNG: đọc từ talpha_rules.json qua loader (golden-test 29/07 = 100% khớp bản cũ).
 # Sửa rule (marketer/tỷ giá/thị trường/test) → sửa talpha_rules.json, KHÔNG sửa tại đây.
 from talpha_rules import (RATE, LOCALCUR, MONEY_DIV, ALLM, MARKETS, SHOP2MKT, GTC_CAT, POS_TZ,
@@ -46,16 +63,14 @@ def parse_camp(cn):
     # nước. Xem camp_san_pham trong talpha_rules.py: hai lỗi đọc ô sửa 16/09/2026 nằm ở đó.
     prod=camp_san_pham(cn)[0] or "(khác)"
     return mkt,nv,prod
-# File theo nước của từng marketer: map đọc từ <nước>_files.json — xem FILE_NUOC bên dưới.
+# File theo nước của từng marketer: bộ file của tháng (report_files.py) — xem FILE_NUOC bên dưới.
 # (MARKET_MAP gõ tay trong code — bộ 30 file GCC của team cũ — bỏ 09/09/2026.)
 TONG_MAP={}  # Không còn file "TỔNG ADS" riêng từng người. Tổng MỌI nước của một người nằm ở
 # tab của người đó trong file TỔNG TEAM.
 # Vòng lặp file riêng + TEST bên dưới duyệt theo FILE_NUOC/TESTMAP, KHÔNG theo TONG_MAP nữa.
-GRAND_KEY="1Ur-U71lxBvnb0ysRbzYhRPcgyLp3P78o2bvIJ9hIs8s"  # "TỔNG TEAM THÁNG 9" — bản Google
-# Sheets trong thư mục Drive "Tháng 9" (1PQBdfGS2n…). Bản .xlsx cùng tên (1P5UfXCOD2…) là file
-# CEO tải lên, job KHÔNG ghi vào được (Sheets API chỉ mở file Google Sheets native).
-# Mỗi tháng CEO tạo file mới; ID tháng 8 là 1B5kzf8uXp3RG1YzKSKMyLUsc5CsLmdDduJRWG2PB4gM
-# — ĐỪNG dùng lại ID tháng cũ, write_file() xoá sạch tab rồi ghi đè.
+# File TỔNG TEAM THÁNG n của tháng đang chạy — lấy từ bộ file của tháng (report_files.py).
+# write_file() xoá sạch tab rồi ghi đè, nên ID này TUYỆT ĐỐI không được là file của tháng khác.
+GRAND_KEY=BO.get('grand') or ""
 DAYS=[datetime.date(_T.year,_T.month,d) for d in range(1,_cal.monthrange(_T.year,_T.month)[1]+1)]  # đủ ngày tháng hiện tại
 bq=bigquery.Client(project=PROJECT)
 cell=collections.defaultdict(lambda:{"spend":0.0,"msg":0,"pur":0,"orders":0,"cod":0.0,"cod_gtc":0.0})
@@ -310,19 +325,10 @@ for emp,key in TONG_MAP.items():
 # Nên file nào cũng chỉ MỘT nước, bố cục như trước giờ: "Tổng" = bảng của nước đó (tiền địa
 # phương + tỷ giá), rồi MỖI PAGE MỘT TAB đặt theo tên page (17/09/2026; trước đó theo mã sản
 # phẩm). Tên file do CEO đặt — code không đổi tên.
-# ID ở <key thị trường viết thường>_files.json cạnh script — taiwan_files.json,
-# singapore_files.json, uae_files.json — dạng {key marketer: ID}. Service account KHÔNG tự
-# tạo được file (quota Drive của nó = 0): người tạo sheet trong thư mục marketer, rồi thêm ID.
-_HERE=os.path.dirname(os.path.abspath(__file__))
-def _mapping_path(ten):  # chạy được ở CẢ repo lẫn runtime: file cạnh script thắng
-    canh=os.path.join(_HERE,ten)
-    return canh if os.path.exists(canh) else os.path.join(os.path.expanduser('~/talpha_reports'),ten)
-def _doc_map(ten):
-    # Chưa có file map = nước đó chưa ai có file → {}. Có file mà JSON hỏng thì CHO NỔ: nuốt
-    # lỗi là cả một nước ngừng ghi mà không ai hay (vòng lỗi thì tin Zalo 8h30 báo số cũ).
-    p=_mapping_path(ten)
-    return json.load(open(p)) if os.path.exists(p) else {}
-FILE_NUOC={mkt: _doc_map(f"{mkt.lower()}_files.json") for mkt in ALLM}
+# ID lấy từ bộ file của tháng (report_files.py) — {nước: {key marketer: ID}}, nhận theo thư mục
+# người (LOC, THAI…) và tên file "<NƯỚC> T<n>". Service account KHÔNG tự tạo được file (quota
+# Drive của nó = 0): người tạo sheet trong thư mục marketer của tháng là vòng sau tự thấy.
+FILE_NUOC={mkt: dict((BO.get('files') or {}).get(mkt) or {}) for mkt in ALLM}
 _TEN_NUOC={m: v.get("display", m) for m, v in RULES_MARKETS.items()}
 def nuoc_co_so(cells, loc=lambda k: True):
     """Các nước có số (chi tiêu hoặc đơn) trong tập ô, xếp Đài trước rồi theo thứ tự cấu hình."""
@@ -369,7 +375,7 @@ if GRAND_KEY and not GRAND_KEY.endswith("placeholder"):
     # HOẶC tháng này còn phát sinh số. Người nghỉ mà hết đơn thì tab tự biến mất.
     for emp in DISPLAY:
         # Người đã nghỉ (unassign_marketers): KHÔNG tab — số của họ nằm ở "(không gán)".
-        # Chặn tường minh ở đây để dù có ai thêm lại vào một <nước>_files.json cũng không mọc tab rỗng.
+        # Chặn tường minh ở đây để dù thư mục tháng còn file của họ cũng không mọc tab rỗng.
         if emp in UNASSIGN: continue
         if emp not in CO_FILE and not any(k[0] == emp for k in cell): continue
         tabs.append((safe(emp,used),combined_tab(emp)))
@@ -387,18 +393,16 @@ if GRAND_KEY and not GRAND_KEY.endswith("placeholder"):
             tabs.append((safe(_TEN_NUOC[mkt],used),market_tab(sub,RATE[mkt],LOCALCUR[mkt],MONEY_DIV[mkt])))
     write_file(GRAND_KEY,tabs,title=f"TỔNG TEAM THÁNG {_T.month}"); n+=1; print(f"[{n}] GRAND TỔNG THÁNG: {len(tabs)} tab")
 # ── FILE TEST mỗi marketer (chung mọi thị trường, tab theo page) ──
-# ID file lưu ở test_files.json (tạo lần đầu qua service account, share anyone-link editor).
-TESTMAP_PATH=_mapping_path('test_files.json')
-try: TESTMAP=json.load(open(TESTMAP_PATH))
-except Exception: TESTMAP={}
-for emp in TESTMAP:
+# ID từ bộ file của tháng: file có chữ TEST trong tên, người theo thư mục/tên file.
+TESTMAP=dict(BO.get('test') or {})
+for emp in sorted({k[0] for k in cell_test} | set(TESTMAP)):
     sub={k:v for k,v in cell_test.items() if k[0]==emp}
     if not sub: continue
     key=TESTMAP.get(emp)
     if not key:
-        # SA KHÔNG tự tạo được file (Google chặn quota) — user phải tạo + share rồi thêm ID
-        # vào test_files.json. Thiếu file thì bỏ qua marketer này, KHÔNG làm chết cả chain.
-        print(f"[SKIP] TEST {emp}: chưa có file trong {TESTMAP_PATH} — tạo sheet, share SA, thêm ID.")
+        # SA KHÔNG tự tạo được file (Google chặn quota) — người tạo sheet có chữ TEST trong thư
+        # mục của người đó ở tháng này. Thiếu file thì bỏ qua người này, KHÔNG làm chết cả chain.
+        print(f"[SKIP] TEST {emp}: thư mục 'Tháng {_T.month}' chưa có file TEST của người này — số test của họ chưa ghi.")
         continue
     prods=sorted({k[2] for k in sub}, key=lambda p:(-sum(sub[x]["spend"] for x in sub if x[2]==p), str(p)))
     used=set(); tabs=[("Tổng",test_tab(emp))]; used.add("tổng")
@@ -410,13 +414,13 @@ print("NOI NGUON DON: " + " · ".join(f"{k} {v}" for k,v in sorted(DEM_KHOP.item
 if DON_TRONG:
     print("BO DON TRONG (khong san pham, 0 tien — khong tinh vao so don): " + " · ".join(f"{r.shop_label} {r.n}" for r in DON_TRONG))
 if MAT_FILE:
-    print(f"CANH BAO: {len(MAT_FILE)} file rieng KHONG MO DUOC (da xoa han hoac mat quyen) — bo khoi <nuoc>_files.json hoac tao lai file.")
+    print(f"CANH BAO: {len(MAT_FILE)} file rieng KHONG MO DUOC (da xoa han hoac mat quyen) — kiem thu muc 'Tháng {_T.month}' tren Drive.")
     for _e,_m,_k in MAT_FILE:
         print(f"    {_e:8s} {_m:10s} {_k}")
 if THIEU_FILE:
-    print(f"CANH BAO: {len(THIEU_FILE)} cap nguoi/nuoc CO SO nhung CHUA CO FILE rieng — so van nam trong TONG TEAM. Tao sheet '<NUOC> T{_T.month}' trong thu muc nguoi do, them ID vao <nuoc>_files.json.")
+    print(f"CANH BAO: {len(THIEU_FILE)} cap nguoi/nuoc CO SO nhung CHUA CO FILE rieng — so van nam trong TONG TEAM. Tao sheet '<NUOC> T{_T.month}' trong thu muc nguoi do o 'Tháng {_T.month}' — vong sau tu thay.")
     for _e,_m in THIEU_FILE:
-        print(f"    {_e:8s} {_m:10s} -> {_m.lower()}_files.json")
+        print(f"    {_e:8s} {_m:10s}")
 if THIEU_NUOC:
     _tn=sum(THIEU_NUOC.values())
     print(f"CANH BAO: {len(THIEU_NUOC)} campaign KHONG GHI NUOC o dau ten — {_tn:,.0f} d dang tinh ve {PRIMARY_MARKET}. Doi ten thanh TW/… SG/… AE/… de khoi nham nuoc.")
@@ -427,3 +431,7 @@ if DROPPED:
     print(f"CANH BAO: {len(DROPPED)} campaign KHONG VAO BAO CAO — {_ts:,.0f} d bi roi (ten camp sai format/typo thi truong)")
     for _c,_s in sorted(DROPPED.items(), key=lambda x:-x[1])[:10]:
         print(f"    {_s:>12,.0f} d | {_c[:90]}")
+if not GRAND_KEY:
+    # Không có file TỔNG TEAM thì dashboard + bot Zalo không có số của tháng — báo hỏng vòng.
+    print(f"CANH BAO: thu muc 'Tháng {_T.month}' CHUA CO file 'TỔNG TEAM THÁNG {_T.month}' — dashboard va bot Zalo khong co so thang nay.")
+    sys.exit(3)

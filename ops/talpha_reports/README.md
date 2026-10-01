@@ -40,12 +40,32 @@ khác nhau cùng ghi một bộ bảng mỗi giờ, bản nào chạy sau thì �
 | `report_account_health.py` | Health theo TỪNG TKQC/shop — bắt lỗi âm thầm khi một mục rơi khỏi sync mà vòng vẫn rc=0 |
 | `check_meta_token.py` | Kiểm token Meta TRƯỚC khi tin vào Sheet. Exit 0 = mọi TKQC đọc được |
 | `team_report.py` | Báo cáo ADS gộp TEAM + từng marketer (chạy tay) |
-| `new_month_files.py` | Quét thư mục Drive tháng mới → in sẵn `GRAND_KEY` + map từng nước. CHỈ ĐỌC. Người và nước đọc từ `talpha_rules.json` |
+| `report_files.py` | **Bộ file của TỪNG THÁNG** (01/10/2026): khai tay `report_files/YYYY-MM.json`, không có thì quét thư mục "Tháng N" trên Drive. Tháng tính theo giờ VN |
+| `new_month_files.py` | Soát bộ file một tháng trên Drive (`python3 new_month_files.py 2026-10`) — đủ file chưa, file nào sai tên/.xlsx. CHỈ ĐỌC |
+| `tao_thang_moi.gs` | Apps Script chạy bằng tài khoản chủ thư mục: share thư mục gốc cho service account, chép khuôn tháng trước sang "Tháng N", tự chạy ngày 25 |
 | `deploy_runtime.sh` | Deploy MỘT CHIỀU repo → runtime (checksum diff, backup, giữ lock) |
 | `snapshot_cron.sh` | Gọi `/api/talpha/sync-inventory` để làm tươi `inventory_snapshot` — dự phòng cho tab Kho. **Chưa hẹn giờ** |
 | `catalog_cron.sh` | Đồng bộ danh mục sản phẩm từ POS |
-| `<nước>_files.json` — `taiwan_files.json` · `singapore_files.json` · `uae_files.json` | ID file Sheet riêng của từng marketer **theo nước**: `{key marketer: ID}`. Xem mục dưới |
-| `ad_accounts.json` · `test_files.json` | Bảng tra, đã version-control |
+| `report_files/YYYY-MM.json` | Bộ file KHAI TAY của một tháng (hiện chỉ tháng 9/2026): `{grand, files: {nước: {key marketer: ID}}, test}` |
+| `ad_accounts.json` | Bảng tra, đã version-control |
+
+## Mỗi tháng MỘT thư mục (01/10/2026)
+
+Thư mục gốc **CÔNG TY ANTALO / BÁO CÁO ADS ANTALO** (`talpha_rules.json → report_drive`) chứa
+`Tháng 9`, `Tháng 10`… Vòng chạy tự tìm bộ file của **tháng đang chạy theo giờ VN** trong
+thư mục đó (`report_files.py`) — không còn ID cố định trong code hay `<nước>_files.json`.
+Không thấy bộ file của tháng → **không ghi gì** (rc 3, log `CHUA CO BO FILE THANG`), không bao
+giờ ghi sang file tháng khác.
+
+Vì sao: 01/10/2026 bộ ID cố định vẫn trỏ file tháng 9, máy chủ (giờ UTC) lật tháng lúc 07:00
+sáng → từ 07:22 cả 16 file "Tháng 9" bị xoá sạch tab, ghi số tháng 10, file tổng đổi tên
+"TỔNG TEAM THÁNG 10"; tin Zalo 08:30 không gửi được. Dựng lại tháng cũ:
+`TALPHA_REPORT_MONTH=2026-09 python format_all.py` (giữ `.lock` như vòng chạy).
+
+**Tháng mới:** service account không tạo được file (quota Drive = 0), nên file do người tạo —
+chạy Apps Script `tao_thang_moi.gs` (chép khuôn tháng trước, tự chạy ngày 25), hoặc tạo tay
+theo mẫu dưới. Thư mục gốc phải share **Editor** cho
+`talpha-dashboard@cty-507710.iam.gserviceaccount.com`. Soát: `python3 new_month_files.py 2026-10`.
 
 ## File riêng: mỗi marketer × mỗi nước MỘT file
 
@@ -60,17 +80,13 @@ mở thư mục tưởng thiếu Singapore — bỏ ngay hôm sau.)
 
 **Thêm file cho một người chạy nước mới:**
 
-1. **Người** tạo Google Sheet trống trong thư mục của marketer, đặt tên `<NƯỚC> T<tháng>`.
-   Service account KHÔNG tự tạo được — quota Drive của nó bằng 0. File tạo trong thư mục
-   tự thừa hưởng quyền Editor của service account (thư mục đã share sẵn), không cần share lại.
-2. Thêm ID vào `<nước>_files.json` (tên nước = key trong `talpha_rules.json`, viết thường).
-   Khoá là **key** marketer (`Loc`), không phải tên hiển thị (`Lộc`).
-3. `python3 -m pytest tests/test_talpha_file_theo_nuoc.py` — chặn gõ nhầm key, tên file map
-   sai, một ID dùng cho hai báo cáo.
-4. Deploy (`deploy_runtime.sh` tự mang mọi `*_files.json` theo).
+1. **Người** tạo Google Sheet trống trong thư mục của marketer **ở thư mục tháng đó**, đặt tên
+   `<NƯỚC> T<tháng>`. Service account KHÔNG tự tạo được — quota Drive của nó bằng 0. File tạo
+   trong thư mục tự thừa hưởng quyền Editor của service account, không cần share lại.
+2. Hết. Vòng :20 kế tiếp tự thấy file (bản nhớ ở `runtime/report_files_cache/YYYY-MM.json`).
 
 Có số mà thiếu file thì số **không mất** (vẫn nằm trong TỔNG TEAM); log vòng chạy in
-`CANH BAO: … CHUA CO FILE`. File trong map mà đã bị xoá hẳn thì vòng chạy bỏ qua riêng file
+`CANH BAO: … CHUA CO FILE`. File đã bị xoá hẳn thì vòng chạy bỏ qua riêng file
 đó và in `CANH BAO: … KHONG MO DUOC` — không làm đứng file TỔNG TEAM.
 
 ## Nối đơn → campaign theo nguồn đơn

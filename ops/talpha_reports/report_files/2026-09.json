@@ -1,0 +1,34 @@
+{
+ "_note": "Bộ file báo cáo THÁNG 9/2026 — thư mục Drive 'BÁO CÁO ADS ANTALO / Tháng 9'. Khai tay vì thư mục gốc chưa share cho service account khi chuyển sang mỗi tháng một thư mục (01/10/2026). Gom từ GRAND_KEY trong format_all.py + taiwan_files.json + singapore_files.json + uae_files.json + test_files.json (đã xoá).",
+ "grand": "1Ur-U71lxBvnb0ysRbzYhRPcgyLp3P78o2bvIJ9hIs8s",
+ "files": {
+  "Taiwan": {
+   "Loc": "1z7qyjBCZ18YR3ZTQArpSMLc48zlWmT9aLwB7aoBHXPU",
+   "Quynh": "175zMV7ZDAJ1U0yesiiLfnS6nT9yyj1vFpwj4Gwn-eSA",
+   "Thai": "15_-ux7w8ud3fH-pKNs5PAP-qimPTxKjFwokA9guLQvw",
+   "Thang": "1NB8_UpZxyoxYthIX_P1uEiR9aR7qDVe1lp2vXLDDspk",
+   "Thuong": "1nmtcSTzPvxJEiXZo8MUQRGRj0_YauNBJLVx6EEeTcts"
+  },
+  "Singapore": {
+   "Loc": "1EfdxsExEWmO8w0TlHh29NaveyBOKRfjaoQMiv-SqdbA",
+   "Quynh": "1o1U1jXG24J1jePIa0icPRTZqYMo1pTGDeJ9Dlx0wUMU",
+   "Thai": "1qaEArhqyXXDRI8rv7hxNBW6My7JPWe7VtK_LuKvAiGU",
+   "Thang": "1EPrtpqNvf4tw-iYTB4Slw0qTVuPQa0Ms_CgdeMFq1U0",
+   "Thuong": "19ZyUFCVeJgK_T6sQxk4Udsab9EGHwoNmY4XsX9iA6Vw"
+  },
+  "UAE": {
+   "Loc": "1ade_2AeP3JK0mRdfnrf1TqSxP1b3D7kcQzknVApXyrA",
+   "Quynh": "1QBiW8nSPhXptkOw_t8VoDuuWNigPdcHDRw7M6UumKeU",
+   "Thai": "1jMgYagVZjLoEsfQULVc2io7h61ne-bOY2Cj9QUQyFJw",
+   "Thang": "1Ya8UnAEU7QRSs1QWqPTGoc3na5FCVLlekuqiSlZdaVc",
+   "Thuong": "1c_nd3Cz_spXCBjxZ_-ahX4QYEDizkBYdAVblxdSKfLQ"
+  }
+ },
+ "test": {
+  "ChuThuy": "152-GtI5WRswyw6INCvQnEvTH72Ic47tydkdbPm33YnQ",
+  "Loc": "1o1Ed--2QPPej99ZJA84HnjepndgMhSDiWVBWuns3piI",
+  "Nhung": "1I3yVIyz3dm37ooDHS9FxIFXY1OL9QpsGU3fpGvm_3uo",
+  "Chinh": "1Shk9GkOZCrMFgZJiZEGIsRI7qQhMUd9XcOYb84aEtOs",
+  "SAnh": "1B4ygo8LNUhTJJg-heD_YSkwcf__JMgeuqLo7usVxUpQ"
+ }
+}

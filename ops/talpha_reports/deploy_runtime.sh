@@ -32,12 +32,14 @@ PAIRS=(
   "ops/talpha_reports/report_health.py|report_health.py"
   "ops/talpha_reports/report_account_health.py|report_account_health.py"
   "ops/talpha_reports/ad_accounts.json|runtime/config/ad_accounts.json"
+  "ops/talpha_reports/report_files.py|report_files.py"
 )
-# Map ID file Sheet: test_files.json + MỖI NƯỚC một <nước>_files.json (taiwan, singapore,
-# uae…). Quét theo mẫu tên chứ không liệt kê tay: thêm nước mới mà quên thêm dòng ở đây thì
-# file map không lên máy chủ, cả nước đó im lặng không được ghi.
-for f in "$REPO"/ops/talpha_reports/*_files.json; do
-  PAIRS+=("ops/talpha_reports/$(basename "$f")|$(basename "$f")")
+# Bộ file báo cáo theo tháng (01/10/2026): format_all.py tự quét thư mục "Tháng N" trên Drive;
+# tháng nào khai tay thì có report_files/YYYY-MM.json. Quét theo mẫu tên chứ không liệt kê
+# tay: thêm tháng khai tay mà quên thêm dòng ở đây thì tháng đó lại đi quét Drive.
+# (Trước đó là MỘT bộ ID cố định <nước>_files.json + test_files.json — đã bỏ, xem report_files.py.)
+for f in "$REPO"/ops/talpha_reports/report_files/*.json; do
+  [ -f "$f" ] && PAIRS+=("ops/talpha_reports/report_files/$(basename "$f")|report_files/$(basename "$f")")
 done
 
 echo "── Diff checksum (repo vs runtime):"
