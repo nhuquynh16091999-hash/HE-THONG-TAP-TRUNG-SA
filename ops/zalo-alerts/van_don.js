@@ -376,8 +376,19 @@ function khoiSapGiao(x, tien, nuoc) {
     const dong = [B([maDon(s), s.cod_local ? `${fmt(Math.round(s.cod_local))} ${tien}` : "", nhan].filter(Boolean).join(" · "))];
     const khach = [s.customer, s.phone, s.city].filter(Boolean).join(" · ");
     if (khach) dong.push(`👤 ${khach}`);
-    dong.push(...haiDong((lang) => tinSapGiao(s, x.moc, nuoc, lang)));
+    // Chỉ câu tiếng Anh: bản dịch đứng MỘT lần đầu mục cho mỗi loại (xem dichSapGiao) — câu
+    // báo trước cùng loại giống hệt nhau, dịch từng khách làm tin UAE dài tới 11 phần.
+    dong.push(`💬 ${tinSapGiao(s, x.moc, nuoc, "en")}`);
     return dong.join("\n");
+}
+
+/** Bản dịch câu báo trước — một dòng cho mỗi loại có mặt trong mục. */
+function dichSapGiao(xs, nuoc) {
+    const ten = { HomNay: "giao hôm nay", NgayMai: "hẹn giao ngày mai", SapGiao: "sắp giao" };
+    return ["HomNay", "NgayMai", "SapGiao"].filter((m) => xs.some((x) => x.moc === m)).map((m) => {
+        const mau = { customer: "{tên}", track17_code: "{mã}", status: (xs.find((x) => x.moc === m).shipment || {}).status };
+        return `🇻🇳 Dịch (${ten[m]}): ${tinSapGiao(mau, m, nuoc, "vi")}`;
+    });
 }
 
 /** Khối một khách Đài ở cửa hàng — MỚI TỚI (nhắn lần đầu) hoặc NHẮC LẠI (đã nhắn mà chưa
@@ -531,7 +542,8 @@ function buildVanDonSang(d, opts = {}) {
     }
 
     if (sapGiao.length) {
-        dong.push("", `🚚 ${nguoi(opts)}${B(`BÁO TRƯỚC ${fmt(sapGiao.length)} KHÁCH SẮP NHẬN HÀNG`)} — nhắn khách mở máy, để ý điện thoại`);
+        dong.push("", `🚚 ${nguoi(opts)}${B(`BÁO TRƯỚC ${fmt(sapGiao.length)} KHÁCH SẮP NHẬN HÀNG`)} — nhắn khách mở máy, để ý điện thoại`,
+            ...dichSapGiao(sapGiao.slice(0, maxSapGiao), nuoc.code));
         sapGiao.slice(0, maxSapGiao).forEach((x) => dong.push("", khoiSapGiao(x, tien, nuoc.code)));
         if (sapGiao.length > maxSapGiao) dong.push("", I(`… ${fmt(sapGiao.length - maxSapGiao)} khách nữa trên dashboard`));
     }

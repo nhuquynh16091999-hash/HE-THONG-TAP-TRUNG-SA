@@ -209,7 +209,9 @@ const sang = (d, o = {}) => buildVanDonSang(d, { today: TODAY, nowTs: NOW, phuTr
         assert.ok(m.includes("S1067 · 1.499 SGD · GIAO HÔM NAY\n👤 Eve · 0975475359\n💬 Hi Eve, your parcel (JT11) is out for delivery with J&T today!"), "đi giao HÔM NAY lên đầu");
         assert.ok(m.includes("S1066 · 1.499 SGD · đã vào J&T, sắp giao\n👤 Dan · 81112222 · Jurong\n"
             + "💬 Hi Dan, your parcel (JT10) is now with J&T and will be delivered soon (usually within 1–2 days). Please keep your phone on"), m);
-        assert.ok(m.includes("🇻🇳 Dịch: Chào Dan, hàng của bạn (JT10) đã tới J&T và sắp được giao (thường trong 1–2 ngày)."), m);
+        assert.ok(m.includes("🇻🇳 Dịch (giao hôm nay): Chào {tên}, hàng của bạn ({mã}) sẽ được J&T giao trong hôm nay!"), m);
+        assert.ok(m.includes("🇻🇳 Dịch (sắp giao): Chào {tên}, hàng của bạn ({mã}) đã tới J&T và sắp được giao (thường trong 1–2 ngày)."), m);
+        assert.strictEqual((m.match(/🇻🇳/g) || []).length, 2, "dịch MỘT lần mỗi loại, không dịch từng khách");
         assert.ok(m.includes("S1071 · 1.499 SGD · đã vào J&T, sắp giao"), "đi giao từ HÔM QUA thì không nói 'hôm nay' — báo chung sắp giao");
         assert.ok(!m.includes("S1068"), "'đang vận chuyển' của bảng đối tác có thể còn ở chặng Trung Quốc — không báo");
         assert.ok(!m.includes("S1069"), "mốc đã báo hôm trước — không báo lại");
@@ -285,7 +287,7 @@ const sang = (d, o = {}) => buildVanDonSang(d, { today: TODAY, nowTs: NOW, phuTr
         assert.ok(m.includes("#32 · 159 AED · GIAO HÔM NAY\n👤 Bea · 0501234567 · Dubai\n💬 Hi Bea, your order (parcel VS32) is scheduled for delivery today!"), "hẹn từ hôm qua → hôm nay giao");
         assert.ok(m.includes("#33 · 159 AED · GIAO HÔM NAY\n👤 Cid · 0501234567 · Dubai\n💬 Hi Cid, your order (parcel VS33) is out for delivery with the courier today!"), m);
         assert.ok(m.includes("#31 · 159 AED · hẹn giao NGÀY MAI\n👤 Ali · 0501234567 · Dubai\n💬 Hi Ali, your order (parcel VS31) is scheduled for delivery tomorrow!"), m);
-        assert.ok(m.includes("🇻🇳 Dịch: Chào Ali, đơn của bạn (mã VS31) đã được hẹn giao vào ngày mai! Bạn nhớ mở máy và để ý cuộc gọi, tin nhắn của tài xế giao hàng"), m);
+        assert.ok(m.includes("🇻🇳 Dịch (hẹn giao ngày mai): Chào {tên}, đơn của bạn (mã {mã}) đã được hẹn giao vào ngày mai! Bạn nhớ mở máy và để ý cuộc gọi, tin nhắn của tài xế giao hàng"), m);
         assert.ok(m.includes("#34 · 159 AED · đã vào kho hãng, sắp giao\n👤 Dee · 0501234567 · Dubai\n💬 Hi Dee, your order (parcel VS34) is now with the courier"), m);
         assert.ok(!m.includes("J&T"), m);
     });
