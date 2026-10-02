@@ -432,6 +432,11 @@ function suKienNgay(shipments, ngay) {
 }
 const tong = (xs) => xs.reduce((n, s) => n + (Number(s.cod_local) || 0), 0);
 
+/** Từ chối nhận từ lần này trở đi thì thôi nhắn, đưa sang "nên huỷ" (Sỹ Anh chốt 02/10/2026). */
+const NGUONG_HUY_TU_CHOI = 3;
+const laNenHuy = (a) => lyDo((a || {}).shipment || {}) === "khách từ chối"
+    && Number(((a || {}).shipment || {}).fail_count) >= NGUONG_HUY_TU_CHOI;
+
 /** Phân loại một khối đơn cho tin: gọi ngay, mới tới, nhắc lại, hỏi đối tác, lệch.
  *  soNhac: sổ nhắc của bot — khách Đài đã được nhắn trước hôm nay thì gắn a.nhac = { lan }. */
 function phanLoai(d, today, giaoTanNha, soNhac = {}, nuoc = "") {
@@ -471,7 +476,12 @@ function phanLoai(d, today, giaoTanNha, soNhac = {}, nuoc = "") {
         const lan = lanTruoc(soNhac, s.tracking, today);
         return lan > 0 || Number(s.fail_count) >= 2 ? { ...a, nhac: { lan } } : a;
     };
-    const goi = giaoTanNha ? [...sap, ...suCo].map(ganNhacNha) : sap.map(ganNhac);
+    // NÊN HUỶ (Sỹ Anh chốt 02/10/2026): khách TỪ CHỐI nhận từ 3 lần trở lên — nhắn nữa cũng
+    // không cứu được, chỉ làm tin dài (tin sáng UAE 02/10 dài 9 phần, phần lớn là khách từ
+    // chối 4–5 lần). Rút khỏi danh sách gọi, không soạn câu gửi khách; gom MỘT dòng để huỷ đơn.
+    const nenHuy = !giaoTanNha ? [] : suCo.filter(laNenHuy)
+        .sort((a, b) => Number(b.shipment.fail_count) - Number(a.shipment.fail_count));
+    const goi = giaoTanNha ? [...sap, ...suCo.filter((a) => !laNenHuy(a))].map(ganNhacNha) : sap.map(ganNhac);
     // SẮP GIAO (Sing + UAE, Sỹ Anh 01/10/2026): báo trước khách mở máy, để ý điện thoại — mỗi
     // mốc một lần (xem mocSapGiao). Khoá sổ "<mốc>:<mã>" để không báo lại mỗi sáng.
     const thuTu = { HomNay: 0, NgayMai: 1, SapGiao: 2 };
@@ -481,7 +491,7 @@ function phanLoai(d, today, giaoTanNha, soNhac = {}, nuoc = "") {
         .map((x) => ({ ...x, khoa: `${x.moc}:${x.shipment.tracking}` }))
         .filter((x) => !lanTruoc(soNhac, x.khoa, today))
         .sort((a, b) => thuTu[a.moc] - thuTu[b.moc]);
-    return { sap, qua, suCo, dungIm, chuaGui, lech, moiToi, nhacLai, goi, sapGiao };
+    return { sap, qua, suCo, dungIm, chuaGui, lech, moiToi, nhacLai, goi, sapGiao, nenHuy };
 }
 
 function nguoi(opts) {
@@ -507,7 +517,7 @@ function buildVanDonSang(d, opts = {}) {
     const giaoTanNha = !!nuoc.code && nuoc.code !== "TW";
     const ten = String(nuoc.label || "Đài Loan").toUpperCase();
     const homQua = cong(today, -1);
-    const { qua, suCo, dungIm, chuaGui, lech, moiToi, nhacLai, goi, sapGiao } = phanLoai(d, today, giaoTanNha, opts.soNhac, nuoc.code);
+    const { qua, suCo, dungIm, chuaGui, lech, moiToi, nhacLai, goi, sapGiao, nenHuy } = phanLoai(d, today, giaoTanNha, opts.soNhac, nuoc.code);
     const maxSapGiao = Number(opts.maxSapGiao) || 20;
     const hq = suKienNgay(d.shipments, homQua);
     const counts = d.counts || {};
@@ -539,6 +549,12 @@ function buildVanDonSang(d, opts = {}) {
         if (goi.length > maxGoi) dong.push("", I(`… ${fmt(goi.length - maxGoi)} khách nữa trên dashboard`));
     } else {
         dong.push("", `☎️ ${B("Không có khách nào phải gọi gấp hôm nay")} ✅`);
+    }
+
+    if (nenHuy.length) {
+        dong.push("", `🗑️ ${B(`NÊN HUỶ ${fmt(nenHuy.length)} ĐƠN`)} · ${fmt(Math.round(tong(nenHuy.map((a) => a.shipment))))} ${tien}`
+            + ` — khách từ chối nhận từ ${NGUONG_HUY_TU_CHOI} lần trở lên, không nhắn nữa`,
+            dongMa(nenHuy, (a) => `(${a.shipment.fail_count} lần)`, 12));
     }
 
     if (sapGiao.length) {

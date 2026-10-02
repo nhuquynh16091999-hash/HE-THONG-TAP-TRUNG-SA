@@ -263,6 +263,22 @@ const sang = (d, o = {}) => buildVanDonSang(d, { today: TODAY, nowTs: NOW, phuTr
         assert.deepStrictEqual(r.goi, ["VS1068045", "VS1068349", "VS1068056"]);
         assert.deepStrictEqual(r.daNhan, ["VS1068045", "VS1068349", "VS1068056"], "UAE cũng ghi sổ nhắc");
     });
+    await t("UAE: khách TỪ CHỐI từ 3 lần → rút khỏi danh sách gọi, gom một dòng NÊN HUỶ (Sỹ Anh 02/10/2026)", () => {
+        const tuChoi = (o) => canh("giao_hong", { level: "canh_bao" }, uae({ sub_status: "DeliveryFailure_Rejected", raw_status: "REFUSED", ...o }));
+        const r = sang(AE({ alerts: [
+            tuChoi({ order_id: "14", tracking: "VS1", track17_code: "VS1", fail_count: 5, cod_local: 119 }),
+            tuChoi({ order_id: "3", tracking: "VS2", track17_code: "VS2", fail_count: 3, cod_local: 119 }),
+            tuChoi({ order_id: "18", tracking: "VS3", track17_code: "VS3", fail_count: 2, cod_local: 109 }),
+            canh("giao_hong", { level: "canh_bao" }, uae({ order_id: "5", tracking: "VS4", track17_code: "VS4",
+                sub_status: "DeliveryFailure_NoResponse", raw_status: "NO RESPONSE", fail_count: 4 })),
+        ] }));
+        const m = tron(r.text);
+        assert.ok(m.includes("☎️ @Thương · GỌI 2 KHÁCH GIAO HỎNG / HẸN LẠI"), m);
+        assert.ok(m.includes("🗑️ NÊN HUỶ 2 ĐƠN · 238 AED — khách từ chối nhận từ 3 lần trở lên, không nhắn nữa\n#14 (5 lần) · #3 (3 lần)"), m);
+        assert.ok(!/Hi Maria, we haven't heard back[^\n]*\(parcel VS1\)/.test(m) && !m.includes("(parcel VS2)"), "không soạn câu gửi khách nên huỷ");
+        assert.deepStrictEqual(r.goi, ["VS3", "VS4"], "từ chối 2 lần và không nghe máy 4 lần vẫn gọi");
+        assert.ok(!r.daNhan.includes("VS1") && !r.daNhan.includes("VS2"), "không ghi sổ nhắc đơn nên huỷ");
+    });
     await t("UAE: lần đầu từ chối hỏi có vấn đề gì; sai địa chỉ xin địa chỉ / định vị", () => {
         const r = sang(AE({ alerts: [
             canh("giao_hong", { level: "canh_bao" }, uae({ sub_status: "DeliveryFailure_Rejected", fail_count: 1 })),
