@@ -1619,7 +1619,7 @@
   },
   "report_drive": {
     "_note": "Sỹ Anh chốt 01/10/2026: MỖI THÁNG MỘT THƯ MỤC. Thư mục gốc 'CÔNG TY ANTALO / BÁO CÁO ADS ANTALO' chứa 'Tháng 9', 'Tháng 10'… Trong thư mục tháng: file 'TỔNG TEAM THÁNG n' + mỗi người một thư mục (LOC, THAI…) chứa '<NƯỚC> T<n>' + file có chữ TEST. format_all.py (ops/talpha_reports/report_files.py) và /api/talpha/sheet-report tự tìm bộ file của tháng đang chạy trong đó — không còn ID cố định, nên không bao giờ ghi số tháng này vào file tháng khác. Thư mục gốc PHẢI share Editor cho service account talpha-dashboard@cty-507710.iam.gserviceaccount.com. Service account không tạo được file (quota Drive = 0) — file tháng mới do người tạo, hoặc chạy Apps Script ops/talpha_reports/tao_thang_moi.gs.",
-    "root_folder_id": "1AW2xgJ-6kQXxjA04VSpjJeLEe1lcOV6"
+    "root_folder_id": "1AW2xgJ-6kQXxjA04VSpjJjeLEe1IcOV6"
   },
   "_todo": [
     "Chốt giá vốn 3 mã nhiều biến thể (004, 012, 017) — đang lấy giá cao nhất, xem products.<mã>._cach_doc.",

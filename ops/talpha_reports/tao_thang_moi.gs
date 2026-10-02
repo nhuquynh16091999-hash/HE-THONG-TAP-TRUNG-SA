@@ -21,7 +21,7 @@
  *   → chọn hàm chayThangNay → Chạy → cấp quyền (Drive + Sheets) → xem Nhật ký thực thi
  *   → chọn hàm caiLich → Chạy: từ đó ngày 25 hằng tháng tự tạo tháng sau, ngày 1 chạy lại cho chắc.
  */
-const ROOT_ID = '1AW2xgJ-6kQXxjA04VSpjJeLEe1lcOV6';   // CÔNG TY ANTALO / BÁO CÁO ADS ANTALO
+const ROOT_ID = '1AW2xgJ-6kQXxjA04VSpjJjeLEe1IcOV6';   // CÔNG TY ANTALO / BÁO CÁO ADS ANTALO
 const SA = 'talpha-dashboard@cty-507710.iam.gserviceaccount.com';
 
 /** Tạo / bổ sung thư mục của THÁNG NÀY. */
