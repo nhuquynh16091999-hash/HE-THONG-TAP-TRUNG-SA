@@ -66,16 +66,17 @@ t("mặc định ĐÓNG: vai lạ / team lạ / thiếu team → không thấy g
 
 console.log("── Ai thấy tab nào ──");
 t("leader thấy báo cáo, đơn, vận đơn, kho, khách của team", () => {
-    for (const tab of ["overview", "pnl", "product-pnl", "order-ledger", "cod-recon", "tracking", "products", "marketing", "ad-health", "customers", "market-intel"]) {
+    for (const tab of ["overview", "pnl", "product-pnl", "order-ledger", "cod-recon", "tracking", "products", "marketing", "ad-spend", "ads-command", "ad-health", "customers", "market-intel"]) {
         assert.ok(A.canTab(loc, tab), tab);
     }
 });
 t("leader KHÔNG thấy đối soát chi phí QC (thẻ trả TKQC chung công ty)", () => {
     assert.ok(!A.canTab(loc, "ads-recon"));
 });
-t("tab có route chưa lọc theo nước (ad-spend, ads-command) ẩn với leader một nước", () => {
-    assert.ok(!A.canTab(loc, "ad-spend") && !A.canTab(loc, "ads-command"));
-    assert.ok(!A.canTab(thai, "ad-spend") && !A.canTab(thai, "ads-command"));
+t("leader thấy Chi phí quảng cáo + Ads Command Center (route đã tự lọc theo nước)", () => {
+    assert.ok(A.canTab(loc, "ad-spend") && A.canTab(loc, "ads-command"));
+    assert.ok(A.checkApi(thai, "/api/talpha/ad-spend", q("from=2026-10-01&to=2026-10-05")).ok);
+    assert.ok(A.checkApi(thai, "/api/talpha/realtime", q("")).ok);
 });
 t("Thương chỉ thấy đơn, đối soát COD, vận đơn, kho, khách — không báo cáo, không quảng cáo", () => {
     assert.deepStrictEqual([...thuong.tabs].sort(), ["cod-recon", "customers", "order-ledger", "products", "tracking"]);

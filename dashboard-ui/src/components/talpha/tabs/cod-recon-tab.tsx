@@ -159,16 +159,23 @@ function tinLech(p: Period, lang: "vi" | "zh"): string {
  * Nút chọn nước (Sỹ Anh chốt 26/09/2026): Đài Loan giữ nguyên toàn bộ quy trình sao kê NAZA;
  * Singapore, UAE chưa có sao kê nên chỉ có phần "tiền còn ở đâu" (CodNuocKhac). Danh sách nước
  * lấy từ /api/talpha/markets — không gõ cứng ở giao diện.
+ *
+ * Phân quyền theo team (05/10/2026): danh sách chỉ còn nước của team, nên chờ có danh sách rồi
+ * mới dựng màn và mở ở nước đầu tiên được xem (xem cùng chỗ ở order-ledger-tab.tsx).
  */
 export default function TALPHACodReconTab(props: Props) {
     const [nuoc, setNuoc] = useState("TW");
-    const [ds, setDs] = useState<{ code: string; display: string }[]>([]);
+    const [ds, setDs] = useState<{ code: string; display: string }[] | null>(null);
     useEffect(() => {
         fetch("/api/talpha/markets").then((r) => r.json())
-            .then((d: { markets?: { code: string; display: string; status?: string }[] }) =>
-                setDs((d.markets || []).filter((m) => m.status !== "sap_chay").map((m) => ({ code: m.code, display: m.display }))))
-            .catch(() => { /* không lấy được danh sách nước thì vẫn hiện màn Đài như cũ */ });
+            .then((d: { markets?: { code: string; display: string; status?: string }[] }) => {
+                const list = (d.markets || []).filter((m) => m.status !== "sap_chay").map((m) => ({ code: m.code, display: m.display }));
+                setDs(list);
+                setNuoc((n) => (list.length && !list.some((m) => m.code === n) ? list[0].code : n));
+            })
+            .catch(() => setDs([]));   // không lấy được danh sách nước thì vẫn hiện màn Đài như cũ
     }, []);
+    if (ds === null) return <TabSkeleton />;
     return (
         <div className="space-y-5">
             {ds.length > 1 && (

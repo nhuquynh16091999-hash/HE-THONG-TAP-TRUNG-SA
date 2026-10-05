@@ -22,11 +22,11 @@ export const ALL_TABS = [
 
 /**
  * Tab mà route phía sau CHƯA lọc theo nước — người chỉ được xem một phần số
- * thì không thấy tab (và proxy chặn route), kẻo tab hiện nguyên số của team khác.
- * Gỡ khỏi đây khi route đã lọc: ad-spend (`/api/talpha/ad-spend`) và ads-command
- * (`/api/talpha/realtime`) — 05/10/2026 chưa lọc được.
+ * thì không thấy tab, kẻo tab hiện nguyên số của team khác. Thêm tab mới mà route
+ * chưa kịp lọc thì khai vào đây; lọc xong thì gỡ ra. (ad-spend, ads-command đã lọc
+ * từ 05/10/2026 — nay rỗng.)
  */
-export const CHUA_LOC_THEO_NUOC = new Set(["ad-spend", "ads-command"]);
+export const CHUA_LOC_THEO_NUOC = new Set<string>();
 
 /** Tab chỉ giám đốc: soát tiền ra của thẻ trả TKQC chung cả công ty. */
 export const CHI_GIAM_DOC = new Set(["ads-recon"]);
@@ -169,8 +169,7 @@ export const API_RULES: Record<string, ApiRule> = {
     "/api/talpha/tracking": { tabs: ["tracking"], market: "tracking" },
     "/api/talpha/tracking/import": { tabs: ["tracking"], market: "TW" },
 
-    // Route chưa lọc theo nước (xem CHUA_LOC_THEO_NUOC) — tab của chúng chỉ hiện cho người
-    // xem đủ mọi nước; ở đây khai tab để người được giao cả ba team vẫn gọi được.
+    // Chi tiêu Meta theo campaign — route tự lọc theo nước ở tên campaign.
     "/api/talpha/ad-spend": { tabs: ["ad-spend"] },
     "/api/talpha/realtime": { tabs: ["ads-command"] },
 

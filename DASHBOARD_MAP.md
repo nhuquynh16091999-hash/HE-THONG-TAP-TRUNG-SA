@@ -34,14 +34,13 @@ rồi chuyển về theo kỳ. Singapore: bảng giá 3PL khai ở `shipping_fee
 nước, vai → tab); mỗi tài khoản trong `config/users.json` mang `role` + `teams` (sửa ở `/admin` →
 Quản lý User; đăng nhập bằng **tên đăng nhập + mật khẩu**, mỗi người một tài khoản). Cửa vào là
 `dashboard-ui/src/proxy.ts`: chưa đăng nhập thì không trang nào, API nào mở; route một nước (sổ
-đơn, đối soát, vận đơn) bị từ chối nếu nước không thuộc team; route gộp nhiều nước (sheet-report,
-pnl-costs, product-pnl, inventory, marketer-perf, `/api/query`) tự cắt theo team — `/api/query`
-thay mỗi bảng trong câu SQL bằng câu con đã lọc nước (`lib/talpha/access-rules.ts → scopeQuery`).
-Bot Zalo và việc nền gọi API bằng **chìa nội bộ** `data/.internal_token` (dashboard tự sinh lúc
-khởi động; `ops/zalo-alerts/config.js` tự gắn vào mọi lượt gọi). Còn nợ: tab Chi phí quảng cáo
-(`/api/talpha/ad-spend`) và Ads Command Center (`/api/talpha/realtime`) chưa lọc theo nước nên chỉ
-hiện cho người xem đủ ba nước (`CHUA_LOC_THEO_NUOC`). Phân quyền chỉ có tác dụng khi
-`DASHBOARD_PUBLIC` tắt.
+đơn, đối soát, vận đơn) bị từ chối nếu nước không thuộc team, và tab mở thẳng ở nước đầu tiên
+của team; route gộp nhiều nước (sheet-report, pnl-costs, product-pnl, inventory, marketer-perf,
+ad-spend, realtime, `/api/query`) tự cắt theo team — chi tiêu Meta theo nước ở tên campaign, đơn
+theo shop; `/api/query` thay mỗi bảng trong câu SQL bằng câu con đã lọc nước
+(`lib/talpha/access-rules.ts → scopeQuery`). Bot Zalo và việc nền gọi API bằng **chìa nội bộ**
+`data/.internal_token` (dashboard tự sinh lúc khởi động; `ops/zalo-alerts/config.js` tự gắn vào
+mọi lượt gọi). Phân quyền chỉ có tác dụng khi `DASHBOARD_PUBLIC` tắt (tắt từ 05/10/2026).
 
 Mỗi nước một shop POS Poscake — Đài "TAIWAN SỸ ANH" 1022091930 · Singapore 715135541 ·
 UAE 101090498 (đổi 25/09/2026) · 8 tài khoản quảng cáo Meta đọc được, chạy chung cho mọi nước. Tỷ giá:

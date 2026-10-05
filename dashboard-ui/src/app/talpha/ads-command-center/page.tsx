@@ -8,6 +8,7 @@ import {
     ArrowUpRight, ArrowDownRight, Megaphone, FileSpreadsheet,
 } from "lucide-react";
 import { formatVNDCompact, cn } from "@/components/talpha/utils";
+import { useAccess } from "@/components/talpha/access-context";
 
 // ── constants ──
 const ROAS_GOOD = 2.5;
@@ -129,6 +130,10 @@ export default function TALPHAAdsCommandCenterPage() {
     const [activePreset, setActivePreset] = useState("Hôm nay");
     const [showDatePicker, setShowDatePicker] = useState(false);
     const [exportState, setExportState] = useState<any | null>(null);
+    // Xuất Sheet chạy format_all.py cho cả công ty — chỉ giám đốc (route cũng chặn). Mở trang
+    // đứng riêng (ngoài shell) thì không có thông tin người xem: để nút, route tự từ chối.
+    const me = useAccess();
+    const choXuatSheet = !me || me.full;
     const dropdownRef = useRef<HTMLDivElement>(null);
     const dateRef = useRef<HTMLDivElement>(null);
     const exportPollRef = useRef<any>(null);
@@ -349,7 +354,7 @@ export default function TALPHAAdsCommandCenterPage() {
                         {data && <div className="text-slate-500">{data.source} • {data.duration_ms}ms • {summary?.accounts_fetched}TK • {summary?.shops_fetched}shops</div>}
                     </div>
                     {/* Xuất báo cáo ra Google Sheet (format_all.py) */}
-                    <div className="flex items-center gap-2">
+                    {choXuatSheet && <div className="flex items-center gap-2">
                         <button onClick={startExport} disabled={exportState?.running} title="Sinh lại các file báo cáo Google Sheet (marketer + TỔNG) từ dữ liệu hiện tại"
                             className="flex items-center gap-1 rounded-lg border border-emerald-500/40 bg-emerald-600/15 px-3 py-1.5 text-xs font-bold text-emerald-300 transition hover:bg-emerald-600/25 disabled:opacity-60">
                             <FileSpreadsheet className={`h-3 w-3 ${exportState?.running ? 'animate-pulse' : ''}`} />
@@ -360,7 +365,7 @@ export default function TALPHAAdsCommandCenterPage() {
                                 ? <span className="text-[10px] font-semibold text-emerald-400">✓ Đã xuất {exportState.totalFiles} file</span>
                                 : <span className="text-[10px] font-semibold text-rose-400" title={exportState.error || (exportState.log || []).slice(-1)[0] || ''}>✗ Lỗi xuất</span>
                         )}
-                    </div>
+                    </div>}
                     <button onClick={() => fetchData()} disabled={loading}
                         className="flex items-center gap-1 rounded-lg bg-gradient-to-r from-amber-500 to-orange-600 px-3.5 py-1.5 text-xs font-bold text-white shadow-lg shadow-amber-500/25 transition hover:brightness-110 disabled:opacity-50">
                         <RotateCw className={`h-3 w-3 ${loading ? 'animate-spin' : ''}`} /> SYNC

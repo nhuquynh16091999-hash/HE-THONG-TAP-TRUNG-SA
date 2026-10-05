@@ -154,7 +154,10 @@ export default function TALPHATrackingTab({ dateRange }: Props) {
     const [publicWarning, setPublicWarning] = useState("");
     // Thị trường (Sỹ Anh chốt 25/09/2026: Singapore tách riêng Đài Loan) — sổ, bảng đối tác,
     // tiền tệ riêng; danh sách nước lấy từ route, không gõ cứng ở đây.
-    const [market, setMarket] = useState("TW");
+    // "" = chưa biết mở nước nào. Phân quyền theo team (05/10/2026): hỏi /api/talpha/markets
+    // (chỉ còn nước của team) trước — mở cứng "TW" thì leader UAE đụng ngay sổ Đài, máy chủ
+    // từ chối, màn lỗi che mất nút đổi nước.
+    const [market, setMarket] = useState("");
     const [markets, setMarkets] = useState<{ code: string; label: string }[]>([]);
     const [currency, setCurrency] = useState("NT$");
     // Nguồn trạng thái: 17TRACK (Đài, Singapore) hay tra thẳng trang WeShip (UAE, 28/09/2026).
@@ -166,7 +169,17 @@ export default function TALPHATrackingTab({ dateRange }: Props) {
     const from = dateRange?.from ? format(dateRange.from, "yyyy-MM-dd") : "2026-01-01";
     const to = dateRange?.to ? format(dateRange.to, "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd");
 
+    useEffect(() => {
+        fetch("/api/talpha/markets").then((r) => r.json())
+            .then((d: { markets?: { code: string }[] }) => {
+                const codes = (d.markets || []).map((m) => m.code);
+                setMarket(!codes.length || codes.includes("TW") ? "TW" : codes[0]);
+            })
+            .catch(() => setMarket("TW"));
+    }, []);
+
     const load = useCallback(async () => {
+        if (!market) return;
         setLoading(true); setError("");
         try {
             const res = await fetch(`/api/talpha/tracking?from=${from}&to=${to}&market=${market}`);

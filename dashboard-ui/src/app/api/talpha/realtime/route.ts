@@ -16,8 +16,10 @@ const YAML_PATH = TALPHA_YAML();
 // Golden-test 29/07 = 100% khớp bản inline cũ. Sửa rule → sửa JSON, KHÔNG thêm map ở đây.
 import {
     EXCHANGE_RATES, posMoneyDivisor, MARKET_CANON, CAMP_MARKETS, PAGE_ID_RE,
-    normCampMarketer, normPosMarketer, isDelivered,
+    normCampMarketer, normPosMarketer, isDelivered, campaignMarket,
 } from "@/lib/talpha/rules";
+import { getAccess } from "@/lib/talpha/access";
+import { canMarket, seesAllMarkets } from "@/lib/talpha/access-rules";
 
 function normalizeMarket(label?: string | null): string {
     const s = String(label || "").trim();
@@ -405,11 +407,21 @@ export async function GET(request: Request) {
         const warnings: string[] = [];
 
         // Fetch in parallel (account timezones resolve alongside the main fetches)
-        const [ads, orders, accountTz] = await Promise.all([
+        const [adsAll, ordersAll, accountTz] = await Promise.all([
             fetchMetaAds(token, accountIds, accountNames, activeOnly, fromDate, toDate, warnings),
             fetchPOSHybrid(shops, fetchFrom, fetchTo, todayUtc, warnings),
             fetchAccountTimezones(token, accountIds),
         ]);
+
+        // Phân quyền theo team (05/10/2026): người xem một phần nước chỉ giữ quảng cáo của
+        // campaign mang nước team mình ở tên (campaignMarket — cùng luật Sheet tách chi tiêu)
+        // và đơn của shop nước đó. Lọc TRƯỚC khi ghép đơn↔quảng cáo để mọi tổng, ROAS, đơn
+        // chưa map phía dưới tự là số của team. Bot (chìa nội bộ) xem hết như cũ.
+        const nguoiXem = await getAccess(request);
+        const hep = !nguoiXem || !seesAllMarkets(nguoiXem);
+        const duocXem = (m: string | null | undefined) => !!nguoiXem && !!m && canMarket(nguoiXem, m);
+        const ads = hep ? adsAll.filter((ad) => duocXem(campaignMarket(ad.campaign_name).market)) : adsAll;
+        const orders = hep ? ordersAll.filter((o: any) => duocXem(o.shop_name)) : ordersAll;
 
         // Build ad_id → ad index map for O(1) lookup
         const adIdMap = new Map<string, number>();

@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { bigquery } from "@/lib/bigquery";
 import { DISPLAY, parseCampaign, isTestCampaign, parseAudience, AUDIENCE_DISPLAY,
          parseProductCode, productName, isUnknownProduct, isProductTesting } from "@/lib/talpha/rules";
+import { getAccess } from "@/lib/talpha/access";
+import { seesAllMarkets, sqlCampaignMarketKey } from "@/lib/talpha/access-rules";
 
 export const dynamic = "force-dynamic";
 
@@ -26,6 +28,16 @@ export async function GET(req: NextRequest) {
         return NextResponse.json({ error: "from/to phải dạng YYYY-MM-DD" }, { status: 400 });
     }
 
+    // Phân quyền theo team (05/10/2026): người xem một phần nước chỉ thấy chi tiêu của campaign
+    // mang nước team mình ở tên — cùng luật tách nước của Sheet (campaignMarket). TKQC chạy chung
+    // mọi nước nên lọc theo DÒNG campaign, không theo tài khoản.
+    const a = await getAccess(req);
+    const hep = !a || !seesAllMarkets(a);
+    const locNuoc = hep ? `AND ${sqlCampaignMarketKey("campaign_name")} IN UNNEST(@mk)` : "";
+    const thamSo = hep
+        ? { params: { from, to, mk: a?.markets || [] }, types: { mk: ["STRING"] } }
+        : { params: { from, to } };
+
     try {
         const [dayRows] = await bigquery.query({
             query: `
@@ -33,9 +45,9 @@ export async function GET(req: NextRequest) {
                        SUM(clicks) AS clicks,
                        SUM(messaging_conversations_started) AS messages
                 FROM \`${BQ_PROJECT}.${BQ_DATASET}.fb_ads_data\`
-                WHERE date BETWEEN @from AND @to
+                WHERE date BETWEEN @from AND @to ${locNuoc}
                 GROUP BY date ORDER BY date`,
-            params: { from, to },
+            ...thamSo,
         });
 
         const [accRows] = await bigquery.query({
@@ -44,9 +56,9 @@ export async function GET(req: NextRequest) {
                        SUM(spend) AS spend,
                        SUM(messaging_conversations_started) AS messages
                 FROM \`${BQ_PROJECT}.${BQ_DATASET}.fb_ads_data\`
-                WHERE date BETWEEN @from AND @to
+                WHERE date BETWEEN @from AND @to ${locNuoc}
                 GROUP BY account_id`,
-            params: { from, to },
+            ...thamSo,
         });
 
         const [campRows] = await bigquery.query({
@@ -56,9 +68,9 @@ export async function GET(req: NextRequest) {
                        SUM(impressions) AS impressions,
                        SUM(messaging_conversations_started) AS messages
                 FROM \`${BQ_PROJECT}.${BQ_DATASET}.fb_ads_data\`
-                WHERE date BETWEEN @from AND @to AND spend > 0
+                WHERE date BETWEEN @from AND @to AND spend > 0 ${locNuoc}
                 GROUP BY campaign_name`,
-            params: { from, to },
+            ...thamSo,
         });
 
         const dayValue = (d: unknown) =>

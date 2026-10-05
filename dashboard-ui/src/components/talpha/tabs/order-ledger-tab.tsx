@@ -54,16 +54,24 @@ function Tick({ on, title }: { on: boolean; title: string }) {
  * Nút chọn nước (Sỹ Anh yêu cầu 29/09/2026): Đài Loan giữ nguyên sổ NAZA + sao kê; Singapore,
  * UAE dùng sổ theo vận đơn (SoDonNuoc) vì chưa có sao kê. Danh sách nước lấy từ
  * /api/talpha/markets — không gõ cứng ở giao diện.
+ *
+ * Phân quyền theo team (05/10/2026): danh sách chỉ còn nước của team người xem, nên CHỜ có
+ * danh sách rồi mới dựng sổ và mở ở nước đầu tiên được xem — mặc định cứng "TW" thì leader
+ * UAE mở tab là đụng ngay sổ Đài, máy chủ từ chối, màn lỗi che mất nút đổi nước.
  */
 export default function TALPHAOrderLedgerTab(props: Props) {
     const [nuoc, setNuoc] = useState("TW");
-    const [ds, setDs] = useState<{ code: string; display: string }[]>([]);
+    const [ds, setDs] = useState<{ code: string; display: string }[] | null>(null);
     useEffect(() => {
         fetch("/api/talpha/markets").then((r) => r.json())
-            .then((d: { markets?: { code: string; display: string; status?: string }[] }) =>
-                setDs((d.markets || []).filter((m) => m.status !== "sap_chay").map((m) => ({ code: m.code, display: m.display }))))
-            .catch(() => { /* không lấy được danh sách nước thì vẫn hiện sổ Đài như cũ */ });
+            .then((d: { markets?: { code: string; display: string; status?: string }[] }) => {
+                const list = (d.markets || []).filter((m) => m.status !== "sap_chay").map((m) => ({ code: m.code, display: m.display }));
+                setDs(list);
+                setNuoc((n) => (list.length && !list.some((m) => m.code === n) ? list[0].code : n));
+            })
+            .catch(() => setDs([]));   // không lấy được danh sách nước thì vẫn hiện sổ Đài như cũ
     }, []);
+    if (ds === null) return <TabSkeleton />;
     return (
         <div className="space-y-4">
             {ds.length > 1 && (
