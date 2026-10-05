@@ -18,6 +18,8 @@ import { track17CodeFor } from "@/lib/talpha/partner-file";
 import { readStoreFresh, updateStore } from "@/lib/talpha/store";
 import { loadMarketShipments, syncWeshipMarket } from "@/lib/talpha/tracking-market";
 import { tinXacNhan, waLink } from "@/lib/talpha/whatsapp";
+import { getAccess } from "@/lib/talpha/access";
+import { canMarket } from "@/lib/talpha/access-rules";
 
 export const dynamic = "force-dynamic";
 
@@ -269,6 +271,8 @@ export async function GET(req: NextRequest) {
     const { from, to, ok } = range(req);
     if (!ok) return NextResponse.json({ error: "from/to phải dạng YYYY-MM-DD" }, { status: 400 });
     const mk = trackMarket(req.nextUrl.searchParams.get("market"));
+    // proxy.ts đã chặn nước ngoài team; ở đây chỉ bớt nút nước khác khỏi danh sách.
+    const a = await getAccess(req);
 
     try {
         const { shipments: raw, store, lastImport } = await loadShipments(mk, from, to);
@@ -286,7 +290,7 @@ export async function GET(req: NextRequest) {
         return NextResponse.json({
             from, to,
             market: { code: mk.code, label: mk.label, currency: mk.currency, provider: mk.provider, source: mk.source },
-            markets: TRACK_MARKETS.map((m) => ({ code: m.code, label: m.label })),
+            markets: TRACK_MARKETS.filter((m) => !!a && canMarket(a, m.code)).map((m) => ({ code: m.code, label: m.label })),
             // Tên nguồn trạng thái cho màn hình và bot Zalo ("17TRACK" / "WeShip").
             provider: mk.provider,
             // WeShip không cần khoá — "có khoá" = tra được.

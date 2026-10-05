@@ -22,6 +22,9 @@ export default function TALPHAMarketingTab({ dateRange }: Props) {
     const [marketers, setMarketers] = useState<Nguoi[]>([]);
     const [unassigned, setUnassigned] = useState<So | null>(null);
     const [loiSheet, setLoiSheet] = useState<string | null>(null);
+    // Xem theo team (phân quyền 05/10/2026): tab người trong Sheet gộp MỌI nước của người đó,
+    // nên bảng từng người lấy từ /api/talpha/marketer-perf — BigQuery, đã lọc theo nước.
+    const [theoTeam, setTheoTeam] = useState(false);
     const [accounts, setAccounts] = useState<any[]>([]);
     const [summary, setSummary] = useState({ spend: 0, messages: 0, impressions: 0, cpm: 0 });
     // KPI tháng đang chạy: {display name → VND target} + doanh số GTC tháng này của từng người
@@ -106,6 +109,24 @@ export default function TALPHAMarketingTab({ dateRange }: Props) {
                 setLoiSheet(perf.error || null);
                 setMarketers(perf.marketers || []);
                 setUnassigned(perf.unassigned || null);
+                setTheoTeam(!!perf.scoped);
+                if (perf.scoped) {
+                    // ads/tin theo chủ campaign của nước team; đơn & doanh số = đơn đã đẩy đi của shop
+                    // nước đó (ship_*), DS giao TC = phần đã giao xong.
+                    const mp = await fetch(`/api/talpha/marketer-perf?from=${from}&to=${to}`)
+                        .then(r => r.json()).catch(() => null);
+                    type PerfRow = { key: string; marketer: string; spend_vnd: number; messages: number; orders: number; revenue_vnd: number; ship_orders: number; ship_revenue_vnd: number };
+                    setMarketers(((mp?.rows || []) as PerfRow[])
+                        .filter(r => r.spend_vnd > 0 || r.ship_orders > 0)
+                        .map(r => ({
+                            tab: r.key, display: r.marketer,
+                            ads: r.spend_vnd, mess: r.messages, don: r.ship_orders,
+                            doanh_so: r.ship_revenue_vnd, ds_giao_tc: r.revenue_vnd,
+                        }))
+                        .sort((a, b) => b.doanh_so - a.doanh_so || b.ads - a.ads));
+                    setUnassigned(null);
+                    if (!mp?.rows) setLoiSheet(mp?.error || "không đọc được số từng người");
+                }
 
                 setAccounts((results[0].data || []).map((r: any) => ({
                     account_id: r.account_name || "Unknown",
@@ -181,10 +202,13 @@ export default function TALPHAMarketingTab({ dateRange }: Props) {
                     )}
                     <h3 className="text-sm font-semibold text-foreground">👤 Hiệu suất Marketer</h3>
                     <p className="mb-3 mt-0.5 text-[11px] leading-snug text-muted-foreground">
-                        Tab của từng người trong file TỔNG TEAM — cùng số với tab Tổng quan và bot Zalo. Doanh số là đơn đã chốt;
-                        DS giao TC là phần đã giao xong.
+                        {theoTeam
+                            ? <>Chỉ số trong team: tiền ads theo campaign của nước team, đơn theo shop nước đó (số BigQuery — có thể lệch Sheet vài đơn,
+                                vì tab từng người trong Sheet gộp mọi nước nên không dùng được). DS giao TC là phần đã giao xong.</>
+                            : <>Tab của từng người trong file TỔNG TEAM — cùng số với tab Tổng quan và bot Zalo. Doanh số là đơn đã chốt;
+                                DS giao TC là phần đã giao xong.</>}
                     </p>
-                    {loiSheet && <p className="mb-2 text-xs text-rose-600 dark:text-rose-400">Không đọc được file TỔNG TEAM: {loiSheet}</p>}
+                    {loiSheet && <p className="mb-2 text-xs text-rose-600 dark:text-rose-400">Không đọc được {theoTeam ? "số từng người" : "file TỔNG TEAM"}: {loiSheet}</p>}
                     <div className="overflow-auto max-h-[400px]">
                         <table className="w-full text-sm">
                             <thead>

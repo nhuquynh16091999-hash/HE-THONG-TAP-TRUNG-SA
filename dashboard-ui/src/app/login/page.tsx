@@ -4,11 +4,14 @@ import { Suspense, useState } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
-    Lock, Eye, EyeOff, AlertCircle, Loader2, LogIn,
+    Lock, Eye, EyeOff, AlertCircle, Loader2, LogIn, User,
 } from "lucide-react";
 
 /* ═══════════════════════════════════════════════════════════
-   Single-user login (password only) — per deployment mode
+   Đăng nhập — MỖI NGƯỜI MỘT TÀI KHOẢN (phân quyền theo team, 05/10/2026).
+   Trước đó cả công ty dùng chung một mật khẩu (tài khoản cố định talpha@levelup) nên
+   không biết ai là ai, không chia được ai thấy gì — và ai biết mật khẩu chung là vào
+   được với quyền giám đốc. Tài khoản chung đó đã khoá (status "pending" trong users.json).
 
    Màu lấy từ design token trong globals.css (--background, --card, --border,
    --primary) thay vì gõ thẳng slate/indigo, để trang này đổi theme cùng lúc với
@@ -16,7 +19,6 @@ import {
    ═══════════════════════════════════════════════════════════ */
 
 const DEPLOYMENT_MODE = (process.env.NEXT_PUBLIC_DEPLOYMENT_MODE || "talpha").toLowerCase();
-const FIXED_EMAIL = `${DEPLOYMENT_MODE}@levelup`;
 const APP_NAME = process.env.NEXT_PUBLIC_APP_NAME || "ANTALO";
 
 function LoginForm() {
@@ -24,6 +26,7 @@ function LoginForm() {
     const searchParams = useSearchParams();
     const callbackUrl = searchParams.get("callbackUrl") || `/${DEPLOYMENT_MODE}`;
 
+    const [username, setUsername] = useState("");
     const [password, setPassword] = useState("");
     const [showPassword, setShowPassword] = useState(false);
     const [error, setError] = useState("");
@@ -36,13 +39,13 @@ function LoginForm() {
 
         try {
             const result = await signIn("credentials", {
-                email: FIXED_EMAIL,
+                email: username.trim(),
                 password,
                 redirect: false,
             });
 
             if (result?.error) {
-                setError("Mật khẩu không đúng");
+                setError("Sai tên đăng nhập hoặc mật khẩu");
             } else {
                 router.push(callbackUrl);
                 router.refresh();
@@ -59,7 +62,7 @@ function LoginForm() {
             <div>
                 <h2 className="text-xl font-bold text-foreground">Đăng nhập</h2>
                 <p className="mt-1 text-sm text-muted-foreground">
-                    Nhập mật khẩu để truy cập {APP_NAME} Dashboard
+                    Nhập tên đăng nhập và mật khẩu để vào {APP_NAME} Dashboard
                 </p>
             </div>
 
@@ -72,6 +75,28 @@ function LoginForm() {
 
             <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
+                    <label htmlFor="login-username" className="mb-1.5 block text-sm font-medium text-foreground/80">
+                        Tên đăng nhập
+                    </label>
+                    <div className="relative">
+                        <User className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                        <input
+                            id="login-username"
+                            type="text"
+                            value={username}
+                            onChange={(e) => setUsername(e.target.value)}
+                            placeholder="vd: loc"
+                            autoComplete="username"
+                            autoCapitalize="none"
+                            autoCorrect="off"
+                            spellCheck={false}
+                            required
+                            autoFocus
+                            className="w-full rounded-xl border border-border bg-card py-3 pl-10 pr-4 text-sm text-foreground transition-all placeholder:text-muted-foreground/60 focus:border-orange-400 focus:outline-none focus:ring-2 focus:ring-orange-400/30 dark:bg-white/[0.04]"
+                        />
+                    </div>
+                </div>
+                <div>
                     <label htmlFor="login-password" className="mb-1.5 block text-sm font-medium text-foreground/80">
                         Mật khẩu
                     </label>
@@ -83,8 +108,8 @@ function LoginForm() {
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                             placeholder="••••••••"
+                            autoComplete="current-password"
                             required
-                            autoFocus
                             className="w-full rounded-xl border border-border bg-card py-3 pl-10 pr-12 text-sm text-foreground transition-all placeholder:text-muted-foreground/60 focus:border-orange-400 focus:outline-none focus:ring-2 focus:ring-orange-400/30 dark:bg-white/[0.04]"
                         />
                         <button
@@ -100,7 +125,7 @@ function LoginForm() {
 
                 <button
                     type="submit"
-                    disabled={loading || password.length === 0}
+                    disabled={loading || password.length === 0 || username.trim().length === 0}
                     className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-orange-500 to-red-500 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-orange-500/25 transition-all duration-300 hover:from-orange-600 hover:to-red-600 hover:shadow-orange-500/40 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                     {loading ? (

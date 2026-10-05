@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { bigquery } from "@/lib/bigquery";
-import { RULES, REPORT_START_DATE, parseCampaign, parseProductCode } from "@/lib/talpha/rules";
+import { RULES, REPORT_START_DATE, campaignMarket, parseCampaign, parseProductCode } from "@/lib/talpha/rules";
 import { tinhChiPhiDon } from "@/lib/talpha/order-costs";
+import { getAccess } from "@/lib/talpha/access";
+import { canMarket, seesAllMarkets } from "@/lib/talpha/access-rules";
 
 export const dynamic = "force-dynamic";
 
@@ -47,10 +49,15 @@ export async function GET(req: NextRequest) {
         return NextResponse.json({ error: "from/to phải dạng YYYY-MM-DD" }, { status: 400 });
     }
     const from = REPORT_START_DATE && fromIn < REPORT_START_DATE ? REPORT_START_DATE : fromIn;
+    // Phân quyền theo team: đơn theo shop, tiền ads theo nước ở tên campaign — cùng luật
+    // tách chi tiêu theo nước của Sheet (campaignMarket).
+    const a = await getAccess(req);
+    const hep = !a || !seesAllMarkets(a);
+    const duocXem = (m: string | null | undefined) => !!a && !!m && canMarket(a, m);
 
     try {
         const [{ don, thieu, ship_basis }, [campRows]] = await Promise.all([
-            tinhChiPhiDon(from, to),
+            tinhChiPhiDon(from, to, hep ? (shop) => duocXem(shop) : undefined),
             bigquery.query({
                 query: `
                     SELECT campaign_name, SUM(spend) AS spend, SUM(messages) AS messages
@@ -91,6 +98,7 @@ export async function GET(req: NextRequest) {
         let adsKhongMa = 0, adsNgoaiTeam = 0;
         for (const r of campRows as any[]) {
             const cn = String(r.campaign_name || "");
+            if (hep && !duocXem(campaignMarket(cn).market)) continue;
             const spend = Number(r.spend || 0);
             if (!parseCampaign(cn)[1]) { adsNgoaiTeam += spend; continue; }
             const ma = parseProductCode(cn);

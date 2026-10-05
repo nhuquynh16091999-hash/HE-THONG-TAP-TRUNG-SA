@@ -20,22 +20,26 @@ interface UserData {
     id: string;
     email: string;
     name: string;
-    role: "admin" | "director" | "marketer" | "sale";
+    role: string;
     projects: string[];
+    /** Team được xem (khoá ở talpha_rules.json → access.teams), ["*"] = mọi team. */
+    teams?: string[];
+    /** "pending" = đã khoá, không đăng nhập được (vd tài khoản chung cũ talpha@levelup). */
+    status?: string;
 }
 
-const ALL_PROJECTS = [
-    "TALPHA",
-];
+// Dashboard chỉ phục vụ một dự án — tài khoản mới mặc định TALPHA, không thì đăng nhập
+// bị chặn "không có quyền truy cập dashboard này" (api/auth/validate).
+const DEFAULT_PROJECTS = ["TALPHA"];
 
-// Cơ cấu từ 05/09/2026: 1 giám đốc · 5 marketer · 2 sale.
-// `admin` là quyền kỹ thuật (dựng hệ thống), KHÔNG phải một vai trò trong công ty.
-const ROLE_OPTIONS = [
-    { value: "director", label: "Giám đốc", desc: "Xem toàn bộ số liệu và quản lý người dùng", color: "text-orange-400" },
-    { value: "marketer", label: "Marketer", desc: "Chạy quảng cáo — xem báo cáo và chi phí", color: "text-sky-400" },
-    { value: "sale", label: "Sale", desc: "Chốt đơn — xem đơn hàng và đối soát COD", color: "text-emerald-400" },
-    { value: "admin", label: "Admin kỹ thuật", desc: "Toàn quyền, kể cả cấu hình hệ thống", color: "text-red-400" },
-];
+// Vai trò + team đọc từ talpha_rules.json → access (qua /api/talpha/me), không gõ ở đây.
+// Phân quyền theo team từ 05/10/2026: role quyết định THẤY TAB NÀO, team quyết định THẤY NƯỚC NÀO.
+type RoleOpt = { key: string; label: string; desc: string; full: boolean };
+type TeamOpt = { key: string; name: string; leader: string; markets: string[] };
+const ROLE_COLOR: Record<string, string> = {
+    director: "text-orange-400", admin: "text-red-400", leader: "text-violet-400",
+    marketer: "text-sky-400", sale: "text-emerald-400",
+};
 
 export default function UserManagementTab() {
     const [users, setUsers] = useState<UserData[]>([]);
@@ -43,22 +47,30 @@ export default function UserManagementTab() {
     const [error, setError] = useState("");
     const [showForm, setShowForm] = useState(false);
     const [editingUser, setEditingUser] = useState<UserData | null>(null);
+    const [roleOptions, setRoleOptions] = useState<RoleOpt[]>([]);
+    const [teamOptions, setTeamOptions] = useState<TeamOpt[]>([]);
 
     // Form state
     const [formName, setFormName] = useState("");
     const [formEmail, setFormEmail] = useState("");
     const [formPassword, setFormPassword] = useState("");
-    const [formRole, setFormRole] = useState<string>("marketer");
-    const [formProjects, setFormProjects] = useState<string[]>([]);
+    const [formRole, setFormRole] = useState<string>("leader");
+    const [formProjects, setFormProjects] = useState<string[]>(DEFAULT_PROJECTS);
+    const [formTeams, setFormTeams] = useState<string[]>([]);
     const [showPassword, setShowPassword] = useState(false);
     const [saving, setSaving] = useState(false);
     const [formError, setFormError] = useState("");
 
     const fetchUsers = useCallback(async () => {
         try {
-            const res = await fetch("/api/users");
+            const [res, me] = await Promise.all([
+                fetch("/api/users"),
+                fetch("/api/talpha/me").then(r => r.json()).catch(() => null),
+            ]);
             if (!res.ok) throw new Error("Failed to fetch");
             setUsers(await res.json());
+            setRoleOptions(me?.catalog?.roles || []);
+            setTeamOptions(me?.catalog?.teams || []);
         } catch {
             setError("Không thể tải danh sách user");
         } finally {
@@ -74,8 +86,9 @@ export default function UserManagementTab() {
         setFormName("");
         setFormEmail("");
         setFormPassword("");
-        setFormRole("marketer");
-        setFormProjects([]);
+        setFormRole("leader");
+        setFormProjects(DEFAULT_PROJECTS);
+        setFormTeams([]);
         setShowPassword(false);
         setFormError("");
         setEditingUser(null);
@@ -94,18 +107,26 @@ export default function UserManagementTab() {
         setFormPassword("");
         setFormRole(user.role);
         setFormProjects(user.projects.includes("*") ? [] : [...user.projects]);
+        setFormTeams([...(user.teams || [])]);
         setFormError("");
         setShowForm(true);
     };
 
+    const roleFull = (role: string) => !!roleOptions.find((r) => r.key === role)?.full;
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setFormError("");
-        setSaving(true);
 
         const isEditing = !!editingUser;
         const isAdminRole = formRole === "admin";
-        const projectsPayload = isAdminRole ? ["*"] : formProjects;
+        const projectsPayload = isAdminRole ? ["*"] : (formProjects.length ? formProjects : DEFAULT_PROJECTS);
+        // Không giao team thì người đó đăng nhập vào chỉ thấy màn trống — chặn ngay ở đây.
+        if (!roleFull(formRole) && formTeams.length === 0) {
+            setFormError("Chọn ít nhất một team cho tài khoản này");
+            return;
+        }
+        setSaving(true);
 
         try {
             const body: any = {
@@ -113,6 +134,7 @@ export default function UserManagementTab() {
                 email: formEmail,
                 role: formRole,
                 projects: projectsPayload,
+                teams: roleFull(formRole) ? [] : formTeams,
             };
 
             if (isEditing) {
@@ -163,12 +185,20 @@ export default function UserManagementTab() {
         }
     };
 
-    const toggleProject = (projectId: string) => {
-        setFormProjects((prev) =>
-            prev.includes(projectId)
-                ? prev.filter((p) => p !== projectId)
-                : [...prev, projectId]
-        );
+    // "Tất cả team" ("*") loại trừ chọn lẻ — bấm team lẻ là bỏ "*", bấm "*" là bỏ team lẻ.
+    const toggleTeam = (key: string) => {
+        setFormTeams((prev) => {
+            if (key === "*") return prev.includes("*") ? [] : ["*"];
+            const bo = prev.filter((t) => t !== "*");
+            return bo.includes(key) ? bo.filter((t) => t !== key) : [...bo, key];
+        });
+    };
+
+    const teamText = (u: UserData) => {
+        if (roleFull(u.role)) return "Tất cả (xem hết)";
+        const ds = u.teams || [];
+        if (ds.includes("*")) return "Tất cả team";
+        return ds.map((k) => teamOptions.find((t) => t.key === k)?.name || k).join(" · ") || "— chưa giao team —";
     };
 
     if (loading) {
@@ -188,15 +218,17 @@ export default function UserManagementTab() {
         );
     }
 
-    const roleLabel = (role: string) =>
-        ROLE_OPTIONS.find((r) => r.value === role);
+    const roleLabel = (role: string) => {
+        const r = roleOptions.find((x) => x.key === role);
+        return r ? { label: r.label, color: ROLE_COLOR[role] || "text-slate-300" } : undefined;
+    };
 
     return (
         <div className="space-y-6">
             {/* Header */}
             <div className="flex items-center justify-between">
                 <div>
-                    <h2 className="text-lg font-bold text-white">
+                    <h2 className="text-lg font-bold text-foreground">
                         Quản lý User
                     </h2>
                     <p className="text-sm text-slate-400">
@@ -224,7 +256,7 @@ export default function UserManagementTab() {
                                 Vai trò
                             </th>
                             <th className="text-left px-5 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                                Dự án
+                                Team được xem
                             </th>
                             <th className="text-right px-5 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">
                                 Hành động
@@ -247,8 +279,13 @@ export default function UserManagementTab() {
                                                     .toUpperCase()}
                                             </div>
                                             <div>
-                                                <p className="font-semibold text-white">
+                                                <p className="font-semibold text-foreground">
                                                     {user.name}
+                                                    {user.status === "pending" && (
+                                                        <span className="ml-2 rounded bg-rose-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-rose-500">
+                                                            ĐÃ KHOÁ
+                                                        </span>
+                                                    )}
                                                 </p>
                                                 <p className="text-xs text-slate-500 flex items-center gap-1">
                                                     <Mail className="h-3 w-3" />
@@ -269,22 +306,9 @@ export default function UserManagementTab() {
                                         </span>
                                     </td>
                                     <td className="px-5 py-4">
-                                        <div className="flex flex-wrap gap-1">
-                                            {user.projects.includes("*") ? (
-                                                <span className="rounded-md bg-indigo-500/10 text-indigo-400 px-2 py-0.5 text-[10px] font-semibold">
-                                                    ALL
-                                                </span>
-                                            ) : (
-                                                user.projects.map((p) => (
-                                                    <span
-                                                        key={p}
-                                                        className="rounded-md bg-white/[0.06] text-slate-300 px-2 py-0.5 text-[10px] font-medium"
-                                                    >
-                                                        {p}
-                                                    </span>
-                                                ))
-                                            )}
-                                        </div>
+                                        <span className="rounded-md bg-muted px-2 py-0.5 text-[11px] font-medium text-foreground/80">
+                                            {teamText(user)}
+                                        </span>
                                     </td>
                                     <td className="px-5 py-4 text-right">
                                         <div className="flex items-center justify-end gap-1.5">
@@ -359,17 +383,19 @@ export default function UserManagementTab() {
                             {/* Email */}
                             <div>
                                 <label className="block text-sm font-medium text-slate-300 mb-1.5">
-                                    Email
+                                    Tên đăng nhập
                                 </label>
                                 <input
-                                    type="email"
+                                    type="text"
+                                    autoCapitalize="none"
+                                    spellCheck={false}
                                     value={formEmail}
                                     onChange={(e) =>
                                         setFormEmail(e.target.value)
                                     }
                                     required
                                     className="w-full rounded-xl border border-white/[0.1] bg-white/[0.04] px-4 py-2.5 text-sm text-white placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500/40 transition-all"
-                                    placeholder="user@faos.io"
+                                    placeholder="vd: loc (gõ ở ô Tên đăng nhập lúc vào dashboard)"
                                 />
                             </div>
 
@@ -418,16 +444,16 @@ export default function UserManagementTab() {
                                     Vai trò
                                 </label>
                                 <div className="grid grid-cols-3 gap-2">
-                                    {ROLE_OPTIONS.map((opt) => (
+                                    {roleOptions.map((opt) => (
                                         <button
-                                            key={opt.value}
+                                            key={opt.key}
                                             type="button"
                                             onClick={() =>
-                                                setFormRole(opt.value)
+                                                setFormRole(opt.key)
                                             }
                                             className={cn(
                                                 "rounded-xl border px-3 py-2.5 text-left transition-all",
-                                                formRole === opt.value
+                                                formRole === opt.key
                                                     ? "border-indigo-500/50 bg-indigo-500/10"
                                                     : "border-white/[0.08] bg-white/[0.02] hover:bg-white/[0.04]"
                                             )}
@@ -435,7 +461,7 @@ export default function UserManagementTab() {
                                             <p
                                                 className={cn(
                                                     "text-xs font-semibold",
-                                                    opt.color
+                                                    ROLE_COLOR[opt.key] || "text-slate-300"
                                                 )}
                                             >
                                                 {opt.label}
@@ -448,32 +474,37 @@ export default function UserManagementTab() {
                                 </div>
                             </div>
 
-                            {/* Projects (only for non-admin) */}
-                            {formRole !== "admin" && (
+                            {/* Team — quyết định thấy NƯỚC nào. Giám đốc/admin xem hết, không cần chọn. */}
+                            {!roleFull(formRole) && (
                                 <div>
                                     <label className="block text-sm font-medium text-slate-300 mb-1.5">
-                                        Dự án được truy cập
+                                        Team được xem
                                     </label>
                                     <div className="flex flex-wrap gap-2">
-                                        {ALL_PROJECTS.map((p) => (
+                                        {[...teamOptions.map((t) => ({ key: t.key, label: `${t.name} (${t.markets.join(", ")})`, hint: t.leader ? `Leader: ${t.leader}` : "" })),
+                                          { key: "*", label: "Tất cả team", hint: "Mọi nước, kể cả nước mở thêm sau này" }].map((t) => (
                                             <button
-                                                key={p}
+                                                key={t.key}
                                                 type="button"
-                                                onClick={() => toggleProject(p)}
+                                                title={t.hint}
+                                                onClick={() => toggleTeam(t.key)}
                                                 className={cn(
                                                     "rounded-lg border px-3 py-1.5 text-xs font-medium transition-all",
-                                                    formProjects.includes(p)
+                                                    formTeams.includes(t.key)
                                                         ? "border-indigo-500/50 bg-indigo-500/15 text-indigo-400"
                                                         : "border-white/[0.08] text-slate-400 hover:bg-white/[0.04]"
                                                 )}
                                             >
-                                                {formProjects.includes(p) && (
+                                                {formTeams.includes(t.key) && (
                                                     <Check className="h-3 w-3 inline mr-1" />
                                                 )}
-                                                {p}
+                                                {t.label}
                                             </button>
                                         ))}
                                     </div>
+                                    <p className="mt-1.5 text-[11px] text-slate-500">
+                                        Chỉ thấy số của nước thuộc team đã chọn — team khác không hiện ở bất kỳ tab nào.
+                                    </p>
                                 </div>
                             )}
 

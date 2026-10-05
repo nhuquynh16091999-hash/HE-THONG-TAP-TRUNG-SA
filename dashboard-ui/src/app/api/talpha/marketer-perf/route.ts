@@ -2,8 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { bigquery } from "@/lib/bigquery";
 import {
     RULES, DISPLAY, UNASSIGNED,
-    attributeOrder, buildAdidOwner, parseCampaign, isTestCampaign,
+    attributeOrder, buildAdidOwner, campaignMarket, parseCampaign, isTestCampaign,
 } from "@/lib/talpha/rules";
+import { getAccess } from "@/lib/talpha/access";
+import { canMarket, seesAllMarkets } from "@/lib/talpha/access-rules";
 
 export const dynamic = "force-dynamic";
 
@@ -40,6 +42,10 @@ export async function GET(req: NextRequest) {
     if (!DATE_RE.test(from) || !DATE_RE.test(to)) {
         return NextResponse.json({ error: "from/to phải dạng YYYY-MM-DD" }, { status: 400 });
     }
+    // Phân quyền theo team: đơn theo shop (cột market), chi tiêu theo nước ở tên campaign.
+    const a = await getAccess(req);
+    const hep = !a || !seesAllMarkets(a);
+    const codes = a ? a.codes : [];
 
     try {
         // Q0 — đơn GTC gom theo (tag POS thô, ad_id). Dedupe theo `order_uid` (= shop-id)
@@ -56,6 +62,7 @@ export async function GET(req: NextRequest) {
                         ANY_VALUE(is_confirmed)    AS is_confirmed
                     FROM \`${BQ_PROJECT}.${BQ_DATASET}.vw_orders_std\`
                     WHERE order_date BETWEEN @from AND @to AND is_valid
+                      ${hep ? "AND market IN UNNEST(@codes)" : ""}
                     GROUP BY order_uid
                 )
                 -- Lọc nới ra is_valid để lấy THÊM phần ship, nhưng orders/revenue vẫn
@@ -66,7 +73,8 @@ export async function GET(req: NextRequest) {
                        COUNT(*)                                     AS ship_orders,
                        SUM(revenue_vnd)                             AS ship_revenue_vnd
                 FROM o GROUP BY 1, 2`,
-            params: { from, to },
+            params: hep ? { from, to, codes } : { from, to },
+            ...(hep ? { types: { codes: ["STRING"] } } : {}),
         });
 
         // Q1 — bảng tra BẬC 2: id trên đơn → chủ campaign. Không lọc ngày: đơn hôm nay
@@ -119,6 +127,7 @@ export async function GET(req: NextRequest) {
         for (const r of campRows as any[]) {
             const name = String(r.campaign_name || "");
             if (isTestCampaign(name)) continue;
+            if (hep && !(a && canMarket(a, campaignMarket(name).market))) continue;
             const [, key] = parseCampaign(name);
             if (!key) { spendChuaNhanRa += Number(r.spend || 0); continue; }
             const b = agg.get(key) || emptyBucket();

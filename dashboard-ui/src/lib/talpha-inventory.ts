@@ -45,7 +45,7 @@ function normMkt(nm: string | null): string | null {
 
 // Mã SKU → (các) marketer đang chạy/bán mã đó (30 ngày, sắp theo số bán). Để mkt biết
 // SP nào là của mình + trạng thái tồn của nó. Map qua variation_id (order_items thiếu tên).
-async function fetchSkuMarketers(variationToCode: Map<string, string>): Promise<Record<string, string>> {
+async function fetchSkuMarketers(variationToCode: Map<string, string>, shopCodes?: string[]): Promise<Record<string, string>> {
     const perCode: Record<string, Record<string, number>> = {};
     try {
         const [rows] = await bigquery.query({
@@ -56,7 +56,9 @@ async function fetchSkuMarketers(variationToCode: Map<string, string>): Promise<
                 JOIN \`${BQ_PROJECT}.${BQ_DATASET}.sale_order\` o ON oi.shop_id = o.shop_id AND oi.order_id = CAST(o.id AS STRING)
                 WHERE DATE(TIMESTAMP(o.inserted_at)) >= DATE_SUB(CURRENT_DATE(), INTERVAL 30 DAY)
                   AND o.status_name != 'canceled' AND oi.variation_id != ''
+                  ${shopCodes ? "AND UPPER(o.shop_label) IN UNNEST(@codes)" : ""}
                 GROUP BY 1, 2`,
+            ...(shopCodes ? { params: { codes: shopCodes }, types: { codes: ["STRING"] } } : {}),
         });
         for (const r of rows as any[]) {
             const code = variationToCode.get(String(r.vid));
@@ -121,21 +123,29 @@ export interface InventoryPayload {
  * Tồn từ POS; bán/ngày từ đơn thật BigQuery 30 ngày; trạng thái tự tính.
  * Điều chuyển/nhập tay (analyst) không còn nguồn → để rỗng.
  */
-export async function buildInventoryPayload(): Promise<InventoryPayload> {
+export async function buildInventoryPayload(
+    /** Phân quyền theo team (05/10/2026): khoá nước được xem ("Taiwan"…). Bỏ trống = mọi kho. */
+    chiNuoc?: string[],
+): Promise<InventoryPayload> {
     const pos = await fetchPosInventory();
     if (!pos.ok) throw new Error("POS không trả dữ liệu tồn — kiểm tra key/shop trong talpha.yaml");
+    const META = chiNuoc ? MARKETS_META.filter((m) => chiNuoc.includes(m.market)) : MARKETS_META;
+    const KEYS = META.map((m) => m.key);
+    const shopCodes = chiNuoc
+        ? chiNuoc.map((k) => String((RULES.markets as Record<string, { shop_label?: string }>)[k]?.shop_label || "").toUpperCase()).filter(Boolean)
+        : undefined;
     // cần map variation_id từ POS cho cả tốc độ bán lẫn marketer phụ trách
-    const [sold, skuMkt] = await Promise.all([fetchSold30(pos.variationToCode), fetchSkuMarketers(pos.variationToCode)]);
+    const [sold, skuMkt] = await Promise.all([fetchSold30(pos.variationToCode), fetchSkuMarketers(pos.variationToCode, shopCodes)]);
 
-    // Tập mã SKU = hợp mọi mã có trong các shop đang bật
+    // Tập mã SKU = hợp mọi mã có trong các shop đang bật (người xem một phần: chỉ shop của team)
     const codes = new Set<string>();
-    for (const mk of MK_KEYS) for (const c of Object.keys(pos.stock[mk] || {})) codes.add(c);
+    for (const mk of KEYS) for (const c of Object.keys(pos.stock[mk] || {})) codes.add(c);
 
     const skuMatrix: SkuRow[] = [];
     for (const code of codes) {
         const info = pos.catalog.get(code);
         let total = 0, sold30 = 0;
-        for (const mk of MK_KEYS) {
+        for (const mk of KEYS) {
             total += pos.stock[mk]?.[code] ?? 0;
             sold30 += sold[mk]?.[code] || 0;
         }
@@ -153,7 +163,7 @@ export async function buildInventoryPayload(): Promise<InventoryPayload> {
     }
     skuMatrix.sort((a, b) => (b.total ?? 0) - (a.total ?? 0));
 
-    const marketOverview: MarketOverview[] = MARKETS_META.map((m) => {
+    const marketOverview: MarketOverview[] = META.map((m) => {
         const mt = pos.marketTotals[m.key] || { skus: 0, stock: 0 };
         const s30 = Object.values(sold[m.key] || {}).reduce((a, b) => a + b, 0);
         const perDay = s30 > 0 ? Math.round((s30 / 30) * 10) / 10 : null;
@@ -181,7 +191,7 @@ export async function buildInventoryPayload(): Promise<InventoryPayload> {
         asOf: { label: `POS realtime · ${today}`, note: "Tồn kho trực tiếp từ POS Poscake · bán/ngày từ đơn thật 30 ngày" },
         marketOverview, statusSummary, skuMatrix,
         transfers: [], restocks: [], keyFindings: [],
-        sources: { pos: { ok: true, shops: pos.shops, skus: skuMatrix.length, field: "actual_remain_quantity" } },
+        sources: { pos: { ok: true, shops: chiNuoc ? META.length : pos.shops, skus: skuMatrix.length, field: "actual_remain_quantity" } },
         fetchedAt: new Date().toISOString(),
     };
 }

@@ -15,11 +15,33 @@ Bán trang sức và mỹ phẩm qua Facebook Ads → chat-sale Messenger → **
 Hàng Đài đi từ kho Trung Quốc qua 3PL **NAZA供应链**; khách trả tiền cho shipper; NAZA gom
 rồi chuyển về theo kỳ. Singapore: bảng giá 3PL khai ở `shipping_fees.SG` (25/09/2026, chưa ghi tên đối tác), chờ sao kê mẫu.
 
-| Vai | Người | Thấy gì |
+**Ba thị trường = ba team riêng, không liên quan nhau** (Sỹ Anh chốt 05/10/2026):
+
+| Team | Nước | Leader |
 |:--|:--|:--|
-| Giám đốc | 1 | Toàn bộ số liệu, quản lý người dùng |
-| Marketer | 6 (Lộc · Sỹ Anh · Thái · Thương · Quỳnh · Thắng) | Báo cáo, chi phí quảng cáo |
-| Sale | 2 (một ghế còn trống) | Đơn hàng, đối soát COD |
+| Trung Đông | UAE | Lộc |
+| Đông Nam Á | Singapore | Thái |
+| Đông Á | Đài Loan | Sỹ Anh (tạm thời) |
+
+| Vai (`role`) | Người | Thấy gì |
+|:--|:--|:--|
+| Giám đốc (`director`) | Sỹ Anh | Cả ba team, mọi tab, Quản trị (người dùng, TKQC) |
+| Leader (`leader`) | Lộc · Thái | Mọi tab của team mình (báo cáo, P&L, đơn, vận đơn, quảng cáo, kho, khách) — chỉ nước của team |
+| Sale · vận đơn (`sale`) | Thương (cả ba team) | Sổ đơn, Đối soát COD, Theo dõi vận đơn, Kho, Khách hàng |
+| Marketer (`marketer`) | — (khai khi cần) | Marketing, quảng cáo, kho của team |
+
+**Phân quyền chặn ở máy chủ, không chỉ ẩn nút.** Luật ở `talpha_rules.json → access` (team →
+nước, vai → tab); mỗi tài khoản trong `config/users.json` mang `role` + `teams` (sửa ở `/admin` →
+Quản lý User; đăng nhập bằng **tên đăng nhập + mật khẩu**, mỗi người một tài khoản). Cửa vào là
+`dashboard-ui/src/proxy.ts`: chưa đăng nhập thì không trang nào, API nào mở; route một nước (sổ
+đơn, đối soát, vận đơn) bị từ chối nếu nước không thuộc team; route gộp nhiều nước (sheet-report,
+pnl-costs, product-pnl, inventory, marketer-perf, `/api/query`) tự cắt theo team — `/api/query`
+thay mỗi bảng trong câu SQL bằng câu con đã lọc nước (`lib/talpha/access-rules.ts → scopeQuery`).
+Bot Zalo và việc nền gọi API bằng **chìa nội bộ** `data/.internal_token` (dashboard tự sinh lúc
+khởi động; `ops/zalo-alerts/config.js` tự gắn vào mọi lượt gọi). Còn nợ: tab Chi phí quảng cáo
+(`/api/talpha/ad-spend`) và Ads Command Center (`/api/talpha/realtime`) chưa lọc theo nước nên chỉ
+hiện cho người xem đủ ba nước (`CHUA_LOC_THEO_NUOC`). Phân quyền chỉ có tác dụng khi
+`DASHBOARD_PUBLIC` tắt.
 
 Mỗi nước một shop POS Poscake — Đài "TAIWAN SỸ ANH" 1022091930 · Singapore 715135541 ·
 UAE 101090498 (đổi 25/09/2026) · 8 tài khoản quảng cáo Meta đọc được, chạy chung cho mọi nước. Tỷ giá:
@@ -123,7 +145,8 @@ máy chủ, và **dừng lại báo lỗi** nếu chép trượt.
 
 ## 4. Màn hình — 7 nhóm, 13 tab
 
-Vào `/` → middleware kiểm đăng nhập → `/talpha` → `components/talpha/dashboard-shell.tsx`.
+Vào `/` → `proxy.ts` kiểm đăng nhập → `/talpha` → `components/talpha/dashboard-shell.tsx` (menu
+chỉ hiện tab tài khoản được xem — `/api/talpha/me`).
 
 | Nhóm | Tab | Component | Số từ đâu |
 |:--|:--|:--|:--|
@@ -168,8 +191,10 @@ quảng cáo" trả lời *tiêu bao nhiêu và hiệu quả ra sao*; mục này
 ### `/api/query` — cổng SQL dùng chung của 6 tab BigQuery
 
 Chỉ nhận `SELECT` / `WITH`; chặn `;` và toàn bộ DDL/DML bằng danh sách từ khoá cấm.
-Xác thực bằng `DASHBOARD_API_KEY` (không đặt env → mở, chế độ dev). Dataset lấy từ
-cookie `activeDataset` (shell đặt `TALPHA_Dataset`).
+Phải đăng nhập (proxy.ts). Người chỉ xem một phần nước: mỗi bảng trong câu bị thay bằng câu con
+đã lọc nước (`vw_orders_std.market`, `sale_order.shop_label`, `order_items` theo shop, chi tiêu
+Meta theo nước ở tên campaign); bảng gộp mọi nước (`vw_attribution_quality`) và mọi đường vòng
+(dataset khác, `INFORMATION_SCHEMA`, chú thích `#`, ký tự thoát) bị từ chối.
 
 ### `/api/talpha/*`
 

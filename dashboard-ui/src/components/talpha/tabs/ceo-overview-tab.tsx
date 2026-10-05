@@ -4,6 +4,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { format } from "date-fns";
 import { formatVNDCompact, formatMoney, formatNumber, marketName, cn } from "../utils";
 import { useMarkets } from "../markets-context";
+import { tenPhamVi, useAccess } from "../access-context";
 import TabSkeleton from "@/components/ui/tab-skeleton";
 import CeoAssistant from "../ceo-assistant";
 import CeoSmartInsights from "./ceo-smart-insights";
@@ -37,6 +38,8 @@ interface Report {
     sheets: Record<string, string>;
     missing_months: string[];
     team: So;
+    /** true = số đã cắt theo team của người xem (cộng các tab nước), không có bảng nhân viên. */
+    scoped?: boolean;
     marketers: (So & { tab: string; display: string })[];
     unassigned: So | null;
     markets: MarketRow[];
@@ -61,6 +64,9 @@ export default function TALPHACeoOverviewTab({ dateRange }: Props) {
     // KPI doanh số/tháng (VND) từ talpha_rules.json — tháng nào không khai thì không có khoá.
     const [targets, setTargets] = useState<Record<string, number>>({});
     const { loaded: marketsLoaded } = useMarkets();
+    // Leader chỉ thấy số team mình (phân quyền 05/10/2026) — tiêu đề ghi rõ phạm vi.
+    const me = useAccess();
+    const phamVi = tenPhamVi(me);
 
     useEffect(() => {
         fetch("/api/talpha/targets")
@@ -150,10 +156,11 @@ export default function TALPHACeoOverviewTab({ dateRange }: Props) {
             {/* ═══ 1. Hero — kỳ báo cáo + xuất xứ số ═══ */}
             <ReportHero
                 emoji="📊"
-                title={`Báo cáo ANTALO — ${period}`}
+                title={`Báo cáo ${phamVi ? `team ${phamVi}` : "ANTALO"} — ${period}`}
                 subtitle={
                     <>
                         Số lấy thẳng từ file <strong>TỔNG TEAM</strong> — cùng file CEO xem, cập nhật mỗi giờ.
+                        {data.scoped && <> Chỉ số của team: cộng các tab nước <strong>{data.markets.map(tenNuoc).join(", ") || "của team"}</strong> trong file.</>}
                         Chỉ tính người trong team · doanh số là đơn đã chốt (trừ huỷ, nháp, đơn trống), quy VND theo tỷ giá
                         từng nước · tiền ads là số thật từ Meta
                         {data.start_date && <> · tính từ <strong>{ngayVN(data.start_date)}</strong>, trước đó dữ liệu chưa đủ</>}.
@@ -266,7 +273,8 @@ export default function TALPHACeoOverviewTab({ dateRange }: Props) {
 
             {/* ═══ 4. Cảnh báo & trợ lý — giữ nguyên module cũ ═══ */}
             <CeoSmartInsights roas={roas} margin={bien ?? 0} net={lai} revenue={t.doanh_so} />
-            <CeoAssistant dateRange={dateRange} />
+            {/* Trợ lý hỏi đáp chạy SQL trên mọi nước — chỉ giám đốc. */}
+            {me?.full && <CeoAssistant dateRange={dateRange} />}
 
             {/* ═══ 5. Xu hướng theo ngày ═══ */}
             <section className="rounded-xl border border-border bg-card p-5 shadow-sm">
@@ -288,8 +296,9 @@ export default function TALPHACeoOverviewTab({ dateRange }: Props) {
                 />
             </section>
 
-            {/* ═══ 6. Theo nhân viên ═══ */}
-            <ReportTable
+            {/* ═══ 6. Theo nhân viên ═══
+                Tab từng người trong Sheet gộp MỌI nước của người đó — xem theo team thì không hiện. */}
+            {!data.scoped && <ReportTable
                 emoji="👥"
                 title="Theo nhân viên"
                 note="Mỗi dòng là tab của người đó trong file TỔNG TEAM: tiền ads theo tên trong campaign, đơn theo người được gán trên POS. Dòng (không gán) — đơn chưa gán được ai, hoặc số của người đã nghỉ — không nằm trong dòng TỔNG, giống tab Tổng của Sheet."
@@ -301,7 +310,7 @@ export default function TALPHACeoOverviewTab({ dateRange }: Props) {
                     "TỔNG TEAM", money(t.ads), formatNumber(t.mess), formatNumber(t.don), pctText(chot, 2),
                     money(t.doanh_so), pctText(pAds), money(t.ds_giao_tc), adsLight(t),
                 ]} />}
-            />
+            />}
 
             {/* ═══ 7. Theo thị trường ═══ */}
             <ReportTable
@@ -318,7 +327,9 @@ export default function TALPHACeoOverviewTab({ dateRange }: Props) {
             <ReportTable
                 emoji="📅"
                 title="Chi tiết theo ngày"
-                note="Đọc từ tab Tổng của file TỔNG TEAM — số từng ngày ở đây phải trùng từng dòng trong Sheet."
+                note={data.scoped
+                    ? "Cộng các tab nước của team trong file TỔNG TEAM — số từng ngày trùng tab nước đó trong Sheet."
+                    : "Đọc từ tab Tổng của file TỔNG TEAM — số từng ngày ở đây phải trùng từng dòng trong Sheet."}
                 columns={DAY_COLUMNS}
                 rows={[...data.days].reverse()}
                 rowKey={d => d.date}

@@ -14,6 +14,8 @@ import { GoogleAuth } from "google-auth-library";
 import fs from "fs";
 import path from "path";
 import { DISPLAY, GRAND_SHEET_BY_MONTH, MARKETS_PUBLIC, REPORT_START_DATE, RULES, UNASSIGNED } from "@/lib/talpha/rules";
+import { getAccess } from "@/lib/talpha/access";
+import { canMarket, seesAllMarkets, type Access } from "@/lib/talpha/access-rules";
 
 export const dynamic = "force-dynamic";
 
@@ -159,7 +161,7 @@ function loaiTab(t: Tab): { loai: "team" | "unassigned" | "marketer" | "market";
     return { loai: "market", code: nuoc?.code };
 }
 
-async function theoKhoang(fromIn: string, to: string) {
+async function theoKhoang(fromIn: string, to: string, a: Access | null) {
     // Không tính trước mốc gốc — kể cả khi ai đó gọi thẳng route với from sớm hơn.
     const from = REPORT_START_DATE && fromIn < REPORT_START_DATE ? REPORT_START_DATE : fromIn;
     const team = soRong();
@@ -167,6 +169,8 @@ async function theoKhoang(fromIn: string, to: string) {
     const nguoi = new Map<string, So>();
     const nuoc = new Map<string, { code?: string; so: So }>();
     const ngay = new Map<string, So>();
+    // Từng ngày của từng tab NƯỚC — để dựng lại "cả team" cho người chỉ xem một phần nước.
+    const ngayNuoc = new Map<string, Map<string, So>>();
     const thieuThang: string[] = [];
     const sheets: Record<string, string> = {};
 
@@ -190,9 +194,27 @@ async function theoKhoang(fromIn: string, to: string) {
                         const n = nguoi.get(t.title) || soRong(); cong(n, so); nguoi.set(t.title, n);
                     } else {
                         const n = nuoc.get(t.title) || { code, so: soRong() }; cong(n.so, so); nuoc.set(t.title, n);
+                        if (code) {
+                            const m = ngayNuoc.get(code) || new Map<string, So>();
+                            const x = m.get(d) || soRong(); cong(x, so); m.set(d, x); ngayNuoc.set(code, m);
+                        }
                     }
                 }
             }
+        }
+    }
+
+    // ── Phân quyền theo team (05/10/2026) ──
+    // Người chỉ xem một phần nước: "cả team" của họ = cộng các tab NƯỚC họ được xem, theo
+    // từng ngày. Tab marketer gộp mọi nước của người đó (Sheet không tách) nên KHÔNG trả —
+    // trả là lộ số team khác. "(không gán)" cũng vậy. Tháng nào file chỉ có một nước có số
+    // thì format_all.py không dựng tab nước → tháng đó người xem một phần thấy 0.
+    const hep = !!a && !seesAllMarkets(a);
+    if (hep) {
+        ngay.clear();
+        for (const [code, m] of ngayNuoc) {
+            if (!canMarket(a!, code)) continue;
+            for (const [d, so] of m) { const n = ngay.get(d) || soRong(); cong(n, so); ngay.set(d, n); }
         }
     }
 
@@ -201,18 +223,22 @@ async function theoKhoang(fromIn: string, to: string) {
     for (const d of days) {
         const n = months.get(d.date.slice(0, 7)) || soRong(); cong(n, d); months.set(d.date.slice(0, 7), n);
     }
+    const teamTraVe = hep ? days.reduce((s, d) => { cong(s, d); return s; }, soRong()) : team;
 
     return {
         from, to, start_date: REPORT_START_DATE, sheets,
         // Tháng trong khoảng mà chưa khai ID file ở talpha_rules.report_sheets — số tháng đó
         // KHÔNG có trong tổng. Giao diện phải báo ra, không được coi như tháng đó bằng 0.
         missing_months: thieuThang,
-        team,
-        marketers: [...nguoi.entries()]
+        team: teamTraVe,
+        // true = số đã cắt theo team của người xem (giao diện ẩn bảng marketer, KPI cả công ty).
+        scoped: hep,
+        marketers: hep ? [] : [...nguoi.entries()]
             .map(([tab, so]) => ({ tab, display: DISPLAY[tab] || tab, ...so }))
             .sort((a, b) => b.doanh_so - a.doanh_so),
-        unassigned: unassigned.ads || unassigned.don ? unassigned : null,
+        unassigned: !hep && (unassigned.ads || unassigned.don) ? unassigned : null,
         markets: [...nuoc.entries()]
+            .filter(([, v]) => !hep || (!!v.code && canMarket(a!, v.code)))
             .map(([tab, v]) => ({ tab, code: v.code || null, ...v.so }))
             .sort((a, b) => b.doanh_so - a.doanh_so),
         days,
@@ -224,18 +250,24 @@ export async function GET(req: NextRequest) {
     const sp = req.nextUrl.searchParams;
     const from = sp.get("from") || "";
     const to = sp.get("to") || "";
+    const a = await getAccess(req);
     if (from || to) {
         if (!DATE_RE.test(from) || !DATE_RE.test(to)) {
             return NextResponse.json({ error: "from/to phải dạng YYYY-MM-DD" }, { status: 400 });
         }
         try {
-            return NextResponse.json(await theoKhoang(from, to));
+            return NextResponse.json(await theoKhoang(from, to, a));
         } catch (e: any) {
             console.error("sheet-report (khoảng):", e?.message || e);
             return NextResponse.json({ error: `đọc Sheet lỗi: ${e?.message || e}` }, { status: 500 });
         }
     }
 
+    // Chế độ một ngày là của bot Zalo: trả nguyên mọi tab (cả tab marketer gộp mọi nước).
+    // Người chỉ xem một phần nước dùng chế độ khoảng ở trên, đã cắt theo team.
+    if (!a || !seesAllMarkets(a)) {
+        return NextResponse.json({ error: "Chế độ ?date= chỉ dành cho bot — dùng ?from=&to=" }, { status: 403 });
+    }
     const date = sp.get("date") || "";
     if (!DATE_RE.test(date)) {
         return NextResponse.json({ error: "date phải dạng YYYY-MM-DD" }, { status: 400 });

@@ -6,8 +6,18 @@
  * Khi user đóng tab, server nhận ECONNRESET → uncaughtException → crash.
  * Fix: bắt các lỗi network "expected" ở process level, không crash.
  */
-export function register() {
+export async function register() {
     if (process.env.NEXT_RUNTIME === "nodejs") {
+        // Sinh sẵn chìa nội bộ (data/.internal_token) ngay lúc khởi động — bot Zalo và việc
+        // nền đọc file này để gọi API. Đợi tới lượt gọi đầu mới sinh thì bot chưa có chìa
+        // nên chẳng bao giờ có "lượt gọi đầu". Xem lib/talpha/internal-token.ts.
+        try {
+            const { internalToken } = await import("@/lib/talpha/internal-token");
+            internalToken();
+        } catch (e) {
+            console.error("[TALPHA] Không sinh được chìa nội bộ data/.internal_token:", e);
+        }
+
         process.on("uncaughtException", (err: NodeJS.ErrnoException) => {
             const ignoredCodes = ["ECONNRESET", "ECONNABORTED", "EPIPE", "ENOTFOUND"];
             if (err.code && ignoredCodes.includes(err.code)) {

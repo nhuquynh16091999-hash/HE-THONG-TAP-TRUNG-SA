@@ -49,7 +49,12 @@ ssh root@139.180.131.21 'bash /opt/talpha/ops/talpha_reports/deploy_runtime.sh -
   ước tính ở `lib/talpha/order-costs.ts` (dùng chung P&L và P&L theo SP). Các tab báo cáo
   không tính trước `report_start_date` (15/09/2026).
 * **Sync**: `sync/talpha/talpha_sync.py` + `sync/core/`, chạy bằng systemd trên VPS.
-* **Đăng nhập**: NextAuth v5 (`lib/auth.ts`); danh sách người dùng qua `lib/users.ts`.
+* **Đăng nhập + phân quyền theo team** (05/10/2026): NextAuth v5 (`lib/auth.ts`); người dùng
+  qua `lib/users.ts` (`config/users.json`, mỗi người `role` + `teams`). Luật ở
+  `talpha_rules.json → access`, đọc qua `lib/talpha/access-rules.ts` (có test). Cửa chặn chung:
+  `src/proxy.ts` (Next 16, chạy Node). **Thêm route API mới thì khai vào `API_RULES`** — không
+  khai là chỉ giám đốc gọi được. Route gộp nhiều nước phải tự lọc theo `getAccess()`.
+  Bot/việc nền gọi API bằng header `x-talpha-token` (chìa ở `data/.internal_token`).
 
 ## Nguyên tắc cứng — vi phạm là số sai hoặc mất dữ liệu
 

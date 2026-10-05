@@ -198,8 +198,42 @@
   "director": {
     "key": "GD",
     "display": "Giám đốc",
-    "full": "",
-    "_todo": "CHƯA KHAI TÊN — điền họ tên giám đốc."
+    "full": "Hồ Sỹ Anh"
+  },
+  "_access_note": "PHÂN QUYỀN DASHBOARD (Sỹ Anh chốt 05/10/2026). Ba thị trường tách thành ba TEAM riêng, không liên quan nhau: Trung Đông (UAE — leader Lộc), Đông Nam Á (Singapore — leader Thái), Đông Á (Đài Loan — tạm thời Sỹ Anh). Thương làm vận đơn + sale cho cả ba team. Sỹ Anh là giám đốc: thấy hết, quản lý người dùng. Mỗi tài khoản (config/users.json, sửa ở trang /admin → Quản lý User) mang `role` + `teams`: role quyết định THẤY TAB NÀO (access.roles.*.tabs), teams quyết định THẤY NƯỚC NÀO (access.teams.*.markets, khoá = tên ở mục markets). teams [\"*\"] = mọi team. Mở thêm nước cho một team = thêm khoá vào markets của team đó, leader tự thấy, không sửa tài khoản. Chặn ở MÁY CHỦ (dashboard-ui/src/proxy.ts + từng route API), không chỉ ẩn nút: gõ thẳng địa chỉ API nước khác cũng bị từ chối. Đối soát chi phí QC, trợ lý CEO, xuất Sheet, quản lý người dùng/TKQC: chỉ giám đốc.",
+  "access": {
+    "teams": {
+      "trung_dong": { "name": "Trung Đông", "markets": ["UAE"], "leader": "Lộc" },
+      "dong_nam_a": { "name": "Đông Nam Á", "markets": ["Singapore"], "leader": "Thái" },
+      "dong_a": { "name": "Đông Á", "markets": ["Taiwan"], "leader": "Sỹ Anh (tạm thời)" }
+    },
+    "roles": {
+      "director": {
+        "label": "Giám đốc",
+        "desc": "Thấy toàn bộ ba team, quản lý người dùng",
+        "full": true
+      },
+      "admin": {
+        "label": "Admin kỹ thuật",
+        "desc": "Toàn quyền, kể cả cấu hình hệ thống",
+        "full": true
+      },
+      "leader": {
+        "label": "Leader thị trường",
+        "desc": "Mọi số của team mình: báo cáo, P&L, đơn, vận đơn, quảng cáo, kho, khách",
+        "tabs": ["overview", "pnl", "product-pnl", "order-ledger", "cod-recon", "tracking", "products", "marketing", "ad-spend", "ads-command", "ad-health", "customers", "market-intel"]
+      },
+      "marketer": {
+        "label": "Marketer",
+        "desc": "Quảng cáo của team mình",
+        "tabs": ["marketing", "ad-spend", "ads-command", "ad-health", "products"]
+      },
+      "sale": {
+        "label": "Sale · vận đơn",
+        "desc": "Sổ đơn, đối soát COD, theo dõi vận đơn, kho, khách — của các team được giao",
+        "tabs": ["order-ledger", "cod-recon", "tracking", "products", "customers"]
+      }
+    }
   },
   "_marketer_match_note": "Gán marketer cho ĐƠN: quét ô `marketer` của POS theo pos_marketer_rules (so chữ HOA, bỏ dấu không được — 'Chu Thuý' khác 'Thúy' ở kiểu dấu Unicode nên match bằng 'THU'). Trượt hết ⇒ fallback theo ad_id sang chủ campaign ⇒ vẫn trượt thì vào '(không gán)'. KHÔNG bỏ đơn lặng lẽ.",
   "pos_marketer_rules": [

@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { bigquery } from "@/lib/bigquery";
 import { buildInventoryPayload } from "@/lib/talpha-inventory";
+import { getAccess } from "@/lib/talpha/access";
+import { seesAllMarkets } from "@/lib/talpha/access-rules";
 
 export const dynamic = "force-dynamic";
 
@@ -14,15 +16,23 @@ const BQ_DATASET = process.env.DATASET || "TALPHA_Dataset";
 // (UI: tab Kho với ?inv=fallback trên URL trang).
 export async function GET(req: Request) {
     const forceFallback = new URL(req.url).searchParams.get("force") === "fallback";
+    // Phân quyền theo team: người xem một phần nước chỉ thấy kho của shop nước mình.
+    const a = await getAccess(req);
+    const chiNuoc = a && seesAllMarkets(a) ? undefined : (a?.markets || []);
 
     // 1) Nguồn chính: build live từ POS Poscake
     if (!forceFallback) {
         try {
-            const payload = await buildInventoryPayload();
+            const payload = await buildInventoryPayload(chiNuoc);
             return NextResponse.json({ ...payload, _source: "pos-live" });
         } catch (err: any) {
             console.error("inventory: POS live lỗi → thử snapshot BQ dự phòng:", err?.message || err);
         }
+    }
+
+    // Bản dự phòng là ảnh chụp CẢ BA kho gộp sẵn tổng — không cắt theo team được.
+    if (chiNuoc) {
+        return NextResponse.json({ error: "POS chưa phản hồi — thử lại sau ít phút" }, { status: 503 });
     }
 
     // 2) Dự phòng: snapshot mới nhất trong BQ (có thể cũ)

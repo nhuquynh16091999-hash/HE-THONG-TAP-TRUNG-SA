@@ -53,7 +53,11 @@ trap 'rm -rf "$LOCK" 2>/dev/null' EXIT
 
 # Token đi qua HEADER, không nhét vào URL (URL lộ trong `ps` và access log).
 CURL_ARGS=(-sS -m "$TIMEOUT")
-[ -n "${TALPHA_SYNC_TOKEN:-}" ] && CURL_ARGS+=(-H "x-talpha-token: $TALPHA_SYNC_TOKEN")
+# Không đặt TALPHA_SYNC_TOKEN thì dùng chìa nội bộ dashboard tự sinh (05/10/2026, API đòi
+# đăng nhập từ khi bật phân quyền) — data/.internal_token trong thư mục app (script này chạy
+# từ bản chép /root/talpha_reports nên không lần ngược repo được).
+CHIA="${TALPHA_SYNC_TOKEN:-$(cat "${TALPHA_APP_DIR:-/opt/talpha}/data/.internal_token" 2>/dev/null | tr -d '[:space:]')}"
+[ -n "$CHIA" ] && CURL_ARGS+=(-H "x-talpha-token: $CHIA")
 
 START=$(date +%s)
 RESP=$(curl "${CURL_ARGS[@]}" "$BASE/api/talpha/$ROUTE" 2>&1); RC=$?

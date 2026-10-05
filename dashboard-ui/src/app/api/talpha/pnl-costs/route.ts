@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { COST_RATE_RMB_VND, REPORT_START_DATE } from "@/lib/talpha/rules";
 import { tinhChiPhiDon, type DonChiPhi } from "@/lib/talpha/order-costs";
+import { getAccess } from "@/lib/talpha/access";
+import { canMarket, seesAllMarkets } from "@/lib/talpha/access-rules";
 
 export const dynamic = "force-dynamic";
 
@@ -19,8 +21,12 @@ export async function GET(req: NextRequest) {
     }
     const from = REPORT_START_DATE && fromIn < REPORT_START_DATE ? REPORT_START_DATE : fromIn;
 
+    // Phân quyền theo team: chỉ đơn của nước người xem được (proxy.ts đã chặn người chưa đăng nhập).
+    const a = await getAccess(req);
+    const hep = !a || !seesAllMarkets(a);
+
     try {
-        const { don, thieu, ship_basis } = await tinhChiPhiDon(from, to);
+        const { don, thieu, ship_basis } = await tinhChiPhiDon(from, to, hep ? (shop) => !!a && canMarket(a, shop) : undefined);
 
         type Bucket = { orders: number; cogs_vnd: number; orders_cogs_full: number; ship_vnd: number; orders_no_ship: number };
         const rong = (): Bucket => ({ orders: 0, cogs_vnd: 0, orders_cogs_full: 0, ship_vnd: 0, orders_no_ship: 0 });

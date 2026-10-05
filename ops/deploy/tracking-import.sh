@@ -18,10 +18,18 @@ BASE="${TALPHA_BASE_URL:-http://127.0.0.1:${PORT}}"
 URL="${TALPHA_TRACKING_URL:-${BASE}/api/talpha/tracking/import}"
 rc=0
 
+# Chìa nội bộ (05/10/2026): dashboard bật phân quyền nên API đòi đăng nhập; việc nền gửi
+# header x-talpha-token, chìa ở data/.internal_token (dashboard tự sinh — xem
+# dashboard-ui/src/lib/talpha/internal-token.ts). Chưa có file thì gọi trơn như cũ.
+GOC_REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+CHIA=$(cat "$GOC_REPO/data/.internal_token" 2>/dev/null | tr -d '[:space:]' || true)
+CHIA_HDR=()
+[ -n "$CHIA" ] && CHIA_HDR=(-H "x-talpha-token: $CHIA")
+
 # KHÔNG `curl | head`: head đóng ống sớm, curl dính SIGPIPE và việc nền báo hỏng dù
 # đã nạp xong. Giữ nguyên chuỗi trả về rồi tự cắt cho gọn log.
 echo "── 1/2 · Nạp bảng đối tác"
-if kq=$(curl -sS -X POST --max-time 300 "$URL"); then
+if kq=$(curl -sS -X POST --max-time 300 ${CHIA_HDR[@]+"${CHIA_HDR[@]}"} "$URL"); then
     echo "${kq:0:900}"
     # Route trả JSON có "error" khi Sheet đổi tên cột, mất quyền đọc, hay file rỗng. Đó là
     # hỏng THẬT — phải để unit đỏ, nếu không thì hỏng âm thầm cả tháng mà màn hình vẫn
@@ -48,7 +56,7 @@ NUOC_KHAC=$(python3 -c 'import json,sys; m=json.load(open(sys.argv[1]))["trackin
 dong_bo_17track() {   # $1 = mã nước ("" = Đài Loan)
     local mk="$1" ten="${1:-TW}" code kq17
     echo "── 2/2 · Đồng bộ vận đơn · ${ten} (17TRACK, UAE: WeShip)"
-    code=$(curl -sS -o /tmp/talpha-17track.json -w '%{http_code}' -X POST --max-time 600 \
+    code=$(curl -sS -o /tmp/talpha-17track.json -w '%{http_code}' -X POST --max-time 600 ${CHIA_HDR[@]+"${CHIA_HDR[@]}"} \
         "${BASE}/api/talpha/tracking?from=${TU}&to=${DEN}${mk:+&market=$mk}") || code="000"
     kq17=$(cat /tmp/talpha-17track.json 2>/dev/null || true)
     rm -f /tmp/talpha-17track.json

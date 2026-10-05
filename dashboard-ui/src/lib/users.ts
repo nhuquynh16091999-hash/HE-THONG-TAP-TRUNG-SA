@@ -19,7 +19,8 @@ import { configPath } from "@/lib/talpha/config-path";
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const lockfile = require("proper-lockfile");
 
-export type UserRole = "admin" | "director" | "marketer" | "sale";
+/** Vai trò và tab mỗi vai thấy: config/talpha_rules.json → access.roles. */
+export type UserRole = "admin" | "director" | "leader" | "marketer" | "sale";
 
 export interface UserRecord {
     id: string;
@@ -28,6 +29,11 @@ export interface UserRecord {
     password: string;
     role: UserRole;
     projects: string[];
+    /**
+     * Team được xem (khoá ở access.teams: trung_dong · dong_nam_a · dong_a), ["*"] = mọi
+     * team. Giám đốc/admin bỏ qua ô này. Thiếu ô hoặc rỗng = không thấy nước nào.
+     */
+    teams?: string[];
     status?: "active" | "pending";
 }
 

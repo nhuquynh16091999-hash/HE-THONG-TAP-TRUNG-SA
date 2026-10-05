@@ -154,7 +154,12 @@ export type DonChiPhi = {
 };
 export type ThieuGia = { ma: string; ten: string; qty: number; orders: number };
 
-export async function tinhChiPhiDon(from: string, to: string): Promise<{
+/**
+ * `chiShop` (phân quyền theo team, 05/10/2026): chỉ giữ đơn của shop được xem (mã "TW"…).
+ * Bỏ trống = mọi shop. Lọc ngay từ dòng đầu nên mã thiếu giá, cơ sở phí ship cũng chỉ
+ * còn của nước đó.
+ */
+export async function tinhChiPhiDon(from: string, to: string, chiShop?: (shop: string) => boolean): Promise<{
     don: DonChiPhi[]; thieu: ThieuGia[]; ship_basis: Record<string, string>;
 }> {
     const [rows] = await bigquery.query({
@@ -181,6 +186,7 @@ export async function tinhChiPhiDon(from: string, to: string): Promise<{
     const donMap = new Map<string, DonChiPhi>();
     const thieu = new Map<string, { ma: string; ten: string; qty: number; don: Set<string> }>();
     for (const r of rows as any[]) {
+        if (chiShop && !chiShop(r.shop)) continue;
         const key = `${r.shop}-${r.id}`;
         let o = donMap.get(key);
         if (!o) {
@@ -258,6 +264,7 @@ export async function tinhChiPhiDon(from: string, to: string): Promise<{
             + `${AE_FEES.delivered_ship_fee} AED + thu hộ COD ${((AE_FEES.cod_fee_pct || 0) * 100).toFixed(0)}% tiền đơn, `
             + `quy ${fmt(tyGiaAe)}đ/AED. Đơn hoàn chỉ mất phí fulfillment — P&L đang tính như đơn giao thành công.`;
     }
+    if (chiShop) for (const k of Object.keys(ship_basis)) if (!chiShop(k)) delete ship_basis[k];
 
     return {
         don: [...donMap.values()],

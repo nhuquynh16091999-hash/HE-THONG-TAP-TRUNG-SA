@@ -22,6 +22,30 @@ function absolutize(v) {
     return BASE + (s.startsWith("/") ? s : "/" + s);
 }
 
+// ── Chìa nội bộ (05/10/2026, dashboard bật phân quyền theo team) ──
+// API dashboard nay đòi đăng nhập; bot không đăng nhập mà gửi header x-talpha-token, chìa
+// đọc từ data/.internal_token (dashboard tự sinh lần đầu cần, cùng máy). Gói fetch ở ĐÂY —
+// mọi file đều require config.js trước khi gọi — để MỌI lượt gọi tới dashboard (bot.js,
+// daily_report.js, van_don.js…) tự mang chìa, không phải sửa từng chỗ. Đọc file mỗi lượt:
+// bot khởi động trước dashboard vẫn có chìa từ lượt sau.
+const TOKEN_FILE = path.join(__dirname, "..", "..", "data", ".internal_token");
+function chiaNoiBo() {
+    try { return fs.readFileSync(TOKEN_FILE, "utf8").trim(); } catch { return ""; }
+}
+const fetchGoc = globalThis.fetch;
+if (typeof fetchGoc === "function" && !fetchGoc.__talphaChia) {
+    const fetchCoChia = (input, init = {}) => {
+        const url = typeof input === "string" ? input : (input && input.url) || String(input);
+        const chia = url.startsWith(BASE) ? chiaNoiBo() : "";
+        if (!chia) return fetchGoc(input, init);
+        const headers = new Headers(init.headers || (input && typeof input === "object" && input.headers) || {});
+        if (!headers.has("x-talpha-token")) headers.set("x-talpha-token", chia);
+        return fetchGoc(input, { ...init, headers });
+    };
+    fetchCoChia.__talphaChia = true;
+    globalThis.fetch = fetchCoChia;
+}
+
 const CFG = { ...raw, dashboardBaseUrl: BASE };
 for (const k of URL_KEYS) if (raw[k] != null) CFG[k] = absolutize(raw[k]);
 if (raw.vanDon) {

@@ -14,9 +14,13 @@ set -euo pipefail
 #   Chỉ dùng khi thật sự muốn thế (dựng lại máy chủ, hoặc phục hồi từ bản lưu).
 #   Mặc định script HẠ bản của máy chủ về chứ không đẩy lên — xem bước 4/5.
 PUSH_DATA=0
+# --push-users : ghi đè danh sách tài khoản đăng nhập của MÁY CHỦ (config/users.json) bằng
+#   bản trên máy Mac. Mặc định chỉ đẩy khi máy chủ CHƯA có file — xem bước 1.
+PUSH_USERS=0
 for arg in "$@"; do
     case "$arg" in
         --push-data) PUSH_DATA=1 ;;
+        --push-users) PUSH_USERS=1 ;;
         *) printf 'Tham số không hiểu: %s\n' "$arg" >&2; exit 2 ;;
     esac
 done
@@ -69,6 +73,30 @@ if [ -f "$REPO_ROOT/bigquery_key.json" ]; then
 fi
 # Cấu hình chứa token Meta, khoá BigQuery — chỉ root đọc được.
 "${SSH[@]}" "chmod 600 $APP_DIR/dashboard-ui/.env.local $APP_DIR/bigquery_key.json 2>/dev/null || true"
+
+# Tài khoản đăng nhập — config/users.json (ngoài git, mật khẩu đã băm). Từ 05/10/2026 dashboard
+# phân quyền theo team: giám đốc thêm người, đổi team, đổi mật khẩu trên trang /admin của MÁY
+# CHỦ, nên bản máy chủ là bản thật — giống kho data/ ở bước 4: mặc định KHÔNG đè, chỉ đẩy khi
+# máy chủ chưa có file (lần đầu), hoặc khi gọi --push-users (lưu bản máy chủ trước khi đè).
+USERS_MAC="$REPO_ROOT/config/users.json"
+USERS_VPS="$APP_DIR/config/users.json"
+LUU_USERS="$REPO_ROOT/data-backup-$(date +%Y%m%d-%H%M%S)-users"
+if "${SSH[@]}" "test -s $USERS_VPS"; then
+    mkdir -p "$LUU_USERS" && "${SCP[@]}" "root@$HOST:$USERS_VPS" "$LUU_USERS/users.json" \
+        || die "Không lưu được users.json của máy chủ — DỪNG."
+    if [ "$PUSH_USERS" = "1" ]; then
+        [ -s "$USERS_MAC" ] || die "--push-users nhưng máy Mac không có config/users.json"
+        "${SCP[@]}" "$USERS_MAC" "root@$HOST:$USERS_VPS" || die "Đẩy users.json lên máy chủ THẤT BẠI"
+        echo "   tài khoản: ĐÈ bằng bản Mac (bạn đã yêu cầu --push-users) — bản cũ lưu ở $LUU_USERS"
+    else
+        echo "   tài khoản: giữ bản máy chủ (đã hạ về $LUU_USERS)"
+    fi
+elif [ -s "$USERS_MAC" ]; then
+    "${SSH[@]}" "mkdir -p $APP_DIR/config"
+    "${SCP[@]}" "$USERS_MAC" "root@$HOST:$USERS_VPS" || die "Nạp users.json lần đầu THẤT BẠI"
+    echo "   tài khoản: máy chủ chưa có — nạp lần đầu từ máy Mac"
+fi
+"${SSH[@]}" "chmod 600 $USERS_VPS 2>/dev/null || true"
 echo "   xong"
 
 # ─────────────────────────────────────────────────────────────────────────

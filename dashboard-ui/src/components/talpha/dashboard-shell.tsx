@@ -1,12 +1,14 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, LogOut, Settings } from "lucide-react";
+import { signOut } from "next-auth/react";
 import { cn } from "@/lib/utils";
 import { format, subDays } from "date-fns";
 import DateRangePicker from "@/components/ui/date-range-picker";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import Link from "next/link";
+import { AccessProvider, type Me } from "./access-context";
 
 import TALPHACeoOverviewTab from "./tabs/ceo-overview-tab";
 import TALPHAAdsCommandTab from "./tabs/ads-command-tab";
@@ -102,6 +104,14 @@ const IGNORES_DATE_RANGE = new Set(["ads-command", "ad-health", "ads-recon"]);
  */
 const FLOOR_TABS = new Set(["overview", "pnl", "product-pnl", "marketing", "ad-spend"]);
 
+/** Các mục menu còn lại sau khi bỏ tab người này không được xem (phân quyền theo team). */
+function nhomDuocXem(me: Me): NavGroup[] {
+    const thay = new Set(me.tabs);
+    return NAV_GROUPS
+        .map(g => ({ ...g, tabs: g.tabs.filter(t => thay.has(t.id)) }))
+        .filter(g => g.tabs.length > 0);
+}
+
 /** "2026-09-15" → 0h ngày đó theo giờ máy (new Date("2026-09-15") là 0h UTC, lệch 7 tiếng). */
 function ngayDiaPhuong(s: string): Date | null {
     const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
@@ -111,6 +121,9 @@ function ngayDiaPhuong(s: string): Date | null {
 export default function TALPHADashboardShell() {
     const [activeGroup, setActiveGroup] = useState("bao-cao");
     const [activeTab, setActiveTab] = useState("overview");
+    // Người đang xem — tab nào hiện, nút nước nào có (phân quyền theo team, 05/10/2026).
+    const [me, setMe] = useState<Me | null>(null);
+    const [meLoi, setMeLoi] = useState<string | null>(null);
     const [dateRange, setDateRange] = useState<{ from: Date; to: Date }>({
         from: subDays(new Date(), 59),
         to: new Date(),
@@ -123,6 +136,29 @@ export default function TALPHADashboardShell() {
     useEffect(() => {
         document.cookie = "activeDataset=TALPHA_Dataset; path=/;";
     }, []);
+
+    useEffect(() => {
+        let dung = false;
+        fetch("/api/talpha/me")
+            .then(async r => {
+                if (r.status === 401) { window.location.href = "/login?callbackUrl=/talpha"; return null; }
+                const d = await r.json();
+                if (!r.ok) throw new Error(d?.error || `HTTP ${r.status}`);
+                return d as Me;
+            })
+            .then(d => {
+                if (dung || !d) return;
+                setMe(d);
+                // Mở trang ở tab ĐẦU TIÊN người này thấy — sale không có tab Tổng quan.
+                const dau = nhomDuocXem(d)[0];
+                if (dau && !d.tabs.includes("overview")) { setActiveGroup(dau.id); setActiveTab(dau.tabs[0].id); }
+            })
+            .catch(e => { if (!dung) setMeLoi(String(e?.message || e)); });
+        return () => { dung = true; };
+    }, []);
+
+    // Menu chỉ còn mục có ít nhất một tab người này được xem.
+    const groups = useMemo(() => (me ? nhomDuocXem(me) : []), [me]);
 
     useEffect(() => {
         let dung = false;
@@ -149,9 +185,10 @@ export default function TALPHADashboardShell() {
     }, [onFloorTab, reportStart, dateRange]);
 
     const group = useMemo(
-        () => NAV_GROUPS.find(g => g.id === activeGroup) ?? NAV_GROUPS[0],
-        [activeGroup],
+        () => groups.find(g => g.id === activeGroup) ?? groups[0] ?? NAV_GROUPS[0],
+        [groups, activeGroup],
     );
+    const duocXem = (tab: string) => !!me && me.tabs.includes(tab) && activeTab === tab;
 
     const selectGroup = (g: NavGroup) => {
         setActiveGroup(g.id);
@@ -159,6 +196,7 @@ export default function TALPHADashboardShell() {
     };
 
     return (
+        <AccessProvider value={me}>
         <MarketsProvider>
         <div className="flex h-screen overflow-hidden bg-background">
             {/* ═══ Sidebar ═══ */}
@@ -174,11 +212,11 @@ export default function TALPHADashboardShell() {
                     <div className="brand-logo-box p-2.5">
                         <img src="/antalo-logo.png" alt="ANTALO Mini Market" className="h-9 w-full object-contain" />
                     </div>
-                    <NhanThiTruong />
+                    <NhanThiTruong me={me} />
                 </div>
 
                 <nav className="flex-1 space-y-0.5 overflow-y-auto p-3">
-                    {NAV_GROUPS.map(g => (
+                    {groups.map(g => (
                         <button
                             key={g.id}
                             onClick={() => selectGroup(g)}
@@ -195,7 +233,29 @@ export default function TALPHADashboardShell() {
                     ))}
                 </nav>
 
-                <div className="border-t border-border p-3">
+                <div className="space-y-2 border-t border-border p-3">
+                    {me && me.kind === "user" && (
+                        <div className="rounded-lg bg-muted/40 px-3 py-2">
+                            <p className="truncate text-sm font-semibold text-foreground" title={me.email || undefined}>{me.name}</p>
+                            <p className="truncate text-[11px] text-muted-foreground">
+                                {me.role_label}
+                                {!me.full && me.teams.length > 0 && <> · {me.teams.map(t => t.name).join(" · ")}</>}
+                            </p>
+                            <div className="mt-1.5 flex items-center gap-3 text-xs">
+                                {me.full && (
+                                    <Link href="/admin" className="flex items-center gap-1 text-muted-foreground transition-colors hover:text-foreground">
+                                        <Settings className="h-3 w-3" /> Quản trị
+                                    </Link>
+                                )}
+                                <button
+                                    onClick={() => signOut({ callbackUrl: "/login" })}
+                                    className="flex items-center gap-1 text-muted-foreground transition-colors hover:text-foreground"
+                                >
+                                    <LogOut className="h-3 w-3" /> Đăng xuất
+                                </button>
+                            </div>
+                        </div>
+                    )}
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
                         <img src="/antalo-mark.png" alt="" className="h-5 w-5 object-contain opacity-60" />
                         <span>ANTALO Mini Market</span>
@@ -248,37 +308,55 @@ export default function TALPHADashboardShell() {
                         </div>
                     )}
 
-                    {!configLoaded ? null : <>
-                    {activeTab === "overview" && <TALPHACeoOverviewTab dateRange={tabRange} projectId="TALPHA" />}
-                    {activeTab === "pnl" && <TALPHAPnLTab dateRange={tabRange} projectId="TALPHA" />}
-                    {activeTab === "product-pnl" && <TALPHAProductPnLTab dateRange={tabRange} projectId="TALPHA" />}
-                    {activeTab === "tracking" && <TALPHATrackingTab dateRange={dateRange} projectId="TALPHA" />}
-                    {activeTab === "order-ledger" && <TALPHAOrderLedgerTab dateRange={dateRange} projectId="TALPHA" />}
-                    {activeTab === "cod-recon" && <TALPHACodReconTab dateRange={dateRange} projectId="TALPHA" />}
-                    {activeTab === "products" && <TALPHAProductsTab dateRange={dateRange} projectId="TALPHA" />}
-                    {activeTab === "marketing" && <TALPHAMarketingTab dateRange={tabRange} projectId="TALPHA" />}
-                    {activeTab === "ad-spend" && <TALPHAAdSpendTab dateRange={tabRange} projectId="TALPHA" />}
-                    {activeTab === "ads-command" && <TALPHAAdsCommandTab />}
-                    {activeTab === "ad-health" && <TALPHAAdHealthTab />}
-                    {activeTab === "ads-recon" && <TALPHAAdsReconTab />}
-                    {activeTab === "customers" && <TALPHACustomerTab dateRange={dateRange} projectId="TALPHA" />}
-                    {activeTab === "market-intel" && <TALPHAMarketIntelTab dateRange={dateRange} projectId="TALPHA" />}
+                    {meLoi && (
+                        <div className="rounded-xl border border-rose-300 bg-rose-50 p-4 text-sm text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300">
+                            Không đọc được quyền của tài khoản: {meLoi}. Tải lại trang, hoặc đăng xuất rồi đăng nhập lại.
+                        </div>
+                    )}
+                    {me && me.tabs.length === 0 && (
+                        <div className="rounded-xl border border-amber-300 bg-amber-50 p-5 text-sm text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300">
+                            <p className="font-semibold">Tài khoản chưa được giao team nào.</p>
+                            <p className="mt-1">Nhờ giám đốc vào <strong>Quản trị → Quản lý User</strong> chọn team (Trung Đông, Đông Nam Á, Đông Á) cho tài khoản này.</p>
+                        </div>
+                    )}
+
+                    {!configLoaded || !me ? null : <>
+                    {duocXem("overview") && <TALPHACeoOverviewTab dateRange={tabRange} projectId="TALPHA" />}
+                    {duocXem("pnl") && <TALPHAPnLTab dateRange={tabRange} projectId="TALPHA" />}
+                    {duocXem("product-pnl") && <TALPHAProductPnLTab dateRange={tabRange} projectId="TALPHA" />}
+                    {duocXem("tracking") && <TALPHATrackingTab dateRange={dateRange} projectId="TALPHA" />}
+                    {duocXem("order-ledger") && <TALPHAOrderLedgerTab dateRange={dateRange} projectId="TALPHA" />}
+                    {duocXem("cod-recon") && <TALPHACodReconTab dateRange={dateRange} projectId="TALPHA" />}
+                    {duocXem("products") && <TALPHAProductsTab dateRange={dateRange} projectId="TALPHA" />}
+                    {duocXem("marketing") && <TALPHAMarketingTab dateRange={tabRange} projectId="TALPHA" />}
+                    {duocXem("ad-spend") && <TALPHAAdSpendTab dateRange={tabRange} projectId="TALPHA" />}
+                    {duocXem("ads-command") && <TALPHAAdsCommandTab />}
+                    {duocXem("ad-health") && <TALPHAAdHealthTab />}
+                    {duocXem("ads-recon") && <TALPHAAdsReconTab />}
+                    {duocXem("customers") && <TALPHACustomerTab dateRange={dateRange} projectId="TALPHA" />}
+                    {duocXem("market-intel") && <TALPHAMarketIntelTab dateRange={dateRange} projectId="TALPHA" />}
                     </>}
                 </div>
             </main>
         </div>
         </MarketsProvider>
+        </AccessProvider>
     );
 }
 
-/** Nhãn dưới logo: nước đang bán, và nước sắp chạy nếu có — đọc từ config, không gõ tay. */
-function NhanThiTruong() {
+/**
+ * Nhãn dưới logo: nước đang bán, và nước sắp chạy nếu có — đọc từ config, không gõ tay.
+ * Người xem theo team thì ghi tên team trước (danh sách nước đã chỉ còn nước của team).
+ */
+function NhanThiTruong({ me }: { me: Me | null }) {
     const { markets } = useMarkets();
     const dangBan = markets.filter((m) => m.status === "dang_ban").map((m) => m.display);
     const sapChay = markets.filter((m) => m.status === "sap_chay").map((m) => m.display);
+    const team = me && !me.full && me.teams.length ? me.teams.map((t) => t.name).join(" · ") : null;
     return (
         <>
             <span className="mt-2 text-xs text-muted-foreground">
+                {team && <strong className="font-semibold text-foreground">Team {team}: </strong>}
                 {dangBan.length ? dangBan.join(" · ") : "…"}
             </span>
             {sapChay.length > 0 && (

@@ -5,6 +5,7 @@ import { format } from "date-fns";
 import TabSkeleton from "@/components/ui/tab-skeleton";
 import { formatVNDCompact, formatMoney, formatNumber, marketName, cn } from "../utils";
 import { useMarkets } from "../markets-context";
+import { tenPhamVi, useAccess } from "../access-context";
 import {
     ReportHero, KpiRow, KpiTile, ResultCard, WaterfallList, BarStrip,
     ReportTable, FootNotes, DASH,
@@ -62,6 +63,7 @@ export default function TALPHAPnLTab({ dateRange }: Props) {
     const [loi, setLoi] = useState<string | null>(null);
     const [loiCost, setLoiCost] = useState<string | null>(null);
     const { loaded: marketsLoaded } = useMarkets();
+    const phamVi = tenPhamVi(useAccess());
 
     useEffect(() => {
         let dung = false;
@@ -134,7 +136,7 @@ export default function TALPHAPnLTab({ dateRange }: Props) {
         <div className="space-y-6">
             <ReportHero
                 emoji="💰"
-                title={`P&L — ${period}`}
+                title={`P&L${phamVi ? ` team ${phamVi}` : ""} — ${period}`}
                 subtitle={
                     <>
                         Doanh số, tiền ads, số đơn lấy thẳng từ file <strong>TỔNG TEAM</strong> (khớp tab Tổng quan).

@@ -1,8 +1,28 @@
 import { NextResponse } from "next/server";
 import { bigquery } from "@/lib/bigquery";
+import { getAccess } from "@/lib/talpha/access";
+import { scopeQuery, seesAllMarkets } from "@/lib/talpha/access-rules";
 
 // Force dynamic rendering to prevent caching issues with BQ data
 export const dynamic = "force-dynamic";
+
+const BQ_PROJECT = process.env.NEXT_PUBLIC_BQ_PROJECT || "cty-507710";
+const BQ_DATASET = process.env.NEXT_PUBLIC_DATASET || "TALPHA_Dataset";
+
+// Dataset khác trong dự án — `ds.bang` hai phần trỏ thẳng về dự án đang chạy, nên câu của
+// người xem một phần nước không được nhắc tới chúng. Hỏi BigQuery 10 phút một lần.
+let dsCache: { at: number; ds: string[] } | null = null;
+async function cacDataset(): Promise<string[]> {
+    if (dsCache && Date.now() - dsCache.at < 600_000) return dsCache.ds;
+    try {
+        const [ds] = await bigquery.getDatasets();
+        dsCache = { at: Date.now(), ds: ds.map((d) => String(d.id || "")).filter(Boolean) };
+    } catch (e) {
+        console.error("query: không liệt kê được dataset:", (e as Error)?.message || e);
+        dsCache = { at: Date.now() - 540_000, ds: dsCache?.ds || [] };   // thử lại sau 1 phút
+    }
+    return dsCache.ds;
+}
 
 // ═══ SECURITY: API Key Authentication ═══
 const API_KEY = process.env.DASHBOARD_API_KEY || "";
@@ -74,9 +94,24 @@ export async function POST(request: Request) {
             );
         }
 
+        // ═══ PHÂN QUYỀN THEO TEAM (05/10/2026) ═══
+        // Câu SQL dựng ở trình duyệt. Người chỉ xem một phần nước: mỗi bảng bị thay bằng
+        // câu con đã lọc theo nước của họ (lib/talpha/access-rules.ts → scopeQuery).
+        const a = await getAccess(request);
+        if (!a) return NextResponse.json({ error: "Chưa đăng nhập" }, { status: 401 });
+        let sql: string = query;
+        if (!seesAllMarkets(a)) {
+            const kq = scopeQuery(query, a, BQ_PROJECT, BQ_DATASET, await cacDataset());
+            if (!kq.ok) {
+                console.warn(`🔒 query bị chặn (${a.email || a.name}): ${kq.error}`);
+                return NextResponse.json({ error: kq.error }, { status: 403 });
+            }
+            sql = kq.sql;
+        }
+
         // Execute query
         const options = {
-            query,
+            query: sql,
             params,
         };
 

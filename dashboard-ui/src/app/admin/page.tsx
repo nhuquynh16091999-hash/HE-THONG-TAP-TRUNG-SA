@@ -31,7 +31,7 @@ export default function AdminPage() {
           </div>
           <div className="flex items-center gap-2">
             <Settings className="h-5 w-5 text-gray-400" />
-            <span className="text-lg font-bold text-white">Quản trị</span>
+            <span className="text-lg font-bold text-foreground">Quản trị</span>
           </div>
           <span className="text-xs text-gray-400 mt-0.5">
             System Administration
@@ -59,7 +59,7 @@ export default function AdminPage() {
       {/* Main Content */}
       <main className="flex-1 overflow-y-auto">
         <header className="sticky top-0 z-10 flex h-16 items-center border-b border-border bg-background/80 px-6 backdrop-blur-xl">
-          <h1 className="text-xl font-semibold text-white">
+          <h1 className="text-xl font-semibold text-foreground">
             {ADMIN_TABS.find((t) => t.id === activeTab)?.label}
           </h1>
         </header>
