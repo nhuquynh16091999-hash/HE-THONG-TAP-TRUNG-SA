@@ -55,8 +55,10 @@ export function KpiTile({ emoji, label, value, sub, tooltip, tone = "neutral", l
                 {tooltip && <Info className="mt-0.5 h-3 w-3 shrink-0 cursor-help text-muted-foreground/60" aria-label={tooltip} />}
             </div>
 
+            {/* hidden (không phải opacity-0): ô ẩn mà vẫn dựng thì vẫn chiếm chỗ, ô cột phải
+                trên điện thoại đẩy cả trang cuộn ngang. Bề rộng chặn theo màn hình. */}
             {tooltip && (
-                <div className="pointer-events-none absolute left-1/2 top-full z-50 mt-2 w-64 -translate-x-1/2 rounded-md border border-border bg-popover p-2.5 text-xs leading-relaxed text-popover-foreground opacity-0 shadow-lg transition-opacity duration-150 group-hover/kpi:opacity-100">
+                <div className="pointer-events-none absolute left-1/2 top-full z-50 mt-2 hidden w-64 max-w-[calc(100vw-2rem)] -translate-x-1/2 rounded-md border border-border bg-popover p-2.5 text-xs leading-relaxed text-popover-foreground shadow-lg group-hover/kpi:block">
                     {tooltip}
                 </div>
             )}

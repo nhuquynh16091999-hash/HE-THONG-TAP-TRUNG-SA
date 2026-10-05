@@ -464,7 +464,7 @@ export default function TALPHATrackingTab({ dateRange }: Props) {
                                     const tinVi = tin ? soanTin(s, han, "vi") : null;
                                     const key = `${s.tracking}-${i}`;
                                     return (
-                                        <div key={key} className="grid grid-cols-[4px_1fr] gap-4 p-4">
+                                        <div key={key} className="grid grid-cols-[4px_1fr] gap-3 p-3 sm:gap-4 sm:p-4">
                                             <span className={cn("rounded-sm", st.bar)} />
                                             <div className="min-w-0">
                                                 <div className="flex flex-wrap items-center gap-2">
@@ -496,9 +496,10 @@ export default function TALPHATrackingTab({ dateRange }: Props) {
                                                     nhận đơn soạn sẵn (Sỹ Anh 29/09/2026). */}
                                                 {s.wa && <div className="mt-2"><WaLink href={s.wa} size="lg" /></div>}
 
-                                                {/* Tin nhắn soạn sẵn — sale chỉ việc chép và dán */}
+                                                {/* Tin nhắn soạn sẵn — sale chỉ việc chép và dán. Điện thoại: tin trên,
+                                                    nút dưới — đặt cạnh nhau thì tin bị ép thành cột hẹp dài cả màn. */}
                                                 {tin && (
-                                                    <div className="mt-2 flex items-start gap-2">
+                                                    <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-start">
                                                         <div className="min-w-0 flex-1 rounded-lg border border-border bg-muted/40 px-3 py-2 text-[12.5px] leading-relaxed">
                                                             <p>{tin}</p>
                                                             {/* Bản dịch cho sale đọc hiểu — KHÔNG nằm trong nút Chép tin. */}
@@ -508,6 +509,7 @@ export default function TALPHATrackingTab({ dateRange }: Props) {
                                                                 </p>
                                                             )}
                                                         </div>
+                                                        <div className="flex flex-none gap-2">
                                                         <button onClick={() => { navigator.clipboard?.writeText(tin); setCopied(key); setTimeout(() => setCopied(""), 2000); }}
                                                             className="flex-none rounded-lg border border-border px-2.5 py-1.5 text-[12px] hover:bg-muted">
                                                             <Copy className="mr-1 inline h-3 w-3" />{copied === key ? "Đã chép" : "Chép tin"}
@@ -518,6 +520,7 @@ export default function TALPHATrackingTab({ dateRange }: Props) {
                                                                 <Phone className="mr-1 inline h-3 w-3" />Gọi
                                                             </a>
                                                         )}
+                                                        </div>
                                                     </div>
                                                 )}
                                             </div>

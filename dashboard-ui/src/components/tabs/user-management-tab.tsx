@@ -245,8 +245,9 @@ export default function UserManagementTab() {
             </div>
 
             {/* Users Table */}
-            <div className="rounded-xl border border-white/[0.08] bg-white/[0.02] overflow-hidden">
-                <table className="w-full text-sm">
+            {/* Điện thoại: bảng cuộn ngang trong khung, không đẩy cả trang. */}
+            <div className="overflow-x-auto rounded-xl border border-white/[0.08] bg-white/[0.02]">
+                <table className="w-full min-w-[640px] text-sm">
                     <thead>
                         <tr className="border-b border-white/[0.06] bg-white/[0.02]">
                             <th className="text-left px-5 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">
@@ -342,7 +343,7 @@ export default function UserManagementTab() {
             {/* Create/Edit Form Modal */}
             {showForm && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-                    <div className="w-full max-w-lg mx-4 rounded-2xl bg-[#24211C] border border-white/10 shadow-2xl">
+                    <div className="mx-3 max-h-[92dvh] w-full max-w-lg overflow-y-auto rounded-2xl border border-white/10 bg-[#24211C] shadow-2xl">
                         <div className="flex items-center justify-between px-6 py-4 border-b border-white/[0.06]">
                             <h3 className="text-lg font-bold text-white">
                                 {editingUser
@@ -443,7 +444,7 @@ export default function UserManagementTab() {
                                 <label className="block text-sm font-medium text-slate-300 mb-1.5">
                                     Vai trò
                                 </label>
-                                <div className="grid grid-cols-3 gap-2">
+                                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                                     {roleOptions.map((opt) => (
                                         <button
                                             key={opt.key}

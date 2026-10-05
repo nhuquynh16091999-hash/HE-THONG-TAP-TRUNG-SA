@@ -139,6 +139,8 @@ export default function DateRangePicker({ value, onChange, minDate }: DateRangeP
         activePreset === "custom"
             ? `${format(value.from, "dd/MM/yyyy")} — ${format(value.to, "dd/MM/yyyy")}`
             : `${format(value.from, "dd MMM")} — ${format(value.to, "dd MMM, yyyy")}`;
+    // Điện thoại: nhãn ngắn, không thì nút chọn ngày chiếm cả hàng tiêu đề.
+    const nhanNgan = `${format(value.from, "dd/MM")} — ${format(value.to, "dd/MM")}`;
 
     return (
         <div ref={ref} className="relative">
@@ -147,12 +149,13 @@ export default function DateRangePicker({ value, onChange, minDate }: DateRangeP
                 onClick={() => setOpen(!open)}
                 className="flex items-center gap-2 rounded-lg border border-border bg-card 
                            dark:bg-white/[0.04] dark:border-white/[0.08]
-                           px-3 py-1.5 text-sm text-muted-foreground 
+                           px-2.5 py-1.5 text-sm text-muted-foreground whitespace-nowrap sm:px-3 
                            hover:bg-gray-50 dark:hover:bg-white/[0.06] hover:border-orange-400/50 hover:text-foreground
                            transition-all cursor-pointer select-none"
             >
                 <CalendarIcon className="h-4 w-4 text-orange-600 dark:text-orange-400" />
-                <span suppressHydrationWarning>{displayLabel}</span>
+                <span suppressHydrationWarning className="sm:hidden">{nhanNgan}</span>
+                <span suppressHydrationWarning className="hidden sm:inline">{displayLabel}</span>
                 <ChevronDown
                     className={`h-3.5 w-3.5 transition-transform ${open ? "rotate-180" : ""}`}
                 />
@@ -161,7 +164,7 @@ export default function DateRangePicker({ value, onChange, minDate }: DateRangeP
             {/* Dropdown */}
             {open && (
                 <div
-                    className="absolute right-0 top-full mt-2 z-50 w-72
+                    className="absolute right-0 top-full mt-2 z-50 w-72 max-w-[calc(100vw-1.5rem)]
                                rounded-xl border border-border bg-card/95 
                                dark:bg-[#1B1A17]/95 dark:border-white/[0.08]
                                backdrop-blur-xl

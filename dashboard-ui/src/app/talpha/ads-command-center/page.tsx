@@ -253,16 +253,20 @@ export default function TALPHAAdsCommandCenterPage() {
     useEffect(() => () => { if (exportPollRef.current) clearInterval(exportPollRef.current); }, []);
 
     return (
-        <div className="flex h-screen flex-col overflow-hidden bg-gradient-to-b from-[#0F0E0B] via-[#28261F] to-[#0F0E0B] font-sans text-slate-100">
+        // Điện thoại (05/10/2026): không khoá cao một màn — trang chảy tự nhiên trong khung cuộn
+        // của dashboard, khỏi cuộn lồng hai tầng. Máy tính giữ nguyên bố cục cũ.
+        <div className="flex flex-col bg-gradient-to-b from-[#0F0E0B] via-[#28261F] to-[#0F0E0B] font-sans text-slate-100 md:h-screen md:overflow-hidden">
 
-            {/* ═══ HEADER ═══ */}
-            <header className="z-50 flex h-14 shrink-0 items-center justify-between border-b border-white/5 bg-[#16140F]/90 px-5 backdrop-blur-xl">
-                <div className="flex items-center gap-3">
+            {/* ═══ HEADER ═══
+                z-[5] (không phải z-50): là flex item nên z-index có hiệu lực — z-50 đè cả thanh tiêu
+                đề dính của dashboard (z-10) khi cuộn. Điện thoại: xuống dòng thay vì ép một hàng. */}
+            <header className="z-[5] flex min-h-14 shrink-0 flex-wrap items-center justify-between gap-2 border-b border-white/5 bg-[#16140F]/90 px-3 py-2 backdrop-blur-xl sm:px-5 md:h-14 md:flex-nowrap md:py-0">
+                <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                     <h1 className="flex items-center gap-2 text-lg font-extrabold tracking-tight">
                         <span className="grid h-7 w-7 place-items-center rounded-lg bg-gradient-to-br from-amber-500 to-orange-600 shadow-lg shadow-amber-500/30">
                             <Satellite className="h-4 w-4 text-white" />
                         </span>
-                        <span className="bg-gradient-to-r from-orange-400 to-red-500 bg-clip-text text-transparent">ANTALO ADS COMMAND</span>
+                        <span className="hidden bg-gradient-to-r from-orange-400 to-red-500 bg-clip-text text-transparent sm:inline">ANTALO ADS COMMAND</span>
                     </h1>
 
                     {/* Account dropdown */}
@@ -274,7 +278,7 @@ export default function TALPHAAdsCommandCenterPage() {
                             <ChevronDown className={`h-3 w-3 transition ${isAccountDropdownOpen ? 'rotate-180' : ''}`} />
                         </button>
                         {isAccountDropdownOpen && (
-                            <div className="absolute left-0 top-full z-50 mt-1 max-h-96 w-64 overflow-y-auto overflow-hidden rounded-xl border border-white/10 bg-[#16140F] shadow-2xl">
+                            <div className="absolute left-0 top-full z-50 mt-1 max-h-96 w-64 max-w-[calc(100vw-1.5rem)] overflow-y-auto overflow-hidden rounded-xl border border-white/10 bg-[#16140F] shadow-2xl">
                                 <button onClick={() => { setSelectedAccount("all"); setIsAccountDropdownOpen(false); }}
                                     className={`flex w-full items-center justify-between px-4 py-2.5 text-sm hover:bg-white/5 ${selectedAccount === "all" ? "bg-amber-600/20 text-amber-300" : "text-slate-300"}`}>
                                     <span>🌐 All ({accountIds.length} TKQC)</span>
@@ -302,7 +306,7 @@ export default function TALPHAAdsCommandCenterPage() {
                             <ChevronDown className={`h-3 w-3 transition ${showDatePicker ? 'rotate-180' : ''}`} />
                         </button>
                         {showDatePicker && (
-                            <div className="absolute left-0 top-full z-50 mt-1 w-72 overflow-hidden rounded-xl border border-white/10 bg-[#16140F] shadow-2xl">
+                            <div className="absolute left-0 top-full z-50 mt-1 w-72 max-w-[calc(100vw-1.5rem)] overflow-hidden rounded-xl border border-white/10 bg-[#16140F] shadow-2xl">
                                 <div className="border-b border-white/5 p-2">
                                     <div className="mb-1.5 px-1 text-[10px] font-bold uppercase text-slate-500">Khoảng thời gian</div>
                                     <div className="grid grid-cols-3 gap-1">
@@ -348,8 +352,8 @@ export default function TALPHAAdsCommandCenterPage() {
                     </label>
                 </div>
 
-                <div className="flex items-center gap-3">
-                    <div className="text-right text-[10px] text-slate-400">
+                <div className="ml-auto flex items-center gap-3">
+                    <div className="hidden text-right text-[10px] text-slate-400 sm:block">
                         <div>Synced: <span className="font-mono text-emerald-400">{syncedAt?.toLocaleTimeString() || '--'}</span></div>
                         {data && <div className="text-slate-500">{data.source} • {data.duration_ms}ms • {summary?.accounts_fetched}TK • {summary?.shops_fetched}shops</div>}
                     </div>

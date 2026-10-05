@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { ArrowLeft, LogOut, Settings } from "lucide-react";
+import { ArrowLeft, LogOut, Menu, Settings, X } from "lucide-react";
 import { signOut } from "next-auth/react";
 import { cn } from "@/lib/utils";
 import { format, subDays } from "date-fns";
@@ -124,6 +124,8 @@ export default function TALPHADashboardShell() {
     // Người đang xem — tab nào hiện, nút nước nào có (phân quyền theo team, 05/10/2026).
     const [me, setMe] = useState<Me | null>(null);
     const [meLoi, setMeLoi] = useState<string | null>(null);
+    // Điện thoại (Sỹ Anh yêu cầu 05/10/2026): menu trái thành ngăn kéo, mở bằng nút ☰.
+    const [menuMo, setMenuMo] = useState(false);
     const [dateRange, setDateRange] = useState<{ from: Date; to: Date }>({
         from: subDays(new Date(), 59),
         to: new Date(),
@@ -193,19 +195,24 @@ export default function TALPHADashboardShell() {
     const selectGroup = (g: NavGroup) => {
         setActiveGroup(g.id);
         setActiveTab(g.tabs[0].id);
+        setMenuMo(false);
     };
 
-    return (
-        <AccessProvider value={me}>
-        <MarketsProvider>
-        <div className="flex h-screen overflow-hidden bg-background">
-            {/* ═══ Sidebar ═══ */}
-            <aside className="flex w-64 flex-col border-r border-border bg-white shadow-sm backdrop-blur-xl dark:bg-[#131210] dark:shadow-none">
+    // Ruột thanh trái — dùng chung cho cột cố định (máy tính) và ngăn kéo (điện thoại).
+    const noiDungMenu = (
+        <>
                 <div className="flex flex-col border-b border-border p-4">
                     <div className="mb-2 flex items-center justify-between">
                         <Link href="/" className="flex items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground">
                             <ArrowLeft className="h-3 w-3" /> Trang chủ
                         </Link>
+                        <button
+                            onClick={() => setMenuMo(false)}
+                            className="rounded-md p-1 text-muted-foreground hover:bg-muted md:hidden"
+                            aria-label="Đóng menu"
+                        >
+                            <X className="h-4 w-4" />
+                        </button>
                     </div>
                     {/* Logo ANTALO nằm trên nền kem của chính nó (brand-logo-box): chữ "LO"
                         và dải "MINI MARKET" màu đen, để trên nền tối là mất chữ. */}
@@ -261,16 +268,48 @@ export default function TALPHADashboardShell() {
                         <span>ANTALO Mini Market</span>
                     </div>
                 </div>
+        </>
+    );
+
+    return (
+        <AccessProvider value={me}>
+        <MarketsProvider>
+        {/* h-dvh: trên điện thoại h-screen tính cả phần bị thanh địa chỉ che, đáy trang bị cắt. */}
+        <div className="flex h-dvh overflow-hidden bg-background">
+            {/* ═══ Sidebar — máy tính: cột cố định ═══ */}
+            <aside className="hidden w-64 shrink-0 flex-col border-r border-border bg-white shadow-sm backdrop-blur-xl dark:bg-[#131210] dark:shadow-none md:flex">
+                {noiDungMenu}
             </aside>
 
+            {/* ═══ Sidebar — điện thoại: ngăn kéo phủ lên nội dung ═══ */}
+            {menuMo && (
+                <div className="fixed inset-0 z-40 md:hidden">
+                    <div className="absolute inset-0 bg-black/40" onClick={() => setMenuMo(false)} aria-hidden />
+                    <aside className="absolute inset-y-0 left-0 flex w-72 max-w-[85vw] flex-col bg-white shadow-2xl dark:bg-[#131210]">
+                        {noiDungMenu}
+                    </aside>
+                </div>
+            )}
+
             {/* ═══ Nội dung ═══ */}
-            <main className="flex-1 overflow-y-auto bg-background">
-                <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b border-border bg-white/80 px-6 shadow-sm backdrop-blur-xl dark:bg-[#131210]/80 dark:shadow-none">
-                    <h1 className="flex items-center gap-2 text-xl font-semibold text-foreground">
-                        <span aria-hidden>{group.emoji}</span>
-                        {group.label}
-                    </h1>
-                    <div className="flex items-center gap-3">
+            <main className="min-w-0 flex-1 overflow-y-auto bg-background">
+                <header className="sticky top-0 z-10 flex min-h-14 flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b border-border bg-white/80 px-3 py-2 shadow-sm backdrop-blur-xl dark:bg-[#131210]/80 dark:shadow-none md:h-16 md:flex-nowrap md:px-6 md:py-0">
+                    <div className="flex min-w-0 items-center gap-2">
+                        <button
+                            onClick={() => setMenuMo(true)}
+                            className="-ml-1 rounded-lg p-2 text-foreground hover:bg-muted md:hidden"
+                            aria-label="Mở menu"
+                        >
+                            <Menu className="h-5 w-5" />
+                        </button>
+                        <h1 className="flex min-w-0 items-center gap-2 text-lg font-semibold text-foreground md:text-xl">
+                            <span aria-hidden>{group.emoji}</span>
+                            <span className="truncate">{group.label}</span>
+                        </h1>
+                    </div>
+                    {/* ml-auto: hàng bị xuống dòng trên điện thoại thì vẫn nằm sát phải — bảng chọn
+                        ngày mở neo mép phải, nằm bên trái là tràn ra ngoài màn hình. */}
+                    <div className="ml-auto flex items-center gap-2 md:gap-3">
                         {onFloorTab && reportStart && (
                             <span className="hidden text-xs text-muted-foreground md:inline" title="Trước mốc này dữ liệu chưa đầy đủ nên không tính">
                                 Tính từ {format(reportStart, "dd/MM/yyyy")}
@@ -287,16 +326,17 @@ export default function TALPHADashboardShell() {
                     </div>
                 </header>
 
-                <div className="space-y-6 p-6">
-                    {/* Hàng pill chọn tab con — chỉ hiện khi mục có nhiều hơn một tab */}
+                <div className="space-y-4 p-3 md:space-y-6 md:p-6">
+                    {/* Hàng pill chọn tab con — chỉ hiện khi mục có nhiều hơn một tab.
+                        Điện thoại: một hàng cuộn ngang, không gãy chữ "P&L theo SP" thành ba dòng. */}
                     {group.tabs.length > 1 && (
-                        <div className="inline-flex flex-wrap gap-1 rounded-xl border border-border bg-muted/40 p-1">
+                        <div className="flex w-fit max-w-full gap-1 overflow-x-auto rounded-xl border border-border bg-muted/40 p-1">
                             {group.tabs.map(t => (
                                 <button
                                     key={t.id}
                                     onClick={() => setActiveTab(t.id)}
                                     className={cn(
-                                        "rounded-lg px-3 py-1.5 text-sm font-medium transition-all",
+                                        "shrink-0 whitespace-nowrap rounded-lg px-3 py-1.5 text-sm font-medium transition-all",
                                         activeTab === t.id
                                             ? "bg-card text-foreground shadow-sm"
                                             : "text-muted-foreground hover:text-foreground",
