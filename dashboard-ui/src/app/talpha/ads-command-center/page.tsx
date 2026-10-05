@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo, useRef } from "react";
+import { Fragment, useEffect, useState, useMemo, useRef } from "react";
 import axios from "axios";
 import {
     RotateCw, Satellite, Layers, AlertTriangle, ChevronDown, ChevronRight, Check, Zap,
@@ -506,10 +506,12 @@ export default function TALPHAAdsCommandCenterPage() {
                                         <tbody>
                                             {accCampaigns.map(c => {
                                                 const isExpanded = expandedCampaign === c.campaign_id;
+                                                // Khoá đặt ở Fragment bọc ngoài — đặt ở <tr> bên trong thì React vẫn
+                                                // báo thiếu key cho từng phần tử của danh sách.
                                                 return (
-                                                    <>
+                                                    <Fragment key={c.campaign_id}>
                                                         {/* Campaign row */}
-                                                        <tr key={c.campaign_id}
+                                                        <tr
                                                             onClick={() => toggleCampaign(c.campaign_id)}
                                                             className={cn("group cursor-pointer border-t border-white/5 transition",
                                                                 isExpanded ? "bg-amber-500/5" : "odd:bg-white/[0.015] hover:bg-white/5")}>
@@ -571,7 +573,7 @@ export default function TALPHAAdsCommandCenterPage() {
                                                                 </td>
                                                             </tr>
                                                         ))}
-                                                    </>
+                                                    </Fragment>
                                                 );
                                             })}
                                         </tbody>
