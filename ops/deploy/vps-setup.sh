@@ -204,6 +204,37 @@ else
     ufw --force enable >/dev/null; ufw status | head -5
 fi
 
+# ─────────────────────────────────────────────────────────────────────────
+# HTTPS cho dashboard (06/10/2026 — để cài thành app trên điện thoại, xem
+# ops/deploy/nginx-talpha-https.conf). Chỉ làm khi máy đã có nginx + chứng chỉ IP; thiếu thì
+# bỏ qua, dashboard vẫn chạy ở http://…:$PORT. `nginx -t` hỏng thì gỡ file vừa chép và KHÔNG
+# nạp lại — nginx đang phục vụ cả Bắn bot / AI Sale, không được kéo sập.
+say "HTTPS · nginx 443 → dashboard"
+HTTPS_SRC="$APP_DIR/ops/deploy/nginx-talpha-https.conf"
+HTTPS_DST="/etc/nginx/conf.d/talpha-https.conf"
+CERT="/etc/letsencrypt/live/139.180.131.21/fullchain.pem"
+if command -v nginx >/dev/null 2>&1 && [ -f "$CERT" ] && [ -f "$HTTPS_SRC" ]; then
+    CU=""
+    if [ -f "$HTTPS_DST" ]; then CU=$(mktemp); cp "$HTTPS_DST" "$CU"; fi
+    cp "$HTTPS_SRC" "$HTTPS_DST"
+    if nginx -t >/dev/null 2>&1; then
+        systemctl reload nginx && echo "   nginx đã nạp cấu hình HTTPS"
+        if [ "$FW" = firewalld ]; then
+            firewall-cmd --permanent --add-service=https >/dev/null && firewall-cmd --reload >/dev/null
+        else
+            ufw allow 443/tcp >/dev/null
+        fi
+        echo "   chứng chỉ: $(openssl x509 -in "$CERT" -noout -enddate 2>/dev/null)"
+    else
+        warn "nginx -t KHÔNG qua với cấu hình HTTPS mới — trả lại bản cũ, không nạp lại:"
+        nginx -t 2>&1 | tail -3 || true
+        if [ -n "$CU" ]; then cp "$CU" "$HTTPS_DST"; else rm -f "$HTTPS_DST"; fi
+    fi
+    if [ -n "$CU" ]; then rm -f "$CU"; fi
+else
+    warn "bỏ qua HTTPS — thiếu nginx hoặc chứng chỉ $CERT"
+fi
+
 say "XONG"
 echo "   Kiểm tra:  curl -I http://127.0.0.1:$PORT/login"
 echo "   Nhật ký :  pm2 logs talpha-dashboard"

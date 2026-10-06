@@ -255,6 +255,7 @@ talpha-sync: mã vận đơn, ngày xuất kho, trạng thái giao, COD đối t
 | Thành phần | Nơi chạy | Khởi động bằng |
 |:--|:--|:--|
 | Dashboard | VPS `139.180.131.21:3000`, `/opt/talpha` | pm2 `talpha-dashboard` — `ops/pm2/ecosystem.vps.config.js` |
+| HTTPS + app cài được (PWA) | `https://139.180.131.21` (06/10/2026) — nginx 443 → `127.0.0.1:3000` | `ops/deploy/nginx-talpha-https.conf`, `vps-setup.sh` tự chép mỗi lần deploy. Dùng chung chứng chỉ Let's Encrypt **cho IP** (hạn 6 ngày, `certbot-renew.timer` của AI Sale gia hạn). App: `src/app/manifest.ts`, `public/sw.js` (KHÔNG lưu số liệu — chỉ trang mất mạng), nút "Cài app" `components/talpha/cai-app.tsx`. Điện thoại chỉ cài được qua HTTPS |
 | Kéo số vào BigQuery | VPS, mỗi giờ phút :00 | systemd `talpha-sync.timer` → `sync/talpha/talpha_sync.py` |
 | Ghi Google Sheets | VPS, mỗi giờ phút :20 | systemd `talpha-report.timer` → `/root/talpha_reports/daily_guarded.sh` |
 | Nạp bảng đơn đối tác | VPS, 6h sáng mỗi ngày | systemd `talpha-tracking.timer` → `ops/deploy/tracking-import.sh` (gọi route `tracking/import`) |

@@ -175,9 +175,14 @@ echo "   GET /login trong máy chủ → HTTP $code"
 
 ext=$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 "http://$HOST:3000/login" || echo 000)
 echo "   GET /login từ ngoài   → HTTP $ext"
+# HTTPS qua nginx (06/10/2026, để cài thành app) — KHÔNG -k: chứng chỉ phải hợp lệ thật, điện
+# thoại mới cho cài app. 000 = chứng chỉ hỏng / hết hạn hoặc cổng 443 chưa mở.
+ssl=$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 "https://$HOST/login" || echo 000)
+echo "   GET https://$HOST/login → HTTP $ssl"
+[ "$ssl" = "200" ] || printf '\033[1;35m  ! HTTPS chưa chạy — app trên điện thoại sẽ không cài được. Xem bước HTTPS ở trên.\033[0m\n'
 
-printf '\n\033[1;32m✓ XONG — http://%s:3000\033[0m\n\n' "$HOST"
+printf '\n\033[1;32m✓ XONG — https://%s  (cũ: http://%s:3000)\033[0m\n\n' "$HOST" "$HOST"
 echo "Còn nên làm:"
 echo "  · Đổi mật khẩu root (mật khẩu cũ đã đi qua khung chat)"
 echo "  · Tắt đăng nhập bằng mật khẩu — xem docs/DEPLOY_VPS.md"
-echo "  · Gắn tên miền + HTTPS bằng nginx và certbot"
+echo "  · (tuỳ chọn) Gắn tên miền riêng thay địa chỉ IP — HTTPS đã chạy bằng chứng chỉ IP"

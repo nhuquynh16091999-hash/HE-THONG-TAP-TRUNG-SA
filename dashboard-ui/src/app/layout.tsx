@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 import { cn } from "@/lib/utils";
@@ -16,6 +16,21 @@ export const metadata: Metadata = {
     // NEXT_PUBLIC_APP_NAME là tab trình duyệt hiện tên một hệ thống không liên quan.
     title: `${process.env.NEXT_PUBLIC_APP_NAME || "ANTALO"} Dashboard`,
     description: "Dashboard vận hành ANTALO Mini Market — quảng cáo, đơn hàng, tồn kho, đối soát",
+    // App cài được (06/10/2026): manifest ở app/manifest.ts. iPhone không đọc biểu tượng trong
+    // manifest mà đọc apple-touch-icon, và cần appleWebApp.capable để mở toàn màn hình.
+    applicationName: "ANTALO",
+    appleWebApp: { capable: true, title: "ANTALO", statusBarStyle: "default" },
+    icons: { apple: "/apple-touch-icon.png" },
+    // Next chỉ in thẻ chuẩn mobile-web-app-capable; iOS cũ (trước 16.4) chỉ đọc thẻ của Apple.
+    other: { "apple-mobile-web-app-capable": "yes" },
+};
+
+export const viewport: Viewport = {
+    // Màu thanh trạng thái điện thoại khi mở như app — nền kem sáng, nền tối theo chế độ máy.
+    themeColor: [
+        { media: "(prefers-color-scheme: light)", color: "#FFFFEF" },
+        { media: "(prefers-color-scheme: dark)", color: "#131210" },
+    ],
 };
 
 export default function RootLayout({

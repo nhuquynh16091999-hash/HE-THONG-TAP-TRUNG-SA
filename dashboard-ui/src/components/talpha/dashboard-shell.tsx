@@ -9,6 +9,7 @@ import DateRangePicker from "@/components/ui/date-range-picker";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import Link from "next/link";
 import { AccessProvider, type Me } from "./access-context";
+import NutCaiApp from "./cai-app";
 
 import TALPHACeoOverviewTab from "./tabs/ceo-overview-tab";
 import TALPHAAdsCommandTab from "./tabs/ads-command-tab";
@@ -222,7 +223,7 @@ export default function TALPHADashboardShell() {
                     <NhanThiTruong me={me} />
                 </div>
 
-                <nav className="flex-1 space-y-0.5 overflow-y-auto p-3">
+                <nav className="min-h-0 flex-1 space-y-0.5 overflow-y-auto p-3">
                     {groups.map(g => (
                         <button
                             key={g.id}
@@ -241,6 +242,8 @@ export default function TALPHADashboardShell() {
                 </nav>
 
                 <div className="space-y-2 border-t border-border p-3">
+                    {/* Cài dashboard thành app trên điện thoại / máy tính (06/10/2026). */}
+                    <NutCaiApp />
                     {me && me.kind === "user" && (
                         <div className="rounded-lg bg-muted/40 px-3 py-2">
                             <p className="truncate text-sm font-semibold text-foreground" title={me.email || undefined}>{me.name}</p>
