@@ -174,7 +174,8 @@ echo "   GET /login trong máy chủ → HTTP $code"
 [ "$code" = "200" ] || die "Dashboard chưa lên. Xem: ssh -i $KEY root@$HOST 'pm2 logs talpha-dashboard --lines 40'"
 
 ext=$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 "http://$HOST:3000/login" || echo 000)
-echo "   GET /login từ ngoài   → HTTP $ext"
+# Từ 06/10/2026 lượt từ ngoài vào :3000 được chuyển sang HTTPS (307) — DASHBOARD_HTTPS_HOST.
+echo "   GET /login từ ngoài   → HTTP $ext$([ "$ext" = 307 ] && echo " (chuyển sang https — đúng)")"
 # HTTPS qua nginx (06/10/2026, để cài thành app) — KHÔNG -k: chứng chỉ phải hợp lệ thật, điện
 # thoại mới cho cài app. 000 = chứng chỉ hỏng / hết hạn hoặc cổng 443 chưa mở.
 ssl=$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 "https://$HOST/login" || echo 000)

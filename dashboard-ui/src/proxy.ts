@@ -27,10 +27,30 @@ import { trackMarket } from "@/lib/talpha/tracking";
 
 const PROTECTED_PREFIXES = ["/talpha", "/admin"];
 
+/**
+ * Địa chỉ HTTPS công khai (06/10/2026, nginx 443 — ops/deploy/nginx-talpha-https.conf). Ai mở
+ * địa chỉ cũ http://<host>:3000 từ ngoài thì chuyển sang https://<host>: mật khẩu thôi đi
+ * dạng chữ trơn, và chỉ bản HTTPS mới cài được thành app. Nhận ra lượt "từ ngoài" bằng tên
+ * host trong header Host — bot, việc nền gọi http://localhost:3000 / 127.0.0.1 nên không bị
+ * chuyển; lượt đi qua nginx đã mang X-Forwarded-Proto. Bỏ trống biến = không chuyển (máy Mac).
+ */
+const HTTPS_HOST = (process.env.DASHBOARD_HTTPS_HOST || "").trim();
+
 const json = (status: number, error: string) => NextResponse.json({ error }, { status });
 
 export default auth(async (req) => {
     const { pathname, searchParams } = req.nextUrl;
+
+    // Next tự điền X-Forwarded-Proto: http cho lượt gọi thẳng — nên so "không phải https",
+    // không phải "không có header". nginx đặt đúng "https".
+    if (HTTPS_HOST && !(req.headers.get("x-forwarded-proto") || "").startsWith("https")) {
+        const host = (req.headers.get("host") || "").split(":")[0];
+        if (host === HTTPS_HOST) {
+            // 307 (tạm thời), không 308: trình duyệt nhớ 308 mãi — HTTPS có sự cố thì người dùng
+            // kẹt ở địa chỉ hỏng mà không quay về :3000 được.
+            return NextResponse.redirect(`https://${HTTPS_HOST}${pathname}${req.nextUrl.search}`, 307);
+        }
+    }
 
     if (pathname.startsWith("/api/")) {
         if (pathname.startsWith("/api/auth/")) return NextResponse.next();
