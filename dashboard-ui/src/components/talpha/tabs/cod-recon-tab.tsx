@@ -5,7 +5,7 @@ import { format } from "date-fns";
 import {
     Upload, AlertTriangle, Download, Copy, CheckCircle2, ChevronDown, Check, X,
     FileSpreadsheet, Landmark, ArrowRight, ArrowDown, Info,
-    CalendarDays, Layers, Hourglass, ReceiptText, BadgeCheck, SearchCheck, PenLine,
+    CalendarDays, Layers, ReceiptText, BadgeCheck, SearchCheck, PenLine,
     type LucideIcon,
 } from "lucide-react";
 import {
@@ -13,14 +13,19 @@ import {
 } from "recharts";
 import TabSkeleton, { ErrorState } from "@/components/ui/tab-skeleton";
 import { formatNumber, cn } from "../utils";
-import { TWD, VND } from "./ledger-shared";
+import { TWD, VND, type DonChoTien } from "./ledger-shared";
 import ThanhNhapBangDon, { bangDaCu, nhanNapGon, type NhapBangDon } from "@/components/talpha/nhap-bang-don";
 import { useManHep } from "./so-don-ui";
 
 interface Props { dateRange?: { from: Date; to: Date }; projectId?: string }
 
 /* ═══════════════════════════════════════════════════════════════════
-   ĐỐI SOÁT COD — MỘT QUY TRÌNH, KHÔNG PHẢI MỘT ĐỐNG KẾT QUẢ KIỂM TRA
+   TIỀN COD VỀ (mục Kế toán) — MỘT QUY TRÌNH, KHÔNG PHẢI MỘT ĐỐNG KẾT QUẢ KIỂM TRA
+
+   07/10/2026 Sỹ Anh chốt tách mục KẾ TOÁN: tab này (tên cũ "Đối soát COD") + Thanh toán
+   quảng cáo. Leader nước đó và giám đốc kiểm soát chung — leader xem, tải sao kê, nhập tiền
+   về. Phần đòi NAZA tiền đơn quá hạn (khối ④ cũ) chuyển sang Sổ đơn hàng: đó là việc
+   theo từng đơn, cần tên khách + số điện thoại ngay cạnh, và sale cũng phải làm được.
 
    Bản trước xếp tám mục soát cạnh nhau rồi để người dùng tự hiểu. Sỹ Anh chỉ
    ra bốn chỗ khó chịu, và cả bốn cùng một gốc: màn hình không mang hình dạng
@@ -37,8 +42,8 @@ interface Props { dateRange?: { from: Date; to: Date }; projectId?: string }
      ①  việc hôm nay        — mở lên là biết phải làm gì
      ②  bảng các kỳ         — xương sống: kỳ nào đang ở đâu trong quy trình
      ③  kỳ đang mở          — tám mục soát, CHỈ của kỳ này
-     ④  tiền còn ở NAZA     — cộng dồn mọi kỳ, KHÔNG thuộc kỳ nào
-     ⑤  tỷ giá              — nó đã lấy của mình bao nhiêu tiền
+     ④  tỷ giá              — nó đã lấy của mình bao nhiêu tiền
+     (đơn quá hạn phải đòi  — khung "Đòi tiền NAZA" ở Sổ đơn hàng)
 
    Thứ tự trong ③ (A trước B) không đảo được: file sai thì mọi so sánh về sau
    đều vô nghĩa. Và một kỳ chưa biết tiền về hay chưa thì chưa xong, dù tám
@@ -97,11 +102,7 @@ type Period = {
     bank: Bank | null;
     trang_thai: PeriodState; trang_thai_chu: string; lech_bank_vnd: number | null;
 };
-type Pending = {
-    order_no: string; tracking: string; cod_twd: number;
-    ky_da_qua: number; qua_han: boolean; contact_name: string; phone: string;
-    doi_key: string; da_doi: { viec: string; ngay: string; lan: number } | null; doi_chu: string;
-};
+type Pending = DonChoTien;
 type FxRow = {
     filename: string; period_date: string;
     rate_twd_rmb: number | null; rate_rmb_vnd: number | null;
@@ -116,30 +117,6 @@ type StatementMeta = { id: string; filename: string };
 
 const shortFile = (f: string) => f.replace(/ĐỐI SOÁT COD|TAIWAN|\.xlsx?$/gi, "").trim() || f;
 const dmy = (s: string) => (s ? `${s.slice(8, 10)}/${s.slice(5, 7)}/${s.slice(0, 4)}` : "—");
-
-/**
- * Tin nhắn đòi tiền, soạn sẵn để chép vào Zalo/WeChat.
- *
- * Hai thứ tiếng vì chưa rõ người phụ trách bên NAZA nói tiếng nào: sao kê viết
- * chữ Hán (原单号, COD金额) nhưng Sỹ Anh nhắn qua Zalo, mà Zalo thường là người
- * Việt. Đoán một bên rồi soạn sai thứ tiếng thì tin nhắn thành vô dụng, nên để
- * cả hai nút — bấm cái nào cũng một cú.
- *
- * Trong tin bắt buộc có ĐỦ mã đơn, mã vận đơn và số tiền: thiếu một trong ba
- * là bên kia hỏi lại, mất thêm một vòng.
- */
-function tinDoiTien(list: Pending[], lang: "vi" | "zh"): string {
-    const tong = Math.round(list.reduce((a, x) => a + x.cod_twd, 0)).toLocaleString("vi-VN");
-    const dong = list.map((p) =>
-        `${p.order_no} · ${p.tracking} · ${Math.round(p.cod_twd).toLocaleString("vi-VN")} NT$`).join("\n");
-    if (lang === "zh") {
-        return `您好，以下 ${list.length} 筆訂單已配送成功，但至今未出現在任何一期對帳單中，貨款尚未收到，` +
-            `合計 ${tong} NT$：\n\n${dong}\n\n麻煩協助查詢並儘快撥款，謝謝！`;
-    }
-    return `Chào bạn, ${list.length} đơn dưới đây đã giao thành công nhưng chưa thấy tiền ` +
-        `trên bất kỳ kỳ sao kê nào, tổng ${tong} NT$:\n\n${dong}\n\n` +
-        `Nhờ bạn kiểm tra và chuyển tiền giúp mình nhé. Cảm ơn bạn!`;
-}
 
 function tinLech(p: Period, lang: "vi" | "zh"): string {
     if (lang === "zh") {
@@ -245,7 +222,7 @@ type NuocData = {
 };
 
 /**
- * Đối soát COD nước ngoài Đài — bước 1 (Sỹ Anh chốt 26/09/2026). Chưa có sao kê bên giao hàng,
+ * Tiền COD về nước ngoài Đài — bước 1 (Sỹ Anh chốt 26/09/2026). Chưa có sao kê bên giao hàng,
  * nên chỉ trả lời "tiền còn ở đâu": đã giao (bên giao hàng đang giữ) · chưa giao (ngoài đường) ·
  * không tính (hoàn, huỷ). Khớp từng kỳ như Đài là bước 2, làm khi có file sao kê mẫu.
  */
@@ -390,7 +367,6 @@ function CodDaiLoan({ dateRange, nutNuoc }: Props & { nutNuoc?: ReactNode }) {
     const [pid, setPid] = useState("");
     const [copied, setCopied] = useState("");
     const [busy, setBusy] = useState("");
-    const [moCho, setMoCho] = useState(false);          // bung danh sách đơn đang chờ
     const [nhapBank, setNhapBank] = useState("");       // tên file kỳ đang nhập tiền về
     const [keo, setKeo] = useState(false);              // đang kéo file đè lên màn
     const fileRef = useRef<HTMLInputElement>(null);
@@ -442,20 +418,6 @@ function CodDaiLoan({ dateRange, nutNuoc }: Props & { nutNuoc?: ReactNode }) {
         } finally { setBusy(""); }
     };
 
-    /** Đóng cả một mẻ đơn cùng lúc — đòi thì đòi cả danh sách, không đòi lẻ từng đơn. */
-    const ghiDoiCaMe = async (list: Pending[]) => {
-        setBusy("doi-me");
-        try {
-            for (const p of list) {
-                await fetch("/api/talpha/cod-actions", {
-                    method: "POST", headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ kind: "done", key: p.doi_key, viec: "da_doi" }),
-                });
-            }
-            await load();
-        } finally { setBusy(""); }
-    };
-
     const ghiBank = async (filename: string, so: number, ngay: string) => {
         setBusy(filename); setUpErr("");
         try {
@@ -493,8 +455,9 @@ function CodDaiLoan({ dateRange, nutNuoc }: Props & { nutNuoc?: ReactNode }) {
     };
 
     const period = periods.find((p) => p.id === pid) || periods[0];
-    const quaHan = pending.filter((p) => p.qua_han);
-    const dangCho = pending.filter((p) => !p.qua_han);
+    // Đòi NAZA tiền đơn quá hạn là việc THEO ĐƠN → khung "Đòi tiền NAZA" ở Sổ đơn hàng (07/10/2026,
+    // tách mục Kế toán). Ở đây chỉ còn việc theo KỲ: soát sao kê, hỏi khoản lệch, nhập tiền về.
+    const viecKeToan = viec.filter((v) => v.id !== "doi-naza");
 
     /** Xuất đúng thứ cần gửi lại 3PL — bốn loại lệch trong một file. */
     const exportForPartner = () => {
@@ -608,9 +571,9 @@ function CodDaiLoan({ dateRange, nutNuoc }: Props & { nutNuoc?: ReactNode }) {
             {tienVe && <TomTatTien t={tienVe} tq={tq} />}
 
             {/* ═══ ① VIỆC HÔM NAY ═══ */}
-            <Khoi so="1" ten="Việc hôm nay" phamVi="all" dem={viec.length ? `${viec.length} việc` : ""}
-                phu="mở lên là biết phải làm gì">
-                {viec.length === 0 ? (
+            <Khoi so="1" ten="Việc hôm nay" phamVi="all" dem={viecKeToan.length ? `${viecKeToan.length} việc` : ""}
+                phu="soát sao kê, hỏi khoản lệch, nhập tiền về">
+                {viecKeToan.length === 0 ? (
                     <div className="flex items-center gap-3 px-5 py-6">
                         <span className="grid h-10 w-10 flex-none place-items-center rounded-xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
                             <CheckCircle2 className="h-5 w-5" />
@@ -618,13 +581,13 @@ function CodDaiLoan({ dateRange, nutNuoc }: Props & { nutNuoc?: ReactNode }) {
                         <div>
                             <div className="text-[14.5px] font-semibold text-emerald-700 dark:text-emerald-400">Không có việc gì cần làm</div>
                             <div className="text-[13px] text-muted-foreground">
-                                Mọi kỳ đã soát xong, tiền đã về khớp, không đơn nào quá hạn phải đòi.
+                                Mọi kỳ đã soát xong, tiền đã về khớp. Đơn quá hạn phải đòi xem ở Sổ đơn hàng.
                             </div>
                         </div>
                     </div>
                 ) : (
                     <ul className="divide-y divide-border/70">
-                        {viec.map((v) => {
+                        {viecKeToan.map((v) => {
                             const m = MUC[v.muc];
                             return (
                                 <li key={v.id} className="relative flex flex-wrap items-start gap-x-4 gap-y-3 px-5 py-4 transition-colors hover:bg-muted/30">
@@ -642,20 +605,6 @@ function CodDaiLoan({ dateRange, nutNuoc }: Props & { nutNuoc?: ReactNode }) {
                                         <p className="mt-1 text-[13px] leading-relaxed text-muted-foreground">{v.chi_tiet}</p>
                                     </div>
                                     <div className="flex flex-none flex-wrap items-center gap-2">
-                                        {v.id === "doi-naza" && (
-                                            <>
-                                                <Nut kieu="chinh" onClick={() => chep("z-vi", tinDoiTien(quaHan, "vi"))}>
-                                                    <Copy className="h-3.5 w-3.5" />
-                                                    {copied === "z-vi" ? "Đã chép" : "Chép tin (Việt)"}
-                                                </Nut>
-                                                <Nut onClick={() => chep("z-zh", tinDoiTien(quaHan, "zh"))}>
-                                                    {copied === "z-zh" ? "Đã chép" : "中文"}
-                                                </Nut>
-                                                <Nut kieu="xong" busy={busy === "doi-me"} onClick={() => ghiDoiCaMe(quaHan)}>
-                                                    <Check className="h-3.5 w-3.5" />Đã nhắn
-                                                </Nut>
-                                            </>
-                                        )}
                                         {v.id === "lech-tien" && period && (
                                             <>
                                                 <Nut kieu="chinh" onClick={() => chep("l-vi", tinLech(period, "vi"))}>
@@ -891,164 +840,9 @@ function CodDaiLoan({ dateRange, nutNuoc }: Props & { nutNuoc?: ReactNode }) {
                 </Khoi>
             )}
 
-            {/* ═══ ④ TIỀN CÒN NẰM Ở NAZA — cộng dồn, không thuộc kỳ nào ═══ */}
-            {pending.length > 0 && (
-                <Khoi so="4" ten="Tiền còn nằm ở NAZA" phamVi="all" phu="không thuộc kỳ nào cả"
-                    dem={TWD(pending.reduce((a, x) => a + x.cod_twd, 0))}>
-                    {quaHan.length > 0 && (
-                        <>
-                            <div className="flex flex-wrap items-start gap-x-4 gap-y-3 border-b border-rose-200/70 bg-gradient-to-r from-rose-50 to-card px-5 py-4 dark:border-rose-500/20 dark:from-rose-500/10">
-                                <span className="grid h-9 w-9 flex-none place-items-center rounded-xl bg-rose-500/15 text-rose-600 dark:text-rose-400">
-                                    <AlertTriangle className="h-[18px] w-[18px]" />
-                                </span>
-                                <div className="min-w-[14rem] flex-1">
-                                    <div className="flex flex-wrap items-center gap-2">
-                                        <span className="text-[14.5px] font-bold text-rose-700 dark:text-rose-300">
-                                            {quaHan.length} đơn quá hạn — phải đòi
-                                        </span>
-                                        <span className="rounded-full bg-rose-600 px-2 py-0.5 text-[12px] font-bold tabular-nums text-white">
-                                            {TWD(quaHan.reduce((a, x) => a + x.cod_twd, 0))}
-                                        </span>
-                                    </div>
-                                    <p className="mt-1 text-[13px] text-muted-foreground">
-                                        Đã giao thành công, đã qua từ 2 kỳ sao kê mà vẫn chưa được trả đồng nào.
-                                    </p>
-                                </div>
-                                <div className="flex flex-none flex-wrap items-center gap-2">
-                                    <Nut kieu="chinh" onClick={() => chep("q-vi", tinDoiTien(quaHan, "vi"))}>
-                                        <Copy className="h-3.5 w-3.5" />
-                                        {copied === "q-vi" ? "Đã chép" : "Chép tin (Việt)"}
-                                    </Nut>
-                                    <Nut onClick={() => chep("q-zh", tinDoiTien(quaHan, "zh"))}>
-                                        {copied === "q-zh" ? "Đã chép" : "中文"}
-                                    </Nut>
-                                    <Nut kieu="xong" busy={busy === "doi-me"} onClick={() => ghiDoiCaMe(quaHan)}>
-                                        <Check className="h-3.5 w-3.5" />Đã nhắn
-                                    </Nut>
-                                </div>
-                            </div>
-                            {hep ? (
-                                <ul className="divide-y divide-border/60">
-                                    {quaHan.map((p) => (
-                                        <li key={p.tracking || p.order_no} className="px-3.5 py-2.5">
-                                            <div className="flex items-baseline gap-2">
-                                                <b className="text-foreground">{p.order_no}</b>
-                                                <span className="rounded-full bg-rose-100 px-2 py-0.5 text-[11px] font-bold text-rose-700 dark:bg-rose-500/15 dark:text-rose-300">{p.ky_da_qua} kỳ</span>
-                                                <span className="ml-auto font-bold tabular-nums text-foreground">{TWD(p.cod_twd)}</span>
-                                            </div>
-                                            <div className="mt-0.5 text-[12px] text-muted-foreground">
-                                                {p.contact_name || "—"}{p.phone ? <> · <a href={`tel:${p.phone}`} className="font-mono text-violet-700 dark:text-violet-300">{p.phone}</a></> : null}
-                                                {p.tracking ? <> · <span className="font-mono">{p.tracking}</span></> : null}
-                                            </div>
-                                            <span className={cn("mt-1 inline-block rounded-full px-2 py-0.5 text-[11.5px] font-medium",
-                                                !p.da_doi ? "bg-muted text-muted-foreground"
-                                                    : p.doi_chu.includes("vẫn im") ? "bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300"
-                                                        : "bg-emerald-100 text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-300")}>
-                                                {p.doi_chu}
-                                            </span>
-                                        </li>
-                                    ))}
-                                </ul>
-                            ) : (
-                            <div className="overflow-x-auto">
-                                <table className="w-full min-w-[760px] whitespace-nowrap text-[13px]">
-                                    <thead>
-                                        <tr className="border-b border-border/70 bg-muted/40 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                                            <th className="px-5 py-2.5 text-left">Mã đơn</th>
-                                            <th className="px-3 py-2.5 text-left">Vận đơn</th>
-                                            <th className="px-3 py-2.5 text-left">Khách</th>
-                                            <th className="px-3 py-2.5 text-left">Điện thoại</th>
-                                            <th className="px-3 py-2.5 text-right">Chờ</th>
-                                            <th className="px-3 py-2.5 text-right">Tiền</th>
-                                            <th className="px-5 py-2.5 text-left">Đã đòi</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-border/60">
-                                        {quaHan.map((p) => (
-                                            <tr key={p.tracking || p.order_no} className="transition-colors hover:bg-muted/30">
-                                                <td className="px-5 py-2.5 font-semibold text-foreground">{p.order_no}</td>
-                                                <td className="px-3 py-2.5 font-mono text-[12px] text-sky-700 dark:text-sky-300">{p.tracking}</td>
-                                                <td className="px-3 py-2.5 text-foreground/85">{p.contact_name || "—"}</td>
-                                                <td className="px-3 py-2.5 font-mono text-[12px] text-violet-700 dark:text-violet-300">{p.phone || "—"}</td>
-                                                <td className="px-3 py-2.5 text-right">
-                                                    <span className="rounded-full bg-rose-100 px-2 py-0.5 text-[11.5px] font-bold text-rose-700 dark:bg-rose-500/15 dark:text-rose-300">
-                                                        {p.ky_da_qua} kỳ
-                                                    </span>
-                                                </td>
-                                                <td className="px-3 py-2.5 text-right font-bold tabular-nums text-foreground">{TWD(p.cod_twd)}</td>
-                                                <td className="px-5 py-2.5">
-                                                    <span className={cn("rounded-full px-2 py-0.5 text-[12px] font-medium",
-                                                        !p.da_doi ? "bg-muted text-muted-foreground"
-                                                            : p.doi_chu.includes("vẫn im")
-                                                                ? "bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300"
-                                                                : "bg-emerald-100 text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-300")}>
-                                                        {p.doi_chu}
-                                                    </span>
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
-                            )}
-                        </>
-                    )}
-
-                    {dangCho.length > 0 && (
-                        <div className={cn(quaHan.length > 0 && "border-t border-border/70")}>
-                            <div className="flex flex-wrap items-start gap-x-4 gap-y-3 px-5 py-4">
-                                <span className="grid h-9 w-9 flex-none place-items-center rounded-xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
-                                    <Hourglass className="h-[18px] w-[18px]" />
-                                </span>
-                                <div className="min-w-[14rem] flex-1">
-                                    <div className="flex flex-wrap items-center gap-2">
-                                        <span className="text-[14.5px] font-bold text-foreground">
-                                            {dangCho.length} đơn đang chờ — bình thường, không phải làm gì
-                                        </span>
-                                        <span className="rounded-full bg-muted px-2 py-0.5 text-[12px] font-bold tabular-nums text-foreground/75">
-                                            {TWD(dangCho.reduce((a, x) => a + x.cod_twd, 0))}
-                                        </span>
-                                    </div>
-                                    {/* Bản trước gộp cả nhóm này vào một dòng gọi là "sao kê bỏ sót 80 đơn",
-                                        làm 76 đơn lành cũng trông như lỗi của NAZA. Phải nói rõ vì sao chưa cần lo. */}
-                                    <p className="mt-1 text-[13px] leading-relaxed text-muted-foreground">
-                                        {dangCho.filter((x) => x.ky_da_qua === 0).length} đơn chưa qua kỳ sao kê nào,{" "}
-                                        {dangCho.filter((x) => x.ky_da_qua >= 1).length} đơn mới qua 1 kỳ.
-                                        NAZA trả theo kỳ chứ không trả theo ngày, nên chừng nào chưa qua 2 kỳ thì chưa gọi là chậm.
-                                    </p>
-                                </div>
-                                <Nut onClick={() => setMoCho((v) => !v)}>
-                                    <ChevronDown className={cn("h-4 w-4 transition-transform", moCho && "rotate-180")} />
-                                    {moCho ? "Thu gọn" : "Xem danh sách"}
-                                </Nut>
-                            </div>
-                            {moCho && (
-                                <div className="max-h-80 overflow-auto border-t border-border/70">
-                                    <table className={cn("w-full whitespace-nowrap text-[13px]", !hep && "min-w-[560px]")}>
-                                        <tbody className="divide-y divide-border/60">
-                                            {dangCho.map((p) => (
-                                                <tr key={p.tracking || p.order_no} className="even:bg-muted/25">
-                                                    <td className="px-5 py-2 font-semibold text-foreground">{p.order_no}</td>
-                                                    <td className="hidden px-3 py-2 font-mono text-[12px] text-sky-700 md:table-cell dark:text-sky-300">{p.tracking}</td>
-                                                    <td className="max-w-[9rem] truncate px-3 py-2 text-foreground/85 md:max-w-none">{p.contact_name || "—"}</td>
-                                                    <td className="px-3 py-2 text-right text-[12px] text-muted-foreground">
-                                                        {p.ky_da_qua === 0 ? "chưa qua kỳ nào" : `qua ${p.ky_da_qua} kỳ`}
-                                                    </td>
-                                                    <td className="px-5 py-2 text-right font-semibold tabular-nums text-foreground">{TWD(p.cod_twd)}</td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            )}
-                        </div>
-                    )}
-                </Khoi>
-            )}
-
-            {/* ═══ ⑤ TỶ GIÁ — quy ra tiền, không quy ra phần trăm ═══ */}
+            {/* ═══ ④ TỶ GIÁ — quy ra tiền, không quy ra phần trăm ═══ */}
             {fx && fx.rows.length > 1 && (
-                <Khoi so="5" ten="Tỷ giá đã lấy của mình bao nhiêu" phamVi="all" gap={{ mo: false }}
+                <Khoi so="4" ten="Tỷ giá đã lấy của mình bao nhiêu" phamVi="all" gap={{ mo: false }}
                     dem={fx.total_thiet_vnd > 0 ? `thiệt ${VND(fx.total_thiet_vnd)}` : undefined}>
                     <div className="grid gap-px border-b border-border/70 bg-border/60 sm:grid-cols-3">
                         <Kpi label="Thiệt vì tỷ giá" value={VND(fx.total_thiet_vnd)}
@@ -1429,7 +1223,8 @@ function TomTatTien({ t, tq }: { t: TienVe; tq: TongQuan | null }) {
                         ({t.ky_da_doi_chieu_bank === 0 ? "chưa kỳ nào đối chiếu ngân hàng" : `${t.ky_da_doi_chieu_bank} kỳ đã đối chiếu ngân hàng`}).</p>
                     <p><b className="font-semibold text-foreground">Hai ô giữa không trùng nhau</b> — cộng lại là {formatNumber(tongDon)} đơn
                         ({TWD(tongCod)}) chưa thấy tiền trên sao kê nào: đơn đã giao là tiền NAZA đang giữ ({dg.don_chua_tru_phi} đơn chưa bị trừ phí ship),
-                        đơn chưa giao là tiền còn ở ngoài đường. Đã bỏ {t.khong_tinh.hoan} đơn hoàn + {t.khong_tinh.huy} đơn huỷ
+                        đơn chưa giao là tiền còn ở ngoài đường. Đơn đã giao qua từ 2 kỳ mà chưa được trả thì đòi ở khung
+                        “Đòi tiền NAZA” của Sổ đơn hàng. Đã bỏ {t.khong_tinh.hoan} đơn hoàn + {t.khong_tinh.huy} đơn huỷ
                         {t.khong_tinh.tieu_huy ? ` + ${t.khong_tinh.tieu_huy} đơn tiêu huỷ` : ""} ({TWD(t.khong_tinh.cod_twd)}) vì không bao giờ trả tiền.</p>
                     <p>Số dự tính đi đúng luồng NAZA: COD × {gia} − phí. Đơn đã bị NAZA trừ phí ship ở kỳ trước thì không trừ lại;
                         đơn chưa bị trừ thì trừ phí ship theo bảng giá kênh giao (kg đầu) + phí thao tác.
@@ -1474,7 +1269,7 @@ function KpiTeNhat({ rows }: { rows: FxRow[] }) {
     );
 }
 
-/* ⑤ Tỷ giá qua các kỳ — MỘT đường, MỘT trục.
+/* ④ Tỷ giá qua các kỳ — MỘT đường, MỘT trục.
    Đường = đồng thực nhận trên mỗi NT$ (tích hai chặng). Nét đứt = kỳ tốt nhất chính
    NAZA từng đặt. Vùng đỏ giữa hai đường = phần tỷ giá lấy của mình. Tiền thiệt từng
    kỳ còn tuỳ tiền COD kỳ đó nên nằm trong ô rê chuột, không in lên từng điểm.

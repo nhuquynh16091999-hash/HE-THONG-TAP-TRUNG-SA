@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { readStoreFresh, updateStore } from "@/lib/talpha/store";
+import { getAccess } from "@/lib/talpha/access";
+import { ghiCodDuoc } from "@/lib/talpha/access-rules";
 import {
     bankKey, emptyActions, type CodActions, type DoneKind,
 } from "@/lib/talpha/cod-actions";
@@ -21,6 +23,10 @@ export const dynamic = "force-dynamic";
 const STORE = "cod_actions";
 
 const today = () => new Date().toISOString().slice(0, 10);
+
+/** Việc kế toán (tiền về, hỏi/bỏ qua khoản lệch, huỷ) chỉ leader + giám đốc — xem ghiCodDuoc. */
+const tuChoi = () => NextResponse.json(
+    { error: "Việc này thuộc mục Kế toán — chỉ leader của nước và giám đốc được ghi" }, { status: 403 });
 const isDate = (s: unknown) => typeof s === "string" && /^\d{4}-\d{2}-\d{2}$/.test(s);
 
 export async function GET() {
@@ -48,6 +54,8 @@ export async function POST(req: NextRequest) {
     } catch {
         return NextResponse.json({ error: "Body không phải JSON" }, { status: 400 });
     }
+    const a = await getAccess(req);
+    if (!a || !ghiCodDuoc(a, String(body.kind || ""), body.viec)) return tuChoi();
 
     // ── Ghi tiền thật về tài khoản ────────────────────────────────────
     if (body.kind === "bank") {
@@ -115,6 +123,8 @@ export async function POST(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
+    const a = await getAccess(req);
+    if (!a || !ghiCodDuoc(a, "xoa")) return tuChoi();
     const q = req.nextUrl.searchParams;
     const kind = q.get("kind");
     const key = String(q.get("key") || "").trim();

@@ -128,6 +128,18 @@ export function canTab(a: Access, tab: string): boolean {
     return a.full || a.tabs.includes(tab);
 }
 
+/**
+ * Ghi vào kho việc đối soát (/api/talpha/cod-actions) — Sỹ Anh chốt 07/10/2026 khi tách mục
+ * Kế toán. "Đã nhắn NAZA đòi tiền" là việc THEO ĐƠN, nằm ở Sổ đơn hàng: ai thấy Sổ đơn cũng ghi
+ * được (sale đi đòi). Còn lại — tiền về ngân hàng, đã hỏi / bỏ qua một khoản lệch, huỷ việc đã
+ * ghi — là việc KẾ TOÁN: chỉ người thấy Tiền COD về (leader nước đó, giám đốc). Cửa proxy đã
+ * kiểm nước; hàm này chỉ phân loại việc.
+ */
+export function ghiCodDuoc(a: Access, kind: string, viec?: string | null): boolean {
+    if (kind === "done" && viec === "da_doi") return canTab(a, "order-ledger") || canTab(a, "cod-recon");
+    return canTab(a, "cod-recon");
+}
+
 /** Xem đủ mọi nước — route khỏi cần lọc gì (giám đốc, bot, hoặc người được giao cả ba team). */
 export function seesAllMarkets(a: Access): boolean {
     return a.full || ALL_MARKET_KEYS.every((m) => a.markets.includes(m));
@@ -160,7 +172,8 @@ export const API_RULES: Record<string, ApiRule> = {
     "/api/talpha/marketer-perf": { tabs: ["marketing"] },
     "/api/query": { tabs: ["marketing", "ad-health", "customers", "market-intel"] },
 
-    // Sổ đơn / đối soát / vận đơn — mỗi lượt gọi là MỘT nước.
+    // Sổ đơn / Tiền COD về / vận đơn — mỗi lượt gọi là MỘT nước. cod-actions mở cho Sổ đơn
+    // để ghi "đã nhắn NAZA"; việc kế toán trong đó route tự chặn thêm bằng ghiCodDuoc().
     "/api/talpha/order-ledger": { tabs: ["order-ledger", "cod-recon"], market: "TW" },
     "/api/talpha/order-ledger/market": { tabs: ["order-ledger"], market: "param" },
     "/api/talpha/cod-recon": { tabs: ["cod-recon"], market: "TW" },

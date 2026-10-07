@@ -1,5 +1,5 @@
 /**
- * Thứ dùng chung giữa Sổ đơn hàng · Đối soát COD · Theo dõi vận đơn.
+ * Thứ dùng chung giữa Sổ đơn hàng · Tiền COD về (Kế toán) · Theo dõi vận đơn.
  *
  * Ba tab nói về CÙNG một tập đơn, nên cách hiển thị cũng phải giống nhau:
  * cùng một đèn màu, cùng một cách tô trạng thái, cùng một định dạng tiền.
@@ -82,3 +82,34 @@ export type LedgerRowUI = {
     tick: { doi_soat: boolean; tru_van_chuyen: boolean; tru_tien_hang: boolean };
     light: Light; light_note: string;
 };
+
+/** Đơn đã giao mà NAZA chưa trả — `chua_ve_tien` của /api/talpha/order-ledger. */
+export type DonChoTien = {
+    order_no: string; tracking: string; cod_twd: number;
+    ky_da_qua: number; qua_han: boolean; contact_name: string; phone: string;
+    doi_key: string; da_doi: { viec: string; ngay: string; lan: number } | null; doi_chu: string;
+};
+
+/**
+ * Tin nhắn đòi tiền, soạn sẵn để chép vào Zalo/WeChat.
+ *
+ * Hai thứ tiếng vì chưa rõ người phụ trách bên NAZA nói tiếng nào: sao kê viết
+ * chữ Hán (原单号, COD金额) nhưng Sỹ Anh nhắn qua Zalo, mà Zalo thường là người
+ * Việt. Đoán một bên rồi soạn sai thứ tiếng thì tin nhắn thành vô dụng, nên để
+ * cả hai nút — bấm cái nào cũng một cú.
+ *
+ * Trong tin bắt buộc có ĐỦ mã đơn, mã vận đơn và số tiền: thiếu một trong ba
+ * là bên kia hỏi lại, mất thêm một vòng.
+ */
+export function tinDoiTien(list: DonChoTien[], lang: "vi" | "zh"): string {
+    const tong = Math.round(list.reduce((a, x) => a + x.cod_twd, 0)).toLocaleString("vi-VN");
+    const dong = list.map((p) =>
+        `${p.order_no} · ${p.tracking} · ${Math.round(p.cod_twd).toLocaleString("vi-VN")} NT$`).join("\n");
+    if (lang === "zh") {
+        return `您好，以下 ${list.length} 筆訂單已配送成功，但至今未出現在任何一期對帳單中，貨款尚未收到，` +
+            `合計 ${tong} NT$：\n\n${dong}\n\n麻煩協助查詢並儘快撥款，謝謝！`;
+    }
+    return `Chào bạn, ${list.length} đơn dưới đây đã giao thành công nhưng chưa thấy tiền ` +
+        `trên bất kỳ kỳ sao kê nào, tổng ${tong} NT$:\n\n${dong}\n\n` +
+        `Nhờ bạn kiểm tra và chuyển tiền giúp mình nhé. Cảm ơn bạn!`;
+}

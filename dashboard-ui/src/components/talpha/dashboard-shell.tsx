@@ -44,15 +44,13 @@ const NAV_GROUPS: NavGroup[] = [
             { id: "product-pnl", label: "P&L theo SP" },
         ],
     },
-    // Đơn hàng và Đối soát GỘP một mục.
+    // Sổ đơn hàng gánh mọi việc THEO TỪNG ĐƠN — kể cả đòi NAZA tiền đơn quá hạn.
     //
-    // Bản trước tách đôi vì nghĩ soát tiền là việc riêng theo kỳ. Chạy thật thì
-    // hoá ra người dùng phải nhảy qua nhảy lại: nhìn thấy một đơn quá hạn ở tab
-    // Đối soát rồi lại sang tab Đơn hàng tra tên khách và số điện thoại để đi
-    // đòi. Cùng một đơn, hai màn hình.
-    //
-    // Nay Sổ đơn hàng gánh cả hai: mỗi đơn một dòng, có cả thông tin khách lẫn
-    // tình trạng tiền. Hai tab cũ giữ nguyên cho việc tra cứu chuyên sâu.
+    // Bản đầu tách Đơn hàng / Đối soát, người dùng phải nhảy qua nhảy lại: thấy
+    // một đơn quá hạn ở tab Đối soát rồi lại sang tab Đơn hàng tra tên khách và
+    // số điện thoại để đi đòi. Cùng một đơn, hai màn hình. Vì thế khi tách mục
+    // Kế toán (07/10/2026) phần đòi tiền theo đơn Ở LẠI đây (khung "Đòi tiền
+    // NAZA" trong Sổ đơn), chỉ phần tiền theo KỲ sang Kế toán.
     // "Danh sách đơn" đã BỎ, gộp vào Sổ đơn hàng.
     //
     // Hai tab đó chỉ khác nhau ở nguồn: tab cũ đọc POS (200 đơn, mà chỉ 5 đơn
@@ -61,11 +59,26 @@ const NAV_GROUPS: NavGroup[] = [
     // Sale rỗng cho MỌI đơn vì sale_assignment chưa khai, còn Doanh thu VND
     // tính từ POS nên chỉ đúng cho 5 đơn — Sổ tính lại từ tiền 3PL trả thật.
     {
-        id: "don-hang", emoji: "🧾", label: "Đơn hàng & Đối soát",
+        id: "don-hang", emoji: "🧾", label: "Đơn hàng",
         tabs: [
             { id: "order-ledger", label: "Sổ đơn hàng" },
-            { id: "cod-recon", label: "Đối soát COD" },
             { id: "tracking", label: "Theo dõi vận đơn" },
+        ],
+    },
+    // KẾ TOÁN (Sỹ Anh chốt 07/10/2026): hai màn cùng trả lời "tiền thật có khớp không", cùng
+    // một cách làm — tải file sao kê, máy soát, gõ số ngân hàng vào — và cùng tính theo KỲ.
+    //   • Tiền COD về: tiền VÀO — sao kê NAZA từng kỳ, đối chiếu ngân hàng, tỷ giá. Leader
+    //     xem + tải sao kê + nhập tiền về cho nước mình; leader và giám đốc kiểm soát chung,
+    //     không có vai trò kế toán riêng. Sale (Thương) không vào mục này.
+    //   • Thanh toán quảng cáo: tiền RA — file thanh toán TKQC đối chiếu sao kê thẻ. Thẻ và
+    //     TKQC chạy chung cả công ty, không chia được theo team → chỉ giám đốc (CHI_GIAM_DOC).
+    // Không gọi là "Chi phí quảng cáo": trùng tên tab trong mục Quảng cáo (tiêu bao nhiêu,
+    // ROAS) — trùng tên là sớm muộn có người đem số đối soát đi tính ROAS.
+    {
+        id: "ke-toan", emoji: "💼", label: "Kế toán",
+        tabs: [
+            { id: "cod-recon", label: "Tiền COD về" },
+            { id: "ads-recon", label: "Thanh toán quảng cáo" },
         ],
     },
     { id: "san-pham", emoji: "📦", label: "Sản phẩm", tabs: [{ id: "products", label: "Sản phẩm & Kho" }] },
@@ -78,14 +91,6 @@ const NAV_GROUPS: NavGroup[] = [
             { id: "ad-health", label: "Sức khoẻ quảng cáo" },
         ],
     },
-    // Đối soát chi phí QC đứng RIÊNG một mục, không nhét vào "Quảng cáo".
-    //
-    // Hai thứ trông giống nhau nhưng trả lời hai câu khác hẳn: tab "Chi phí
-    // quảng cáo" trong nhóm Quảng cáo nói TIÊU BAO NHIÊU và hiệu quả ra sao
-    // (số từ Meta API); mục này nói TIỀN CÓ RA ĐÚNG SỐ KHÔNG (file thanh toán
-    // TKQC đối chiếu sao kê thẻ). Gộp chung là sớm muộn có người đem số đối
-    // soát đi tính ROAS, hoặc ngược lại.
-    { id: "doi-soat-ads", emoji: "💳", label: "Đối soát chi phí QC", tabs: [{ id: "ads-recon", label: "Đối soát chi phí QC" }] },
     {
         id: "khach-hang", emoji: "👥", label: "Khách hàng",
         tabs: [
@@ -100,7 +105,7 @@ const IGNORES_DATE_RANGE = new Set(["ads-command", "ad-health", "ads-recon"]);
 
 /**
  * Tab báo cáo số — không tính ngày trước mốc gốc `report_start_date` (talpha_rules.json,
- * Sỹ Anh chốt 25/09/2026: trước 15/09 dữ liệu chưa đủ). Tab vận hành (Sổ đơn, Đối soát COD,
+ * Sỹ Anh chốt 25/09/2026: trước 15/09 dữ liệu chưa đủ). Tab vận hành (Sổ đơn, Tiền COD về,
  * Vận đơn, Kho, Khách hàng) KHÔNG chặn: đơn tháng trước vẫn còn đang chờ thu tiền.
  */
 const FLOOR_TABS = new Set(["overview", "pnl", "product-pnl", "marketing", "ad-spend"]);

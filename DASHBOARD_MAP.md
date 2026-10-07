@@ -29,8 +29,8 @@ rồi chuyển về theo kỳ. Singapore: bảng giá 3PL khai ở `shipping_fee
 | Vai (`role`) | Người | Thấy gì |
 |:--|:--|:--|
 | Giám đốc (`director`) | Sỹ Anh | Cả ba team, mọi tab, Quản trị (người dùng, TKQC) |
-| Leader (`leader`) | Lộc · Thái | Mọi tab của team mình (báo cáo, P&L, đơn, vận đơn, quảng cáo, kho, khách) — chỉ nước của team |
-| Sale · vận đơn (`sale`) | Thương (cả ba team) | Sổ đơn, Đối soát COD, Theo dõi vận đơn, Kho, Khách hàng |
+| Leader (`leader`) | Lộc · Thái | Mọi tab của team mình (báo cáo, P&L, đơn, vận đơn, Kế toán → Tiền COD về, quảng cáo, kho, khách) — chỉ nước của team |
+| Sale · vận đơn (`sale`) | Thương (cả ba team) | Sổ đơn (kể cả đòi NAZA tiền đơn quá hạn), Theo dõi vận đơn, Kho, Khách hàng — **không** vào Kế toán |
 | Marketer (`marketer`) | — (khai khi cần) | Marketing, quảng cáo, kho của team |
 
 **Phân quyền chặn ở máy chủ, không chỉ ẩn nút.** Luật ở `talpha_rules.json → access` (team →
@@ -82,7 +82,7 @@ nước. Kế hoạch mở rộng: trang "TALPHA ba thị trường".
             sao kê NAZA theo kỳ      tab Theo dõi vận đơn    sync giờ → BigQuery
                      │                                             │
                      ▼                                             ▼
-            tab Đối soát COD  ◄──── khớp mã vận đơn ────►  6 tab đọc BigQuery
+            tab Tiền COD về   ◄──── khớp mã vận đơn ────►  6 tab đọc BigQuery
 ```
 
 Ba câu hỏi tiền, ba màn hình khác nhau — **đừng trộn**:
@@ -92,7 +92,7 @@ Ba câu hỏi tiền, ba màn hình khác nhau — **đừng trộn**:
 | Bán được bao nhiêu? | Tổng quan | File Sheet **TỔNG TEAM** — doanh số đơn đã chốt + DS giao TC |
 | Lãi gộp tạm tính? | P&L | Sheet TỔNG TEAM + giá vốn (mã SP trên đơn POS × bảng Giá tới Taiwan) + phí ship ước tính (trung bình sao kê NAZA) |
 | Đang tiêu bao nhiêu, ngay lúc này? | Ads Command Center | Meta + POS **gọi thẳng**, đơn **ĐÃ ĐẶT** |
-| Tiền có về đủ không? | Đối soát COD · Đối soát chi phí QC | File sao kê người dùng tải lên |
+| Tiền có về đủ không? | Kế toán: Tiền COD về · Thanh toán quảng cáo | File sao kê người dùng tải lên |
 
 > **Hai định nghĩa doanh thu.** Tab BigQuery đếm đơn đã giao xong; Ads Command Center
 > đếm đơn vừa đặt. ROAS hai nơi **không so trực tiếp được**. Đây là thiết kế, không
@@ -136,8 +136,8 @@ Ba màn hình **không đụng BigQuery lẫn POS**, chạy được cả khi ha
 
 | Màn hình | File đầu vào | Kho lưu |
 |:--|:--|:--|
-| Đối soát COD | Sao kê NAZA (xlsx) + Google Sheet tiền hàng (chỉ đọc) | `data/cod_statements.json` |
-| Đối soát chi phí QC | Chi phí TKQC + sao kê thẻ | `data/ads_recon.json`, `data/ads_recon_kho.json` |
+| Tiền COD về | Sao kê NAZA (xlsx) + Google Sheet tiền hàng (chỉ đọc) | `data/cod_statements.json` |
+| Thanh toán quảng cáo | Chi phí TKQC + sao kê thẻ | `data/ads_recon.json`, `data/ads_recon_kho.json` |
 | Theo dõi vận đơn · Sổ đơn hàng | Bảng đơn của đối tác (Google Sheet) — **tự nạp 6h sáng**, hoặc bấm “Đọc bảng đối tác” | `data/tracking.json` |
 
 `data/` nằm **ngoài git** (có số tiền thật). `ops/deploy/from-mac.sh` chép nó lên
@@ -155,15 +155,15 @@ chỉ hiện tab tài khoản được xem — `/api/talpha/me`).
 | 📋 Báo cáo | Tổng quan | `tabs/ceo-overview-tab.tsx` | `/api/talpha/sheet-report?from&to` (đọc thẳng file TỔNG TEAM) + `targets` |
 | | P&L | `tabs/pnl-tab.tsx` | `sheet-report?from&to` + `pnl-costs` |
 | | P&L theo SP | `tabs/product-pnl-tab.tsx` | `/api/talpha/product-pnl` (đơn đã chốt × giá vốn × ads theo mã SP trong tên camp) |
-| 🧾 Đơn hàng & Đối soát | Sổ đơn hàng | `tabs/order-ledger-tab.tsx` · `tabs/order-ledger-market.tsx` | `/api/talpha/order-ledger` (Đài) · `order-ledger/market` (Singapore, UAE) |
-| | Đối soát COD | `tabs/cod-recon-tab.tsx` | `/api/talpha/order-ledger` + `cod-recon` (Đài) · `cod-recon/market` (Singapore, UAE) |
+| 🧾 Đơn hàng | Sổ đơn hàng (+ khung Đòi tiền NAZA) | `tabs/order-ledger-tab.tsx` · `tabs/order-ledger-market.tsx` | `/api/talpha/order-ledger` + `cod-actions` (Đài) · `order-ledger/market` (Singapore, UAE) |
 | | Theo dõi vận đơn | `tabs/tracking-tab.tsx` | `/api/talpha/tracking` |
+| 💼 Kế toán | Tiền COD về | `tabs/cod-recon-tab.tsx` | `/api/talpha/order-ledger` + `cod-recon` + `cod-actions` (Đài) · `cod-recon/market` (Singapore, UAE) |
+| | Thanh toán quảng cáo (chỉ giám đốc) | `tabs/ads-recon-tab.tsx` | `/api/talpha/ads-recon` |
 | 📦 Sản phẩm | Sản phẩm & Kho | `tabs/products-tab.tsx` | `/api/talpha/inventory` |
 | 👤 Marketer | Marketing & Ads | `tabs/marketing-tab.tsx` | `/api/query` (số Meta) + `sheet-report?from&to` (từng người, KPI) |
 | 🎯 Quảng cáo | Chi phí quảng cáo | `tabs/ad-spend-tab.tsx` | `/api/talpha/ad-spend` |
 | | Ads Command Center | `app/talpha/ads-command-center/page.tsx` | `/api/talpha/realtime` |
 | | Sức khoẻ quảng cáo | `tabs/ad-health-tab.tsx` | `/api/query` |
-| 💳 Đối soát chi phí QC | Đối soát chi phí QC | `tabs/ads-recon-tab.tsx` | `/api/talpha/ads-recon` |
 | 👥 Khách hàng | Khách hàng · Market Intel | `tabs/customer-tab.tsx` · `market-intel-tab.tsx` | `/api/query` |
 
 Ngoài shell còn `/login` và `/admin` (người dùng + TKQC).
@@ -171,7 +171,7 @@ Ngoài shell còn `/login` và `/admin` (người dùng + TKQC).
 **Mốc gốc 15/09/2026** (`talpha_rules.json → report_start_date`, Sỹ Anh chốt 25/09/2026):
 tab Tổng quan · P&L · P&L theo SP · Marketing · Chi phí quảng cáo không tính ngày trước mốc
 (`FLOOR_TABS` trong shell) — bộ chọn ngày mặc định từ mốc, chọn sớm hơn thì tự kéo về. Tab
-vận hành (Sổ đơn, Đối soát COD, Vận đơn, Kho, Khách hàng) không chặn: đơn cũ còn chờ thu tiền.
+vận hành (Sổ đơn, Tiền COD về, Vận đơn, Kho, Khách hàng) không chặn: đơn cũ còn chờ thu tiền.
 
 **Tổng quan đọc thẳng Sheet, không tự tính.** Trước 25/09/2026 tab tính lại từ BigQuery theo
 luật riêng (doanh thu chỉ đơn đã giao, tên marketer là tên tài khoản POS, không mốc ngày) nên
@@ -179,12 +179,22 @@ lệch Sheet cả trăm triệu. Muốn đổi cách tính thì sửa `format_al
 tab đổi theo cùng lúc.
 
 Ba tab **bỏ qua bộ chọn ngày** (`IGNORES_DATE_RANGE`): Ads Command Center và Sức khoẻ
-quảng cáo có cửa sổ thời gian cố định trong view; Đối soát chi phí QC lấy kỳ từ chính
+quảng cáo có cửa sổ thời gian cố định trong view; Thanh toán quảng cáo lấy kỳ từ chính
 file sao kê.
 
-**Đối soát chi phí QC đứng riêng một nhóm, không nhét vào "Quảng cáo"** — tab "Chi phí
-quảng cáo" trả lời *tiêu bao nhiêu và hiệu quả ra sao*; mục này trả lời *tiền có ra
-đúng số không*. Gộp chung là sớm muộn có người đem số đối soát đi tính ROAS.
+**Mục Kế toán (Sỹ Anh chốt 07/10/2026)** = Tiền COD về (tên cũ "Đối soát COD") + Thanh toán
+quảng cáo (tên cũ "Đối soát chi phí QC"). Hai màn cùng trả lời *tiền thật có khớp không*, cùng
+cách làm (tải sao kê → máy soát → gõ số ngân hàng), cùng tính theo kỳ.
+
+* Tiền COD về: leader nước đó + giám đốc kiểm soát chung — leader xem, tải sao kê NAZA, nhập
+  tiền về. Không có vai trò kế toán riêng. Sale không vào; ghi tiền về / hỏi / bỏ qua khoản
+  lệch bị chặn ở `cod-actions` (`ghiCodDuoc` trong `access-rules.ts`).
+* Đòi NAZA tiền đơn quá hạn **ở lại Sổ đơn hàng** (khung "Đòi tiền NAZA"): việc theo từng đơn,
+  cần tên khách + số điện thoại ngay cạnh, và sale cũng phải làm được. Lần đầu tách Đơn hàng /
+  Đối soát đã phải gộp lại vì người dùng nhảy qua nhảy lại giữa hai màn cho cùng một đơn.
+* Thanh toán quảng cáo vẫn chỉ giám đốc: thẻ và TKQC chạy chung cả công ty, không chia theo team.
+  Không đặt tên "Chi phí quảng cáo" — trùng tab trong mục Quảng cáo (*tiêu bao nhiêu, ROAS*),
+  trùng tên là sớm muộn có người đem số đối soát đi tính ROAS.
 
 ---
 
@@ -205,9 +215,9 @@ Meta theo nước ở tên campaign); bảng gộp mọi nước (`vw_attributio
 | `realtime` | Meta + POS live, dựng số Ads Command Center | Giao diện, bot WA |
 | `inventory` | Tồn kho POS live; POS chết → snapshot BQ | Giao diện, bot WA |
 | `order-ledger` | Sổ đơn Đài: mỗi đơn một dòng, khách + tiền + vòng đời (bảng NAZA + sao kê) | Giao diện |
-| `order-ledger/market?market=SG\|AE` | Sổ đơn Singapore, UAE (29/09/2026): đơn + khách + hàng + trạng thái giao + đèn việc phải làm; cùng nguồn `loadMarketShipments` với Theo dõi vận đơn và Đối soát COD. Hàng: Sing ở cột SKU bảng đối tác, UAE ở `order_items`. Chưa có sao kê nên chưa có cột tiền về | Giao diện (nút Đài Loan / Singapore / UAE) |
+| `order-ledger/market?market=SG\|AE` | Sổ đơn Singapore, UAE (29/09/2026): đơn + khách + hàng + trạng thái giao + đèn việc phải làm; cùng nguồn `loadMarketShipments` với Theo dõi vận đơn và Tiền COD về. Hàng: Sing ở cột SKU bảng đối tác, UAE ở `order_items`. Chưa có sao kê nên chưa có cột tiền về | Giao diện (nút Đài Loan / Singapore / UAE) |
 | `cod-recon` | Khớp sao kê 3PL với đơn đã giao | Giao diện |
-| `cod-recon/market?market=SG\|AE` | Đối soát COD nước ngoài Đài, bước 1 (26/09/2026): tiền còn ở đâu — đã giao / chưa giao / hoàn-huỷ. SG đọc bảng đối tác + 17TRACK, UAE (từ 28/09/2026) đọc đơn POS + trạng thái tra ở WeShip — cả hai chung `lib/talpha/tracking-market.ts` với Theo dõi vận đơn. Chưa có sao kê → chưa khớp từng kỳ | Giao diện (nút Đài Loan / Singapore / UAE) |
+| `cod-recon/market?market=SG\|AE` | Tiền COD về nước ngoài Đài, bước 1 (26/09/2026): tiền còn ở đâu — đã giao / chưa giao / hoàn-huỷ. SG đọc bảng đối tác + 17TRACK, UAE (từ 28/09/2026) đọc đơn POS + trạng thái tra ở WeShip — cả hai chung `lib/talpha/tracking-market.ts` với Theo dõi vận đơn. Chưa có sao kê → chưa khớp từng kỳ | Giao diện (nút Đài Loan / Singapore / UAE) |
 | `tracking` · `tracking/import` | 17TRACK + nạp bảng đơn đối tác. `?market=SG`: Singapore sổ riêng (`data/tracking_sg.json`), đơn đọc từ BigQuery `partner_orders`. `?market=AE` (28/09/2026): UAE không có bảng đối tác, 17TRACK không có hãng — đơn đọc từ POS (mã AWB ở `sale_order.partner → extend_code`), POST tra thẳng trang WeShip `portal.weshipme.com/tracking` (`lib/talpha/weship.ts`, miễn phí, không quota), sổ `data/tracking_ae.json` | Giao diện (nút Đài Loan / Singapore / UAE, nút “Tra WeShip”) · `talpha-tracking.timer` 6h + 21:30 (nạp bảng Đài + đồng bộ từng nước) · bot Zalo 08:30 + 22:00 (mỗi nước một tin, nhóm riêng) |
 | `ads-recon` | Đối soát chi phí TKQC với sao kê thẻ | Giao diện |
 | `cod-actions` | Đánh dấu đã đòi / đã nhận tiền | Giao diện |

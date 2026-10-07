@@ -712,7 +712,7 @@ export async function GET(req: NextRequest) {
             notes.push({
                 id: "khong-sao-ke", level: "canh_bao",
                 title: "Chưa tải bản sao kê nào",
-                detail: "Chưa biết đơn nào đã về tiền. Vào tab Đối soát COD tải file NAZA lên.",
+                detail: "Chưa biết đơn nào đã về tiền. Leader vào Kế toán → Tiền COD về tải file NAZA lên.",
             });
         }
 
@@ -864,7 +864,7 @@ export async function GET(req: NextRequest) {
                 luc: track.partner_import?.imported_at ?? null,
                 nguon: track.partner_import?.filename ?? null,
                 so_don: Object.keys(partner).length,
-                // Hiện ở cả màn Đối soát COD — màn đó không có danh sách cảnh báo.
+                // Hiện ở cả màn Tiền COD về (Kế toán) — màn đó không có danh sách cảnh báo.
                 ma_trung: dups.length,
             },
             rows,

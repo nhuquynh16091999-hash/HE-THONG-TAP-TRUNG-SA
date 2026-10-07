@@ -78,8 +78,31 @@ t("leader thấy Chi phí quảng cáo + Ads Command Center (route đã tự l�
     assert.ok(A.checkApi(thai, "/api/talpha/ad-spend", q("from=2026-10-01&to=2026-10-05")).ok);
     assert.ok(A.checkApi(thai, "/api/talpha/realtime", q("")).ok);
 });
-t("Thương chỉ thấy đơn, đối soát COD, vận đơn, kho, khách — không báo cáo, không quảng cáo", () => {
-    assert.deepStrictEqual([...thuong.tabs].sort(), ["cod-recon", "customers", "order-ledger", "products", "tracking"]);
+t("Thương chỉ thấy đơn, vận đơn, kho, khách — không báo cáo, không quảng cáo, không Kế toán", () => {
+    assert.deepStrictEqual([...thuong.tabs].sort(), ["customers", "order-ledger", "products", "tracking"]);
+});
+// Mục Kế toán (Sỹ Anh chốt 07/10/2026): Tiền COD về do leader nước đó + giám đốc kiểm soát chung.
+t("Kế toán: leader thấy Tiền COD về của nước mình, không thấy Thanh toán quảng cáo", () => {
+    assert.ok(A.canTab(loc, "cod-recon") && A.canTab(thai, "cod-recon"));
+    assert.ok(!A.canTab(loc, "ads-recon") && !A.canTab(thai, "ads-recon"));
+    assert.ok(!A.canTab(thuong, "cod-recon"));
+});
+t("Kế toán: chỉ leader + giám đốc tải sao kê; Thương không gọi được route sao kê", () => {
+    assert.ok(!A.checkApi(thuong, "/api/talpha/cod-recon", q("")).ok);
+    assert.ok(!A.checkApi(thuong, "/api/talpha/cod-recon/market", q("market=sg")).ok);
+    assert.ok(A.checkApi(thuong, "/api/talpha/order-ledger", q("")).ok);       // Sổ đơn Đài vẫn mở
+});
+t("cod-actions: Thương ghi được 'đã nhắn NAZA', không ghi được tiền về / hỏi / bỏ qua / huỷ", () => {
+    assert.ok(A.checkApi(thuong, "/api/talpha/cod-actions", q("")).ok);       // cửa mở cho Sổ đơn
+    assert.ok(A.ghiCodDuoc(thuong, "done", "da_doi"));
+    for (const [k, v] of [["bank"], ["done", "da_hoi"], ["done", "bo_qua"], ["xoa"]]) {
+        assert.ok(!A.ghiCodDuoc(thuong, k, v), `${k}/${v}`);
+        assert.ok(A.ghiCodDuoc(sanh, k, v), `${k}/${v}`);
+    }
+    const leaderDai = A.accessForUser({ id: "5", name: "Leader Đài", role: "leader", teams: ["dong_a"] });
+    assert.ok(A.ghiCodDuoc(leaderDai, "bank") && A.ghiCodDuoc(leaderDai, "done", "bo_qua"));
+    assert.ok(A.checkApi(leaderDai, "/api/talpha/cod-recon", q("")).ok);
+    assert.ok(!A.checkApi(loc, "/api/talpha/cod-actions", q("")).ok);          // Lộc vẫn không đụng sổ Đài
 });
 
 console.log("── API ──");

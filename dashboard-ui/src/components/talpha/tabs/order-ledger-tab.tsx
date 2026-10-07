@@ -2,9 +2,13 @@
 
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { format } from "date-fns";
+import { Check, ChevronDown, Copy, HandCoins } from "lucide-react";
 import TabSkeleton, { ErrorState } from "@/components/ui/tab-skeleton";
 import { formatNumber, cn } from "../utils";
-import { TWD, VND, RMB, d6, STRIPE, PIN_TINT, rowCls, statusCls, mkCls, type Light, type LedgerRowUI } from "./ledger-shared";
+import {
+    TWD, VND, RMB, d6, STRIPE, PIN_TINT, rowCls, statusCls, mkCls, tinDoiTien,
+    type Light, type LedgerRowUI, type DonChoTien,
+} from "./ledger-shared";
 import ThanhNhapBangDon, { bangDaCu, nhanNapGon, type NhapBangDon } from "@/components/talpha/nhap-bang-don";
 import SoDonNuoc from "./order-ledger-market";
 import { DanhSachThe, KhoiViecCanSua, OLocDon, TheDon, ThanhCongCu, useManHep, type ViecSua } from "./so-don-ui";
@@ -84,6 +88,8 @@ function SoDonDai({ dateRange, nutNuoc }: Props & { nutNuoc?: ReactNode }) {
     const [rows, setRows] = useState<LedgerRowUI[]>([]);
     const [notes, setNotes] = useState<Note[]>([]);
     const [nhapBangDon, setNhapBangDon] = useState<NhapBangDon | null>(null);
+    const [choTien, setChoTien] = useState<DonChoTien[]>([]);
+    const [viecDoi, setViecDoi] = useState<{ chi_tiet: string } | null>(null);
     const [filter, setFilter] = useState<Light | "all">("all");
     const hep = useManHep();
     const [q, setQ] = useState("");
@@ -99,6 +105,8 @@ function SoDonDai({ dateRange, nutNuoc }: Props & { nutNuoc?: ReactNode }) {
             setRows(d.rows || []);
             setNotes(d.warnings || []);
             setNhapBangDon(d.nhap_bang_don || null);
+            setChoTien(d.chua_ve_tien || []);
+            setViecDoi((d.viec || []).find((v: { id: string }) => v.id === "doi-naza") || null);
         } catch (e) {
             setError(e instanceof Error ? e.message : "Lỗi không rõ");
         } finally { setLoading(false); }
@@ -146,7 +154,8 @@ function SoDonDai({ dateRange, nutNuoc }: Props & { nutNuoc?: ReactNode }) {
                 nutNuoc={nutNuoc}
                 nguon={cu ? null : nhanNapGon(nhapBangDon)}
                 nguonGiaiThich={"Sổ đơn = mọi đơn, mọi cột của bảng đơn đối tác ghép với sao kê NAZA. Máy tự nạp lúc 6h sáng; "
-                    + "cần ngay thì bấm “Đọc bảng đối tác” ở tab Theo dõi vận đơn. Việc đòi tiền nằm ở tab Đối soát COD."}
+                    + "cần ngay thì bấm “Đọc bảng đối tác” ở tab Theo dõi vận đơn. Đơn quá hạn thì đòi ở khung “Đòi tiền NAZA”; "
+                    + "tiền về từng kỳ sao kê xem ở Kế toán → Tiền COD về."}
                 q={q} setQ={setQ} placeholder="Tìm mã đơn, vận đơn, tên, SĐT, SKU…"
                 onTaiLai={load} dangTai={loading} onCsv={exportCsv}
             />
@@ -162,6 +171,8 @@ function SoDonDai({ dateRange, nutNuoc }: Props & { nutNuoc?: ReactNode }) {
                 ]}
                 tong={rows.length} chon={filter} onChon={setFilter}
             />
+
+            <KhoiDoiNaza ds={choTien.filter((p) => p.qua_han)} canNhan={!!viecDoi} chiTiet={viecDoi?.chi_tiet || ""} onXong={load} />
 
             <KhoiViecCanSua viec={notes} hep={hep} />
 
@@ -307,6 +318,118 @@ function SoDonDai({ dateRange, nutNuoc }: Props & { nutNuoc?: ReactNode }) {
 }
 
 /** Thẻ một đơn Đài cho điện thoại — cùng dữ liệu với một dòng bảng, xếp dọc. */
+/**
+ * ĐÒI TIỀN NAZA — đơn đã giao, qua từ 2 kỳ sao kê mà chưa được trả đồng nào.
+ *
+ * Chuyển từ tab Đối soát COD cũ sang đây khi tách mục Kế toán (Sỹ Anh chốt 07/10/2026): đây là
+ * việc THEO ĐƠN — tên khách, số điện thoại phải nằm ngay cạnh (bài học lần tách Đơn hàng /
+ * Đối soát đầu tiên), và sale không vào Kế toán vẫn phải đòi được. Máy nhớ đã nhắn ngày nào,
+ * mấy lần (/api/talpha/cod-actions, việc "da_doi"); sang kỳ sau tiền vẫn chưa về thì việc tự nổi
+ * lại (`canNhan` = máy còn xếp "Nhắn NAZA đòi tiền" vào việc hôm nay).
+ */
+function KhoiDoiNaza({ ds, canNhan, chiTiet, onXong }: {
+    ds: DonChoTien[]; canNhan: boolean; chiTiet: string; onXong: () => Promise<void> | void;
+}) {
+    const [mo, setMo] = useState(false);
+    const [daChep, setDaChep] = useState("");
+    const [ban, setBan] = useState(false);
+    const [loi, setLoi] = useState("");
+    if (!ds.length) return null;
+
+    const tong = ds.reduce((a, x) => a + x.cod_twd, 0);
+    const chep = (lang: "vi" | "zh") => {
+        navigator.clipboard?.writeText(tinDoiTien(ds, lang));
+        setDaChep(lang); setTimeout(() => setDaChep(""), 2200);
+    };
+    /** Đòi thì đòi cả danh sách trong một tin — đóng cả mẻ, không đóng lẻ từng đơn. */
+    const daNhan = async () => {
+        setBan(true); setLoi("");
+        try {
+            for (const p of ds) {
+                const r = await fetch("/api/talpha/cod-actions", {
+                    method: "POST", headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ kind: "done", key: p.doi_key, viec: "da_doi" }),
+                });
+                if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || "Không ghi được");
+            }
+            await onXong();
+        } catch (e) {
+            setLoi(e instanceof Error ? e.message : "Không ghi được");
+        } finally { setBan(false); }
+    };
+    const nut = "inline-flex items-center gap-1 rounded-lg border px-2.5 py-1 text-[12.5px] font-medium transition-colors disabled:opacity-60";
+
+    return (
+        <div className={cn("overflow-hidden rounded-xl border bg-card",
+            canNhan ? "border-rose-300 dark:border-rose-500/40" : "border-border")}>
+            <div className={cn("flex flex-wrap items-center gap-x-3 gap-y-2 px-3 py-2.5 md:px-4",
+                canNhan ? "bg-rose-50 dark:bg-rose-500/10" : "bg-muted/30")}>
+                <button onClick={() => setMo(!mo)} aria-expanded={mo}
+                    className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1 text-left">
+                    <HandCoins className={cn("h-4 w-4 flex-none", canNhan ? "text-rose-600 dark:text-rose-400" : "text-muted-foreground")} />
+                    <span className={cn("text-sm font-semibold", canNhan ? "text-rose-900 dark:text-rose-200" : "text-foreground")}>
+                        Đòi tiền NAZA
+                    </span>
+                    <span className={cn("rounded-full px-2 py-0.5 text-[11.5px] font-bold tabular-nums",
+                        canNhan ? "bg-rose-600 text-white" : "bg-muted text-foreground/75")}>
+                        {ds.length} đơn quá hạn · {TWD(tong)}
+                    </span>
+                    {!canNhan && <span className="text-[12px] text-muted-foreground">đã nhắn — chờ kỳ sao kê sau</span>}
+                    <ChevronDown className={cn("h-4 w-4 flex-none opacity-60 transition-transform", mo && "rotate-180")} />
+                </button>
+                <div className="flex flex-wrap items-center gap-1.5">
+                    <button onClick={() => chep("vi")}
+                        className={cn(nut, "border-transparent bg-orange-500 text-white hover:bg-orange-600")}>
+                        <Copy className="h-3.5 w-3.5" />{daChep === "vi" ? "Đã chép" : "Chép tin (Việt)"}
+                    </button>
+                    <button onClick={() => chep("zh")} className={cn(nut, "border-border bg-card text-foreground hover:bg-muted")}>
+                        {daChep === "zh" ? "Đã chép" : "中文"}
+                    </button>
+                    {canNhan && (
+                        <button onClick={daNhan} disabled={ban}
+                            className={cn(nut, "border-emerald-300 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 dark:border-emerald-500/40 dark:bg-emerald-500/10 dark:text-emerald-300")}>
+                            <Check className="h-3.5 w-3.5" />{ban ? "Đang ghi…" : "Đã nhắn"}
+                        </button>
+                    )}
+                </div>
+            </div>
+            {loi && <p className="border-t border-rose-200 px-4 py-2 text-[12.5px] font-medium text-rose-700 dark:border-rose-500/30 dark:text-rose-300">{loi}</p>}
+            {mo && (
+                <>
+                    <p className="border-t border-border/70 px-3.5 py-2 text-[12.5px] leading-relaxed text-muted-foreground md:px-4">
+                        {chiTiet || "Đã giao thành công, đã qua từ 2 kỳ sao kê mà vẫn chưa được trả đồng nào."}{" "}
+                        Chép tin gửi NAZA, gửi xong bấm “Đã nhắn” — máy nhớ ngày; sang kỳ sau tiền vẫn chưa về thì tự nhắc lại.
+                    </p>
+                    <ul className="divide-y divide-border/60 border-t border-border/70">
+                        {ds.map((p) => (
+                            <li key={p.tracking || p.order_no} className="px-3.5 py-2 md:px-4">
+                                <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-[13px]">
+                                    <b className="text-foreground">{p.order_no}</b>
+                                    <span className="rounded-full bg-rose-100 px-2 py-0.5 text-[11px] font-bold text-rose-700 dark:bg-rose-500/15 dark:text-rose-300">
+                                        {p.ky_da_qua} kỳ
+                                    </span>
+                                    <span className="text-[12px] text-muted-foreground">
+                                        {p.contact_name || "—"}
+                                        {p.phone ? <> · <a href={`tel:${p.phone}`} className="font-mono text-violet-700 dark:text-violet-300">{p.phone}</a></> : null}
+                                        {p.tracking ? <> · <span className="font-mono">{p.tracking}</span></> : null}
+                                    </span>
+                                    <span className="ml-auto font-bold tabular-nums text-foreground">{TWD(p.cod_twd)}</span>
+                                </div>
+                                <span className={cn("mt-1 inline-block rounded-full px-2 py-0.5 text-[11.5px] font-medium",
+                                    !p.da_doi ? "bg-muted text-muted-foreground"
+                                        : p.doi_chu.includes("vẫn im") ? "bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300"
+                                            : "bg-emerald-100 text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-300")}>
+                                    {p.doi_chu}
+                                </span>
+                            </li>
+                        ))}
+                    </ul>
+                </>
+            )}
+        </div>
+    );
+}
+
 function TheDonDai({ r }: { r: LedgerRowUI }) {
     // "Kỳ chờ" chỉ có nghĩa với đơn ĐÃ GIAO mà TIỀN CHƯA VỀ — cùng luật với cột trong bảng.
     const cho = r.paid_twd === null && /thành công/i.test(r.status_raw || "");

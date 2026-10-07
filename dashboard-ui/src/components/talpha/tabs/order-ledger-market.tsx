@@ -115,7 +115,7 @@ export default function SoDonNuoc({ code, nutNuoc }: { code: string; nutNuoc?: R
                 nutNuoc={nutNuoc}
                 nguon={`Đơn ${m.display}: ${d.nguon.nhan}${capNhat ? ` · ${d.nguon.loai === "tra" ? "tra" : "nạp"} lúc ${capNhat}` : ""}`}
                 nguonGiaiThich={"Cùng nguồn với tab Theo dõi vận đơn. Chưa có sao kê của bên giao hàng nên sổ chưa có cột tiền về; "
-                    + "xem tiền còn ở đâu ở tab Đối soát COD."}
+                    + "xem tiền còn ở đâu ở Kế toán → Tiền COD về."}
                 q={q} setQ={setQ} placeholder="Tìm mã đơn, vận đơn, tên, SĐT, hàng…"
                 onTaiLai={load} dangTai={loading} onCsv={exportCsv}
             />
