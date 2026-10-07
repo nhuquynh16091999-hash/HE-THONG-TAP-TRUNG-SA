@@ -35,7 +35,23 @@ function tuoiChu(gio: number) {
     return `${Math.floor(gio / 24)} ngày trước`;
 }
 
-export default function ThanhNhapBangDon({ n, gioCanhBao = 24 }: { n?: NhapBangDon | null; gioCanhBao?: number }) {
+/** Bảng đã cũ (chưa nạp lần nào, hoặc quá `gioCanhBao` giờ) — lúc đó PHẢI hiện khung đỏ to. */
+export function bangDaCu(n?: NhapBangDon | null, gioCanhBao = 24): boolean {
+    if (!n) return false;
+    return !n.luc || (Date.now() - Date.parse(n.luc)) / GIO > gioCanhBao;
+}
+
+/** Một dòng gọn cho thanh công cụ Sổ đơn khi bảng còn mới (07/10/2026): "Bảng đối tác nạp 06:00
+ *  ngày 07/10 (2 giờ trước) · 778 đơn". */
+export function nhanNapGon(n?: NhapBangDon | null): string | null {
+    if (!n?.luc) return null;
+    const gio = (Date.now() - Date.parse(n.luc)) / GIO;
+    return `Bảng đối tác nạp ${gioVN(n.luc)} (${tuoiChu(gio)})`
+        + (typeof n.so_don === "number" && n.so_don > 0 ? ` · ${n.so_don.toLocaleString("vi-VN")} đơn` : "");
+}
+
+/** `anMaTrung`: không nhắc mã vận đơn trùng ở đây — Sổ đơn đã có khung "việc cần sửa" nói rồi. */
+export default function ThanhNhapBangDon({ n, gioCanhBao = 24, anMaTrung }: { n?: NhapBangDon | null; gioCanhBao?: number; anMaTrung?: boolean }) {
     if (!n) return null;
     const gio = n.luc ? (Date.now() - Date.parse(n.luc)) / GIO : Infinity;
     const cu = !n.luc || gio > gioCanhBao;
@@ -62,7 +78,7 @@ export default function ThanhNhapBangDon({ n, gioCanhBao = 24 }: { n?: NhapBangD
             </span>
             {/* Lỗi nằm trong chính Sheet — chỉ người giữ Sheet sửa được, nên phải nói ở
                 mọi màn đọc từ Sheet, kể cả màn Đối soát COD vốn không có danh sách cảnh báo. */}
-            {!!n.ma_trung && (
+            {!!n.ma_trung && !anMaTrung && (
                 <span className="flex basis-full items-start gap-1.5 font-medium text-amber-700 dark:text-amber-300">
                     <AlertTriangle className="mt-0.5 h-3.5 w-3.5 flex-none" />
                     {n.ma_trung} mã vận đơn bị nhiều dòng trong Sheet dùng chung — danh sách cần sửa ở tab Sổ đơn hàng.

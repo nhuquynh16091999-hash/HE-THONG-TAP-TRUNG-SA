@@ -752,7 +752,7 @@ export async function GET(req: NextRequest) {
                 detail: `Thiếu giá nhập của ${items.length} mã dưới đây. Chừng nào chưa khai, cột “Còn lại” của những đơn đó là số TRƯỚC giá vốn — cao hơn thật.`,
                 cols: ["Mã", "Tên hàng", "Số đơn", "Số lượng", "Ví dụ đơn"],
                 items,
-                fix: "Cho tau giá nhập MỘT CÁI bằng tệ của từng mã là tau khai vào ngay.",
+                fix: "Gửi giá nhập MỘT CÁI (bằng tệ) của từng mã để khai vào bảng giá — khai xong cột “Còn lại” tự đúng.",
             });
         }
 
@@ -782,7 +782,7 @@ export async function GET(req: NextRequest) {
                     `${Math.round(e.amount_twd).toLocaleString("vi-VN")} NT$`,
                     (e.period || "").replace(/ĐỐI SOÁT COD|TAIWAN|\.xlsx/gi, "").trim(),
                 ]),
-                fix: "Tra hai mã vận đơn này trong Google Sheet xem đơn nào của mình.",
+                fix: "Tra các mã vận đơn này trong Google Sheet đơn hàng xem là đơn nào của mình.",
             });
         }
 

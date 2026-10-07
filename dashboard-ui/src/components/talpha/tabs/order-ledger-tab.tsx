@@ -1,31 +1,20 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { format } from "date-fns";
-import { AlertTriangle, Download, Search, RefreshCw, ChevronDown } from "lucide-react";
 import TabSkeleton, { ErrorState } from "@/components/ui/tab-skeleton";
 import { formatNumber, cn } from "../utils";
 import { TWD, VND, RMB, d6, STRIPE, PIN_TINT, rowCls, statusCls, mkCls, type Light, type LedgerRowUI } from "./ledger-shared";
-import ThanhNhapBangDon, { type NhapBangDon } from "@/components/talpha/nhap-bang-don";
+import ThanhNhapBangDon, { bangDaCu, nhanNapGon, type NhapBangDon } from "@/components/talpha/nhap-bang-don";
 import SoDonNuoc from "./order-ledger-market";
+import { DanhSachThe, KhoiViecCanSua, OLocDon, TheDon, ThanhCongCu, useManHep, type ViecSua } from "./so-don-ui";
 
 interface Props { dateRange?: { from: Date; to: Date }; projectId?: string }
 
 /** Cảnh báo mang theo BẢNG chi tiết — nói "thiếu 6 mã" rồi bảo đi mở file JSON
- *  thì người đọc vẫn phải tự tra mã nào là hàng gì, dính bao nhiêu đơn. */
-type Note = {
-    id: string; level: "canh_bao" | "nhac";
-    title: string; detail: string;
-    cols?: string[]; items?: (string | number)[][]; fix?: string;
-};
-
-const LIGHTS: { id: Light | "all"; label: string; on: string }[] = [
-    { id: "all", label: "Tất cả", on: "border-slate-400 bg-slate-100 text-slate-800 dark:bg-slate-500/15 dark:text-slate-200" },
-    { id: "do", label: "Phải xử", on: "border-rose-400 bg-rose-100 text-rose-800 dark:bg-rose-500/15 dark:text-rose-300" },
-    { id: "vang", label: "Đang chờ", on: "border-amber-400 bg-amber-100 text-amber-900 dark:bg-amber-500/15 dark:text-amber-300" },
-    { id: "xanh", label: "Xong sạch", on: "border-emerald-400 bg-emerald-100 text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-300" },
-    { id: "xam", label: "Không đòi", on: "border-slate-400 bg-slate-100 text-slate-700 dark:bg-slate-500/15 dark:text-slate-300" },
-];
+ *  thì người đọc vẫn phải tự tra mã nào là hàng gì, dính bao nhiêu đơn. Hiện trong khung
+ *  "việc cần sửa dữ liệu" (so-don-ui.tsx), mặc định gập. */
+type Note = ViecSua;
 
 /* Màu chữ theo LOẠI dữ liệu, không tô cho vui: mã định danh một tông, ngày một
    tông, tiền một tông — mắt phân vùng được ngay mà không phải đọc tiêu đề. */
@@ -72,32 +61,31 @@ export default function TALPHAOrderLedgerTab(props: Props) {
             .catch(() => setDs([]));   // không lấy được danh sách nước thì vẫn hiện sổ Đài như cũ
     }, []);
     if (ds === null) return <TabSkeleton />;
-    return (
-        <div className="space-y-4">
-            {ds.length > 1 && (
-                <div className="inline-flex rounded-lg border border-border bg-muted/40 p-1">
-                    {ds.map((m) => (
-                        <button key={m.code} onClick={() => setNuoc(m.code)}
-                            className={cn("rounded-md px-4 py-1.5 text-sm font-medium transition-colors",
-                                nuoc === m.code ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}>
-                            {m.display}
-                        </button>
-                    ))}
-                </div>
-            )}
-            {nuoc === "TW" ? <SoDonDai {...props} /> : <SoDonNuoc key={nuoc} code={nuoc} />}
+    // Nút chọn nước nằm CÙNG hàng với thanh công cụ của sổ (07/10/2026) — truyền xuống để sổ tự xếp.
+    const nutNuoc = ds.length > 1 ? (
+        <div className="inline-flex rounded-lg border border-border bg-muted/40 p-1">
+            {ds.map((m) => (
+                <button key={m.code} onClick={() => setNuoc(m.code)}
+                    className={cn("rounded-md px-3.5 py-1 text-sm font-medium transition-colors",
+                        nuoc === m.code ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}>
+                    {m.display}
+                </button>
+            ))}
         </div>
-    );
+    ) : null;
+    return nuoc === "TW"
+        ? <SoDonDai {...props} nutNuoc={nutNuoc} />
+        : <SoDonNuoc key={nuoc} code={nuoc} nutNuoc={nutNuoc} />;
 }
 
-function SoDonDai({ dateRange }: Props) {
+function SoDonDai({ dateRange, nutNuoc }: Props & { nutNuoc?: ReactNode }) {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
     const [rows, setRows] = useState<LedgerRowUI[]>([]);
     const [notes, setNotes] = useState<Note[]>([]);
     const [nhapBangDon, setNhapBangDon] = useState<NhapBangDon | null>(null);
-    const [mo, setMo] = useState<Record<string, boolean>>({});
     const [filter, setFilter] = useState<Light | "all">("all");
+    const hep = useManHep();
     const [q, setQ] = useState("");
 
     const to = dateRange?.to ? format(dateRange.to, "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd");
@@ -146,110 +134,41 @@ function SoDonDai({ dateRange }: Props) {
         URL.revokeObjectURL(a.href);
     };
 
-    if (loading && !rows.length) return <TabSkeleton cards={0} rows={12} showChart={false} />;
-    if (error) return <ErrorState message={error} onRetry={load} />;
+    if (loading && !rows.length) return <div className="space-y-4">{nutNuoc}<TabSkeleton cards={0} rows={12} showChart={false} /></div>;
+    if (error) return <div className="space-y-4">{nutNuoc}<ErrorState message={error} onRetry={load} /></div>;
 
     const count = (l: Light) => rows.filter((r) => r.light === l).length;
+    const cu = bangDaCu(nhapBangDon);
 
     return (
-        <div className="space-y-4">
-            <p className="text-xs text-muted-foreground">
-                Cơ sở dữ liệu chung — mọi đơn, mọi cột. Việc phải làm nằm bên tab <b>Đối soát COD</b>.
-            </p>
+        <div className="space-y-3 md:space-y-4">
+            <ThanhCongCu
+                nutNuoc={nutNuoc}
+                nguon={cu ? null : nhanNapGon(nhapBangDon)}
+                nguonGiaiThich={"Sổ đơn = mọi đơn, mọi cột của bảng đơn đối tác ghép với sao kê NAZA. Máy tự nạp lúc 6h sáng; "
+                    + "cần ngay thì bấm “Đọc bảng đối tác” ở tab Theo dõi vận đơn. Việc đòi tiền nằm ở tab Đối soát COD."}
+                q={q} setQ={setQ} placeholder="Tìm mã đơn, vận đơn, tên, SĐT, SKU…"
+                onTaiLai={load} dangTai={loading} onCsv={exportCsv}
+            />
+            {/* Bảng đối tác đã cũ → vẫn khung đỏ to như trước: số trên màn KHÔNG phải của hôm nay. */}
+            {cu && <ThanhNhapBangDon n={nhapBangDon} anMaTrung />}
 
-            <ThanhNhapBangDon n={nhapBangDon} />
+            <OLocDon
+                muc={[
+                    { id: "do", label: "Phải xử", n: count("do") },
+                    { id: "vang", label: "Đang chờ", n: count("vang") },
+                    { id: "xanh", label: "Xong sạch", n: count("xanh") },
+                    { id: "xam", label: "Không đòi", n: count("xam") },
+                ]}
+                tong={rows.length} chon={filter} onChon={setFilter}
+            />
 
-            {notes.map((n) => {
-                const open = mo[n.id] ?? (n.items ? n.items.length <= 8 : false);
-                return (
-                    <div key={n.id} className={cn("overflow-hidden rounded-xl border-l-4",
-                        n.level === "canh_bao"
-                            ? "border-amber-500 bg-amber-50/70 dark:bg-amber-500/10"
-                            : "border-sky-400 bg-sky-50/70 dark:bg-sky-500/10")}>
-                        <button onClick={() => setMo((m) => ({ ...m, [n.id]: !open }))}
-                            disabled={!n.items?.length}
-                            className="flex w-full items-start gap-3 px-4 py-2.5 text-left">
-                            <AlertTriangle className={cn("mt-0.5 h-4 w-4 flex-none",
-                                n.level === "canh_bao" ? "text-amber-600 dark:text-amber-400" : "text-sky-600 dark:text-sky-400")} />
-                            <div className="min-w-0 flex-1">
-                                <div className={cn("text-sm font-semibold",
-                                    n.level === "canh_bao" ? "text-amber-900 dark:text-amber-200" : "text-sky-900 dark:text-sky-200")}>
-                                    {n.title}
-                                </div>
-                                <p className={cn("text-[12.5px]",
-                                    n.level === "canh_bao" ? "text-amber-800/85 dark:text-amber-200/75" : "text-sky-800/85 dark:text-sky-200/75")}>
-                                    {n.detail}
-                                </p>
-                            </div>
-                            {!!n.items?.length && (
-                                <ChevronDown className={cn("mt-0.5 h-4 w-4 flex-none opacity-60 transition-transform", open && "rotate-180")} />
-                            )}
-                        </button>
+            <KhoiViecCanSua viec={notes} hep={hep} />
 
-                        {open && !!n.items?.length && (
-                            <div className="border-t border-black/5 bg-card/70 dark:border-white/5">
-                                <div className="max-h-72 overflow-auto">
-                                    <table className="w-full text-[12px]">
-                                        <thead className="sticky top-0 bg-muted/80 backdrop-blur">
-                                            <tr className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
-                                                {n.cols?.map((c, i) => (
-                                                    <th key={c} className={cn("px-3 py-1.5", i === 0 ? "text-left" : "text-left")}>{c}</th>
-                                                ))}
-                                            </tr>
-                                        </thead>
-                                        <tbody className="divide-y divide-border">
-                                            {n.items.map((it, i) => (
-                                                <tr key={i}>
-                                                    {it.map((v, j) => (
-                                                        <td key={j} className={cn("px-3 py-1",
-                                                            j === 0 && "font-mono font-semibold",
-                                                            typeof v === "number" && "text-right tabular-nums")}>
-                                                            {typeof v === "number" ? formatNumber(v) : v}
-                                                        </td>
-                                                    ))}
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </div>
-                                {n.fix && (
-                                    <p className="border-t border-border px-3 py-2 text-[12px] font-medium text-muted-foreground">
-                                        → {n.fix}
-                                    </p>
-                                )}
-                            </div>
-                        )}
-                    </div>
-                );
-            })}
-
-            <div className="flex flex-wrap items-center gap-1.5">
-                {LIGHTS.map((l) => {
-                    const n = l.id === "all" ? rows.length : count(l.id as Light);
-                    const on = filter === l.id;
-                    return (
-                        <button key={l.id} onClick={() => setFilter(l.id)}
-                            className={cn("inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[12.5px] transition",
-                                on ? cn(l.on, "font-semibold") : "border-border text-muted-foreground hover:bg-muted")}>
-                            <span className={cn("h-3 w-[3px] rounded-sm", STRIPE[l.id === "all" ? "xam" : (l.id as Light)])} />
-                            {l.label}<span className="font-mono text-[11.5px] opacity-70">{formatNumber(n)}</span>
-                        </button>
-                    );
-                })}
-                <div className="relative ml-auto">
-                    <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-                    <input value={q} onChange={(e) => setQ(e.target.value)}
-                        placeholder="Tìm mã đơn, vận đơn, tên, SĐT, SKU…"
-                        className="w-64 rounded-full border border-border bg-card py-1 pl-9 pr-3 text-[12.5px]" />
-                </div>
-                <button onClick={load} title="Tải lại" className="rounded-full border border-border px-2.5 py-1 hover:bg-muted">
-                    <RefreshCw className="h-3.5 w-3.5" /></button>
-                <button onClick={exportCsv}
-                    className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1 text-[12.5px] hover:bg-muted">
-                    <Download className="h-3.5 w-3.5" /> CSV
-                </button>
-            </div>
-
+            {hep ? (
+                <DanhSachThe key={`${filter}|${q}`} ds={shown} tong={rows.length}
+                    khoa={(r) => r.tracking + r.order_no} ve={(r) => <TheDonDai r={r} />} />
+            ) : (<>
             {/* Cuộn CẢ HAI chiều, dựng HẾT mọi dòng — không phân trang.
                 Tiêu đề ghim trên, cột mã đơn ghim trái: cuộn kiểu gì cũng biết
                 đang ở đơn nào và cột nào. */}
@@ -382,7 +301,57 @@ function SoDonDai({ dateRange }: Props) {
                 <span><b className="text-foreground">Còn lại</b> vàng = chưa trừ giá vốn, số đang cao hơn thật</span>
                 <span className="ml-auto font-mono">{formatNumber(shown.length)} / {formatNumber(rows.length)} đơn — không phân trang</span>
             </div>
+            </>)}
         </div>
+    );
+}
+
+/** Thẻ một đơn Đài cho điện thoại — cùng dữ liệu với một dòng bảng, xếp dọc. */
+function TheDonDai({ r }: { r: LedgerRowUI }) {
+    // "Kỳ chờ" chỉ có nghĩa với đơn ĐÃ GIAO mà TIỀN CHƯA VỀ — cùng luật với cột trong bảng.
+    const cho = r.paid_twd === null && /thành công/i.test(r.status_raw || "");
+    const nhan: ReactNode[] = [];
+    if (cho) nhan.push(
+        <span key="ky" className={cn("rounded px-1.5 font-mono text-[10.5px] font-bold",
+            r.ky_da_qua >= 2 ? "bg-rose-600 text-white" : "bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-300")}>
+            chờ tiền {r.ky_da_qua} kỳ
+        </span>);
+    if (r.cogs_missing.length) nhan.push(
+        <span key="gv" className="rounded bg-amber-100 px-1.5 text-[10.5px] font-semibold text-amber-800 dark:bg-amber-500/15 dark:text-amber-300">
+            chưa khai giá {r.cogs_missing.join(",")}
+        </span>);
+    if (r.marketer) nhan.push(
+        <span key="mk" className={cn("rounded-full px-1.5 py-px text-[10.5px] font-semibold", mkCls(r.marketer))}>{r.marketer}</span>);
+    const ticks = [r.tick.doi_soat && "đã đối soát", r.tick.tru_van_chuyen && "đã trừ ship", r.tick.tru_tien_hang && "đã trừ giá vốn"]
+        .filter(Boolean).join(" · ");
+    return (
+        <TheDon
+            light={r.light} ma={r.order_no} trangThai={r.status_raw} trangThaiCls={statusCls(r.status_raw)}
+            tien={TWD(r.cod_twd)}
+            dong={<>{r.contact_name || "(chưa có tên)"} · lên đơn {d6(r.order_date)}</>}
+            ghiChu={r.light_note}
+            nhan={nhan.length ? <>{nhan}</> : undefined}
+            chiTiet={[
+                ["Còn lại", r.net_vnd === null ? null : (
+                    <span className={cn("font-semibold", r.net_vnd < 0 ? "text-rose-600 dark:text-rose-400"
+                        : r.net_before_cogs ? "text-amber-600 dark:text-amber-400" : "text-emerald-600 dark:text-emerald-400")}>
+                        {VND(r.net_vnd)}{r.net_before_cogs ? " · chưa trừ giá vốn" : ""}
+                    </span>)],
+                ["3PL trả", r.paid_twd === null ? null : TWD(r.paid_twd)],
+                ["Lệch", r.diff_twd === null || Math.abs(r.diff_twd) <= 1 ? null
+                    : <span className="font-semibold text-rose-600 dark:text-rose-400">{r.diff_twd > 0 ? "+" : ""}{TWD(r.diff_twd)}</span>],
+                ["Kỳ trả", r.paid_period], ["Ngày về", d6(r.paid_date)],
+                ["Điện thoại", r.phone ? <a href={`tel:${r.phone}`} className="font-mono text-violet-600 dark:text-violet-300">{r.phone}</a> : null],
+                ["Vận đơn", r.tracking ? <span className="font-mono">{r.tracking}</span> : null],
+                ["17TRACK", r.track17_code ? <span className="font-mono">{r.track17_code}</span> : null],
+                ["Mã hoàn", r.return_order_no], ["PTVC", r.ship_method], ["Xuất kho", d6(r.ship_date)],
+                ["Hàng", r.sku ? `${r.sku} × ${r.quantity}` : null],
+                ["Phí ship", r.ship_fee_rmb === null ? null : `${RMB(r.ship_fee_rmb)}${r.fee_wrong ? " — sai bảng giá" : ""}`],
+                ["Phí thao tác", r.op_fee_rmb === null ? null : RMB(r.op_fee_rmb)],
+                ["Giá vốn", r.cogs_vnd === null ? null : VND(r.cogs_vnd)],
+                ["Đã làm", ticks || null],
+            ]}
+        />
     );
 }
 
