@@ -163,7 +163,8 @@
       "display": "Thái",
       "full": "Thái",
       "aliases": [
-        "Thanh Ngô Thanh"
+        "Thanh Ngô Thanh",
+        "Ngô Xuân"
       ]
     },
     "Thuong": {
@@ -261,6 +262,15 @@
     },
     {
       "contains": "THANH NGO THANH",
+      "key": "Thai"
+    },
+    {
+      "contains": "NGÔ XUÂN",
+      "key": "Thai",
+      "_note": "Tag POS 'ngo xuan' (đơn Singapore tháng 9) là Thái — Sỹ Anh xác nhận 07/10/2026. Tên POS hiện của Thái là 'Thái Ngô Xuân' (đã khớp nhờ chữ THÁI); hai dòng này đỡ lúc tag chỉ ghi 'Ngô Xuân'. Khai NGUYÊN cụm, không dùng 'XUÂN' trần."
+    },
+    {
+      "contains": "NGO XUAN",
       "key": "Thai"
     },
     {

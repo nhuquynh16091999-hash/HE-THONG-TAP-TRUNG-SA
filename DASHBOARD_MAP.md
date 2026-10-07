@@ -11,7 +11,10 @@ Cách vận hành máy chủ: `docs/DEPLOY_VPS.md`.
 ## 1. Việc kinh doanh
 
 Bán trang sức và mỹ phẩm qua Facebook Ads → chat-sale Messenger → **thu tiền COD**.
-**Cả ba nước đang bán — Đài Loan, Singapore, UAE**. UAE giao qua D&T Fulfillment (bảng giá `shipping_fees.AE`, 25/09/2026), chưa chạy quảng cáo — đơn tới 25/09 là đơn tự nhiên.
+**Cả ba nước đang bán — Đài Loan, Singapore, UAE**. UAE giao qua D&T Fulfillment (bảng giá `shipping_fees.AE`, 25/09/2026), chưa chạy quảng cáo — đơn tới 25/09 là đơn tự nhiên. Sỹ Anh xác nhận lại 07/10/2026: UAE
+VẪN chưa chạy ads (58 đơn 01–07/10, nhập tay trên POS, tag "Tô Lâm" → Lộc, không page/quảng cáo)
+— nên tiền ads UAE = 0 là ĐÚNG, không phải thiếu TKQC. Khi UAE bắt đầu chạy: camp đặt `AE/…` và
+TKQC chạy nó phải nằm trong `/me/adaccounts` của token, nếu không là ghi thiếu âm thầm.
 Hàng Đài đi từ kho Trung Quốc qua 3PL **NAZA供应链**; khách trả tiền cho shipper; NAZA gom
 rồi chuyển về theo kỳ. Singapore: bảng giá 3PL khai ở `shipping_fees.SG` (25/09/2026, chưa ghi tên đối tác), chờ sao kê mẫu.
 
