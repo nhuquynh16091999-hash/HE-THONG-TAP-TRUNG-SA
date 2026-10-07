@@ -120,9 +120,21 @@ meta_ads:
     # khoản rơi khỏi /me/adaccounts của token → mỗi vòng sync rc=1, Sheet đứng ở số 16:26
     # tới trưa 30/09 (tin Zalo 13:00 báo "sync đứng 20 giờ 38 phút"). Tháng 9 chi 0đ nên bỏ
     # không mất số nào. Cấp lại quyền rồi mới bỏ dấu # dòng dưới.
-    # - "act_2201353496727281"  # K NEED khang ve 22 — 1 camp tương tác đã tạm dừng, tháng 9 chi 0đ
-    - "act_1005930495298028"  # (Meta chưa đặt tên, tên = id) — chưa có camp
-    - "act_1298353682322779"  # Quynh Vien — chưa có camp
+    # → ĐÃ CẤP LẠI QUYỀN, khai lại 07/10/2026 (khối THÊM 07/10 ngay dưới).
+    - "act_1005930495298028"  # SL ANTALO 01 (Meta đổi tên; 29/09 chưa đặt tên, tên = id)
+    - "act_1298353682322779"  # XT ANTALO 01 (Meta đổi tên; 29/09 là Quynh Vien)
+    #
+    # THÊM 07/10/2026 — Sỹ Anh gửi token mới để "lấy hết báo cáo về database". Soát bằng
+    # `/me/adaccounts`: token mới và token đang dùng thấy CÙNG 12 tài khoản (System User
+    # "Dashboard" — tài sản gán thêm thì token cũ thấy luôn), 5 cái dưới chưa khai nên chi
+    # tiêu tháng 10 của chúng CHƯA vào fb_ads_data. Cả 5 đọc insights được, VND, giờ VN.
+    # Chi tháng 10 tới 07/10: SA ANTALO 01 ≈740k · SA ANTALO 02 ≈432k · XT ANTALO 02 ≈143k
+    # (camp `TW/THƯƠNG/…` và `SGP/THÁI/…` — đúng chuẩn, tự về đúng nước + marketer).
+    - "act_2201353496727281"  # SA ANTALO 01 (29/09 tên "K NEED khang ve 22") — camp TW/THƯƠNG
+    - "act_763967898998377"   # SA ANTALO 02 — camp TW/THƯƠNG từ 06/10
+    - "act_2163887820576562"  # XT ANTALO 02 — camp SGP/THÁI từ 06/10
+    - "act_1417734220486142"  # XT ANTALO 03 — mở 01/10, chưa có camp
+    - "act_845959551784078"   # Xinh Mi Nguyen — chưa có camp
   ad_account_names:
     act_2316553302504985: "TK CÁ NHÂN NEW 1"
     act_1025294735296964: "NEW3"
@@ -141,9 +153,13 @@ meta_ads:
     act_1285779533102675: "ANTALO 2 - CHẠY SING"
     act_2288460614931544: "Sỹ Anh 5 - CANADA"
     act_4936675229754644: "TK CỦA XUYẾN"
-    act_2201353496727281: "K NEED khang ve 22"
-    act_1005930495298028: "1005930495298028"
-    act_1298353682322779: "Quynh Vien"
+    act_2201353496727281: "SA ANTALO 01"
+    act_1005930495298028: "SL ANTALO 01"
+    act_1298353682322779: "XT ANTALO 01"
+    act_763967898998377: "SA ANTALO 02"
+    act_2163887820576562: "XT ANTALO 02"
+    act_1417734220486142: "XT ANTALO 03"
+    act_845959551784078: "Xinh Mi Nguyen"
   # Múi giờ từng tài khoản — lấy từ Meta API, KHÔNG đoán theo tên.
   # Cột `date` của spend đã theo múi giờ NÀY, nên 2 tài khoản Bangkok lệch ngày
   # so với 8 tài khoản còn lại; cả tháng mới khớp (rule #6 TALPHA_METRIC_RULES).
@@ -170,6 +186,10 @@ meta_ads:
     act_2201353496727281: "Asia/Ho_Chi_Minh"
     act_1005930495298028: "Asia/Ho_Chi_Minh"
     act_1298353682322779: "Asia/Ho_Chi_Minh"
+    act_763967898998377: "Asia/Ho_Chi_Minh"
+    act_2163887820576562: "Asia/Ho_Chi_Minh"
+    act_1417734220486142: "Asia/Ho_Chi_Minh"
+    act_845959551784078: "Asia/Ho_Chi_Minh"
 
 # ─── 4. POS / ORDER MANAGEMENT ───
 pos_system: poscake
