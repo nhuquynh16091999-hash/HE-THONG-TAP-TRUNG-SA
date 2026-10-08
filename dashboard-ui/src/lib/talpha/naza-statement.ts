@@ -395,6 +395,13 @@ async function toGrids(buf: Buffer): Promise<{ name: string; grid: Grid }[]> {
     });
 }
 
+/** Mọi sheet của file .xlsx thành bảng chữ (ô ngày → yyyy-mm-dd) — cho bộ đọc sao kê
+ *  không theo mẫu NAZA (lib/talpha/cod-statement-market.ts). */
+export async function xlsxThanhBang(buf: Buffer): Promise<{ name: string; rows: string[][] }[]> {
+    const book = await toGrids(buf);
+    return book.map((s) => ({ name: s.name, rows: s.grid.map((r) => (r || []).map(cellText)) }));
+}
+
 /** Sheet TỔNG là bảng hai cột nhãn + một cột số. Đọc bằng nhãn tiếng Trung ở
  *  cột A, vì cột B (tiếng Việt) đổi cách gọi gần như mỗi kỳ. */
 function readSummary(grid: Grid): NazaSummary {
@@ -435,7 +442,9 @@ function readSummary(grid: Grid): NazaSummary {
     return {
         cod_twd: pick("本期回款金额"),
         refund_twd: pick("退款手续费", "客诉退款"),
-        rate_twd_rmb: rates.find((r) => r > 0 && r < 2) ?? null,
+        // Tỷ giá tiền nước → tệ: Đài ~0,2 nhưng SGD ~5,5 và AED ~1,9 (file Sing riêng từ
+        // 10/2026) — nên mốc là "dưới 100", không phải "dưới 2"; RMB→VND luôn cỡ nghìn.
+        rate_twd_rmb: rates.find((r) => r > 0 && r < 100) ?? null,
         ship_fee_rmb: pick("速递运费"),
         op_fee_rmb: combined ? 0 : pick("操作费"),
         net_rmb: pick("本期应退金额RMB"),

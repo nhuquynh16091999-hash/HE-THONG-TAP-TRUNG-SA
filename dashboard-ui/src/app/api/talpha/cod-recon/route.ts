@@ -387,9 +387,10 @@ function replaceSameFile(list: Statement[], filename: string): Statement[] {
         && !(ngay && ngaySaoKe(tenFile(s.filename)) === ngay));
 }
 
+// Từ 08/10/2026 Singapore có kho sao kê riêng (/api/talpha/cod-recon/market?market=SG).
 const SING_CHUA_NHAN =
     "Đây là sao kê SINGAPORE. Màn này là sổ COD Đài Loan (tiền đọc như TWD, và file cùng ngày " +
-    "sẽ thay kỳ Đài) nên chưa nhận file Sing. Gửi file này cho Claude để dựng phần đối soát COD Sing.";
+    "sẽ thay kỳ Đài) — bấm nút Singapore ở đầu màn rồi tải lại file ở đó.";
 
 export async function POST(req: NextRequest) {
     try {

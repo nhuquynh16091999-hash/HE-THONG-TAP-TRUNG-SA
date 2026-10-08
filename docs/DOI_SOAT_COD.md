@@ -251,8 +251,39 @@ này), đơn Sing không soát theo bảng giá Đài.
 
 **Từ kỳ sau NAZA tách file Sing riêng.** Màn Đối soát COD **chặn** file Sing (nhận bằng
 nội dung — không dòng COD Đài nào — hoặc tên file có SING / SIG / SG): kho này là sổ TWD,
-và file Sing cùng ngày sẽ theo luật "cùng ngày là cùng kỳ" **đè mất** kỳ Đài. File Sing
-đầu tiên là mẫu để dựng bước 2 đối soát COD Sing.
+và file Sing cùng ngày sẽ theo luật "cùng ngày là cùng kỳ" **đè mất** kỳ Đài. Từ
+08/10/2026 câu báo chỉ sang nút **Singapore** — xem mục dưới.
+
+---
+
+## Singapore, UAE — tải sao kê (08/10/2026)
+
+Sỹ Anh: "Singapore và UAE không có chỗ để up file giống Đài Loan à". Nay có: nút **Tải sao kê
+Singapore / UAE** + kéo thả file vào màn, như Đài. Route `cod-recon/market?market=SG|AE`
+(POST tải · DELETE xoá kỳ), đọc + khớp ở `lib/talpha/cod-statement-market.ts` (có test).
+
+* **Kho riêng từng nước** — `data/cod_statements_sg.json`, `data/cod_statements_ae.json`.
+  Không đụng kho Đài (sổ TWD, luật "cùng ngày là cùng kỳ").
+* **Chưa có file mẫu nước nào**, nên nhận hai kiểu:
+  * sao kê **NAZA** (.xlsx ba sheet) — chỉ lấy dòng của nước đang mở (`国家名称 = 新加坡`,
+    kênh `S新加坡CODJT专线`); file Sing riêng có sheet TỔNG thì lấy luôn số phải nhận VND.
+    File Đài tải nhầm sang Sing/UAE, file Sing tải nhầm sang UAE → báo bấm đúng nút;
+  * **bảng bất kỳ** (.xlsx / .csv) có cột mã vận đơn (hoặc mã đơn) + cột tiền COD — dò tên cột
+    kiểu Tracking / AWB / Mã vận đơn / 转单号 và COD / COD Amount / Số tiền / COD金额 (cột
+    "COD Fee" không bị nhận là tiền). Đối tác đặt tên lạ → khai thêm ở
+    `cod_settlement.column_map`. Màn hình in ra máy đã đọc cột nào để người tải soát.
+  * Tiền có số lẻ kiểu "45,90" đọc là 45,9 (SGD/AED có xu) — "1,399" vẫn là nghìn.
+* **Tải lại cùng kỳ thì THAY**: cùng tên file, hoặc trùng từ một nửa số đơn trở lên (bản sửa
+  hay đổi tên). Không dùng luật "cùng ngày trên tên file" — chưa biết đối tác gửi mấy file/ngày.
+* **Khớp với MỌI đơn của nước đó** (cả đơn bảng mình còn ghi "đang giao" — tiền thường về
+  trước trạng thái): mã vận đơn trước, mã đơn sau, như Đài. Đơn có trên sao kê ra khỏi
+  "còn phải gửi"; trả lệch / trả cho đơn mình không có / một đơn trả ở hai kỳ → khung
+  **Khoản cần hỏi bên giao hàng**.
+* **"Bên giao hàng đã gửi về"** = số phải nhận trên sao kê (NAZA); kỳ không ghi số đó thì
+  ước = tiền COD × `markets.*.rate_vnd`, **chưa trừ phí** (ô có dấu ≈).
+
+Chưa làm (chờ file thật đầu tiên để biết đối tác tính tiền thế nào): luồng tỷ giá + phí từng
+kỳ, nhập tiền thật về ngân hàng, cột tiền về ở Sổ đơn Singapore / UAE.
 
 ---
 

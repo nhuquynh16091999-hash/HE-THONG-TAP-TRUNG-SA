@@ -135,7 +135,7 @@ function tinLech(p: Period, lang: "vi" | "zh"): string {
 
 /**
  * Nút chọn nước (Sỹ Anh chốt 26/09/2026): Đài Loan giữ nguyên toàn bộ quy trình sao kê NAZA;
- * Singapore, UAE chưa có sao kê nên chỉ có phần "tiền còn ở đâu" (CodNuocKhac). Danh sách nước
+ * Singapore, UAE có phần "tiền còn ở đâu" + tải sao kê khớp từng đơn (CodNuocKhac, 08/10/2026). Danh sách nước
  * lấy từ /api/talpha/markets — không gõ cứng ở giao diện.
  *
  * Phân quyền theo team (05/10/2026): danh sách chỉ còn nước của team, nên chờ có danh sách rồi
@@ -208,6 +208,15 @@ type KhoanNuoc = { so_don: number; cod_local: number; vnd_uoc: number | null };
 type DonNuoc = {
     order_id: string; tracking: string; order_date: string | null; trang_thai: string;
     nhom: "da_giao" | "chua_giao" | "khong_tinh"; cod_local: number; khach: string;
+    /** Đơn đã thấy trên một kỳ sao kê (08/10/2026). */
+    da_tra?: { ky: string; so_tien: number };
+};
+type KyNuoc = {
+    id: string; filename: string; uploaded_at: string; kieu: "naza" | "bang"; ngay: string | null;
+    so_dong: number; cod_local: number; phai_nhan_vnd: number | null; uoc_vnd: number | null;
+    khop: number; lech: number; khong_co_don: number;
+    cot?: Partial<Record<"tracking" | "order_id" | "amount" | "fee" | "paid_date" | "status", string>>;
+    canh_bao: string[];
 };
 type NuocData = {
     market: { code: string; display: string; currency: string; symbol: string; rate_vnd: number };
@@ -218,19 +227,39 @@ type NuocData = {
         chua_giao: KhoanNuoc & { theo_trang_thai: { trang_thai: string; so_don: number; cod_local: number }[] };
         khong_tinh: KhoanNuoc & { hoan: number; huy: number; tieu_huy: number };
     };
+    da_tra?: { so_don: number; cod_local: number };
+    da_gui_ve?: { vnd: number; co_uoc: boolean; cod_local: number; so_ky: number };
+    ky?: KyNuoc[];
+    lech?: { order_id: string; tracking: string; cod_don: number; tra: number; ky: string }[];
+    khong_co_don?: { order_id: string; tracking: string; so_tien: number; ky: string }[];
+    tra_hai_lan?: { order_id: string; tracking: string; ky: string[] }[];
     don: DonNuoc[];
 };
 
+const TEN_COT: Record<string, string> = { tracking: "mã vận đơn", order_id: "mã đơn", amount: "tiền", paid_date: "ngày" };
+const tenKy = (f: string) => f.replace(/\.(xlsx|csv|tsv|txt)$/i, "").trim() || f;
+
 /**
- * Tiền COD về nước ngoài Đài — bước 1 (Sỹ Anh chốt 26/09/2026). Chưa có sao kê bên giao hàng,
- * nên chỉ trả lời "tiền còn ở đâu": đã giao (bên giao hàng đang giữ) · chưa giao (ngoài đường) ·
- * không tính (hoàn, huỷ). Khớp từng kỳ như Đài là bước 2, làm khi có file sao kê mẫu.
+ * Tiền COD về nước ngoài Đài.
+ *   Bước 1 (26/09/2026): chưa có sao kê nên chỉ trả lời "tiền còn ở đâu" — đã giao (bên giao hàng
+ *   đang giữ) · chưa giao (ngoài đường) · không tính (hoàn, huỷ).
+ *   Bước 2 (08/10/2026, Sỹ Anh: "Singapore và UAE không có chỗ up file giống Đài à"): nút tải
+ *   sao kê + kéo thả như Đài, kho riêng từng nước. Mỗi kỳ tải lên được khớp với đơn: đơn có trên
+ *   sao kê ra khỏi "còn phải gửi"; trả lệch số / trả cho đơn mình không có / trả hai lần thì hiện
+ *   ở khung "Khoản cần hỏi". Chưa có luồng tỷ giá + nhập tiền ngân hàng như Đài — chờ file thật
+ *   đầu tiên để biết đối tác các nước tính tiền thế nào.
  */
 function CodNuocKhac({ code, nutNuoc }: { code: string; nutNuoc?: ReactNode }) {
     const [d, setD] = useState<NuocData | null>(null);
     const hep = useManHep();
     const [err, setErr] = useState("");
     const [loading, setLoading] = useState(true);
+    const [uploading, setUploading] = useState(false);
+    const [upErr, setUpErr] = useState("");
+    const [upOk, setUpOk] = useState("");
+    const [keo, setKeo] = useState(false);
+    const [xoa, setXoa] = useState("");
+    const fileRef = useRef<HTMLInputElement>(null);
     const load = useCallback(async () => {
         setLoading(true); setErr("");
         try {
@@ -244,6 +273,41 @@ function CodNuocKhac({ code, nutNuoc }: { code: string; nutNuoc?: ReactNode }) {
     }, [code]);
     useEffect(() => { load(); }, [load]);
 
+    const upload = async (f: File) => {
+        setUploading(true); setUpErr(""); setUpOk("");
+        try {
+            const fd = new FormData(); fd.append("file", f);
+            const res = await fetch(`/api/talpha/cod-recon/market?market=${code}`, { method: "POST", body: fd });
+            const j = await res.json();
+            if (!res.ok) throw new Error(j.error || "Tải lên thất bại");
+            const s = j.statement as { filename: string; so_dong: number; kieu: string; cot?: Record<string, string> };
+            const cot = s.cot ? Object.entries(s.cot).filter(([k]) => TEN_COT[k]).map(([k, v]) => `${TEN_COT[k]} = “${v}”`).join(", ") : "";
+            const thay = (j.thay as string[] | undefined)?.length ? ` Đã THAY bản cũ cùng kỳ: ${(j.thay as string[]).map((x) => `“${x}”`).join(", ")}.` : "";
+            setUpOk(`Đã đọc ${formatNumber(s.so_dong)} dòng từ “${s.filename}”${s.kieu === "naza" ? " (mẫu NAZA)" : cot ? ` — cột ${cot}` : ""}.${thay}` +
+                ((j.canh_bao as string[] | undefined)?.length ? ` ${(j.canh_bao as string[]).join(" ")}` : ""));
+            await load();
+        } catch (e) {
+            setUpErr(e instanceof Error ? e.message : "Tải lên thất bại");
+        } finally {
+            setUploading(false);
+            if (fileRef.current) fileRef.current.value = "";
+        }
+    };
+
+    const xoaKy = async (k: KyNuoc) => {
+        if (!window.confirm(`Xoá kỳ “${k.filename}”? Đơn của kỳ này quay về “còn phải gửi”.`)) return;
+        setXoa(k.id); setUpErr(""); setUpOk("");
+        try {
+            const res = await fetch(`/api/talpha/cod-recon/market?market=${code}&statement=${encodeURIComponent(k.id)}`, { method: "DELETE" });
+            if (!res.ok) {
+                const j = await res.json().catch(() => ({}));
+                setUpErr((j as { error?: string }).error || "Không xoá được kỳ này");
+                return;
+            }
+            await load();
+        } finally { setXoa(""); }
+    };
+
     if (loading && !d) return <div className="space-y-4">{nutNuoc}<TabSkeleton cards={3} rows={6} showChart={false} /></div>;
     if (err || !d) return <div className="space-y-4">{nutNuoc}<ErrorState message={err || "Không tải được đơn"} onRetry={load} /></div>;
 
@@ -251,41 +315,236 @@ function CodNuocKhac({ code, nutNuoc }: { code: string; nutNuoc?: ReactNode }) {
     const tien = (n: number) => `${(Math.round(n * 100) / 100).toLocaleString("vi-VN")} ${m.symbol}`;
     const COD = "text-sky-700 dark:text-sky-300";
     const gia = m.rate_vnd > 0 ? `${m.rate_vnd.toLocaleString("vi-VN")}đ/${m.currency}` : "chưa khai tỷ giá";
-    const daGiao = d.don.filter((x) => x.nhom === "da_giao");
+    const ky = d.ky || [];
+    const gv = d.da_gui_ve;
+    const lech = d.lech || [], khong = d.khong_co_don || [], trung = d.tra_hai_lan || [];
+    const soCanHoi = lech.length + khong.length + trung.length;
+    // Đã có sao kê thì bảng này chỉ còn đơn CHƯA thấy trên kỳ nào — tiền còn phải đòi.
+    const daGiao = d.don.filter((x) => x.nhom === "da_giao" && !x.da_tra);
     const capNhat = d.nguon.cap_nhat ? (() => {
         const x = new Date(d.nguon.cap_nhat);
         const p = (n: number) => String(n).padStart(2, "0");
         return `${p(x.getHours())}:${p(x.getMinutes())} ngày ${p(x.getDate())}/${p(x.getMonth() + 1)}`;
     })() : null;
+    let stt = 0;
+    const so = () => String(++stt);
+
+    const oPhaiNhan = (k: KyNuoc) => k.phai_nhan_vnd != null ? (
+        <span className="font-bold tabular-nums text-emerald-700 dark:text-emerald-400">{VND(k.phai_nhan_vnd)}</span>
+    ) : k.uoc_vnd != null ? (
+        <span className="font-semibold tabular-nums text-amber-600 dark:text-amber-400" title={`Sao kê không ghi số phải nhận — ước = tiền COD × ${gia}, chưa trừ phí`}>
+            ≈ {VND(k.uoc_vnd)}
+        </span>
+    ) : <span className="text-muted-foreground">—</span>;
+    const oKhop = (k: KyNuoc) => (
+        <span className="inline-flex flex-wrap items-center justify-end gap-x-2 gap-y-0.5 text-[12px] tabular-nums">
+            <span className="font-semibold text-emerald-700 dark:text-emerald-400">{k.khop} khớp</span>
+            {k.lech > 0 && <span className="font-semibold text-rose-600 dark:text-rose-400">{k.lech} lệch</span>}
+            {k.khong_co_don > 0 && <span className="font-semibold text-amber-600 dark:text-amber-400">{k.khong_co_don} không có đơn</span>}
+        </span>
+    );
+    // File không ghi ngày (tên lẫn dòng) thì lấy ngày tải lên — vẫn phân biệt được các kỳ.
+    const ngayHien = (k: KyNuoc) => k.ngay ? dmy(k.ngay) : `tải ${dmy(format(new Date(k.uploaded_at), "yyyy-MM-dd"))}`;
+    const cotDoc = (k: KyNuoc) => k.kieu === "naza" ? "mẫu NAZA"
+        : k.cot ? Object.entries(k.cot).filter(([c]) => TEN_COT[c]).map(([c, v]) => `${TEN_COT[c]}: ${v}`).join(" · ") : "";
+    const nutXoa = (k: KyNuoc) => (
+        <button onClick={() => xoaKy(k)} disabled={xoa === k.id} title="Xoá kỳ này (tải nhầm file)"
+            className="grid h-7 w-7 flex-none place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-rose-50 hover:text-rose-600 disabled:opacity-40 dark:hover:bg-rose-500/10 dark:hover:text-rose-400">
+            <X className="h-4 w-4" />
+        </button>
+    );
 
     return (
-        <div className="space-y-3 md:space-y-4">
-            <ThanhDau nutNuoc={nutNuoc}
-                nguon={`Đơn ${m.display}: ${d.nguon.nhan}${capNhat ? ` · ${d.nguon.loai === "weship" ? "tra" : "nạp"} lúc ${capNhat}` : ""}`} />
+        // Kéo file sao kê thả vào bất cứ đâu trên màn — như màn Đài.
+        <div className="relative space-y-3 md:space-y-4"
+            onDragOver={(e) => { if (e.dataTransfer.types.includes("Files")) { e.preventDefault(); if (!keo) setKeo(true); } }}
+            onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setKeo(false); }}
+            onDrop={(e) => {
+                if (!e.dataTransfer.files?.length) return;
+                e.preventDefault(); setKeo(false);
+                upload(e.dataTransfer.files[0]);
+            }}>
+            {keo && (
+                <div className="pointer-events-none absolute inset-0 z-30 grid place-items-start justify-center rounded-2xl border-2 border-dashed border-orange-400 bg-orange-50/85 pt-24 dark:bg-orange-500/15">
+                    <div className="flex items-center gap-2 rounded-xl bg-card px-4 py-3 text-[15px] font-bold text-orange-700 shadow-lg dark:text-orange-300">
+                        <FileSpreadsheet className="h-5 w-5" />Thả file sao kê {m.display} để tải lên
+                    </div>
+                </div>
+            )}
+            <input ref={fileRef} type="file" accept=".xlsx,.csv,.tsv,.txt" className="hidden"
+                onChange={(e) => { const f = e.target.files?.[0]; if (f) upload(f); }} />
 
-            {/* Ba ô số thay ba thẻ to (07/10/2026). Chưa có sao kê nên ô "đã gửi về" để trống. */}
+            <ThanhDau nutNuoc={nutNuoc}
+                nguon={<>
+                    {ky.length ? `${ky.length} kỳ sao kê · mới nhất “${tenKy(ky[0].filename)}” · ` : ""}
+                    Đơn {m.display}: {d.nguon.nhan}{capNhat ? ` · ${d.nguon.loai === "weship" ? "tra" : "nạp"} lúc ${capNhat}` : ""}
+                </>}
+                phai={<>
+                    <span className="hidden text-[11.5px] text-muted-foreground lg:inline">hoặc kéo thả file .xlsx · .csv vào màn</span>
+                    <span title={`Sao kê COD của bên giao hàng ${m.display}: file NAZA, hoặc bảng .xlsx/.csv có cột mã vận đơn (hoặc mã đơn) + tiền COD. Tải lại cùng một kỳ thì THAY, không cộng thêm.`}>
+                        <Nut kieu="chinh" busy={uploading} busyText="Đang đọc và khớp…" onClick={() => fileRef.current?.click()}>
+                            <Upload className="h-4 w-4" />Tải sao kê {m.display}
+                        </Nut>
+                    </span>
+                </>} />
+            {upErr && (
+                <p className="flex items-start gap-2 rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-2.5 text-[13px] text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300">
+                    <AlertTriangle className="mt-0.5 h-4 w-4 flex-none" />{upErr}
+                </p>
+            )}
+            {upOk && (
+                <p className="flex items-start gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3.5 py-2.5 text-[13px] text-emerald-800 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300">
+                    <CheckCircle2 className="mt-0.5 h-4 w-4 flex-none" />{upOk}
+                </p>
+            )}
+
+            {/* Ba ô số, cùng thứ tự màn Đài: đã gửi về · còn phải gửi · chưa giao xong. */}
             <div className="grid grid-cols-2 gap-2 lg:grid-cols-3">
+                <OSoTien mau="xanh" uoc={!!gv?.co_uoc} nhan="Bên giao hàng đã gửi về" className="col-span-2 lg:col-span-1"
+                    so={ky.length && gv ? VND(gv.vnd) : "—"}
+                    phu={ky.length && gv ? `${formatNumber(ky.length)} kỳ sao kê · ${tien(gv.cod_local)}` : "chưa có sao kê nào"} />
                 <OSoTien mau="vang" uoc nhan="Còn phải gửi · đơn đã giao"
                     so={t.da_giao.vnd_uoc != null ? VND(t.da_giao.vnd_uoc) : "—"}
                     phu={`${formatNumber(t.da_giao.so_don)} đơn · ${tien(t.da_giao.cod_local)}`} />
                 <OSoTien mau="cam" uoc nhan="Chưa giao xong"
                     so={t.chua_giao.vnd_uoc != null ? VND(t.chua_giao.vnd_uoc) : "—"}
                     phu={`${formatNumber(t.chua_giao.so_don)} đơn · ${tien(t.chua_giao.cod_local)}`} />
-                <OSoTien mau="xanh" nhan="Bên giao hàng đã gửi về" so="—" className="col-span-2 lg:col-span-1"
-                    phu={d.sao_ke ? `${formatNumber(d.sao_ke)} kỳ sao kê` : "chưa có sao kê nào"} />
             </div>
             <p className="flex items-start gap-2 text-[12px] leading-relaxed text-muted-foreground">
                 <Info className="mt-0.5 h-3.5 w-3.5 flex-none" />
                 <span>
-                    Chưa có sao kê của bên giao hàng {m.display}: số VND quy theo tỷ giá {gia}, <b className="font-semibold text-foreground">chưa trừ phí ship và phí thu hộ</b>.
-                    Đã bỏ {t.khong_tinh.hoan} đơn hoàn + {t.khong_tinh.huy} đơn huỷ{t.khong_tinh.tieu_huy ? ` + ${t.khong_tinh.tieu_huy} đơn tiêu huỷ` : ""} ({tien(t.khong_tinh.cod_local)}) vì không bao giờ trả tiền.
-                    Có file sao kê mẫu thì làm tiếp phần khớp từng kỳ như Đài Loan.
+                    {ky.length ? (
+                        <>
+                            Đã khớp <b className="font-semibold text-foreground">{formatNumber(d.da_tra?.so_don ?? 0)} đơn</b> với {ky.length} kỳ sao kê —
+                            “còn phải gửi” chỉ còn đơn đã giao chưa thấy trên kỳ nào.
+                            {gv?.co_uoc ? ` Kỳ nào sao kê không ghi số phải nhận thì “đã gửi về” ước = tiền COD × ${gia}, chưa trừ phí.` : " “Đã gửi về” là số phải nhận ghi trên sao kê."}
+                            {" "}Hai ô còn lại quy VND theo tỷ giá {gia}, <b className="font-semibold text-foreground">chưa trừ phí ship và phí thu hộ</b>.
+                        </>
+                    ) : (
+                        <>
+                            Chưa có sao kê của bên giao hàng {m.display} — bấm <b className="font-semibold text-foreground">Tải sao kê {m.display}</b> để khớp từng đơn như Đài Loan.
+                            Số VND quy theo tỷ giá {gia}, <b className="font-semibold text-foreground">chưa trừ phí ship và phí thu hộ</b>.
+                        </>
+                    )}
+                    {" "}Đã bỏ {t.khong_tinh.hoan} đơn hoàn + {t.khong_tinh.huy} đơn huỷ{t.khong_tinh.tieu_huy ? ` + ${t.khong_tinh.tieu_huy} đơn tiêu huỷ` : ""} ({tien(t.khong_tinh.cod_local)}) vì không bao giờ trả tiền.
                 </span>
             </p>
 
-            <Khoi so="1" ten="Đơn đã giao — tiền bên giao hàng đang giữ" phamVi="all" dem={`${formatNumber(daGiao.length)} đơn`}>
+            {/* ═══ Các kỳ sao kê đã tải ═══ */}
+            {ky.length > 0 && (
+                <Khoi so={so()} ten={`${ky.length} kỳ sao kê`} phamVi="all" phu="tải lại cùng một kỳ thì thay, không cộng thêm · tải nhầm thì bấm ✕">
+                    {hep ? (
+                        <ul className="divide-y divide-border/60">
+                            {ky.map((k) => (
+                                <li key={k.id} className="px-3.5 py-3">
+                                    <div className="flex items-center gap-2">
+                                        <b className="tabular-nums text-foreground">{ngayHien(k)}</b>
+                                        <span className="min-w-0 flex-1 truncate text-[11.5px] text-muted-foreground">{tenKy(k.filename)}</span>
+                                        {nutXoa(k)}
+                                    </div>
+                                    <div className="mt-1.5 grid grid-cols-2 gap-x-3 gap-y-1.5 text-[12.5px]">
+                                        <div>
+                                            <div className="text-[11px] text-muted-foreground">Tiền COD · {k.so_dong} đơn</div>
+                                            <div className={cn("font-semibold tabular-nums", COD)}>{tien(k.cod_local)}</div>
+                                        </div>
+                                        <div>
+                                            <div className="text-[11px] text-muted-foreground">Phải nhận</div>
+                                            {oPhaiNhan(k)}
+                                        </div>
+                                        <div className="col-span-2">{oKhop(k)}</div>
+                                    </div>
+                                </li>
+                            ))}
+                        </ul>
+                    ) : (
+                        <div className="overflow-x-auto">
+                            <table className="w-full min-w-[560px] whitespace-nowrap text-[13px]">
+                                <thead>
+                                    <tr className="border-b border-border/70 bg-muted/40 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                                        <th className="px-5 py-2.5 text-left">Kỳ</th>
+                                        <th className="px-3 py-2.5 text-right">Đơn</th>
+                                        <th className="px-3 py-2.5 text-right">Tiền COD</th>
+                                        <th className="px-3 py-2.5 text-right">Phải nhận</th>
+                                        <th className="px-3 py-2.5 text-right">Khớp với đơn</th>
+                                        <th className="w-10 px-3 py-2.5" />
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-border/60">
+                                    {ky.map((k) => (
+                                        <tr key={k.id} className="hover:bg-muted/30">
+                                            <td className="px-5 py-3">
+                                                <div className="font-semibold tabular-nums text-foreground">{ngayHien(k)}</div>
+                                                <div className="max-w-[18rem] truncate text-[12px] text-muted-foreground" title={k.filename}>{tenKy(k.filename)}</div>
+                                                {/* Cột máy đã đọc — để người tải soát nhanh máy có lấy nhầm cột phí làm tiền không. */}
+                                                {cotDoc(k) && <div className="max-w-[18rem] truncate text-[11px] text-muted-foreground/80" title={cotDoc(k)}>{cotDoc(k)}</div>}
+                                            </td>
+                                            <td className="px-3 py-3 text-right tabular-nums text-foreground/80">{formatNumber(k.so_dong)}</td>
+                                            <td className={cn("px-3 py-3 text-right font-semibold tabular-nums", COD)}>{tien(k.cod_local)}</td>
+                                            <td className="px-3 py-3 text-right">{oPhaiNhan(k)}</td>
+                                            <td className="px-3 py-3 text-right">{oKhop(k)}</td>
+                                            <td className="px-3 py-3 text-right">{nutXoa(k)}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
+                    {ky.some((k) => k.canh_bao.length) && (
+                        <ul className="space-y-1 border-t border-border/70 bg-amber-50/50 px-3.5 py-2.5 text-[12.5px] text-amber-800 md:px-5 dark:bg-amber-500/[0.06] dark:text-amber-300">
+                            {ky.flatMap((k) => k.canh_bao.map((c, i) => (
+                                <li key={`${k.id}-${i}`} className="flex items-start gap-2">
+                                    <AlertTriangle className="mt-0.5 h-3.5 w-3.5 flex-none" /><span><b className="font-semibold">{tenKy(k.filename)}:</b> {c}</span>
+                                </li>
+                            )))}
+                        </ul>
+                    )}
+                </Khoi>
+            )}
+
+            {/* ═══ Khoản phải hỏi bên giao hàng ═══ */}
+            {soCanHoi > 0 && (
+                <Khoi so={so()} ten="Khoản cần hỏi bên giao hàng" phamVi="all" dem={`${soCanHoi} dòng`}
+                    phu="trả khác số trên đơn · trả cho đơn mình không có · một đơn trả hai lần">
+                    <ul className="divide-y divide-border/60 text-[13px]">
+                        {lech.slice(0, 60).map((x, i) => (
+                            <li key={`l${i}`} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3.5 py-2.5 md:px-5">
+                                <span className="rounded-full bg-rose-100 px-2 py-0.5 text-[11.5px] font-bold text-rose-700 dark:bg-rose-500/15 dark:text-rose-300">trả lệch</span>
+                                <span className="font-mono text-[12.5px]">{x.order_id || "—"}</span>
+                                <span className="font-mono text-[12px] text-muted-foreground">{x.tracking}</span>
+                                <span className="tabular-nums">đơn {tien(x.cod_don)} · trả <b className="font-semibold">{tien(x.tra)}</b></span>
+                                <span className="ml-auto text-[12px] text-muted-foreground">{tenKy(x.ky)}</span>
+                            </li>
+                        ))}
+                        {khong.slice(0, 60).map((x, i) => (
+                            <li key={`k${i}`} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3.5 py-2.5 md:px-5">
+                                <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11.5px] font-bold text-amber-800 dark:bg-amber-500/15 dark:text-amber-300">không có đơn</span>
+                                <span className="font-mono text-[12.5px]">{x.tracking || x.order_id || "—"}</span>
+                                {x.tracking && x.order_id ? <span className="font-mono text-[12px] text-muted-foreground">{x.order_id}</span> : null}
+                                <span className="tabular-nums">trả {tien(x.so_tien)}</span>
+                                <span className="ml-auto text-[12px] text-muted-foreground">{tenKy(x.ky)}</span>
+                            </li>
+                        ))}
+                        {trung.slice(0, 60).map((x, i) => (
+                            <li key={`t${i}`} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3.5 py-2.5 md:px-5">
+                                <span className="rounded-full bg-violet-100 px-2 py-0.5 text-[11.5px] font-bold text-violet-700 dark:bg-violet-500/15 dark:text-violet-300">trả 2 lần</span>
+                                <span className="font-mono text-[12.5px]">{x.order_id || "—"}</span>
+                                <span className="font-mono text-[12px] text-muted-foreground">{x.tracking}</span>
+                                <span className="ml-auto text-[12px] text-muted-foreground">{x.ky.map(tenKy).join(" · ")}</span>
+                            </li>
+                        ))}
+                    </ul>
+                    {(lech.length > 60 || khong.length > 60 || trung.length > 60) && (
+                        <p className="border-t border-border/70 px-5 py-2 text-[12px] text-muted-foreground">Mỗi loại chỉ hiện 60 dòng đầu.</p>
+                    )}
+                </Khoi>
+            )}
+
+            <Khoi so={so()} ten={ky.length ? "Đơn đã giao — chưa thấy tiền trên sao kê" : "Đơn đã giao — tiền bên giao hàng đang giữ"}
+                phamVi="all" dem={`${formatNumber(daGiao.length)} đơn`}>
                 {!daGiao.length ? (
-                    <p className="px-5 py-4 text-sm text-muted-foreground">Chưa có đơn nào giao thành công.</p>
+                    <p className="px-5 py-4 text-sm text-muted-foreground">
+                        {ky.length ? "Mọi đơn đã giao đều đã có trên sao kê." : "Chưa có đơn nào giao thành công."}
+                    </p>
                 ) : hep ? (
                     // Điện thoại: mỗi đơn một dòng hai tầng thay bảng 5 cột.
                     <ul className="divide-y divide-border/60">
@@ -330,7 +589,7 @@ function CodNuocKhac({ code, nutNuoc }: { code: string; nutNuoc?: ReactNode }) {
                 )}
             </Khoi>
 
-            <Khoi so="2" ten="Đơn chưa giao xong — tiền còn ngoài đường" phamVi="all" dem={`${formatNumber(t.chua_giao.so_don)} đơn`}>
+            <Khoi so={so()} ten="Đơn chưa giao xong — tiền còn ngoài đường" phamVi="all" dem={`${formatNumber(t.chua_giao.so_don)} đơn`}>
                 {t.chua_giao.theo_trang_thai.length ? (
                     <ul className="divide-y divide-border/60">
                         {t.chua_giao.theo_trang_thai.map((x) => (
