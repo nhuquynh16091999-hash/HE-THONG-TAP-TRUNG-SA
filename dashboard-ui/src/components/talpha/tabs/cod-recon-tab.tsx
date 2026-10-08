@@ -55,6 +55,8 @@ type Viec = {
     id: string; muc: "gap" | "soat" | "ghi"; tieu_de: string;
     so: number; don_vi: string; chi_tiet: string;
     done_key: string; nut: DoneKind[]; ghi_chu: string;
+    /** Màn nước khác: mọi khoá của nhóm — một lần bấm ghi cả nhóm. */
+    done_keys?: string[];
 };
 type Check = { nhom: "A" | "B"; ten: string; ok: boolean | null; chi_tiet: string };
 type Bank = { thuc_nhan_vnd: number; ngay_ve: string; ghi_chu?: string; luc: string };
@@ -135,7 +137,8 @@ function tinLech(p: Period, lang: "vi" | "zh"): string {
 
 /**
  * Nút chọn nước (Sỹ Anh chốt 26/09/2026): Đài Loan giữ nguyên toàn bộ quy trình sao kê NAZA;
- * Singapore, UAE có phần "tiền còn ở đâu" + tải sao kê khớp từng đơn (CodNuocKhac, 08/10/2026). Danh sách nước
+ * Singapore, UAE cùng bố cục Đài từ 08/10/2026 (CodNuocKhac): tải sao kê, việc hôm nay, các kỳ + ngân hàng,
+ * luồng tiền + máy soát, tỷ giá. Danh sách nước
  * lấy từ /api/talpha/markets — không gõ cứng ở giao diện.
  *
  * Phân quyền theo team (05/10/2026): danh sách chỉ còn nước của team, nên chờ có danh sách rồi
@@ -168,7 +171,7 @@ export default function TALPHACodReconTab(props: Props) {
     ) : null;
     return nuoc === "TW"
         ? <CodDaiLoan {...props} nutNuoc={nutNuoc} />
-        : <CodNuocKhac key={nuoc} code={nuoc} nutNuoc={nutNuoc} />;
+        : <CodNuocKhac key={nuoc} code={nuoc} nutNuoc={nutNuoc} dateRange={props.dateRange} />;
 }
 
 /** Hàng đầu tab: chọn nước · nguồn số (chữ nhỏ) · nút bên phải. */
@@ -211,15 +214,38 @@ type DonNuoc = {
     /** Đơn đã thấy trên một kỳ sao kê (08/10/2026). */
     da_tra?: { ky: string; so_tien: number };
 };
-type KyNuoc = {
+type CotDoc = Partial<Record<"tracking" | "order_id" | "amount" | "fee" | "paid_date" | "status", string>>;
+type DongTruN = { nhan: string; so: number; ghi?: string };
+/** Luồng tiền một kỳ, đi đúng thứ tự sheet TỔNG của NAZA (lib/talpha/cod-so-nuoc.ts). */
+type LuongN = {
+    so_don: number; cod_local: number; ty_gia_rmb: number | null; rmb: number | null; tru_rmb: DongTruN[];
+    rmb_rong: number | null; ty_gia_vnd: number | null; vnd: number | null; tru_vnd: DongTruN[];
+    chenh_vnd: number; phai_nhan_vnd: number | null;
+};
+type KyN = {
     id: string; filename: string; uploaded_at: string; kieu: "naza" | "bang"; ngay: string | null;
     so_dong: number; cod_local: number; phai_nhan_vnd: number | null; uoc_vnd: number | null;
-    /** Kỳ âm không cộng vào "đã gửi về"; tru_vao_dai = ngày kỳ Đài đã gộp khoản đó (24/09/2026). */
     tinh_vao_da_gui?: boolean; tru_vao_dai?: string | null;
     phi_rmb?: number | null; don_phi?: number; tien_hang_vnd?: number | null;
-    khop: number; lech: number; khong_co_don: number;
-    cot?: Partial<Record<"tracking" | "order_id" | "amount" | "fee" | "paid_date" | "status", string>>;
-    canh_bao: string[];
+    khop: number; lech: number; khong_co_don: number; cot?: CotDoc; canh_bao: string[];
+    luong: LuongN | null; bank: Bank | null;
+    trang_thai: PeriodState | "am"; trang_thai_chu: string; lech_bank_vnd: number | null;
+    lech_tien: { order_no: string; tracking: string; cod: number; tra: number; chenh: number }[];
+    thua_sao_ke: { order_no: string; tracking: string; so_tien: number }[];
+    phi_sai: { tracking: string; order_id: string; kg: number | null; thu: number; dung: number; chenh: number; ly_do: string }[];
+};
+type UocN = { so_don: number; cod_local: number; don_chua_tru_phi: number; phi_uoc_rmb: number; vnd_uoc: number | null };
+type SoN = {
+    ky: KyN[]; viec: Viec[]; checks: Check[];
+    tien_ve: {
+        da_gui_ve_vnd: number; co_uoc: boolean; so_ky: number; ky_am: number; am_vnd: number;
+        ky_da_doi_chieu_bank: number; thuc_nhan_vnd: number;
+        ty_gia: { rmb: number | null; vnd: number | null; thu_ho_pct: number | null; ngay: string | null };
+        cach_uoc: "naza" | "ty_gia_khai";
+        con_lai_da_giao: UocN; con_lai_chua_giao: UocN;
+    };
+    tong_quan: TongQuan;
+    fx: Fx;
 };
 type NuocData = {
     market: { code: string; display: string; currency: string; symbol: string; rate_vnd: number };
@@ -230,29 +256,40 @@ type NuocData = {
         chua_giao: KhoanNuoc & { theo_trang_thai: { trang_thai: string; so_don: number; cod_local: number }[] };
         khong_tinh: KhoanNuoc & { hoan: number; huy: number; tieu_huy: number };
     };
-    da_tra?: { so_don: number; cod_local: number };
-    da_gui_ve?: { vnd: number; co_uoc: boolean; cod_local: number; so_ky: number; ky_am?: number; am_vnd?: number };
-    ky?: KyNuoc[];
-    lech?: { order_id: string; tracking: string; cod_don: number; tra: number; ky: string }[];
-    khong_co_don?: { order_id: string; tracking: string; so_tien: number; ky: string }[];
-    tra_hai_lan?: { order_id: string; tracking: string; ky: string[] }[];
+    so: SoN;
     don: DonNuoc[];
 };
 
 const TEN_COT: Record<string, string> = { tracking: "mã vận đơn", order_id: "mã đơn", amount: "tiền", paid_date: "ngày" };
 const tenKy = (f: string) => f.replace(/\.(xlsx|csv|tsv|txt)$/i, "").trim() || f;
 
+/** Tin hỏi khoản trả lệch — như tinLech của Đài, đúng đồng tiền của nước. */
+function tinLechNuoc(k: KyN, lang: "vi" | "zh", sym: string): string {
+    const so = (n: number) => (Math.round(n * 100) / 100).toLocaleString("vi-VN");
+    if (lang === "zh") {
+        const dong = k.lech_tien.map((l) => `${l.order_no} · ${l.tracking} · 訂單 ${so(l.cod)} ${sym} / 實付 ${so(l.tra)} ${sym}`).join("\n");
+        return `您好，${tenKy(k.filename)} 這期對帳單中，以下訂單的撥款金額與我方訂單金額不符：\n\n${dong}\n\n麻煩協助核對，謝謝！`;
+    }
+    const dong = k.lech_tien.map((l) => `${l.order_no} · ${l.tracking} · đơn ${so(l.cod)} ${sym} / trả ${so(l.tra)} ${sym}`).join("\n");
+    return `Chào bạn, kỳ sao kê ${tenKy(k.filename)} có mấy đơn số tiền trả về không khớp với số trên đơn của mình:\n\n${dong}\n\nNhờ bạn kiểm tra lại giúp mình nhé. Cảm ơn bạn!`;
+}
+
 /**
- * Tiền COD về nước ngoài Đài.
- *   Bước 1 (26/09/2026): chưa có sao kê nên chỉ trả lời "tiền còn ở đâu" — đã giao (bên giao hàng
- *   đang giữ) · chưa giao (ngoài đường) · không tính (hoàn, huỷ).
- *   Bước 2 (08/10/2026, Sỹ Anh: "Singapore và UAE không có chỗ up file giống Đài à"): nút tải
- *   sao kê + kéo thả như Đài, kho riêng từng nước. Mỗi kỳ tải lên được khớp với đơn: đơn có trên
- *   sao kê ra khỏi "còn phải gửi"; trả lệch số / trả cho đơn mình không có / trả hai lần thì hiện
- *   ở khung "Khoản cần hỏi". Chưa có luồng tỷ giá + nhập tiền ngân hàng như Đài — chờ file thật
- *   đầu tiên để biết đối tác các nước tính tiền thế nào.
+ * Tiền COD về nước ngoài Đài — CÙNG bố cục màn Đài (Sỹ Anh 08/10/2026: "sao giao diện phần đối
+ * soát COD Sing không giống như Đài Loan").
+ *
+ *   Σ  tiền về          — bốn ô: đã gửi về · còn phải gửi · chưa giao xong · ngân hàng
+ *   ①  việc hôm nay     — KhoiViec dùng chung với Đài
+ *   ②  bảng các kỳ      — phải nhận · thực nhận (nhập số ngân hàng) · lệch · tình trạng
+ *   ③  kỳ đang mở       — luồng tiền S$ → ¥ → đ đúng thứ tự sheet TỔNG + máy soát A/B
+ *   ④  tỷ giá           — KhoiTyGia dùng chung với Đài (cần từ 2 kỳ có tỷ giá)
+ *   rồi hai khối gập: đơn đã giao chưa thấy tiền · đơn chưa giao xong.
+ *
+ * Số dựng ở lib/talpha/cod-so-nuoc.ts; việc người làm ghi qua /api/talpha/cod-recon/market/actions
+ * (kho riêng từng nước, cùng luật ghi với Đài). Sao kê dạng bảng (đối tác ngoài NAZA) không có
+ * sheet TỔNG — màn tự lùi về "ước theo tỷ giá khai".
  */
-function CodNuocKhac({ code, nutNuoc }: { code: string; nutNuoc?: ReactNode }) {
+function CodNuocKhac({ code, nutNuoc, dateRange }: { code: string; nutNuoc?: ReactNode; dateRange?: { from: Date; to: Date } }) {
     const [d, setD] = useState<NuocData | null>(null);
     const hep = useManHep();
     const [err, setErr] = useState("");
@@ -261,26 +298,73 @@ function CodNuocKhac({ code, nutNuoc }: { code: string; nutNuoc?: ReactNode }) {
     const [upErr, setUpErr] = useState("");
     const [upOk, setUpOk] = useState("");
     const [keo, setKeo] = useState(false);
-    const [xoa, setXoa] = useState("");
+    const [busy, setBusy] = useState("");
+    const [copied, setCopied] = useState("");
+    const [nhapBank, setNhapBank] = useState("");
+    const [pid, setPid] = useState("");
     const fileRef = useRef<HTMLInputElement>(null);
+    const to = dateRange?.to ? format(dateRange.to, "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd");
+    const api = `/api/talpha/cod-recon/market?market=${code}`;
+
     const load = useCallback(async () => {
-        setLoading(true); setErr("");
+        setErr("");
         try {
-            const res = await fetch(`/api/talpha/cod-recon/market?market=${code}`);
+            const res = await fetch(`${api}&to=${to}`);
             const j = await res.json();
             if (!res.ok) throw new Error(j.error || "Không tải được đơn");
             setD(j);
         } catch (e) {
             setErr(e instanceof Error ? e.message : "Lỗi không rõ");
         } finally { setLoading(false); }
-    }, [code]);
+    }, [api, to]);
     useEffect(() => { load(); }, [load]);
+
+    const chep = (id: string, text: string) => {
+        navigator.clipboard?.writeText(text);
+        setCopied(id); setTimeout(() => setCopied(""), 2200);
+    };
+
+    /** Ghi việc đã xử / tiền về — kho việc của nước này. Bỏ qua thì BẮT ghi lý do (quyết định mất tiền). */
+    const ghiViecN = async (key: string, kind: "da_hoi" | "bo_qua") => {
+        if (!key) return;
+        let lyDo = "";
+        if (kind === "bo_qua") {
+            lyDo = (window.prompt("Bỏ qua khoản này vì sao? (bắt buộc — sau còn tra lại được)") || "").trim();
+            if (!lyDo) return;
+        }
+        // Một lần bấm ghi CẢ NHÓM (12 đơn phí sai là một tin hỏi NAZA), lần lượt từng khoá —
+        // kho ghi bằng khoá file, gửi song song dễ giành nhau.
+        const v = d?.so.viec.find((x) => x.done_key === key);
+        const keys = v?.done_keys?.length ? v.done_keys : [key];
+        setBusy(key);
+        try {
+            for (const k of keys) {
+                await fetch(`/api/talpha/cod-recon/market/actions?market=${code}`, {
+                    method: "POST", headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ kind: "done", key: k, viec: kind, ghi_chu: lyDo }),
+                });
+            }
+            await load();
+        } finally { setBusy(""); }
+    };
+    const ghiBank = async (filename: string, so: number, ngay: string) => {
+        setBusy(filename); setUpErr("");
+        try {
+            const res = await fetch(`/api/talpha/cod-recon/market/actions?market=${code}`, {
+                method: "POST", headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ kind: "bank", filename, thuc_nhan_vnd: so, ngay_ve: ngay }),
+            });
+            const j = await res.json();
+            if (!res.ok) { setUpErr(j.error || "Không ghi được số tiền về"); return; }
+            setNhapBank(""); await load();
+        } finally { setBusy(""); }
+    };
 
     const upload = async (f: File) => {
         setUploading(true); setUpErr(""); setUpOk("");
         try {
             const fd = new FormData(); fd.append("file", f);
-            const res = await fetch(`/api/talpha/cod-recon/market?market=${code}`, { method: "POST", body: fd });
+            const res = await fetch(api, { method: "POST", body: fd });
             const j = await res.json();
             if (!res.ok) throw new Error(j.error || "Tải lên thất bại");
             const s = j.statement as { filename: string; so_dong: number; kieu: string; cot?: Record<string, string> };
@@ -288,6 +372,7 @@ function CodNuocKhac({ code, nutNuoc }: { code: string; nutNuoc?: ReactNode }) {
             const thay = (j.thay as string[] | undefined)?.length ? ` Đã THAY bản cũ cùng kỳ: ${(j.thay as string[]).map((x) => `“${x}”`).join(", ")}.` : "";
             setUpOk(`Đã đọc ${formatNumber(s.so_dong)} dòng từ “${s.filename}”${s.kieu === "naza" ? " (mẫu NAZA)" : cot ? ` — cột ${cot}` : ""}.${thay}` +
                 ((j.canh_bao as string[] | undefined)?.length ? ` ${(j.canh_bao as string[]).join(" ")}` : ""));
+            setPid("");
             await load();
         } catch (e) {
             setUpErr(e instanceof Error ? e.message : "Tải lên thất bại");
@@ -297,79 +382,118 @@ function CodNuocKhac({ code, nutNuoc }: { code: string; nutNuoc?: ReactNode }) {
         }
     };
 
-    const xoaKy = async (k: KyNuoc) => {
+    const xoaKy = async (k: KyN) => {
         if (!window.confirm(`Xoá kỳ “${k.filename}”? Đơn của kỳ này quay về “còn phải gửi”.`)) return;
-        setXoa(k.id); setUpErr(""); setUpOk("");
+        setBusy(k.id); setUpErr(""); setUpOk("");
         try {
-            const res = await fetch(`/api/talpha/cod-recon/market?market=${code}&statement=${encodeURIComponent(k.id)}`, { method: "DELETE" });
+            const res = await fetch(`${api}&statement=${encodeURIComponent(k.id)}`, { method: "DELETE" });
             if (!res.ok) {
                 const j = await res.json().catch(() => ({}));
                 setUpErr((j as { error?: string }).error || "Không xoá được kỳ này");
                 return;
             }
-            await load();
-        } finally { setXoa(""); }
+            setPid(""); await load();
+        } finally { setBusy(""); }
     };
 
     if (loading && !d) return <div className="space-y-4">{nutNuoc}<TabSkeleton cards={3} rows={6} showChart={false} /></div>;
     if (err || !d) return <div className="space-y-4">{nutNuoc}<ErrorState message={err || "Không tải được đơn"} onRetry={load} /></div>;
 
-    const m = d.market, t = d.tong;
+    const m = d.market, t = d.tong, so = d.so;
     const tien = (n: number) => `${(Math.round(n * 100) / 100).toLocaleString("vi-VN")} ${m.symbol}`;
-    const COD = "text-sky-700 dark:text-sky-300";
-    const gia = m.rate_vnd > 0 ? `${m.rate_vnd.toLocaleString("vi-VN")}đ/${m.currency}` : "chưa khai tỷ giá";
-    const ky = d.ky || [];
-    const gv = d.da_gui_ve;
-    const lech = d.lech || [], khong = d.khong_co_don || [], trung = d.tra_hai_lan || [];
-    const soCanHoi = lech.length + khong.length + trung.length;
-    // Đã có sao kê thì bảng này chỉ còn đơn CHƯA thấy trên kỳ nào — tiền còn phải đòi.
+    const te: Te = { ky: m.symbol, ma: m.currency, fmt: tien };
+    const ky = so.ky;
+    const period = ky.find((k) => k.id === pid) || ky[0];
+    const moiNhat = ky[0];
+    const laNaza = ky.some((k) => k.kieu === "naza");
+    const ben = laNaza ? "NAZA" : "bên giao hàng";
     const daGiao = d.don.filter((x) => x.nhom === "da_giao" && !x.da_tra);
     const capNhat = d.nguon.cap_nhat ? (() => {
         const x = new Date(d.nguon.cap_nhat);
         const p = (n: number) => String(n).padStart(2, "0");
         return `${p(x.getHours())}:${p(x.getMinutes())} ngày ${p(x.getDate())}/${p(x.getMonth() + 1)}`;
     })() : null;
-    let stt = 0;
-    const so = () => String(++stt);
 
-    const chiTietKy = (k: KyNuoc) => [
-        k.phi_rmb ? `phí ${RMB2(k.phi_rmb)}` : "",
-        k.tien_hang_vnd ? `tiền hàng ${VND(k.tien_hang_vnd)}` : "",
-    ].filter(Boolean).join(" · ");
-    const oPhaiNhan = (k: KyNuoc) => k.phai_nhan_vnd != null && k.phai_nhan_vnd < 0 ? (
+    /** Nút "Nhập số" ở Việc hôm nay: mở ô nhập ở đúng dòng kỳ đó trong bảng ② rồi cuộn tới. */
+    const moNhapBank = (filename: string) => {
+        setNhapBank(filename);
+        const k = ky.find((x) => x.filename === filename);
+        if (k) setTimeout(() => document.getElementById(`kyn-${k.id}`)?.scrollIntoView({ behavior: "smooth", block: "center" }), 60);
+    };
+
+    const oPhaiNhan = (k: KyN) => k.phai_nhan_vnd != null && k.phai_nhan_vnd < 0 ? (
         // Kỳ âm (chỉ có phí + tiền hàng): KHÔNG cộng vào "đã gửi về" — NAZA trừ khoản này ở chỗ khác.
-        <span className="inline-block text-right">
+        <span className="inline-flex flex-col items-end text-right">
             <span className="font-bold tabular-nums text-rose-600 dark:text-rose-400">âm {VND(-k.phai_nhan_vnd)}</span>
-            <span className="block whitespace-normal text-[11px] leading-snug text-muted-foreground">
-                {k.tru_vao_dai ? `đã trừ vào tiền COD Đài kỳ ${dmy(k.tru_vao_dai)} (bản gộp)` : "NAZA trừ vào kỳ sau"}
+            <span className="text-[11px] leading-snug text-muted-foreground">
+                {k.tru_vao_dai ? `đã trừ vào COD Đài ${dmy(k.tru_vao_dai).slice(0, 5)}` : "NAZA trừ vào kỳ sau"}
             </span>
         </span>
     ) : k.phai_nhan_vnd != null ? (
-        <span className="font-bold tabular-nums text-emerald-700 dark:text-emerald-400">{VND(k.phai_nhan_vnd)}</span>
+        <span className="text-[14px] font-bold tabular-nums text-emerald-700 dark:text-emerald-400">{VND(k.phai_nhan_vnd)}</span>
     ) : k.uoc_vnd != null ? (
-        <span className="font-semibold tabular-nums text-amber-600 dark:text-amber-400" title={`Sao kê không ghi số phải nhận — ước = tiền COD × ${gia}, chưa trừ phí`}>
+        <span className="font-semibold tabular-nums text-amber-600 dark:text-amber-400" title={`Sao kê không ghi số phải nhận — ước = tiền COD × ${m.rate_vnd.toLocaleString("vi-VN")}đ/${m.currency}, chưa trừ phí`}>
             ≈ {VND(k.uoc_vnd)}
         </span>
     ) : <span className="text-muted-foreground">—</span>;
-    const oKhop = (k: KyNuoc) => !k.so_dong ? (
-        <span className="text-[12px] text-muted-foreground">chưa thu COD · chỉ có phí {formatNumber(k.don_phi ?? 0)} đơn</span>
-    ) : (
-        <span className="inline-flex flex-wrap items-center justify-end gap-x-2 gap-y-0.5 text-[12px] tabular-nums">
-            <span className="font-semibold text-emerald-700 dark:text-emerald-400">{k.khop} khớp</span>
-            {k.lech > 0 && <span className="font-semibold text-rose-600 dark:text-rose-400">{k.lech} lệch</span>}
-            {k.khong_co_don > 0 && <span className="font-semibold text-amber-600 dark:text-amber-400">{k.khong_co_don} không có đơn</span>}
+
+    const oThucNhan = (k: KyN) => k.trang_thai === "am" ? <span className="text-muted-foreground">—</span>
+        : nhapBank === k.filename ? (
+            <FormBank goiY={k.phai_nhan_vnd} busy={busy === k.filename}
+                onHuy={() => setNhapBank("")} onGhi={(n, ngay) => ghiBank(k.filename, n, ngay)} />
+        ) : k.bank ? (
+            <button onClick={() => setNhapBank(k.filename)} className="rounded-lg px-1.5 py-0.5 text-right transition-colors hover:bg-muted">
+                <div className="font-semibold tabular-nums text-foreground">{VND(k.bank.thuc_nhan_vnd)}</div>
+                <div className="text-[11.5px] text-muted-foreground">về {dmy(k.bank.ngay_ve)}</div>
+            </button>
+        ) : (
+            <button onClick={() => setNhapBank(k.filename)}
+                className="inline-flex items-center gap-1 rounded-lg border border-dashed border-border px-2.5 py-1 text-[12px] font-medium text-muted-foreground transition-colors hover:border-sky-400 hover:bg-sky-50 hover:text-sky-700 dark:hover:bg-sky-500/10 dark:hover:text-sky-300">
+                <PenLine className="h-3.5 w-3.5" />chưa nhập
+            </button>
+        );
+
+    const oLech = (k: KyN) => (
+        <span className={cn("font-semibold tabular-nums",
+            k.lech_bank_vnd == null ? "text-muted-foreground"
+                : k.trang_thai === "khop" ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400")}>
+            {k.lech_bank_vnd == null ? "·"
+                : Math.round(k.lech_bank_vnd) === 0 ? "0đ"
+                    : `${k.lech_bank_vnd > 0 ? "+" : "−"}${VND(Math.abs(k.lech_bank_vnd))}`}
         </span>
     );
-    // File không ghi ngày (tên lẫn dòng) thì lấy ngày tải lên — vẫn phân biệt được các kỳ.
-    const ngayHien = (k: KyNuoc) => k.ngay ? dmy(k.ngay) : `tải ${dmy(format(new Date(k.uploaded_at), "yyyy-MM-dd"))}`;
-    const cotDoc = (k: KyNuoc) => k.kieu === "naza" ? "mẫu NAZA"
-        : k.cot ? Object.entries(k.cot).filter(([c]) => TEN_COT[c]).map(([c, v]) => `${TEN_COT[c]}: ${v}`).join(" · ") : "";
-    const nutXoa = (k: KyNuoc) => (
-        <button onClick={() => xoaKy(k)} disabled={xoa === k.id} title="Xoá kỳ này (tải nhầm file)"
+    const oTienHang = (k: KyN) => k.tien_hang_vnd ? (
+        <>
+            <div className="font-semibold tabular-nums text-orange-600 dark:text-orange-400">{VND(k.tien_hang_vnd)}</div>
+            <div className="text-[11.5px] text-muted-foreground">NAZA trừ vào COD</div>
+        </>
+    ) : <span className="text-muted-foreground">—</span>;
+    const cotDoc = (k: KyN) => k.kieu === "naza" ? "" : k.cot
+        ? Object.entries(k.cot).filter(([c]) => TEN_COT[c]).map(([c, v]) => `${TEN_COT[c]}: ${v}`).join(" · ") : "";
+    const nutXoa = (k: KyN) => (
+        <button onClick={(e) => { e.stopPropagation(); xoaKy(k); }} disabled={busy === k.id} title="Xoá kỳ này (tải nhầm file)"
             className="grid h-7 w-7 flex-none place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-rose-50 hover:text-rose-600 disabled:opacity-40 dark:hover:bg-rose-500/10 dark:hover:text-rose-400">
             <X className="h-4 w-4" />
         </button>
     );
+
+    /** Xuất đúng thứ cần gửi lại bên giao hàng — khoản lệch của kỳ đang mở + đơn đã giao chưa thấy tiền. */
+    const exportForPartner = () => {
+        if (!period) return;
+        const rows: (string | number)[][] = [];
+        for (const l of period.lech_tien) rows.push(["Trả khác số trên đơn", l.order_no, l.tracking, l.cod, l.tra, l.chenh, ""]);
+        for (const x of period.thua_sao_ke) rows.push(["Trả cho đơn mình không có", x.order_no, x.tracking, "", x.so_tien, "", ""]);
+        for (const f of period.phi_sai) rows.push([f.chenh > 0 ? "Phí thu cao hơn bảng giá" : "Phí thu thấp hơn bảng giá", f.order_id, f.tracking, "", "", "", `${f.thu}¥ / bảng ${f.dung}¥ — ${f.ly_do}`]);
+        for (const x of daGiao) rows.push(["Đã giao, chưa thấy trên sao kê", x.order_id, x.tracking, x.cod_local, "", "", x.order_date || ""]);
+        const head = ["Loại", "Mã đơn", "Mã vận đơn", `COD đơn (${m.currency})`, `Trả (${m.currency})`, `Lệch (${m.currency})`, "Ghi chú"];
+        const esc = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+        const blob = new Blob(["﻿" + [head.map(esc).join(","), ...rows.map((r) => r.map(esc).join(","))].join("\n")],
+            { type: "text/csv;charset=utf-8" });
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = `gui-${code.toLowerCase()}_${period.filename.replace(/\.[^.]+$/, "")}.csv`;
+        a.click(); URL.revokeObjectURL(a.href);
+    };
 
     return (
         // Kéo file sao kê thả vào bất cứ đâu trên màn — như màn Đài.
@@ -393,14 +517,14 @@ function CodNuocKhac({ code, nutNuoc }: { code: string; nutNuoc?: ReactNode }) {
 
             <ThanhDau nutNuoc={nutNuoc}
                 nguon={<>
-                    {ky.length ? `${ky.length} kỳ sao kê · mới nhất “${tenKy(ky[0].filename)}” · ` : ""}
-                    Đơn {m.display}: {d.nguon.nhan}{capNhat ? ` · ${d.nguon.loai === "weship" ? "tra" : "nạp"} lúc ${capNhat}` : ""}
+                    {ky.length} bản sao kê{moiNhat ? ` · mới nhất “${tenKy(moiNhat.filename)}”${moiNhat.ngay ? ` (chốt ${dmy(moiNhat.ngay)})` : ""}` : ""}
+                    {` · Đơn ${m.display}: ${d.nguon.nhan}${capNhat ? ` ${d.nguon.loai === "weship" ? "tra" : "nạp"} lúc ${capNhat}` : ""}`}
                 </>}
                 phai={<>
                     <span className="hidden text-[11.5px] text-muted-foreground lg:inline">hoặc kéo thả file .xlsx · .csv vào màn</span>
                     <span title={`Sao kê COD của bên giao hàng ${m.display}: file NAZA, hoặc bảng .xlsx/.csv có cột mã vận đơn (hoặc mã đơn) + tiền COD. Tải lại cùng một kỳ thì THAY, không cộng thêm.`}>
-                        <Nut kieu="chinh" busy={uploading} busyText="Đang đọc và khớp…" onClick={() => fileRef.current?.click()}>
-                            <Upload className="h-4 w-4" />Tải sao kê {m.display}
+                        <Nut kieu="chinh" busy={uploading} busyText="Đang đọc và soát…" onClick={() => fileRef.current?.click()}>
+                            <Upload className="h-4 w-4" />Tải sao kê {laNaza || code === "SG" ? "NAZA" : m.display}
                         </Nut>
                     </span>
                 </>} />
@@ -415,159 +539,196 @@ function CodNuocKhac({ code, nutNuoc }: { code: string; nutNuoc?: ReactNode }) {
                 </p>
             )}
 
-            {/* Ba ô số, cùng thứ tự màn Đài: đã gửi về · còn phải gửi · chưa giao xong. */}
-            <div className="grid grid-cols-2 gap-2 lg:grid-cols-3">
-                <OSoTien mau="xanh" uoc={!!gv?.co_uoc} nhan="Bên giao hàng đã gửi về" className="col-span-2 lg:col-span-1"
-                    so={ky.length && gv ? VND(gv.vnd) : "—"}
-                    phu={ky.length && gv ? `${formatNumber(ky.length)} kỳ sao kê · ${tien(gv.cod_local)}` +
-                        (gv.ky_am ? ` · không cộng ${gv.ky_am} kỳ âm` : "") : "chưa có sao kê nào"} />
-                <OSoTien mau="vang" uoc nhan="Còn phải gửi · đơn đã giao"
-                    so={t.da_giao.vnd_uoc != null ? VND(t.da_giao.vnd_uoc) : "—"}
-                    phu={`${formatNumber(t.da_giao.so_don)} đơn · ${tien(t.da_giao.cod_local)}`} />
-                <OSoTien mau="cam" uoc nhan="Chưa giao xong"
-                    so={t.chua_giao.vnd_uoc != null ? VND(t.chua_giao.vnd_uoc) : "—"}
-                    phu={`${formatNumber(t.chua_giao.so_don)} đơn · ${tien(t.chua_giao.cod_local)}`} />
-            </div>
-            <p className="flex items-start gap-2 text-[12px] leading-relaxed text-muted-foreground">
-                <Info className="mt-0.5 h-3.5 w-3.5 flex-none" />
-                <span>
-                    {ky.length ? (
-                        <>
-                            Đã khớp <b className="font-semibold text-foreground">{formatNumber(d.da_tra?.so_don ?? 0)} đơn</b> với {ky.length} kỳ sao kê —
-                            “còn phải gửi” chỉ còn đơn đã giao chưa thấy trên kỳ nào.
-                            {gv?.co_uoc ? ` Kỳ nào sao kê không ghi số phải nhận thì “đã gửi về” ước = tiền COD × ${gia}, chưa trừ phí.` : " “Đã gửi về” là số phải nhận ghi trên sao kê."}
-                            {gv?.ky_am ? ` Không cộng ${gv.ky_am} kỳ âm (âm ${VND(-(gv.am_vnd ?? 0))}, kỳ chỉ có phí + tiền hàng) — NAZA trừ khoản đó vào tiền chuyển ở chỗ khác, xem cột Phải nhận.` : ""}
-                            {" "}Hai ô còn lại quy VND theo tỷ giá {gia}, <b className="font-semibold text-foreground">chưa trừ phí ship và phí thu hộ</b>.
-                        </>
-                    ) : (
-                        <>
-                            Chưa có sao kê của bên giao hàng {m.display} — bấm <b className="font-semibold text-foreground">Tải sao kê {m.display}</b> để khớp từng đơn như Đài Loan.
-                            Số VND quy theo tỷ giá {gia}, <b className="font-semibold text-foreground">chưa trừ phí ship và phí thu hộ</b>.
-                        </>
-                    )}
-                    {" "}Đã bỏ {t.khong_tinh.hoan} đơn hoàn + {t.khong_tinh.huy} đơn huỷ{t.khong_tinh.tieu_huy ? ` + ${t.khong_tinh.tieu_huy} đơn tiêu huỷ` : ""} ({tien(t.khong_tinh.cod_local)}) vì không bao giờ trả tiền.
-                </span>
-            </p>
+            {/* ═══ Σ TIỀN VỀ — bốn ô số, như Đài ═══ */}
+            <TomTatTienNuoc so={so} t={t} m={m} tien={tien} ben={ben} />
 
-            {/* ═══ Các kỳ sao kê đã tải ═══ */}
+            {/* ═══ ① VIỆC HÔM NAY ═══ */}
+            <KhoiViec viec={so.viec} busy={busy} copied={copied} onChep={chep}
+                tinLech={(() => {
+                    const kl = ky.find((k) => k.lech_tien.length);
+                    return kl ? { vi: tinLechNuoc(kl, "vi", m.symbol), zh: tinLechNuoc(kl, "zh", m.symbol) } : null;
+                })()}
+                onNhapBank={moNhapBank} onGhi={ghiViecN} hoiAi={ben === "NAZA" ? "NAZA" : "bên giao hàng"}
+                rongChu={ky.length ? "Mọi kỳ đã soát xong, tiền đã về khớp." : `Chưa có sao kê nào — bấm Tải sao kê để bắt đầu đối soát ${m.display}.`} />
+
+            {/* ═══ ② BẢNG CÁC KỲ ═══ */}
             {ky.length > 0 && (
-                <Khoi so={so()} ten={`${ky.length} kỳ sao kê`} phamVi="all" phu="tải lại cùng một kỳ thì thay, không cộng thêm · tải nhầm thì bấm ✕">
+                <Khoi so="2" ten={`${ky.length} kỳ sao kê`} phamVi="all" phu="bấm một dòng để mở chi tiết kỳ đó · tải nhầm thì bấm ✕">
                     {hep ? (
                         <ul className="divide-y divide-border/60">
-                            {ky.map((k) => (
-                                <li key={k.id} className="px-3.5 py-3">
-                                    <div className="flex items-center gap-2">
-                                        <b className="tabular-nums text-foreground">{ngayHien(k)}</b>
-                                        <span className="min-w-0 flex-1 truncate text-[11.5px] text-muted-foreground">{tenKy(k.filename)}</span>
-                                        {nutXoa(k)}
-                                    </div>
-                                    <div className="mt-1.5 grid grid-cols-2 gap-x-3 gap-y-1.5 text-[12.5px]">
-                                        <div>
-                                            <div className="text-[11px] text-muted-foreground">Tiền COD · {k.so_dong} đơn</div>
-                                            <div className={cn("font-semibold tabular-nums", COD)}>{tien(k.cod_local)}</div>
+                            {ky.map((k) => {
+                                const chon = k.id === period?.id;
+                                return (
+                                    <li key={k.id} id={`kyn-${k.id}`} onClick={() => setPid(k.id)}
+                                        className={cn("cursor-pointer px-3.5 py-3", chon && "bg-orange-50/70 shadow-[inset_3px_0_0_0_#FF7312] dark:bg-orange-500/[0.07]")}>
+                                        <div className="flex items-center gap-2">
+                                            <b className="tabular-nums text-foreground">{k.ngay ? dmy(k.ngay) : "—"}</b>
+                                            <span className="min-w-0 truncate text-[11.5px] text-muted-foreground">{tenKy(k.filename)}</span>
+                                            <span className="ml-auto flex-none"><TrangThai p={k} /></span>
+                                            {nutXoa(k)}
                                         </div>
-                                        <div>
-                                            <div className="text-[11px] text-muted-foreground">Phải nhận</div>
-                                            {oPhaiNhan(k)}
+                                        <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-2 text-[12.5px]">
+                                            <div>
+                                                <div className="text-[11px] text-muted-foreground">Tiền COD · {k.so_dong} đơn</div>
+                                                <div className="font-semibold tabular-nums text-sky-700 dark:text-sky-300">{tien(k.cod_local)}</div>
+                                            </div>
+                                            <div>
+                                                <div className="text-[11px] text-muted-foreground">Phải nhận</div>
+                                                {oPhaiNhan(k)}
+                                            </div>
+                                            {k.trang_thai !== "am" && (
+                                                <div className="col-span-2 flex flex-wrap items-center justify-between gap-2" onClick={(e) => e.stopPropagation()}>
+                                                    <div>
+                                                        <div className="text-[11px] text-muted-foreground">Thực nhận (ngân hàng)</div>
+                                                        <div className="-ml-1.5">{oThucNhan(k)}</div>
+                                                    </div>
+                                                    <div className="text-right">
+                                                        <div className="text-[11px] text-muted-foreground">Lệch</div>
+                                                        {oLech(k)}
+                                                    </div>
+                                                </div>
+                                            )}
                                         </div>
-                                        <div className="col-span-2">{oKhop(k)}</div>
-                                        {chiTietKy(k) && <div className="col-span-2 text-[11px] text-muted-foreground">{chiTietKy(k)}</div>}
-                                    </div>
-                                </li>
-                            ))}
+                                    </li>
+                                );
+                            })}
                         </ul>
                     ) : (
                         <div className="overflow-x-auto">
-                            <table className="w-full min-w-[560px] whitespace-nowrap text-[13px]">
+                            <table className="w-full min-w-[900px] whitespace-nowrap text-[13px]">
                                 <thead>
                                     <tr className="border-b border-border/70 bg-muted/40 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                                        <th className="px-5 py-2.5 text-left">Kỳ</th>
+                                        <th className="px-5 py-2.5 text-left">Kỳ chốt</th>
                                         <th className="px-3 py-2.5 text-right">Đơn</th>
                                         <th className="px-3 py-2.5 text-right">Tiền COD</th>
+                                        <th className="px-3 py-2.5 text-right">Tiền hàng</th>
                                         <th className="px-3 py-2.5 text-right">Phải nhận</th>
-                                        <th className="px-3 py-2.5 text-right">Khớp với đơn</th>
-                                        <th className="w-10 px-3 py-2.5" />
+                                        <th className="px-3 py-2.5 text-right">Thực nhận</th>
+                                        <th className="px-3 py-2.5 text-right">Lệch</th>
+                                        <th className="px-3 py-2.5 text-left">Tình trạng</th>
+                                        <th className="w-8 px-1 py-2.5" />
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-border/60">
-                                    {ky.map((k) => (
-                                        <tr key={k.id} className="hover:bg-muted/30">
-                                            <td className="px-5 py-3">
-                                                <div className="font-semibold tabular-nums text-foreground">{ngayHien(k)}</div>
-                                                <div className="max-w-[18rem] truncate text-[12px] text-muted-foreground" title={k.filename}>{tenKy(k.filename)}</div>
-                                                {/* Cột máy đã đọc — để người tải soát nhanh máy có lấy nhầm cột phí làm tiền không. */}
-                                                {cotDoc(k) && <div className="max-w-[18rem] truncate text-[11px] text-muted-foreground/80" title={cotDoc(k)}>{cotDoc(k)}</div>}
-                                                {chiTietKy(k) && <div className="text-[11px] text-muted-foreground/80">{chiTietKy(k)}</div>}
-                                            </td>
-                                            <td className="px-3 py-3 text-right tabular-nums text-foreground/80">{formatNumber(k.so_dong)}</td>
-                                            <td className={cn("px-3 py-3 text-right font-semibold tabular-nums", COD)}>{tien(k.cod_local)}</td>
-                                            <td className="px-3 py-3 text-right">{oPhaiNhan(k)}</td>
-                                            <td className="px-3 py-3 text-right">{oKhop(k)}</td>
-                                            <td className="px-3 py-3 text-right">{nutXoa(k)}</td>
-                                        </tr>
-                                    ))}
+                                    {ky.map((k) => {
+                                        const chon = k.id === period?.id;
+                                        return (
+                                            <tr key={k.id} id={`kyn-${k.id}`} onClick={() => setPid(k.id)}
+                                                className={cn("cursor-pointer transition-colors", chon ? "bg-orange-50/70 dark:bg-orange-500/[0.07]" : "hover:bg-muted/40")}>
+                                                <td className={cn("px-5 py-3", chon && "shadow-[inset_3px_0_0_0_#FF7312]")}>
+                                                    <div className="font-semibold tabular-nums text-foreground">{k.ngay ? dmy(k.ngay) : `tải ${dmy(format(new Date(k.uploaded_at), "yyyy-MM-dd"))}`}</div>
+                                                    <div className="max-w-[16rem] truncate text-[12px] text-muted-foreground" title={k.filename}>{tenKy(k.filename)}</div>
+                                                    {cotDoc(k) && <div className="max-w-[16rem] truncate text-[11px] text-muted-foreground/80" title={cotDoc(k)}>{cotDoc(k)}</div>}
+                                                </td>
+                                                <td className="px-3 py-3 text-right tabular-nums text-foreground/80">{k.so_dong || <span className="text-muted-foreground" title={`Chưa thu COD — phí ${k.don_phi ?? 0} đơn`}>0</span>}</td>
+                                                <td className="px-3 py-3 text-right font-semibold tabular-nums text-sky-700 dark:text-sky-300">{tien(k.cod_local)}</td>
+                                                <td className="px-3 py-3 text-right">{oTienHang(k)}</td>
+                                                <td className="px-3 py-3 text-right">{oPhaiNhan(k)}</td>
+                                                <td className="px-3 py-3 text-right" onClick={(e) => e.stopPropagation()}>{oThucNhan(k)}</td>
+                                                <td className="px-3 py-3 text-right">{oLech(k)}</td>
+                                                <td className="px-3 py-3"><TrangThai p={k} /></td>
+                                                <td className="px-1 py-3 text-right">{nutXoa(k)}</td>
+                                            </tr>
+                                        );
+                                    })}
                                 </tbody>
                             </table>
                         </div>
                     )}
-                    {ky.some((k) => k.canh_bao.length) && (
+                    <p className="flex items-start gap-2 border-t border-border/70 bg-muted/30 px-3.5 py-2 text-[12px] leading-relaxed text-muted-foreground md:px-5">
+                        <Info className="mt-0.5 h-3.5 w-3.5 flex-none" />
+                        <span>
+                            Kỳ chỉ <b className="font-semibold text-foreground">xong</b> khi tiền thật về khớp số sao kê tính ra
+                            (lệch dưới {VND(so.tong_quan.bank_tolerance_vnd)} bỏ qua) — không phải khi các mục soát xanh hết.
+                            Kỳ âm (chỉ có phí + tiền hàng) không có tiền về, nên không cần nhập.
+                        </span>
+                    </p>
+                </Khoi>
+            )}
+
+            {/* ═══ ③ KỲ ĐANG MỞ ═══ */}
+            {period && (
+                <Khoi so="3" ten={period.ngay ? `Kỳ chốt ${dmy(period.ngay)}` : tenKy(period.filename)} phamVi="one" phu={tenKy(period.filename)}
+                    phai={
+                        <>
+                            <div className="relative max-w-full">
+                                <select value={period.id} onChange={(e) => setPid(e.target.value)}
+                                    className="h-8 max-w-[18rem] appearance-none truncate rounded-lg border border-border bg-card pl-3 pr-8 text-[13px] font-medium text-foreground shadow-sm focus:border-orange-400 focus:outline-none focus:ring-2 focus:ring-orange-500/20 dark:[color-scheme:dark]">
+                                    {ky.map((k, i) => (
+                                        <option key={k.id} value={k.id}>{i === 0 ? "★ " : ""}{tenKy(k.filename)}{k.ngay ? ` — chốt ${dmy(k.ngay)}` : ""}</option>
+                                    ))}
+                                </select>
+                                <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                            </div>
+                            <Nut onClick={exportForPartner}><Download className="h-4 w-4" />Xuất file gửi {ben}</Nut>
+                        </>
+                    }>
+                    {period.luong ? (() => {
+                        const l = period.luong;
+                        const phi = l.tru_rmb.reduce((a, x) => a + x.so, 0);
+                        const am = (l.phai_nhan_vnd ?? 0) < 0;
+                        return (
+                            <>
+                                <div className="grid grid-cols-2 gap-px border-b border-border/70 bg-border/60 sm:grid-cols-3 xl:grid-cols-5">
+                                    <Kpi label="Đơn trong sao kê" value={formatNumber(l.so_don)}
+                                        sub={l.so_don ? `${period.khop + period.lech} đơn khớp sổ đơn` : `chưa thu COD · phí ${period.don_phi ?? 0} đơn`} />
+                                    <Kpi label="Tiền COD" value={tien(l.cod_local)} sub={`${ben} thu trong kỳ`} tone="twd" />
+                                    <Kpi label={`Phí ${ben} trừ`} value={RMB2(phi)} sub={l.tru_rmb.map((x) => x.nhan.toLowerCase()).join(" · ") || "không có"} tone="rmb" />
+                                    <Kpi label="Tiền hàng" value={l.tru_vnd.length ? VND(l.tru_vnd.reduce((a, x) => a + x.so, 0)) : "—"}
+                                        sub={l.tru_vnd.length ? "NAZA trừ vào COD" : "kỳ này không trừ"} tone="hang" />
+                                    {am
+                                        ? <Kpi label="Phải nhận" value={`âm ${VND(-(l.phai_nhan_vnd ?? 0))}`} tone="red" className="col-span-2 xl:col-span-1"
+                                            sub={period.tru_vao_dai ? `đã trừ vào kỳ Đài ${dmy(period.tru_vao_dai).slice(0, 5)}` : "NAZA trừ vào kỳ sau"} />
+                                        : <Kpi label="Phải nhận" value={l.phai_nhan_vnd != null ? VND(l.phai_nhan_vnd) : "—"}
+                                            sub="sau khi trừ hết" tone="green" className="col-span-2 xl:col-span-1" />}
+                                </div>
+                                <LuongTienNuoc l={l} ky={period} m={m} tien={tien} />
+                            </>
+                        );
+                    })() : (
+                        <div className="flex items-center gap-2 px-5 py-4 text-[13px] text-muted-foreground">
+                            <Info className="h-4 w-4 flex-none" />
+                            {period.kieu === "bang"
+                                ? "Sao kê dạng bảng không có sheet TỔNG nên không dựng được luồng tiền — số ở bảng ② là ước theo tỷ giá khai."
+                                : "Bản tải lên trước 08/10/2026 chưa lưu sheet TỔNG — tải lại file kỳ này (thay bản cũ) để thấy luồng tiền và máy soát."}
+                        </div>
+                    )}
+                    {period.canh_bao.length > 0 && (
                         <ul className="space-y-1 border-t border-border/70 bg-amber-50/50 px-3.5 py-2.5 text-[12.5px] text-amber-800 md:px-5 dark:bg-amber-500/[0.06] dark:text-amber-300">
-                            {ky.flatMap((k) => k.canh_bao.map((c, i) => (
-                                <li key={`${k.id}-${i}`} className="flex items-start gap-2">
-                                    <AlertTriangle className="mt-0.5 h-3.5 w-3.5 flex-none" /><span><b className="font-semibold">{tenKy(k.filename)}:</b> {c}</span>
-                                </li>
-                            )))}
+                            {period.canh_bao.map((c, i) => (
+                                <li key={i} className="flex items-start gap-2"><AlertTriangle className="mt-0.5 h-3.5 w-3.5 flex-none" /><span>{c}</span></li>
+                            ))}
                         </ul>
                     )}
+                    <HaiNhomSoat checks={so.checks} kyKhac={!!moiNhat && period.id !== moiNhat.id}>
+                        <div className="grid items-start gap-4 border-t border-border/70 bg-muted/20 p-3 md:p-4 xl:grid-cols-2">
+                            {moiNhat && period.id !== moiNhat.id && (
+                                <p className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-2.5 text-[12.5px] leading-relaxed text-amber-800 xl:col-span-2 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300">
+                                    <Info className="mt-0.5 h-4 w-4 flex-none" />
+                                    <span>
+                                        Hai nhóm soát dưới đây là của <b className="font-semibold">kỳ mới nhất</b>{moiNhat.ngay ? ` — chốt ${dmy(moiNhat.ngay)}` : ""} ({tenKy(moiNhat.filename)}).
+                                        Máy chỉ soát kỳ mới nhất; số tiền phía trên mới là của kỳ đang chọn.
+                                    </span>
+                                </p>
+                            )}
+                            <MucSoat nhom="A" ten="Soát bên trong file" hoi="tin được số trong đó không" checks={so.checks.filter((c) => c.nhom === "A")} />
+                            <MucSoat nhom="B" ten="Soát file với đơn của mình" hoi="họ trả đủ và đúng chưa" checks={so.checks.filter((c) => c.nhom === "B")} />
+                        </div>
+                    </HaiNhomSoat>
                 </Khoi>
             )}
 
-            {/* ═══ Khoản phải hỏi bên giao hàng ═══ */}
-            {soCanHoi > 0 && (
-                <Khoi so={so()} ten="Khoản cần hỏi bên giao hàng" phamVi="all" dem={`${soCanHoi} dòng`}
-                    phu="trả khác số trên đơn · trả cho đơn mình không có · một đơn trả hai lần">
-                    <ul className="divide-y divide-border/60 text-[13px]">
-                        {lech.slice(0, 60).map((x, i) => (
-                            <li key={`l${i}`} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3.5 py-2.5 md:px-5">
-                                <span className="rounded-full bg-rose-100 px-2 py-0.5 text-[11.5px] font-bold text-rose-700 dark:bg-rose-500/15 dark:text-rose-300">trả lệch</span>
-                                <span className="font-mono text-[12.5px]">{x.order_id || "—"}</span>
-                                <span className="font-mono text-[12px] text-muted-foreground">{x.tracking}</span>
-                                <span className="tabular-nums">đơn {tien(x.cod_don)} · trả <b className="font-semibold">{tien(x.tra)}</b></span>
-                                <span className="ml-auto text-[12px] text-muted-foreground">{tenKy(x.ky)}</span>
-                            </li>
-                        ))}
-                        {khong.slice(0, 60).map((x, i) => (
-                            <li key={`k${i}`} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3.5 py-2.5 md:px-5">
-                                <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11.5px] font-bold text-amber-800 dark:bg-amber-500/15 dark:text-amber-300">không có đơn</span>
-                                <span className="font-mono text-[12.5px]">{x.tracking || x.order_id || "—"}</span>
-                                {x.tracking && x.order_id ? <span className="font-mono text-[12px] text-muted-foreground">{x.order_id}</span> : null}
-                                <span className="tabular-nums">trả {tien(x.so_tien)}</span>
-                                <span className="ml-auto text-[12px] text-muted-foreground">{tenKy(x.ky)}</span>
-                            </li>
-                        ))}
-                        {trung.slice(0, 60).map((x, i) => (
-                            <li key={`t${i}`} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3.5 py-2.5 md:px-5">
-                                <span className="rounded-full bg-violet-100 px-2 py-0.5 text-[11.5px] font-bold text-violet-700 dark:bg-violet-500/15 dark:text-violet-300">trả 2 lần</span>
-                                <span className="font-mono text-[12.5px]">{x.order_id || "—"}</span>
-                                <span className="font-mono text-[12px] text-muted-foreground">{x.tracking}</span>
-                                <span className="ml-auto text-[12px] text-muted-foreground">{x.ky.map(tenKy).join(" · ")}</span>
-                            </li>
-                        ))}
-                    </ul>
-                    {(lech.length > 60 || khong.length > 60 || trung.length > 60) && (
-                        <p className="border-t border-border/70 px-5 py-2 text-[12px] text-muted-foreground">Mỗi loại chỉ hiện 60 dòng đầu.</p>
-                    )}
-                </Khoi>
-            )}
+            {/* ═══ ④ TỶ GIÁ ═══ */}
+            {so.fx.rows.length > 1 && <KhoiTyGia so="4" fx={so.fx} kyDangXem={period?.filename} te={te} />}
 
-            <Khoi so={so()} ten={ky.length ? "Đơn đã giao — chưa thấy tiền trên sao kê" : "Đơn đã giao — tiền bên giao hàng đang giữ"}
-                phamVi="all" dem={`${formatNumber(daGiao.length)} đơn`}>
+            {/* Hai khối gập — chưa có ở màn Đài (đơn từng đơn của Đài nằm ở Sổ đơn hàng). */}
+            <Khoi so={so.fx.rows.length > 1 ? "5" : "4"} ten={ky.length ? "Đơn đã giao — chưa thấy tiền trên sao kê" : "Đơn đã giao — tiền bên giao hàng đang giữ"}
+                phamVi="all" dem={`${formatNumber(daGiao.length)} đơn`} gap={{ mo: false }}>
                 {!daGiao.length ? (
                     <p className="px-5 py-4 text-sm text-muted-foreground">
                         {ky.length ? "Mọi đơn đã giao đều đã có trên sao kê." : "Chưa có đơn nào giao thành công."}
                     </p>
                 ) : hep ? (
-                    // Điện thoại: mỗi đơn một dòng hai tầng thay bảng 5 cột.
                     <ul className="divide-y divide-border/60">
                         {daGiao.map((x) => (
                             <li key={`${x.order_id}-${x.tracking}`} className="px-3.5 py-2.5">
@@ -610,14 +771,15 @@ function CodNuocKhac({ code, nutNuoc }: { code: string; nutNuoc?: ReactNode }) {
                 )}
             </Khoi>
 
-            <Khoi so={so()} ten="Đơn chưa giao xong — tiền còn ngoài đường" phamVi="all" dem={`${formatNumber(t.chua_giao.so_don)} đơn`}>
+            <Khoi so={so.fx.rows.length > 1 ? "6" : "5"} ten="Đơn chưa giao xong — tiền còn ngoài đường" phamVi="all"
+                dem={`${formatNumber(t.chua_giao.so_don)} đơn`} gap={{ mo: false }}>
                 {t.chua_giao.theo_trang_thai.length ? (
                     <ul className="divide-y divide-border/60">
                         {t.chua_giao.theo_trang_thai.map((x) => (
                             <li key={x.trang_thai} className="flex items-center justify-between gap-3 px-5 py-2.5 text-sm">
                                 <span>{x.trang_thai}</span>
                                 <span className="tabular-nums text-muted-foreground">
-                                    {formatNumber(x.so_don)} đơn · <span className={cn("font-mono", COD)}>{tien(x.cod_local)}</span>
+                                    {formatNumber(x.so_don)} đơn · <span className="font-mono text-sky-700 dark:text-sky-300">{tien(x.cod_local)}</span>
                                 </span>
                             </li>
                         ))}
@@ -626,6 +788,102 @@ function CodNuocKhac({ code, nutNuoc }: { code: string; nutNuoc?: ReactNode }) {
                     <p className="px-5 py-4 text-sm text-muted-foreground">Không còn đơn nào ngoài đường.</p>
                 )}
             </Khoi>
+        </div>
+    );
+}
+
+/** Σ tiền về nước ngoài Đài — bốn ô như TomTatTien của Đài; cách tính cất sau một nút. */
+function TomTatTienNuoc({ so, t, m, tien, ben }: {
+    so: SoN; t: NuocData["tong"]; m: NuocData["market"]; tien: (n: number) => string; ben: string;
+}) {
+    const [cachTinh, setCachTinh] = useState(false);
+    const tv = so.tien_ve, tq = so.tong_quan;
+    const dg = tv.con_lai_da_giao, cg = tv.con_lai_chua_giao;
+    const g = tv.ty_gia;
+    const pct = (n: number | null) => n == null ? "—" : `${(n * 100).toFixed(1).replace(".", ",")}%`;
+    return (
+        <div className="space-y-2">
+            <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
+                <OSoTien mau="xanh" uoc={tv.co_uoc} nhan={`${ben === "NAZA" ? "NAZA" : "Bên giao hàng"} đã gửi về`}
+                    so={tv.so_ky ? VND(tv.da_gui_ve_vnd) : "—"}
+                    phu={tv.so_ky ? `${formatNumber(tv.so_ky)} kỳ sao kê${tv.ky_am ? ` · không cộng ${tv.ky_am} kỳ âm` : ""}` : "chưa có sao kê nào"} />
+                <OSoTien mau="vang" uoc nhan="Còn phải gửi · đơn đã giao"
+                    so={dg.vnd_uoc != null ? VND(dg.vnd_uoc) : "—"} phu={`${formatNumber(dg.so_don)} đơn · ${tien(dg.cod_local)}`} />
+                <OSoTien mau="cam" uoc nhan="Chưa giao xong"
+                    so={cg.vnd_uoc != null ? VND(cg.vnd_uoc) : "—"} phu={`${formatNumber(cg.so_don)} đơn · ${tien(cg.cod_local)}`} />
+                {tq.ky_lech > 0
+                    ? <OSoTien mau="do" nhan="Tiền về lệch ngân hàng" so={VND(tq.tien_lech_vnd)} phu={`${tq.ky_lech} kỳ không khớp`} />
+                    : tq.ky_cho_nhap > 0
+                        ? <OSoTien mau="xanhduong" nhan="Chưa đối chiếu ngân hàng" so={VND(tq.tien_cho_nhap_vnd)} phu={`${tq.ky_cho_nhap} kỳ chưa nhập tiền về`} />
+                        : <OSoTien mau="xanh" nhan="Đối chiếu ngân hàng" so={tq.ky_khop ? `${tq.ky_khop} kỳ khớp` : "—"}
+                            phu={tq.ky_khop ? "không kỳ nào lệch" : "chưa có kỳ nào có tiền về"} />}
+            </div>
+            <button onClick={() => setCachTinh(!cachTinh)} aria-expanded={cachTinh}
+                className="inline-flex items-center gap-1.5 text-[12px] font-medium text-muted-foreground hover:text-foreground">
+                <Info className="h-3.5 w-3.5" />Cách tính các số này
+                <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", cachTinh && "rotate-180")} />
+            </button>
+            {cachTinh && (
+                <div className="space-y-1.5 rounded-xl border border-border bg-muted/30 px-4 py-3 text-[12.5px] leading-relaxed text-muted-foreground">
+                    <p><b className="font-semibold text-foreground">Đã gửi về</b> = cộng số phải nhận {ben} ghi trên từng sao kê
+                        ({tv.ky_da_doi_chieu_bank === 0 ? "chưa kỳ nào đối chiếu ngân hàng" : `${tv.ky_da_doi_chieu_bank} kỳ đã đối chiếu ngân hàng`}).
+                        {tv.ky_am ? ` Không cộng ${tv.ky_am} kỳ âm (âm ${VND(-tv.am_vnd)} — kỳ chỉ có phí + tiền hàng): NAZA trừ khoản đó vào tiền chuyển ở chỗ khác, xem cột Phải nhận ở bảng ②.` : ""}
+                        {tv.co_uoc ? ` Kỳ nào sao kê không ghi số phải nhận thì ước = tiền COD × ${m.rate_vnd.toLocaleString("vi-VN")}đ/${m.currency}, chưa trừ phí.` : ""}</p>
+                    <p><b className="font-semibold text-foreground">Hai ô giữa không trùng nhau</b> — là đơn CHƯA thấy trên kỳ sao kê nào:
+                        đơn đã giao là tiền {ben} đang giữ, đơn chưa giao là tiền còn ở ngoài đường.
+                        Đã bỏ {t.khong_tinh.hoan} đơn hoàn + {t.khong_tinh.huy} đơn huỷ{t.khong_tinh.tieu_huy ? ` + ${t.khong_tinh.tieu_huy} đơn tiêu huỷ` : ""} ({tien(t.khong_tinh.cod_local)}) vì không bao giờ trả tiền.</p>
+                    {tv.cach_uoc === "naza" ? (
+                        <p>Số dự tính đi đúng luồng NAZA kỳ {g.ngay ? dmy(g.ngay).slice(0, 5) : "gần nhất"}: COD × {g.rmb} → tệ, trừ phí thu hộ {pct(g.thu_ho_pct)},
+                            trừ phí giao hàng cho đơn chưa bị NAZA trừ phí ở kỳ nào ({dg.don_chua_tru_phi + cg.don_chua_tru_phi} đơn — lấy mức trung bình NAZA đã tính),
+                            rồi × {g.vnd?.toLocaleString("vi-VN")}. <b className="font-semibold text-foreground">Chưa trừ tiền hàng các kỳ tới</b> — chưa biết trước được.</p>
+                    ) : (
+                        <p>Chưa có kỳ sao kê NAZA nào có tỷ giá, nên số dự tính = tiền COD × tỷ giá khai {m.rate_vnd.toLocaleString("vi-VN")}đ/{m.currency},
+                            <b className="font-semibold text-foreground"> chưa trừ phí ship và phí thu hộ</b>.</p>
+                    )}
+                    <p><b className="font-semibold text-foreground">Ngân hàng:</b> kỳ chỉ coi là xong khi tiền thật về khớp số sao kê tính ra.
+                        Lệch trong {VND(tq.bank_tolerance_vnd)} thì bỏ qua (quy đổi {m.currency} → ¥ → đ có làm tròn, ngân hàng còn thu phí chuyển).
+                        Nhập số tiền về của từng kỳ ở bảng ② bên dưới.</p>
+                </div>
+            )}
+        </div>
+    );
+}
+
+/**
+ * Luồng tiền một kỳ nước ngoài Đài — ba chặng như LuongTien của Đài, nhưng các dòng trừ đọc
+ * thẳng từ sheet TỔNG (mẫu Sing: phí thu hộ, phí ship, phí hàng hoàn lên kệ, tiền hàng).
+ */
+function LuongTienNuoc({ l, ky, m, tien }: { l: LuongN; ky: KyN; m: NuocData["market"]; tien: (n: number) => string }) {
+    const am = (l.phai_nhan_vnd ?? 0) < 0;
+    return (
+        <div className="px-5 py-4">
+            <div className="mb-3 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+                <h4 className="text-[12px] font-bold uppercase tracking-wider text-foreground/70">Luồng tiền kỳ này</h4>
+                <span className="text-[12px] text-muted-foreground">theo đúng thứ tự sheet TỔNG của NAZA — đặt cạnh file mà dò từng dòng</span>
+            </div>
+            <div className="grid items-stretch gap-2 xl:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)_auto_minmax(0,1fr)]">
+                <ChangTien te="twd" ky={m.symbol} ten={m.display} mo="khách trả khi nhận hàng">
+                    <DongTien nhan="Số đơn NAZA thu được" so={formatNumber(l.so_don)} ghi={!l.so_don ? `kỳ này chưa thu COD — chỉ có phí ${ky.don_phi ?? 0} đơn` : undefined} />
+                    <DongTien nhan="Tổng COD thu về" so={tien(l.cod_local)} tong lon mau={CHANG.twd.so} />
+                </ChangTien>
+                <MuiTen chu={l.ty_gia_rmb != null ? `× ${l.ty_gia_rmb}` : "—"} />
+                <ChangTien te="rmb" ten="Trung Quốc" mo="NAZA trừ phí">
+                    <DongTien nhan="Quy ra nhân dân tệ" so={l.rmb != null ? RMB2(l.rmb) : "—"} />
+                    {l.tru_rmb.map((x) => <DongTien key={x.nhan} nhan={`− ${x.nhan}`} so={RMB2(-x.so)} tru ghi={x.ghi} />)}
+                    <DongTien nhan="= COD còn lại" so={l.rmb_rong != null ? RMB2(l.rmb_rong) : "—"} tong
+                        mau={(l.rmb_rong ?? 0) < 0 ? "text-rose-600 dark:text-rose-400" : CHANG.rmb.so} />
+                </ChangTien>
+                <MuiTen chu={`× ${l.ty_gia_vnd != null ? l.ty_gia_vnd.toLocaleString("vi-VN") : "—"}`} />
+                <ChangTien te="vnd" ten="Việt Nam" mo="về tài khoản">
+                    <DongTien nhan="Quy ra tiền Việt" so={l.vnd != null ? VND(l.vnd) : "—"} />
+                    {l.tru_vnd.map((x) => <DongTien key={x.nhan} nhan={`− ${x.nhan}`} so={VND(-x.so)} tru ghi="theo sao kê NAZA" />)}
+                    {l.chenh_vnd !== 0 && <DongTien nhan="± Điều chỉnh" so={VND(l.chenh_vnd)} tru={l.chenh_vnd < 0} ghi="NAZA ghi thêm, sheet TỔNG không tách dòng" />}
+                    <DongTien nhan="= Phải nhận" tong lon
+                        so={l.phai_nhan_vnd == null ? "—" : am ? `âm ${VND(-l.phai_nhan_vnd)}` : VND(l.phai_nhan_vnd)}
+                        ghi={am ? (ky.tru_vao_dai ? `đã trừ vào tiền COD Đài kỳ ${dmy(ky.tru_vao_dai)} (bản gộp) — không có tiền về` : "NAZA trừ vào kỳ sau") : undefined}
+                        mau={am || l.phai_nhan_vnd == null ? "text-rose-600 dark:text-rose-400" : CHANG.vnd.so} />
+                </ChangTien>
+            </div>
         </div>
     );
 }
@@ -851,73 +1109,10 @@ function CodDaiLoan({ dateRange, nutNuoc }: Props & { nutNuoc?: ReactNode }) {
             {tienVe && <TomTatTien t={tienVe} tq={tq} />}
 
             {/* ═══ ① VIỆC HÔM NAY ═══ */}
-            <Khoi so="1" ten="Việc hôm nay" phamVi="all" dem={viecKeToan.length ? `${viecKeToan.length} việc` : ""}
-                phu="soát sao kê, hỏi khoản lệch, nhập tiền về">
-                {viecKeToan.length === 0 ? (
-                    <div className="flex items-center gap-3 px-5 py-6">
-                        <span className="grid h-10 w-10 flex-none place-items-center rounded-xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
-                            <CheckCircle2 className="h-5 w-5" />
-                        </span>
-                        <div>
-                            <div className="text-[14.5px] font-semibold text-emerald-700 dark:text-emerald-400">Không có việc gì cần làm</div>
-                            <div className="text-[13px] text-muted-foreground">
-                                Mọi kỳ đã soát xong, tiền đã về khớp. Đơn quá hạn phải đòi xem ở Sổ đơn hàng.
-                            </div>
-                        </div>
-                    </div>
-                ) : (
-                    <ul className="divide-y divide-border/70">
-                        {viecKeToan.map((v) => {
-                            const m = MUC[v.muc];
-                            return (
-                                <li key={v.id} className="relative flex flex-wrap items-start gap-x-4 gap-y-3 px-5 py-4 transition-colors hover:bg-muted/30">
-                                    <span className={cn("absolute inset-y-4 left-0 w-1 rounded-r-full", m.vach)} />
-                                    <span className={cn("grid h-9 w-9 flex-none place-items-center rounded-xl", m.nen)}>
-                                        <m.Icon className="h-[18px] w-[18px]" />
-                                    </span>
-                                    <div className="min-w-[14rem] flex-1">
-                                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                                            <span className="text-[14.5px] font-semibold text-foreground">{v.tieu_de}</span>
-                                            <span className={cn("rounded-full px-2 py-0.5 text-[12px] font-bold tabular-nums", m.the)}>
-                                                {v.don_vi === "đ" ? VND(v.so) : `${formatNumber(v.so)} ${v.don_vi}`}
-                                            </span>
-                                        </div>
-                                        <p className="mt-1 text-[13px] leading-relaxed text-muted-foreground">{v.chi_tiet}</p>
-                                    </div>
-                                    <div className="flex flex-none flex-wrap items-center gap-2">
-                                        {v.id === "lech-tien" && period && (
-                                            <>
-                                                <Nut kieu="chinh" onClick={() => chep("l-vi", tinLech(period, "vi"))}>
-                                                    <Copy className="h-3.5 w-3.5" />
-                                                    {copied === "l-vi" ? "Đã chép" : "Chép tin (Việt)"}
-                                                </Nut>
-                                                <Nut onClick={() => chep("l-zh", tinLech(period, "zh"))}>
-                                                    {copied === "l-zh" ? "Đã chép" : "中文"}
-                                                </Nut>
-                                            </>
-                                        )}
-                                        {v.nut.includes("nhap_bank") && (
-                                            <Nut kieu="chinh" onClick={() => moNhapBank(v.done_key)}>
-                                                <PenLine className="h-3.5 w-3.5" />Nhập số
-                                            </Nut>
-                                        )}
-                                        {v.nut.includes("da_hoi") && v.done_key && (
-                                            <Nut busy={busy === v.done_key} onClick={() => ghiViec(v.done_key, "da_hoi")}>
-                                                Đã hỏi NAZA
-                                            </Nut>
-                                        )}
-                                        {v.nut.includes("bo_qua") && v.done_key && (
-                                            <Nut busy={busy === v.done_key} onClick={() => ghiViec(v.done_key, "bo_qua")}>
-                                                <X className="h-3.5 w-3.5" />Bỏ qua
-                                            </Nut>
-                                        )}
-                                    </div>
-                                </li>
-                            );
-                        })}
-                    </ul>
-                )}
-            </Khoi>
+            <KhoiViec viec={viecKeToan} busy={busy} copied={copied} onChep={chep}
+                tinLech={period ? { vi: tinLech(period, "vi"), zh: tinLech(period, "zh") } : null}
+                onNhapBank={moNhapBank} onGhi={ghiViec}
+                rongChu="Mọi kỳ đã soát xong, tiền đã về khớp. Đơn quá hạn phải đòi xem ở Sổ đơn hàng." />
 
             {/* ═══ ② BẢNG CÁC KỲ — xương sống của tab ═══ */}
             {periods.length > 0 && (
@@ -1121,83 +1316,7 @@ function CodDaiLoan({ dateRange, nutNuoc }: Props & { nutNuoc?: ReactNode }) {
             )}
 
             {/* ═══ ④ TỶ GIÁ — quy ra tiền, không quy ra phần trăm ═══ */}
-            {fx && fx.rows.length > 1 && (
-                <Khoi so="4" ten="Tỷ giá đã lấy của mình bao nhiêu" phamVi="all" gap={{ mo: false }}
-                    dem={fx.total_thiet_vnd > 0 ? `thiệt ${VND(fx.total_thiet_vnd)}` : undefined}>
-                    <div className="grid gap-px border-b border-border/70 bg-border/60 sm:grid-cols-3">
-                        <Kpi label="Thiệt vì tỷ giá" value={VND(fx.total_thiet_vnd)}
-                            sub={`qua ${fx.rows.filter((r) => r.thiet_vnd != null).length} kỳ đã có sao kê`} tone="red" />
-                        <Kpi label="Tỷ giá tốt nhất NAZA từng đặt"
-                            value={fx.best_vnd_per_twd != null ? `${fx.best_vnd_per_twd.toFixed(2)}đ/NT$` : "—"}
-                            sub={fx.best_period ? `kỳ chốt ${dmy(fx.best_period)}` : ""} tone="green" />
-                        <KpiTeNhat rows={fx.rows} />
-                    </div>
-                    <p className="flex items-start gap-2 border-b border-border/70 bg-muted/30 px-5 py-2.5 text-[12.5px] leading-relaxed text-muted-foreground">
-                        <Info className="mt-0.5 h-4 w-4 flex-none" />
-                        <span>
-                            Tỷ giá NAZA tự đặt, mình phải chịu — nên chỉ hỏi: <b className="font-semibold text-foreground">nó đã lấy của mình bao nhiêu tiền</b>.
-                            Mốc là kỳ tốt nhất chính NAZA từng đặt; tiền thiệt = chênh đồng/NT$ × tiền COD cả kỳ. Rê chuột lên từng kỳ để xem số.
-                        </span>
-                    </p>
-                    <BieuDoTyGia fx={fx} kyDangXem={period?.filename} />
-                    <details className="group border-t border-border/70">
-                        <summary className="flex cursor-pointer list-none items-center gap-1.5 px-5 py-2.5 text-[12.5px] font-semibold text-muted-foreground transition-colors hover:text-foreground [&::-webkit-details-marker]:hidden">
-                            <ChevronDown className="h-4 w-4 transition-transform group-open:rotate-180" />
-                            Xem bảng số từng kỳ
-                        </summary>
-                        <div className="overflow-x-auto border-t border-border/70">
-                            <table className="w-full min-w-[720px] whitespace-nowrap text-[13px]">
-                                <thead>
-                                    <tr className="border-b border-border/70 bg-muted/40 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                                        <th className="px-5 py-2.5 text-left">Kỳ chốt</th>
-                                        <th className="px-3 py-2.5 text-right">TWD→RMB</th>
-                                        <th className="px-3 py-2.5 text-right">RMB→VND</th>
-                                        <th className="px-3 py-2.5 text-right">Đồng / NT$</th>
-                                        <th className="px-3 py-2.5 text-right">Tiền COD</th>
-                                        <th className="px-5 py-2.5 text-right">Thiệt so kỳ tốt nhất</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-border/60">
-                                    {(() => {
-                                        const thietMax = Math.max(0, ...fx.rows.map((r) => r.thiet_vnd ?? 0));
-                                        return fx.rows.map((r) => (
-                                            <tr key={r.filename}
-                                                className={cn("transition-colors",
-                                                    r.filename === period?.filename ? "bg-orange-50/70 dark:bg-orange-500/[0.07]" : "hover:bg-muted/30")}>
-                                                <td className="px-5 py-2.5 font-semibold tabular-nums text-foreground">{dmy(r.period_date)}</td>
-                                                <td className="px-3 py-2.5 text-right tabular-nums text-sky-700 dark:text-sky-300">{r.rate_twd_rmb ?? "—"}</td>
-                                                <td className="px-3 py-2.5 text-right tabular-nums text-violet-700 dark:text-violet-300">{r.rate_rmb_vnd ?? "—"}</td>
-                                                <td className="px-3 py-2.5 text-right font-semibold tabular-nums text-foreground">
-                                                    {r.vnd_per_twd != null ? r.vnd_per_twd.toFixed(2) : "—"}
-                                                </td>
-                                                <td className="px-3 py-2.5 text-right tabular-nums text-foreground/80">{TWD(r.cod_twd)}</td>
-                                                <td className="px-5 py-2.5 text-right">
-                                                    {r.thiet_vnd == null ? <span className="text-muted-foreground">—</span>
-                                                        : r.tot_nhat ? (
-                                                            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[12px] font-semibold text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-300">
-                                                                <BadgeCheck className="h-3.5 w-3.5" />tốt nhất
-                                                            </span>
-                                                        ) : (
-                                                            <div className="flex items-center justify-end gap-3">
-                                                                <span className="hidden h-1.5 w-24 overflow-hidden rounded-full bg-rose-100 sm:block dark:bg-rose-500/15">
-                                                                    <span className="block h-full rounded-full bg-rose-500"
-                                                                        style={{ width: `${thietMax > 0 ? Math.max(4, (r.thiet_vnd / thietMax) * 100) : 0}%` }} />
-                                                                </span>
-                                                                <span className="font-semibold tabular-nums text-rose-600 dark:text-rose-400">
-                                                                    −{VND(r.thiet_vnd)}
-                                                                </span>
-                                                            </div>
-                                                        )}
-                                                </td>
-                                            </tr>
-                                        ));
-                                    })()}
-                                </tbody>
-                            </table>
-                        </div>
-                    </details>
-                </Khoi>
-            )}
+            {fx && fx.rows.length > 1 && <KhoiTyGia so="4" fx={fx} kyDangXem={period?.filename} te={TE_DAI} />}
         </div>
     );
 }
@@ -1210,6 +1329,171 @@ function CodDaiLoan({ dateRange, nutNuoc }: Props & { nutNuoc?: ReactNode }) {
    Số tiền dùng chính font chữ với chữ số thẳng cột (tabular-nums) — font mono cũ
    làm bảng trông như màn hình dòng lệnh. Font mono chỉ còn cho mã vận đơn và số
    điện thoại, là thứ phải dò từng ký tự. */
+
+/** Đồng tiền của một màn (Đài NT$, Sing S$…) — khối tỷ giá + biểu đồ ghi đúng tên tiền. */
+type Te = { ky: string; ma: string; fmt: (n: number) => string };
+const TE_DAI: Te = { ky: "NT$", ma: "TWD", fmt: TWD };
+
+/** ④ Tỷ giá đã lấy của mình bao nhiêu — dùng chung màn Đài và các nước khác (08/10/2026). */
+function KhoiTyGia({ so, fx, kyDangXem, te }: { so: string; fx: Fx; kyDangXem?: string; te: Te }) {
+    return (
+        <Khoi so={so} ten="Tỷ giá đã lấy của mình bao nhiêu" phamVi="all" gap={{ mo: false }}
+            dem={fx.total_thiet_vnd > 0 ? `thiệt ${VND(fx.total_thiet_vnd)}` : undefined}>
+            <div className="grid gap-px border-b border-border/70 bg-border/60 sm:grid-cols-3">
+                <Kpi label="Thiệt vì tỷ giá" value={VND(fx.total_thiet_vnd)}
+                    sub={`qua ${fx.rows.filter((r) => r.thiet_vnd != null).length} kỳ đã có sao kê`} tone="red" />
+                <Kpi label="Tỷ giá tốt nhất NAZA từng đặt"
+                    value={fx.best_vnd_per_twd != null ? `${fx.best_vnd_per_twd.toFixed(2)}đ/${te.ky}` : "—"}
+                    sub={fx.best_period ? `kỳ chốt ${dmy(fx.best_period)}` : ""} tone="green" />
+                <KpiTeNhat rows={fx.rows} />
+            </div>
+            <p className="flex items-start gap-2 border-b border-border/70 bg-muted/30 px-5 py-2.5 text-[12.5px] leading-relaxed text-muted-foreground">
+                <Info className="mt-0.5 h-4 w-4 flex-none" />
+                <span>
+                    Tỷ giá NAZA tự đặt, mình phải chịu — nên chỉ hỏi: <b className="font-semibold text-foreground">nó đã lấy của mình bao nhiêu tiền</b>.
+                    Mốc là kỳ tốt nhất chính NAZA từng đặt; tiền thiệt = chênh đồng/{te.ky} × tiền COD cả kỳ. Rê chuột lên từng kỳ để xem số.
+                </span>
+            </p>
+            <BieuDoTyGia fx={fx} kyDangXem={kyDangXem} te={te} />
+            <details className="group border-t border-border/70">
+                <summary className="flex cursor-pointer list-none items-center gap-1.5 px-5 py-2.5 text-[12.5px] font-semibold text-muted-foreground transition-colors hover:text-foreground [&::-webkit-details-marker]:hidden">
+                    <ChevronDown className="h-4 w-4 transition-transform group-open:rotate-180" />
+                    Xem bảng số từng kỳ
+                </summary>
+                <div className="overflow-x-auto border-t border-border/70">
+                    <table className="w-full min-w-[720px] whitespace-nowrap text-[13px]">
+                        <thead>
+                            <tr className="border-b border-border/70 bg-muted/40 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                                <th className="px-5 py-2.5 text-left">Kỳ chốt</th>
+                                <th className="px-3 py-2.5 text-right">{te.ma}→RMB</th>
+                                <th className="px-3 py-2.5 text-right">RMB→VND</th>
+                                <th className="px-3 py-2.5 text-right">Đồng / {te.ky}</th>
+                                <th className="px-3 py-2.5 text-right">Tiền COD</th>
+                                <th className="px-5 py-2.5 text-right">Thiệt so kỳ tốt nhất</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-border/60">
+                            {(() => {
+                                const thietMax = Math.max(0, ...fx.rows.map((r) => r.thiet_vnd ?? 0));
+                                return fx.rows.map((r) => (
+                                    <tr key={r.filename}
+                                        className={cn("transition-colors",
+                                            r.filename === kyDangXem ? "bg-orange-50/70 dark:bg-orange-500/[0.07]" : "hover:bg-muted/30")}>
+                                        <td className="px-5 py-2.5 font-semibold tabular-nums text-foreground">{dmy(r.period_date)}</td>
+                                        <td className="px-3 py-2.5 text-right tabular-nums text-sky-700 dark:text-sky-300">{r.rate_twd_rmb ?? "—"}</td>
+                                        <td className="px-3 py-2.5 text-right tabular-nums text-violet-700 dark:text-violet-300">{r.rate_rmb_vnd ?? "—"}</td>
+                                        <td className="px-3 py-2.5 text-right font-semibold tabular-nums text-foreground">
+                                            {r.vnd_per_twd != null ? r.vnd_per_twd.toFixed(2) : "—"}
+                                        </td>
+                                        <td className="px-3 py-2.5 text-right tabular-nums text-foreground/80">{te.fmt(r.cod_twd)}</td>
+                                        <td className="px-5 py-2.5 text-right">
+                                            {r.thiet_vnd == null ? <span className="text-muted-foreground">—</span>
+                                                : r.tot_nhat ? (
+                                                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[12px] font-semibold text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-300">
+                                                        <BadgeCheck className="h-3.5 w-3.5" />tốt nhất
+                                                    </span>
+                                                ) : (
+                                                    <div className="flex items-center justify-end gap-3">
+                                                        <span className="hidden h-1.5 w-24 overflow-hidden rounded-full bg-rose-100 sm:block dark:bg-rose-500/15">
+                                                            <span className="block h-full rounded-full bg-rose-500"
+                                                                style={{ width: `${thietMax > 0 ? Math.max(4, (r.thiet_vnd / thietMax) * 100) : 0}%` }} />
+                                                        </span>
+                                                        <span className="font-semibold tabular-nums text-rose-600 dark:text-rose-400">
+                                                            −{VND(r.thiet_vnd)}
+                                                        </span>
+                                                    </div>
+                                                )}
+                                        </td>
+                                    </tr>
+                                ));
+                            })()}
+                        </tbody>
+                    </table>
+                </div>
+            </details>
+        </Khoi>
+    );
+}
+
+/** ① Việc hôm nay — dùng chung màn Đài và các nước khác (08/10/2026). */
+function KhoiViec({ viec, busy, copied, onChep, tinLech, onNhapBank, onGhi, rongChu, hoiAi = "NAZA" }: {
+    viec: Viec[]; busy: string; copied: string;
+    onChep: (id: string, text: string) => void;
+    /** Tin nhắn soạn sẵn cho khoản trả lệch (Việt + Trung). */
+    tinLech: { vi: string; zh: string } | null;
+    onNhapBank: (key: string) => void;
+    onGhi: (key: string, kind: "da_hoi" | "bo_qua") => void;
+    rongChu: string;
+    hoiAi?: string;
+}) {
+    return (
+        <Khoi so="1" ten="Việc hôm nay" phamVi="all" dem={viec.length ? `${viec.length} việc` : ""}
+            phu="soát sao kê, hỏi khoản lệch, nhập tiền về">
+            {viec.length === 0 ? (
+                <div className="flex items-center gap-3 px-5 py-6">
+                    <span className="grid h-10 w-10 flex-none place-items-center rounded-xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
+                        <CheckCircle2 className="h-5 w-5" />
+                    </span>
+                    <div>
+                        <div className="text-[14.5px] font-semibold text-emerald-700 dark:text-emerald-400">Không có việc gì cần làm</div>
+                        <div className="text-[13px] text-muted-foreground">{rongChu}</div>
+                    </div>
+                </div>
+            ) : (
+                <ul className="divide-y divide-border/70">
+                    {viec.map((v) => {
+                        const m = MUC[v.muc];
+                        return (
+                            <li key={v.id} className="relative flex flex-wrap items-start gap-x-4 gap-y-3 px-5 py-4 transition-colors hover:bg-muted/30">
+                                <span className={cn("absolute inset-y-4 left-0 w-1 rounded-r-full", m.vach)} />
+                                <span className={cn("grid h-9 w-9 flex-none place-items-center rounded-xl", m.nen)}>
+                                    <m.Icon className="h-[18px] w-[18px]" />
+                                </span>
+                                <div className="min-w-[14rem] flex-1">
+                                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                                        <span className="text-[14.5px] font-semibold text-foreground">{v.tieu_de}</span>
+                                        <span className={cn("rounded-full px-2 py-0.5 text-[12px] font-bold tabular-nums", m.the)}>
+                                            {v.don_vi === "đ" ? VND(v.so) : `${formatNumber(v.so)} ${v.don_vi}`}
+                                        </span>
+                                    </div>
+                                    <p className="mt-1 text-[13px] leading-relaxed text-muted-foreground">{v.chi_tiet}</p>
+                                </div>
+                                <div className="flex flex-none flex-wrap items-center gap-2">
+                                    {v.id === "lech-tien" && tinLech && (
+                                        <>
+                                            <Nut kieu="chinh" onClick={() => onChep("l-vi", tinLech.vi)}>
+                                                <Copy className="h-3.5 w-3.5" />
+                                                {copied === "l-vi" ? "Đã chép" : "Chép tin (Việt)"}
+                                            </Nut>
+                                            <Nut onClick={() => onChep("l-zh", tinLech.zh)}>
+                                                {copied === "l-zh" ? "Đã chép" : "中文"}
+                                            </Nut>
+                                        </>
+                                    )}
+                                    {v.nut.includes("nhap_bank") && (
+                                        <Nut kieu="chinh" onClick={() => onNhapBank(v.done_key)}>
+                                            <PenLine className="h-3.5 w-3.5" />Nhập số
+                                        </Nut>
+                                    )}
+                                    {v.nut.includes("da_hoi") && v.done_key && (
+                                        <Nut busy={busy === v.done_key} onClick={() => onGhi(v.done_key, "da_hoi")}>
+                                            Đã hỏi {hoiAi}
+                                        </Nut>
+                                    )}
+                                    {v.nut.includes("bo_qua") && v.done_key && (
+                                        <Nut busy={busy === v.done_key} onClick={() => onGhi(v.done_key, "bo_qua")}>
+                                            <X className="h-3.5 w-3.5" />Bỏ qua
+                                        </Nut>
+                                    )}
+                                </div>
+                            </li>
+                        );
+                    })}
+                </ul>
+            )}
+        </Khoi>
+    );
+}
 
 const MUC: Record<Viec["muc"], { Icon: LucideIcon; vach: string; nen: string; the: string }> = {
     gap: {
@@ -1317,14 +1601,17 @@ const CHANG = {
     },
 } as const;
 
-function ChangTien({ te, ten, mo, children }: {
-    te: keyof typeof CHANG; ten: string; mo: string; children: React.ReactNode;
+function ChangTien({ te, ten, mo, ky, children }: {
+    te: keyof typeof CHANG; ten: string; mo: string;
+    /** Ký hiệu thay cho chặng đầu — Sing là S$ (08/10/2026). */
+    ky?: string;
+    children: React.ReactNode;
 }) {
     const c = CHANG[te];
     return (
         <div className={cn("flex min-w-0 flex-col overflow-hidden rounded-xl border", c.khung)}>
             <div className={cn("flex items-center gap-2.5 border-b px-3.5 py-2", c.vach)}>
-                <span className={cn("min-w-[2.25rem] flex-none rounded-md px-1.5 py-0.5 text-center text-[11.5px] font-bold", c.chip)}>{c.ky}</span>
+                <span className={cn("min-w-[2.25rem] flex-none rounded-md px-1.5 py-0.5 text-center text-[11.5px] font-bold", c.chip)}>{ky ?? c.ky}</span>
                 <div className="min-w-0 leading-tight">
                     <div className={cn("text-[13px] font-bold", c.ten)}>{ten}</div>
                     <div className="truncate text-[11.5px] text-muted-foreground">{mo}</div>
@@ -1557,7 +1844,7 @@ function KpiTeNhat({ rows }: { rows: FxRow[] }) {
    tốt nhất là nét đứt xám có nhãn chứ không tô xanh lá. */
 type DiemTyGia = FxRow & { nhan: string; vung: [number, number] };
 
-function BieuDoTyGia({ fx, kyDangXem }: { fx: Fx; kyDangXem?: string }) {
+function BieuDoTyGia({ fx, kyDangXem, te = TE_DAI }: { fx: Fx; kyDangXem?: string; te?: Te }) {
     const best = fx.best_vnd_per_twd;
     const data: DiemTyGia[] = [...fx.rows].reverse()
         .filter((r) => r.vnd_per_twd != null)
@@ -1580,7 +1867,7 @@ function BieuDoTyGia({ fx, kyDangXem }: { fx: Fx; kyDangXem?: string }) {
             <div className="mb-1 flex flex-wrap items-center gap-x-4 gap-y-1 px-2 text-[12px] text-muted-foreground sm:px-0">
                 <span className="inline-flex items-center gap-1.5">
                     <span className="h-0.5 w-4 rounded-full" style={{ background: "var(--fx-line)" }} />
-                    Đồng thực nhận / NT$
+                    Đồng thực nhận / {te.ky}
                 </span>
                 <span className="inline-flex items-center gap-1.5">
                     <span className="w-4 border-t-2 border-dashed border-muted-foreground/70" />
@@ -1598,7 +1885,7 @@ function BieuDoTyGia({ fx, kyDangXem }: { fx: Fx; kyDangXem?: string }) {
                         tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} tickMargin={8} />
                     <YAxis domain={[day, dinh]} ticks={ticks} width={40} tickLine={false} axisLine={false}
                         tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
-                    <Tooltip content={<OTyGia />} cursor={{ stroke: "hsl(var(--muted-foreground))", strokeOpacity: 0.4, strokeWidth: 1 }} />
+                    <Tooltip content={<OTyGia te={te} />} cursor={{ stroke: "hsl(var(--muted-foreground))", strokeOpacity: 0.4, strokeWidth: 1 }} />
                     <Area type="linear" dataKey="vung" stroke="none" fill="var(--fx-loss)" fillOpacity={0.14}
                         isAnimationActive={false} activeDot={false} />
                     <ReferenceLine y={best} stroke="hsl(var(--muted-foreground))" strokeOpacity={0.8}
@@ -1632,7 +1919,7 @@ function BieuDoTyGia({ fx, kyDangXem }: { fx: Fx; kyDangXem?: string }) {
     );
 }
 
-function OTyGia({ active, payload }: { active?: boolean; payload?: { payload: DiemTyGia }[] }) {
+function OTyGia({ active, payload, te = TE_DAI }: { active?: boolean; payload?: { payload: DiemTyGia }[]; te?: Te }) {
     const d = active ? payload?.[0]?.payload : undefined;
     if (!d) return null;
     return (
@@ -1640,7 +1927,7 @@ function OTyGia({ active, payload }: { active?: boolean; payload?: { payload: Di
             <div className="mb-1.5 font-semibold text-foreground">Kỳ chốt {dmy(d.period_date)}</div>
             <div className="flex items-baseline justify-between gap-4">
                 <span className="inline-flex items-center gap-1.5 text-muted-foreground">
-                    <span className="h-2 w-2 rounded-full" style={{ background: "var(--fx-line)" }} />Đồng / NT$
+                    <span className="h-2 w-2 rounded-full" style={{ background: "var(--fx-line)" }} />Đồng / {te.ky}
                 </span>
                 <span className="font-bold tabular-nums text-foreground">{d.vnd_per_twd?.toFixed(2)}</span>
             </div>
@@ -1649,7 +1936,7 @@ function OTyGia({ active, payload }: { active?: boolean; payload?: { payload: Di
             </div>
             <div className="mt-1.5 flex items-baseline justify-between gap-4 border-t border-border/70 pt-1.5">
                 <span className="text-muted-foreground">Tiền COD</span>
-                <span className="tabular-nums text-foreground">{TWD(d.cod_twd)}</span>
+                <span className="tabular-nums text-foreground">{te.fmt(d.cod_twd)}</span>
             </div>
             <div className="mt-0.5 flex items-baseline justify-between gap-4">
                 <span className="text-muted-foreground">Thiệt so kỳ tốt nhất</span>
@@ -1661,8 +1948,9 @@ function OTyGia({ active, payload }: { active?: boolean; payload?: { payload: Di
     );
 }
 
-function TrangThai({ p }: { p: Period }) {
-    const style: Record<PeriodState, string> = {
+function TrangThai({ p }: { p: { trang_thai: PeriodState | "am"; trang_thai_chu: string } }) {
+    const style: Record<PeriodState | "am", string> = {
+        am: "bg-slate-100 text-slate-700 ring-slate-500/20 dark:bg-slate-500/10 dark:text-slate-300 dark:ring-slate-400/25",
         khop: "bg-emerald-50 text-emerald-700 ring-emerald-600/20 dark:bg-emerald-500/10 dark:text-emerald-300 dark:ring-emerald-400/25",
         lech: "bg-rose-50 text-rose-700 ring-rose-600/20 dark:bg-rose-500/10 dark:text-rose-300 dark:ring-rose-400/25",
         cho_nhap: "bg-sky-50 text-sky-700 ring-sky-600/20 dark:bg-sky-500/10 dark:text-sky-300 dark:ring-sky-400/25",

@@ -325,6 +325,9 @@ export type NazaStatement = {
     market: NazaMarket;
     /** Phần Singapore gộp vào file Đài; null nếu file không có gì của Sing. */
     sg_gop: NazaSgPart | null;
+    /** Mọi dòng có số của sheet TỔNG, đúng thứ tự file: nhãn Trung · nhãn Việt · số. Màn
+     *  Singapore dựng luồng tiền từ đây — mẫu Sing có dòng mà mẫu Đài không có (退仓上架…). */
+    summary_lines: { zh: string; vi: string; so: number }[];
     /** Kiểm chéo NỘI BỘ file: chi tiết có cộng ra đúng con số ở sheet TỔNG không. */
     checks: {
         cod_detail_total: number;
@@ -639,6 +642,10 @@ export async function parseNazaStatement(buf: Buffer, fileName = ""): Promise<Na
     const coCodTw = cod_lines.some((l) => l.market !== "SG");
     const market: NazaMarket = !coCodTw && (cod_lines.length > 0 || feeSg.length > 0) ? "SG" : "TW";
 
+    const summary_lines = (sSum?.grid || []).map((r) => ({
+        zh: cellText((r || [])[0]).trim(), vi: cellText((r || [])[1]).trim(), so: toNumber((r || [])[2]),
+    })).filter((x): x is { zh: string; vi: string; so: number } => !!x.zh && x.so !== null);
+
     return {
         file: fileName,
         sheets: { summary: sSum?.name ?? null, cod: sCod?.name ?? null, fee: sFee?.name ?? null },
@@ -647,6 +654,7 @@ export async function parseNazaStatement(buf: Buffer, fileName = ""): Promise<Na
         fee_lines,
         market,
         sg_gop,
+        summary_lines,
         checks: {
             cod_detail_total: codDetail,
             cod_summary_total: s.cod_twd,

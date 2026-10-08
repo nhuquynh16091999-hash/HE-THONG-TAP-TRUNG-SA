@@ -168,6 +168,18 @@ export type NazaNuoc = {
     tien_hang_vnd?: number | null;
     phai_nhan_vnd: number | null;   // 本期应退金额VND — có thể ÂM (kỳ chỉ có phí)
     sheets: NazaStatement["sheets"];
+    // ── Thêm 08/10/2026 (màn Sing giống Đài). Kho tải trước đó chưa có → tải lại file. ──
+    /** Dòng sheet TỔNG đúng thứ tự file — dựng luồng tiền (cod-so-nuoc.ts). */
+    tong_dong?: { zh: string; vi: string; so: number }[];
+    /** COD quy ra tệ theo tỷ giá từng đơn (COD金额（RMB）), và tiền về sau phí thu hộ (回款金额). */
+    quy_te_rmb?: number | null;
+    ve_rmb?: number | null;
+    /** Từng đơn: COD quy tệ + phí thu hộ — soát phí thu hộ với bảng giá. */
+    thu_ho?: { tracking: string; cod_rmb: number; phi_rmb: number }[];
+    /** Từng dòng phí (sheet PHÍ) của nước này — soát với bảng giá, biết đơn nào đã bị trừ phí. */
+    phi_dong?: { tracking: string; order_id: string; kg: number | null; ship: number; first_leg: number; op: number }[];
+    /** Mã vận đơn bị tính phí từ hai lần trở lên trong kỳ. */
+    trung_phi?: { tracking: string; order_ids: string[]; times: number; extra_rmb: number }[];
 };
 
 /**
@@ -218,6 +230,12 @@ export function chonDongNaza(naza: NazaStatement, code: string, filename: string
         }
     }
     const tyGia = chon.find((l) => l.ty_gia_rmb != null)?.ty_gia_rmb ?? null;
+    const coTyGia = chon.length > 0 && chon.every((l) => l.ty_gia_rmb != null);
+    const tron = (n: number) => Math.round(n * 100) / 100;
+    const thuHo = chon.filter((l) => l.ty_gia_rmb != null && l.ve_rmb != null).map((l) => ({
+        tracking: l.tracking, cod_rmb: tron(l.cod_twd * l.ty_gia_rmb!), phi_rmb: tron(l.cod_twd * l.ty_gia_rmb! - l.ve_rmb!),
+    }));
+    const trkPhi = new Set(phi.map((l) => normTracking(l.tracking)));
     return {
         rows: chon.map((l) => ({
             tracking: l.tracking, order_id: l.order_id, amount: l.cod_twd,
@@ -236,6 +254,15 @@ export function chonDongNaza(naza: NazaStatement, code: string, filename: string
             tien_hang_vnd: caFile ? (code === "SG" ? s.purchase_sg_vnd ?? s.purchase_vnd : s.purchase_vnd) ?? null : null,
             phai_nhan_vnd: caFile ? s.payable_vnd ?? null : null,
             sheets: naza.sheets,
+            tong_dong: caFile ? naza.summary_lines || [] : [],
+            quy_te_rmb: coTyGia ? tron(chon.reduce((t, l) => t + l.cod_twd * l.ty_gia_rmb!, 0)) : chon.length ? null : 0,
+            ve_rmb: coVe ? tron(chon.reduce((t, l) => t + (Number(l.ve_rmb) || 0), 0)) : chon.length ? null : 0,
+            thu_ho: thuHo,
+            phi_dong: phi.map((l) => ({
+                tracking: l.tracking, order_id: l.order_id, kg: l.chargeable_kg,
+                ship: l.ship_fee, first_leg: l.first_leg_fee ?? 0, op: l.op_fee,
+            })),
+            trung_phi: (naza.fee_audit?.duplicates || []).filter((d) => trkPhi.has(normTracking(d.tracking))),
         },
     };
 }
@@ -259,6 +286,8 @@ export type SaoKeNuoc = {
 };
 
 export const tenKhoSaoKe = (code: string) => `cod_statements_${code.toLowerCase().replace(/[^a-z0-9]/g, "")}`;
+/** Kho việc người làm (tiền về ngân hàng, đã hỏi / bỏ qua) của một nước — như `cod_actions` của Đài. */
+export const tenKhoViec = (code: string) => `cod_actions_${code.toLowerCase().replace(/[^a-z0-9]/g, "")}`;
 
 const tenFile = (s: string) => s.normalize("NFC").trim().toLowerCase();
 const khoaDong = (r: StatementRow) => normTracking(r.tracking) || `#${String(r.order_id).trim().toUpperCase()}`;

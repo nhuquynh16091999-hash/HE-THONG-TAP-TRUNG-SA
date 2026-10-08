@@ -297,8 +297,28 @@ Singapore / UAE** + kéo thả file vào màn, như Đài. Route `cod-recon/mark
   Tỷ giá 0,2021 ở sheet TỔNG file này là số Đài chép sang — không dùng.
 * Hai file NAZA cùng ngày = cùng kỳ (tải bản sửa thì thay).
 
-Chưa làm: luồng tỷ giá + phí từng kỳ dạng sơ đồ như Đài, nhập tiền thật về ngân hàng, cột tiền
-về ở Sổ đơn Singapore / UAE. UAE chưa có file mẫu.
+**Màn Sing/UAE cùng bố cục Đài** (Sỹ Anh 08/10/2026: "sao giao diện phần đối soát COD Sing không
+giống Đài"). Sổ dựng ở `lib/talpha/cod-so-nuoc.ts` (có test, số lấy từ hai file thật), cùng luật Đài:
+
+* Σ bốn ô (đã gửi về · còn phải gửi · chưa giao xong · ngân hàng) + "Cách tính". Còn phải gửi ước đi
+  đúng luồng NAZA kỳ gần nhất: COD × tỷ giá S$→¥ × (1 − phí thu hộ thật) − phí giao trung bình cho
+  đơn chưa bị trừ phí, × tỷ giá ¥→đ. Chưa có kỳ NAZA thì lùi về `markets.*.rate_vnd`.
+* ① Việc hôm nay (khối `KhoiViec` dùng chung với Đài): trả lệch · đơn lạ · phí cao hơn bảng giá ·
+  nhập tiền về · tiền về lệch · thiếu sao kê kỳ mới. "Đã hỏi NAZA" / "Bỏ qua" ghi **cả nhóm** một lần
+  bấm (`done_keys`).
+* ② Bảng các kỳ: phải nhận · **thực nhận** (nhập số ngân hàng, kho `data/cod_actions_<sg|ae>.json`,
+  route `cod-recon/market/actions`, cùng luật ghi với Đài — `lib/talpha/cod-actions-store.ts`) ·
+  lệch (ngưỡng 50.000đ) · tình trạng. Kỳ âm: "Âm · đã trừ ở Đài", không cần nhập.
+* ③ Kỳ đang mở: luồng tiền S$ → ¥ → đ đọc thẳng các dòng trừ ở sheet TỔNG; máy soát A (phép tính,
+  chi tiết = TỔNG, tỷ giá, phí trùng) · B (trả lệch, đơn lạ, **phí giao đúng bảng giá Sing** — 28¥
+  2 kg đầu + 2,8¥/0,1 kg chặng đầu + 3¥ đóng gói, **phí thu hộ** ≤ 4% tối thiểu 8¥, tiền hàng).
+  Thật: kỳ 24/09 NAZA tính chặng đầu 7¥ cho kiện 0,2 kg (bằng giá hàng đặc thù 3,5¥/0,1 kg) — dư
+  1,4¥ × 12 đơn; kỳ 05/10 đúng bảng 36/36 đơn, thu hộ 3,0%.
+* ④ Tỷ giá (`KhoiTyGia` dùng chung) — hiện khi có từ 2 kỳ có tỷ giá.
+
+Kho tải trước bản này chưa lưu sheet TỔNG → màn nhắc tải lại file (thay bản cũ). Chưa làm: cột
+tiền về ở Sổ đơn Singapore / UAE; so tiền hàng Sing với file tiền hàng (chưa có tab Sing). UAE chưa
+có file mẫu.
 
 ---
 

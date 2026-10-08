@@ -9,9 +9,11 @@ import {
 } from "@/lib/talpha/cod-market";
 import { parseNazaStatement, xlsxThanhBang } from "@/lib/talpha/naza-statement";
 import {
-    chonDongNaza, chonSheetSaoKe, docCsvSaoKe, khopSaoKeNuoc, ngayKy, tenKhoSaoKe, thayKyCu,
+    chonDongNaza, chonSheetSaoKe, docCsvSaoKe, khopSaoKeNuoc, ngayKy, tenKhoSaoKe, tenKhoViec, thayKyCu,
     type CotSaoKe, type SaoKeNuoc,
 } from "@/lib/talpha/cod-statement-market";
+import { soCodNuoc } from "@/lib/talpha/cod-so-nuoc";
+import { emptyActions, type CodActions } from "@/lib/talpha/cod-actions";
 import { ngaySaoKe } from "@/lib/talpha/purchase-sheet";
 import { readStoreFresh, updateStore } from "@/lib/talpha/store";
 import { MAX_UPLOAD_BYTES, tooBigMessage } from "@/lib/talpha/upload-limit";
@@ -113,15 +115,25 @@ export async function GET(req: NextRequest) {
     const m = nuocCua(req);
     if (!m) return NextResponse.json(SAI_NUOC, { status: 400 });
     try {
-        const [{ don, nguon }, kho, khoDai] = await Promise.all([
+        const [{ don, nguon }, kho, khoDai, actions] = await Promise.all([
             layDon(m.code), readStoreFresh(tenKhoSaoKe(m.code), khoRong()),
             m.code === "SG" ? readStoreFresh<{ statements: KyDai[] }>("cod_statements", { statements: [] }) : null,
+            readStoreFresh<CodActions>(tenKhoViec(m.code), emptyActions()),
         ]);
         // Kỳ Đài có gộp phần Sing (24/09/2026): khoản âm của kỳ Sing cùng ngày đã trừ ở đó.
         const ngayGopDai = (khoDai?.statements || []).filter((s) => s.naza?.sg_gop)
             .map((s) => ngaySaoKe(s.filename.normalize("NFC"))).filter((d): d is string => !!d);
         const k = khopSaoKeNuoc(don, kho.statements, m.rate_vnd, ngayGopDai);
+        // Sổ dựng đúng các khối của màn Đài (08/10/2026): tiền về · việc hôm nay · các kỳ + ngân hàng ·
+        // luồng tiền + máy soát · tỷ giá. Mốc "hôm nay" theo ?to= như màn Đài, mặc định hôm nay.
+        const to = req.nextUrl.searchParams.get("to");
+        const so = soCodNuoc({
+            code: m.code, currency: m.currency, symbol: m.symbol, rateVnd: m.rate_vnd,
+            don, kho: kho.statements, k, actions,
+            asOf: to && /^\d{4}-\d{2}-\d{2}$/.test(to) ? to : new Date().toISOString().slice(0, 10),
+        });
         return NextResponse.json({
+            so,
             market: { code: m.code, display: m.display, currency: m.currency, symbol: m.symbol, rate_vnd: m.rate_vnd },
             nguon,
             sao_ke: kho.statements.length,

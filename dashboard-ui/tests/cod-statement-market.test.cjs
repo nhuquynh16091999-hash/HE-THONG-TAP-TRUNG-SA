@@ -202,4 +202,119 @@ t("tên kho riêng từng nước", () => {
     assert.strictEqual(S.tenKhoSaoKe("AE"), "cod_statements_ae");
 });
 
+console.log("── Sổ một nước, giống màn Đài (số thật Sing 24/09 + 05/10/2026) ──");
+const N = require("../.test-build/cod-so-nuoc.js");
+// Kỳ 05/10 thật: 631 S$ × 5,2151 = 3.290,73¥ → về 3.192,01¥ (thu hộ 3%) − ship 1.317,6 − hàng hoàn 9 = 1.865,41¥
+// × 3.860 − tiền hàng 1.751.680 = 5.448.788đ.
+const ky05 = {
+    id: "k05", filename: "新加坡COD对账单 2026.10.05.xlsx", uploaded_at: "2026-10-08T07:00:00Z", kieu: "naza", ngay: "2026-10-05", canh_bao: [],
+    rows: [{ tracking: "JT1", order_id: "O1", amount: 631, fee: 0, paid_date: "2026-09-18", status: "paid" }],
+    naza: {
+        cod_local: 631, ty_gia_rmb: 5.2151, ty_gia_vnd: 3860, phi_rmb: 1317.6, don_phi: 36, tien_hang_vnd: 1751680, phai_nhan_vnd: 5448788.15202,
+        sheets: {}, quy_te_rmb: 3290.73, ve_rmb: 3192.01,
+        tong_dong: [
+            { zh: "本期回款金额", vi: "Tổng cod thu về", so: 3192.006257 },
+            { zh: "速递运费  RMB", vi: "Phí vận chuyển (RMB)", so: -1317.6 },
+            { zh: "退仓上架 RMB", vi: "Phí hàng hoàn về kho lên kệ ", so: -9 },
+            { zh: "本期应退金额RMB", vi: "COD cần hoàn trả kỳ này (RMB )", so: 1865.406257 },
+            { zh: "汇率", vi: "Tỷ giá", so: 3860 },
+            { zh: "新加坡本期采购费 VND", vi: "Phí mua hàng Singapore (VND)", so: 1751680 },
+            { zh: "本期应退金额 VND", vi: "COD cần hoàn trả kỳ này (VND)", so: 5448788.15202 },
+        ],
+        thu_ho: [{ tracking: "JT1", cod_rmb: 3290.73, phi_rmb: 98.72 }],
+        phi_dong: Array.from({ length: 36 }, (_, i) => ({ tracking: "JTF" + i, order_id: "F" + i, kg: 0.2, ship: 28, first_leg: 5.6, op: 3 })),
+        trung_phi: [],
+    },
+};
+const ky24 = {
+    id: "k24", filename: "ĐỐI SOÁT COD SINGAPORE 2026.09.24.xlsx", uploaded_at: "2026-10-08T07:00:00Z", kieu: "naza", ngay: "2026-09-24", canh_bao: [], rows: [],
+    naza: {
+        cod_local: 0, ty_gia_rmb: null, ty_gia_vnd: 3860, phi_rmb: 456, don_phi: 12, tien_hang_vnd: 1840046, phai_nhan_vnd: -3600206,
+        sheets: {}, quy_te_rmb: 0, ve_rmb: 0, thu_ho: [],
+        tong_dong: [
+            { zh: "本期回款金额", vi: "Tổng cod thu về", so: 0 }, { zh: "汇率", vi: "Tỷ giá", so: 0.2021 },
+            { zh: "速递运费  RMB", vi: "Phí vận chuyển (RMB)", so: -456 }, { zh: "本期应退金额RMB", vi: "", so: -456 },
+            { zh: "汇率", vi: "Tỷ giá", so: 3860 }, { zh: "新加坡本期采购费 VND", vi: "Phí mua hàng Singapore  (VND)", so: 1840046 },
+            { zh: "本期应退金额 VND", vi: "", so: -3600206 },
+        ],
+        phi_dong: Array.from({ length: 12 }, (_, i) => ({ tracking: "JTG" + i, order_id: "G" + i, kg: 0.2, ship: 28, first_leg: 7, op: 3 })),
+        trung_phi: [],
+    },
+};
+t("luồng tiền kỳ 05/10: S$ → ¥ (− thu hộ − ship − hàng hoàn) → đ (− tiền hàng) = phải nhận", () => {
+    const l = N.luongKy(ky05);
+    assert.deepStrictEqual(l.tru_rmb.map((x) => [x.nhan, x.so]), [["Phí thu hộ COD", 98.72], ["Phí vận chuyển", 1317.6], ["Phí hàng hoàn về kho lên kệ", 9]]);
+    assert.strictEqual(l.rmb_rong, 1865.406257);
+    assert.deepStrictEqual(l.tru_vnd.map((x) => x.so), [1751680]);
+    assert.strictEqual(l.chenh_vnd, 0);
+});
+t("luồng tiền kỳ chỉ có phí 24/09: không lấy tỷ giá 0,2021 làm khoản trừ, ra đúng âm 3.600.206đ", () => {
+    const l = N.luongKy(ky24);
+    assert.deepStrictEqual(l.tru_rmb.map((x) => x.so), [456]);
+    assert.strictEqual(Math.round(l.vnd - l.tru_vnd[0].so), -3600206);
+});
+const B = { last_leg: { first_2kg: 28, extra_per_kg: 6 }, first_leg_per_100g: { thuong: 2.8, dac_thu: 3.5 }, single_parcel_fee: 3, cod_fee: { pct: 0.04, min: 8 } };
+t("phí đúng bảng giá Sing: 0,2 kg = 28 + 2×2,8 + 3 = 36,6¥", () => {
+    assert.strictEqual(N.soatPhiDong({ tracking: "a", order_id: "a", kg: 0.2, ship: 28, first_leg: 5.6, op: 3 }, B), null);
+});
+t("chặng đầu 7¥ cho 0,2 kg (kỳ 24/09) → sai bảng, dư 1,4¥, ghi rõ bằng giá hàng đặc thù", () => {
+    const f = N.soatPhiDong({ tracking: "a", order_id: "a", kg: 0.2, ship: 28, first_leg: 7, op: 3 }, B);
+    assert.strictEqual(f.chenh, 1.4); assert.ok(/đặc thù/.test(f.ly_do));
+});
+t("chặng cuối quá 2 kg tính thêm theo kg", () => {
+    assert.strictEqual(N.soatPhiDong({ tracking: "a", order_id: "a", kg: 2.3, ship: 34, first_leg: 64.4, op: 3 }, B), null);
+});
+const S2 = require("../.test-build/cod-statement-market.js");
+const DON2 = [
+    { order_id: "O1", tracking: "JT1", order_date: "2026-09-15", trang_thai: "", nhom: "da_giao", cod_local: 631, khach: "" },
+    { order_id: "O9", tracking: "JT9", order_date: "2026-09-20", trang_thai: "", nhom: "da_giao", cod_local: 69, khach: "" },
+];
+const so = (actions = { bank: {}, done: {} }, asOf = "2026-10-08") => {
+    const k = S2.khopSaoKeNuoc(DON2, [ky05, ky24], 20000, ["2026-09-24"]);
+    return N.soCodNuoc({ code: "SG", currency: "SGD", symbol: "S$", rateVnd: 20000, don: DON2, kho: [ky05, ky24], k, actions, asOf });
+};
+t("bảng các kỳ: 05/10 chờ nhập tiền về; 24/09 âm, đã trừ vào kỳ Đài", () => {
+    const x = so();
+    assert.deepStrictEqual(x.ky.map((k) => k.trang_thai), ["cho_nhap", "am"]);
+    assert.strictEqual(x.ky[1].trang_thai_chu, "Âm · đã trừ ở Đài");
+    assert.strictEqual(x.ky[1].tru_vao_dai, "2026-09-24");
+    assert.strictEqual(x.tong_quan.ky_cho_nhap, 1);
+});
+t("việc hôm nay: nhập tiền về kỳ 05/10 + hỏi phí 12 đơn kỳ 24/09 thu cao hơn bảng", () => {
+    const x = so();
+    assert.deepStrictEqual(x.viec.map((v) => v.id).sort(), ["bank", "phi-sai"]);
+    assert.strictEqual(x.viec.find((v) => v.id === "phi-sai").so, 12);
+});
+t("nhập tiền về khớp trong 50.000đ → kỳ xong; đã hỏi phí → hết việc", () => {
+    const x = so({ bank: { [ky05.filename.toLowerCase()]: { thuc_nhan_vnd: 5448000, ngay_ve: "2026-10-07", luc: "" } },
+        done: { "phi:JTG0": { viec: "da_hoi", ngay: "2026-10-08", lan: 1 } } });
+    assert.strictEqual(x.ky[0].trang_thai, "khop");
+    assert.deepStrictEqual(x.viec.map((v) => v.id), ["phi-sai"], "đã hỏi đơn đầu nhưng còn 11 đơn khác");
+});
+t("việc nhóm mang đủ khoá — một lần bấm ghi cả 12 đơn phí sai", () => {
+    const v = so().viec.find((x) => x.id === "phi-sai");
+    assert.strictEqual(v.done_keys.length, 12);
+    const done = Object.fromEntries(v.done_keys.map((k) => [k, { viec: "da_hoi", ngay: "2026-10-08", lan: 1 }]));
+    assert.ok(!so({ bank: {}, done }).viec.some((x) => x.id === "phi-sai"));
+});
+t("máy soát kỳ mới nhất: phép tính tự khớp, chi tiết khớp TỔNG, phí đúng bảng, thu hộ 3% dưới bảng 4%", () => {
+    const c = Object.fromEntries(so().checks.map((x) => [x.ten, x.ok]));
+    assert.strictEqual(c["Phép tính trong file"], true);
+    assert.strictEqual(c["Chi tiết cộng ra đúng số tổng"], true);
+    assert.strictEqual(c["Phí giao hàng đúng bảng giá"], true);
+    assert.strictEqual(c["Phí thu hộ đúng bảng giá"], true);
+});
+t("còn phải gửi đi đúng luồng NAZA: COD × 5,2151 × (1 − 3%) − phí chưa trừ, × 3.860", () => {
+    const x = so();
+    const u = x.tien_ve.con_lai_da_giao;
+    assert.strictEqual(x.tien_ve.cach_uoc, "naza");
+    assert.strictEqual(u.so_don, 1); assert.strictEqual(u.don_chua_tru_phi, 1);
+    const phiTb = (36 * 36.6 + 12 * 38) / 48;
+    assert.ok(Math.abs(u.vnd_uoc - Math.round((69 * 5.2151 * (1 - 98.72 / 3290.73) - phiTb) * 3860)) <= 1);
+});
+t("quá 7 ngày + 1 ngày ân hạn không có kỳ mới → nhắc tải sao kê", () => {
+    assert.ok(so(undefined, "2026-10-14").viec.some((v) => v.id === "thieu-sao-ke"));
+    assert.ok(!so(undefined, "2026-10-13").viec.some((v) => v.id === "thieu-sao-ke"));
+});
+
 console.log(`\n${pass} phép thử đạt`);

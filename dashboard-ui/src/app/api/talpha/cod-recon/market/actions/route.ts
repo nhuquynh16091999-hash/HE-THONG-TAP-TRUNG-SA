@@ -1,36 +1,33 @@
 import { NextRequest, NextResponse } from "next/server";
-import { readStoreFresh } from "@/lib/talpha/store";
+import { MARKETS_PUBLIC } from "@/lib/talpha/rules";
 import { getAccess } from "@/lib/talpha/access";
 import { ghiCodDuoc } from "@/lib/talpha/access-rules";
-import { emptyActions, type CodActions } from "@/lib/talpha/cod-actions";
 import { ghiViecCod, xoaViecCod, type GhiViecBody } from "@/lib/talpha/cod-actions-store";
+import { tenKhoViec } from "@/lib/talpha/cod-statement-market";
 
 export const dynamic = "force-dynamic";
 
 // ═══════════════════════════════════════════════════════════════════
-// VIỆC NGƯỜI LÀM TRONG ĐỐI SOÁT
+// VIỆC NGƯỜI LÀM TRONG ĐỐI SOÁT COD — NƯỚC NGOÀI ĐÀI (08/10/2026, màn Sing/UAE giống Đài)
 //
-//   GET    — đọc lại toàn bộ (màn hình tự dựng từ đây + order-ledger)
-//   POST   — ghi một việc: tiền về tài khoản, đã đòi, đã hỏi, bỏ qua
-//   DELETE — huỷ một việc đã ghi (bấm nhầm)
+//   POST   ?market=SG|AE — ghi tiền thật về ngân hàng của một kỳ, hoặc đã hỏi / bỏ qua một khoản
+//   DELETE ?market=…&kind=bank|done&key=… — huỷ việc đã ghi (bấm nhầm)
 //
-// Route này CHỈ ghi thứ do người quyết. Mọi con số máy tự đọc ra từ file sao kê
-// vẫn nằm ở cod-recon và order-ledger — không trộn hai loại vào một kho, vì
-// nạp lại file thì số máy đọc phải được tính lại còn việc người làm thì không.
+// Kho riêng từng nước (cod_actions_sg…), cùng luật ghi với Đài (lib/talpha/cod-actions-store.ts).
+// Cửa proxy đã kiểm nước theo ?market= (API_RULES "/api/talpha/cod-recon/market" phủ cả đường này).
 // ═══════════════════════════════════════════════════════════════════
 
-const STORE = "cod_actions";
-
-/** Việc kế toán (tiền về, hỏi/bỏ qua khoản lệch, huỷ) chỉ leader + giám đốc — xem ghiCodDuoc. */
 const tuChoi = () => NextResponse.json(
     { error: "Việc này thuộc mục Kế toán — chỉ leader của nước và giám đốc được ghi" }, { status: 403 });
 
-export async function GET() {
-    const a = await readStoreFresh<CodActions>(STORE, emptyActions());
-    return NextResponse.json({ bank: a.bank || {}, done: a.done || {} });
+function nuocCua(req: NextRequest) {
+    const code = String(req.nextUrl.searchParams.get("market") || "").toUpperCase();
+    return code !== "TW" && MARKETS_PUBLIC.markets.some((x) => x.code === code) ? code : null;
 }
 
 export async function POST(req: NextRequest) {
+    const code = nuocCua(req);
+    if (!code) return NextResponse.json({ error: "market phải là mã một nước ngoài Đài (SG, AE…)" }, { status: 400 });
     let body: GhiViecBody;
     try {
         body = await req.json();
@@ -39,15 +36,16 @@ export async function POST(req: NextRequest) {
     }
     const a = await getAccess(req);
     if (!a || !ghiCodDuoc(a, String(body.kind || ""), body.viec)) return tuChoi();
-    // Luật ghi (tiền về, đã đòi/hỏi/bỏ qua) dùng chung với các nước khác — lib/talpha/cod-actions-store.ts.
-    const r = await ghiViecCod(STORE, body);
+    const r = await ghiViecCod(tenKhoViec(code), body);
     return NextResponse.json(r.json, { status: r.status });
 }
 
 export async function DELETE(req: NextRequest) {
+    const code = nuocCua(req);
+    if (!code) return NextResponse.json({ error: "market phải là mã một nước ngoài Đài (SG, AE…)" }, { status: 400 });
     const a = await getAccess(req);
     if (!a || !ghiCodDuoc(a, "xoa")) return tuChoi();
     const q = req.nextUrl.searchParams;
-    const r = await xoaViecCod(STORE, q.get("kind"), String(q.get("key") || "").trim());
+    const r = await xoaViecCod(tenKhoViec(code), q.get("kind"), String(q.get("key") || "").trim());
     return NextResponse.json(r.json, { status: r.status });
 }
