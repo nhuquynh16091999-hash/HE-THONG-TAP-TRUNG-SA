@@ -77,7 +77,7 @@
     },
     "Japan": {
       "shop_label": "JP",
-      "shop_id": null,
+      "shop_id": "",
       "currency": "JPY",
       "currency_symbol": "¥",
       "rate_vnd": 160,

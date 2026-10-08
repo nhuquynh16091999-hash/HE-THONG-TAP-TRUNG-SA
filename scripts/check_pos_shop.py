@@ -39,7 +39,7 @@ def main():
     bad = 0
     for name, m in markets.items():
         label = m.get("shop_label", "")
-        shop_id = str(m.get("shop_id", ""))
+        shop_id = str(m.get("shop_id") or "")
         key = os.environ.get(f"TALPHA_POSCAKE_{label}_KEY", "")
         print(f"\n=== {name} ({label}) · shop_id {shop_id} ===")
         if not key:

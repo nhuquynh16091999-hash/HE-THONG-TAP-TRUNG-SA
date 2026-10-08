@@ -71,13 +71,17 @@ def _pos_shops():
         # Nước "sắp chạy" chưa có shop POS: bỏ qua, KHÔNG
         # đưa vào danh sách. Để shop_id rỗng lọt vào là bộ lọc shop_ids của bảng đơn
         # coi như "không lọc" — đơn shop Đài cũ 408074608 sẽ quay lại báo cáo.
-        if not str(m.get("shop_id", "")).strip():
+        # `or ""`: shop_id khai null (JSON) thì str(None) ra chữ "None" — lọt qua đây rồi làm
+        # bộ lọc shop_ids nổ "shop_id phải là dãy số", hỏng cả vòng sync (08/10/2026, Nhật mở
+        # khi chưa có shop: Sheet đứng từ 13:20).
+        sid = str(m.get("shop_id") or "").strip()
+        if not sid:
             print(f"[pos] {ten} ({label}): chưa có shop POS — chưa kéo đơn")
             continue
         out.append({
             "key": os.environ.get(f"TALPHA_POSCAKE_{label}_KEY", ""),
             "label": label,
-            "shop_id": str(m.get("shop_id", "")),
+            "shop_id": sid,
             "currency": m.get("currency", ""),
             # Để quy đơn VND về tiền của shop — xem _drop_foreign_currency.
             "rate_vnd": m.get("rate_vnd"),

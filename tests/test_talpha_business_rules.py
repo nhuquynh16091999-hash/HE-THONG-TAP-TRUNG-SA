@@ -65,6 +65,9 @@ class TestBaThiTruong:
                 # Có tỷ giá mà trống số chia: view BigQuery chia 100, Sheet và dashboard chia 1.
                 assert isinstance(v.get("pos_money_divisor"), int) and v["pos_money_divisor"] > 0, f"{ten}: có tỷ giá mà thiếu số chia"
             assert v.get("currency_symbol"), f"{ten}: thiếu ký hiệu tiền"
+            # 08/10/2026: Nhật khai shop_id null → Python str(None) = "None" lọt vào bộ lọc shop,
+            # sync đơn nổ, Sheet đứng. Chưa có shop thì để chuỗi rỗng.
+            assert isinstance(v.get("shop_id", ""), str), f"{ten}: shop_id phải là chuỗi (chưa có shop → \"\")"
 
 
 class TestX13SoChia:
