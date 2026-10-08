@@ -282,8 +282,23 @@ Singapore / UAE** + kéo thả file vào màn, như Đài. Route `cod-recon/mark
 * **"Bên giao hàng đã gửi về"** = số phải nhận trên sao kê (NAZA); kỳ không ghi số đó thì
   ước = tiền COD × `markets.*.rate_vnd`, **chưa trừ phí** (ô có dấu ≈).
 
-Chưa làm (chờ file thật đầu tiên để biết đối tác tính tiền thế nào): luồng tỷ giá + phí từng
-kỳ, nhập tiền thật về ngân hàng, cột tiền về ở Sổ đơn Singapore / UAE.
+**Mẫu NAZA Singapore thật** (Sỹ Anh tải 08/10/2026 — lần đầu báo "không tìm ra cột"):
+
+* `新加坡COD对账单 2026.10.05` — sheet COD mỗi đơn có COD金额 (SGD) · 汇率 5,2151 (SGD→¥) ·
+  COD金额（RMB）· COD手续费（RMB）phí thu hộ 3% · 回款金额（RMB）tiền về. Sheet TỔNG: 本期回款金额
+  là **TỆ sau phí thu hộ** (3.192,01¥), KHÔNG phải SGD như Đài; trừ phí ship 1.317,6¥ + 退仓上架
+  (hàng hoàn lên kệ) 9¥ → × 3.860 → − tiền hàng Sing 1.751.680đ = **phải nhận 5.448.788đ**.
+  Bộ đọc so tổng cột 回款金额 với sheet TỔNG (so tiền SGD là báo lệch giả). 9 đơn, khớp 9/9.
+* `ĐỐI SOÁT COD SINGAPORE 2026.09.24` — kỳ **chưa thu được COD nào**: không có sheet COD, chỉ
+  TỔNG + PHÍ (12 đơn · 456¥) + tiền hàng 1.840.046đ → **phải nhận âm 3.600.206đ**. Đây chính là
+  phần Sing NAZA đã trừ thẳng vào tiền COD Đài kỳ 24/09 (bản gộp, Sỹ Anh chốt 30/09). Màn Sing
+  vẫn nhận và hiện kỳ này, nhưng **không cộng kỳ âm vào "đã gửi về"** (như Đài: kỳ âm NAZA trừ ở
+  chỗ khác) và ghi rõ "đã trừ vào tiền COD Đài kỳ 24/09 (bản gộp)" khi kho Đài có kỳ gộp cùng ngày.
+  Tỷ giá 0,2021 ở sheet TỔNG file này là số Đài chép sang — không dùng.
+* Hai file NAZA cùng ngày = cùng kỳ (tải bản sửa thì thay).
+
+Chưa làm: luồng tỷ giá + phí từng kỳ dạng sơ đồ như Đài, nhập tiền thật về ngân hàng, cột tiền
+về ở Sổ đơn Singapore / UAE. UAE chưa có file mẫu.
 
 ---
 

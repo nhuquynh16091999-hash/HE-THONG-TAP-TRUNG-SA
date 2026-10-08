@@ -214,6 +214,9 @@ type DonNuoc = {
 type KyNuoc = {
     id: string; filename: string; uploaded_at: string; kieu: "naza" | "bang"; ngay: string | null;
     so_dong: number; cod_local: number; phai_nhan_vnd: number | null; uoc_vnd: number | null;
+    /** Kỳ âm không cộng vào "đã gửi về"; tru_vao_dai = ngày kỳ Đài đã gộp khoản đó (24/09/2026). */
+    tinh_vao_da_gui?: boolean; tru_vao_dai?: string | null;
+    phi_rmb?: number | null; don_phi?: number; tien_hang_vnd?: number | null;
     khop: number; lech: number; khong_co_don: number;
     cot?: Partial<Record<"tracking" | "order_id" | "amount" | "fee" | "paid_date" | "status", string>>;
     canh_bao: string[];
@@ -228,7 +231,7 @@ type NuocData = {
         khong_tinh: KhoanNuoc & { hoan: number; huy: number; tieu_huy: number };
     };
     da_tra?: { so_don: number; cod_local: number };
-    da_gui_ve?: { vnd: number; co_uoc: boolean; cod_local: number; so_ky: number };
+    da_gui_ve?: { vnd: number; co_uoc: boolean; cod_local: number; so_ky: number; ky_am?: number; am_vnd?: number };
     ky?: KyNuoc[];
     lech?: { order_id: string; tracking: string; cod_don: number; tra: number; ky: string }[];
     khong_co_don?: { order_id: string; tracking: string; so_tien: number; ky: string }[];
@@ -329,14 +332,28 @@ function CodNuocKhac({ code, nutNuoc }: { code: string; nutNuoc?: ReactNode }) {
     let stt = 0;
     const so = () => String(++stt);
 
-    const oPhaiNhan = (k: KyNuoc) => k.phai_nhan_vnd != null ? (
+    const chiTietKy = (k: KyNuoc) => [
+        k.phi_rmb ? `phí ${RMB2(k.phi_rmb)}` : "",
+        k.tien_hang_vnd ? `tiền hàng ${VND(k.tien_hang_vnd)}` : "",
+    ].filter(Boolean).join(" · ");
+    const oPhaiNhan = (k: KyNuoc) => k.phai_nhan_vnd != null && k.phai_nhan_vnd < 0 ? (
+        // Kỳ âm (chỉ có phí + tiền hàng): KHÔNG cộng vào "đã gửi về" — NAZA trừ khoản này ở chỗ khác.
+        <span className="inline-block text-right">
+            <span className="font-bold tabular-nums text-rose-600 dark:text-rose-400">âm {VND(-k.phai_nhan_vnd)}</span>
+            <span className="block whitespace-normal text-[11px] leading-snug text-muted-foreground">
+                {k.tru_vao_dai ? `đã trừ vào tiền COD Đài kỳ ${dmy(k.tru_vao_dai)} (bản gộp)` : "NAZA trừ vào kỳ sau"}
+            </span>
+        </span>
+    ) : k.phai_nhan_vnd != null ? (
         <span className="font-bold tabular-nums text-emerald-700 dark:text-emerald-400">{VND(k.phai_nhan_vnd)}</span>
     ) : k.uoc_vnd != null ? (
         <span className="font-semibold tabular-nums text-amber-600 dark:text-amber-400" title={`Sao kê không ghi số phải nhận — ước = tiền COD × ${gia}, chưa trừ phí`}>
             ≈ {VND(k.uoc_vnd)}
         </span>
     ) : <span className="text-muted-foreground">—</span>;
-    const oKhop = (k: KyNuoc) => (
+    const oKhop = (k: KyNuoc) => !k.so_dong ? (
+        <span className="text-[12px] text-muted-foreground">chưa thu COD · chỉ có phí {formatNumber(k.don_phi ?? 0)} đơn</span>
+    ) : (
         <span className="inline-flex flex-wrap items-center justify-end gap-x-2 gap-y-0.5 text-[12px] tabular-nums">
             <span className="font-semibold text-emerald-700 dark:text-emerald-400">{k.khop} khớp</span>
             {k.lech > 0 && <span className="font-semibold text-rose-600 dark:text-rose-400">{k.lech} lệch</span>}
@@ -402,7 +419,8 @@ function CodNuocKhac({ code, nutNuoc }: { code: string; nutNuoc?: ReactNode }) {
             <div className="grid grid-cols-2 gap-2 lg:grid-cols-3">
                 <OSoTien mau="xanh" uoc={!!gv?.co_uoc} nhan="Bên giao hàng đã gửi về" className="col-span-2 lg:col-span-1"
                     so={ky.length && gv ? VND(gv.vnd) : "—"}
-                    phu={ky.length && gv ? `${formatNumber(ky.length)} kỳ sao kê · ${tien(gv.cod_local)}` : "chưa có sao kê nào"} />
+                    phu={ky.length && gv ? `${formatNumber(ky.length)} kỳ sao kê · ${tien(gv.cod_local)}` +
+                        (gv.ky_am ? ` · không cộng ${gv.ky_am} kỳ âm` : "") : "chưa có sao kê nào"} />
                 <OSoTien mau="vang" uoc nhan="Còn phải gửi · đơn đã giao"
                     so={t.da_giao.vnd_uoc != null ? VND(t.da_giao.vnd_uoc) : "—"}
                     phu={`${formatNumber(t.da_giao.so_don)} đơn · ${tien(t.da_giao.cod_local)}`} />
@@ -418,6 +436,7 @@ function CodNuocKhac({ code, nutNuoc }: { code: string; nutNuoc?: ReactNode }) {
                             Đã khớp <b className="font-semibold text-foreground">{formatNumber(d.da_tra?.so_don ?? 0)} đơn</b> với {ky.length} kỳ sao kê —
                             “còn phải gửi” chỉ còn đơn đã giao chưa thấy trên kỳ nào.
                             {gv?.co_uoc ? ` Kỳ nào sao kê không ghi số phải nhận thì “đã gửi về” ước = tiền COD × ${gia}, chưa trừ phí.` : " “Đã gửi về” là số phải nhận ghi trên sao kê."}
+                            {gv?.ky_am ? ` Không cộng ${gv.ky_am} kỳ âm (âm ${VND(-(gv.am_vnd ?? 0))}, kỳ chỉ có phí + tiền hàng) — NAZA trừ khoản đó vào tiền chuyển ở chỗ khác, xem cột Phải nhận.` : ""}
                             {" "}Hai ô còn lại quy VND theo tỷ giá {gia}, <b className="font-semibold text-foreground">chưa trừ phí ship và phí thu hộ</b>.
                         </>
                     ) : (
@@ -452,6 +471,7 @@ function CodNuocKhac({ code, nutNuoc }: { code: string; nutNuoc?: ReactNode }) {
                                             {oPhaiNhan(k)}
                                         </div>
                                         <div className="col-span-2">{oKhop(k)}</div>
+                                        {chiTietKy(k) && <div className="col-span-2 text-[11px] text-muted-foreground">{chiTietKy(k)}</div>}
                                     </div>
                                 </li>
                             ))}
@@ -477,6 +497,7 @@ function CodNuocKhac({ code, nutNuoc }: { code: string; nutNuoc?: ReactNode }) {
                                                 <div className="max-w-[18rem] truncate text-[12px] text-muted-foreground" title={k.filename}>{tenKy(k.filename)}</div>
                                                 {/* Cột máy đã đọc — để người tải soát nhanh máy có lấy nhầm cột phí làm tiền không. */}
                                                 {cotDoc(k) && <div className="max-w-[18rem] truncate text-[11px] text-muted-foreground/80" title={cotDoc(k)}>{cotDoc(k)}</div>}
+                                                {chiTietKy(k) && <div className="text-[11px] text-muted-foreground/80">{chiTietKy(k)}</div>}
                                             </td>
                                             <td className="px-3 py-3 text-right tabular-nums text-foreground/80">{formatNumber(k.so_dong)}</td>
                                             <td className={cn("px-3 py-3 text-right font-semibold tabular-nums", COD)}>{tien(k.cod_local)}</td>

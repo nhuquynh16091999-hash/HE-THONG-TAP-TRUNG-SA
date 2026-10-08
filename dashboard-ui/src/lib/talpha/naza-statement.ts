@@ -210,6 +210,10 @@ export type NazaCodLine = {
     cod_twd: number;            // COD金额
     /** Nước của đơn (国家名称 / tên kênh). Kho cũ chưa có trường này = Đài. */
     market?: NazaMarket;
+    /** Mẫu Sing (từ kỳ 05/10/2026): tỷ giá SGD→tệ và tiền về sau phí thu hộ, theo từng đơn.
+     *  Sao kê Đài không có hai cột này. */
+    ty_gia_rmb?: number | null;     // 汇率
+    ve_rmb?: number | null;         // 回款金额（RMB)
 };
 
 /** NAZA gửi sao kê Đài và Singapore — có kỳ gộp chung một file (24/09/2026). */
@@ -476,6 +480,8 @@ export async function parseNazaStatement(buf: Buffer, fileName = ""): Promise<Na
             const iRcv = colIndex(h.cols, "recv_date");
             const iCh = colIndex(h.cols, "channel");
             const iNuoc = h.cols.findIndex((c) => c.includes("国家"));
+            const iTyGia = h.cols.findIndex((c) => c.includes("汇率"));
+            const iVe = h.cols.findIndex((c) => c.includes("回款金额"));
             for (let r = h.row + 1; r < sCod.grid.length; r++) {
                 const row = sCod.grid[r] || [];
                 const amt = iAmt >= 0 ? toNumber(row[iAmt]) : null;
@@ -489,6 +495,8 @@ export async function parseNazaStatement(buf: Buffer, fileName = ""): Promise<Na
                     channel,
                     cod_twd: amt,
                     market: nuocCuaDong(iNuoc >= 0 ? cellText(row[iNuoc]) : "", channel),
+                    ...(iTyGia >= 0 ? { ty_gia_rmb: toNumber(row[iTyGia]) } : {}),
+                    ...(iVe >= 0 ? { ve_rmb: toNumber(row[iVe]) } : {}),
                 });
             }
         }

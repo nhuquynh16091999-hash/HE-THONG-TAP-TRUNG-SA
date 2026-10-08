@@ -50,6 +50,8 @@ function nuocCua(req: NextRequest) {
     return m && code !== "TW" ? m : null;
 }
 const SAI_NUOC = { error: "market phải là mã một nước ngoài Đài (SG, AE…)" };
+/** Chỉ phần cần đọc của kho sao kê Đài (route /api/talpha/cod-recon). */
+type KyDai = { filename: string; naza?: { sg_gop?: unknown } };
 const khoRong = (): { statements: SaoKeNuoc[] } => ({ statements: [] });
 
 /** Mọi đơn của một nước, chia nhóm đã giao / chưa giao / không tính. */
@@ -111,10 +113,14 @@ export async function GET(req: NextRequest) {
     const m = nuocCua(req);
     if (!m) return NextResponse.json(SAI_NUOC, { status: 400 });
     try {
-        const [{ don, nguon }, kho] = await Promise.all([
+        const [{ don, nguon }, kho, khoDai] = await Promise.all([
             layDon(m.code), readStoreFresh(tenKhoSaoKe(m.code), khoRong()),
+            m.code === "SG" ? readStoreFresh<{ statements: KyDai[] }>("cod_statements", { statements: [] }) : null,
         ]);
-        const k = khopSaoKeNuoc(don, kho.statements, m.rate_vnd);
+        // Kỳ Đài có gộp phần Sing (24/09/2026): khoản âm của kỳ Sing cùng ngày đã trừ ở đó.
+        const ngayGopDai = (khoDai?.statements || []).filter((s) => s.naza?.sg_gop)
+            .map((s) => ngaySaoKe(s.filename.normalize("NFC"))).filter((d): d is string => !!d);
+        const k = khopSaoKeNuoc(don, kho.statements, m.rate_vnd, ngayGopDai);
         return NextResponse.json({
             market: { code: m.code, display: m.display, currency: m.currency, symbol: m.symbol, rate_vnd: m.rate_vnd },
             nguon,
@@ -164,15 +170,12 @@ export async function POST(req: NextRequest) {
                     error: "Không mở được file .xlsx. Kiểm tra file mở được bằng Excel không, hoặc Lưu thành .csv rồi tải lại.",
                 }, { status: 422 });
             }
-            if (naza.cod_lines.length) {
-                // Sao kê kiểu NAZA — chỉ lấy dòng của nước đang mở.
+            // Sao kê kiểu NAZA — chỉ lấy dòng của nước đang mở. Kỳ chưa thu được COD nào thì file
+            // chỉ có sheet TỔNG + PHÍ (Sing 24/09/2026) — vẫn là sao kê NAZA.
+            if (naza.cod_lines.length || naza.fee_lines.length) {
                 const c = chonDongNaza(naza, m.code, tenFile);
                 if ("loi" in c) return NextResponse.json({ error: c.loi }, { status: 422 });
-                if (c.bo_qua) canhBao.push(`Bỏ ${c.bo_qua} dòng COD của nước khác trong file.`);
-                if (naza.checks.cod_gap !== null && Math.abs(naza.checks.cod_gap) > 0.5 && !c.bo_qua) {
-                    canhBao.push(`Chi tiết COD cộng ra ${naza.checks.cod_detail_total} nhưng sheet TỔNG ghi ` +
-                        `${naza.checks.cod_summary_total} ${m.currency} — hỏi lại bên giao hàng.`);
-                }
+                canhBao.push(...c.canh_bao);
                 st = { filename: tenFile, kieu: "naza", rows: c.rows, naza: c.tong, canh_bao: canhBao };
             } else {
                 const d = chonSheetSaoKe(await xlsxThanhBang(buf));
@@ -185,7 +188,8 @@ export async function POST(req: NextRequest) {
             st = { filename: tenFile, kieu: "bang", rows: d.rows, cot: tenCot(d.header, d.cot), canh_bao: canhBao };
         }
 
-        if (!st.rows.length) return NextResponse.json({ error: "File không có dòng đơn nào." }, { status: 422 });
+        const chiCoPhi = st.kieu === "naza" && (st.naza?.don_phi || st.naza?.phai_nhan_vnd != null);
+        if (!st.rows.length && !chiCoPhi) return NextResponse.json({ error: "File không có dòng đơn nào." }, { status: 422 });
         if (st.kieu === "bang" && !st.rows.some((r) => r.amount)) {
             return NextResponse.json({
                 error: `Đọc được ${st.rows.length} dòng nhưng cột tiền COD (“${st.cot?.amount}”) toàn số 0 — ` +

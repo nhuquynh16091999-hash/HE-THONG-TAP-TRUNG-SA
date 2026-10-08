@@ -156,51 +156,85 @@ const TEN_DAI = /TAIWAN|ĐÀI LOAN|台湾/;
 const dongDai = (channel: string) => /台湾|STW|TAIWAN/i.test(channel) || matchChannel(channel) !== null;
 
 export type NazaNuoc = {
-    cod_local: number | null;       // 本期回款金额 — tiền nước đó
-    ty_gia_rmb: number | null;      // tiền nước → tệ
+    /** Tổng tiền COD (tiền nước đó) của các dòng đã chọn. */
+    cod_local: number | null;
+    ty_gia_rmb: number | null;      // tiền nước → tệ (mẫu Sing ghi theo từng đơn)
     ty_gia_vnd: number | null;      // tệ → VND
-    phi_rmb: number | null;         // phí ship + thao tác NAZA trừ
-    phai_nhan_vnd: number | null;   // 本期应退金额VND
+    /** Phí NAZA tính trên các đơn của nước này ở sheet PHÍ (ship + chặng đầu + đóng gói), tệ. */
+    phi_rmb: number | null;
+    /** Số đơn có dòng phí — kỳ chưa thu được COD vẫn có phí đơn đã gửi đi. */
+    don_phi?: number;
+    /** Tiền hàng NAZA trừ trong kỳ (新加坡本期采购费…), VND. */
+    tien_hang_vnd?: number | null;
+    phai_nhan_vnd: number | null;   // 本期应退金额VND — có thể ÂM (kỳ chỉ có phí)
     sheets: NazaStatement["sheets"];
 };
 
 /**
  * Sao kê NAZA tải ở màn một nước ngoài Đài → dòng COD của nước đó, hoặc lỗi nói rõ phải tải ở đâu.
  *   • Singapore: lấy dòng 国家名称 = 新加坡. File Sing mà từng dòng không ghi nước thì tin tên file.
+ *     Kỳ CHƯA THU được COD nào (file chỉ có sheet TỔNG + PHÍ — thật: "ĐỐI SOÁT COD SINGAPORE
+ *     2026.09.24", phải nhận −3.600.206đ) vẫn nhận: không có đơn để khớp, nhưng có phí + tiền hàng.
  *   • Nước khác: NAZA không giao — file có dòng Đài hay Sing là tải nhầm màn.
+ *
+ * Mẫu Sing (thật, kỳ 05/10/2026) KHÁC mẫu Đài ở sheet TỔNG: 本期回款金额 là TỆ sau phí thu hộ
+ * (cột 回款金额（RMB) cộng lại), không phải tiền SGD. Đem so với tổng COD SGD là báo lệch giả.
  */
 export function chonDongNaza(naza: NazaStatement, code: string, filename: string):
-    { rows: StatementRow[]; bo_qua: number; tong: NazaNuoc } | { loi: string } {
+    { rows: StatementRow[]; bo_qua: number; tong: NazaNuoc; canh_bao: string[] } | { loi: string } {
     const lines = naza.cod_lines;
-    const sg = lines.filter((l) => l.market === "SG");
+    const fees = naza.fee_lines || [];
+    const sgCod = lines.filter((l) => l.market === "SG");
+    const sgFee = fees.filter((l) => l.market === "SG");
     const ten = filename.normalize("NFC").toUpperCase();
-    let chon = lines;
+    const tenSing = laFileSing(filename, null) && !TEN_DAI.test(ten);
+    let chon = lines, phi = fees;
     if (code === "SG") {
-        if (sg.length) chon = sg;
-        else if (lines.length && (laFileSing(filename, null) && !TEN_DAI.test(ten))) chon = lines;
+        if (sgCod.length) { chon = sgCod; phi = sgFee; }
+        else if (lines.length && tenSing) chon = lines;
+        else if (!lines.length && (sgFee.length || tenSing)) { chon = []; phi = sgFee.length ? sgFee : fees; }
         else return { loi: "File này là sao kê ĐÀI LOAN (không có dòng COD nào của Singapore). Bấm nút Đài Loan rồi tải lại ở đó." };
     } else {
-        if (sg.length) return { loi: "File này là sao kê SINGAPORE. Bấm nút Singapore rồi tải lại ở đó." };
-        if (TEN_DAI.test(ten) || (lines.length && lines.filter((l) => dongDai(l.channel)).length * 2 >= lines.length)) {
+        if (sgCod.length || sgFee.length) return { loi: "File này là sao kê SINGAPORE. Bấm nút Singapore rồi tải lại ở đó." };
+        const dai = [...lines.map((l) => l.channel), ...fees.map((l) => l.channel)];
+        if (TEN_DAI.test(ten) || (dai.length && dai.filter(dongDai).length * 2 >= dai.length)) {
             return { loi: "File này là sao kê ĐÀI LOAN. Bấm nút Đài Loan rồi tải lại ở đó." };
         }
     }
+    // Số ở sheet TỔNG chỉ là của nước này khi cả file là của nước này (file gộp thì không).
+    const caFile = chon.length === lines.length && phi.length === fees.length;
     const s = naza.summary;
-    const phi = s.ship_fee_rmb == null && s.op_fee_rmb == null ? null
-        : Math.abs(s.ship_fee_rmb ?? 0) + Math.abs(s.op_fee_rmb ?? 0);
+    const so = (n: number) => (Math.round(n * 100) / 100).toLocaleString("vi-VN");
+    const canh_bao: string[] = [];
+    if (lines.length - chon.length) canh_bao.push(`Bỏ ${lines.length - chon.length} dòng COD của nước khác trong file.`);
+
+    const cod = chon.reduce((t, l) => t + (Number(l.cod_twd) || 0), 0);
+    const coVe = chon.some((l) => l.ve_rmb != null);
+    if (caFile && s.cod_twd != null && chon.length) {
+        // Mẫu Sing: so tiền về (tệ) từng đơn với sheet TỔNG. Mẫu Đài: so tiền COD.
+        const chiTiet = coVe ? chon.reduce((t, l) => t + (Number(l.ve_rmb) || 0), 0) : cod;
+        if (Math.abs(chiTiet - s.cod_twd) > 0.5) {
+            canh_bao.push(`Chi tiết COD cộng ra ${so(chiTiet)}${coVe ? "¥" : ""} nhưng sheet TỔNG ghi ${so(s.cod_twd)}${coVe ? "¥" : ""} — hỏi lại bên giao hàng.`);
+        }
+    }
+    const tyGia = chon.find((l) => l.ty_gia_rmb != null)?.ty_gia_rmb ?? null;
     return {
         rows: chon.map((l) => ({
             tracking: l.tracking, order_id: l.order_id, amount: l.cod_twd,
             fee: 0, paid_date: l.recv_date || "", status: "paid",
         })),
         bo_qua: lines.length - chon.length,
+        canh_bao,
         tong: {
-            // File gộp (có cả dòng nước khác) thì số ở sheet TỔNG không riêng của nước này.
-            cod_local: chon.length === lines.length ? s.cod_twd ?? null : null,
-            ty_gia_rmb: s.rate_twd_rmb ?? null,
+            cod_local: Math.round(cod * 100) / 100,
+            // Tỷ giá ở sheet TỔNG của file Sing có lúc là số Đài chép sang (kỳ 24/09 ghi 0,2021) —
+            // chỉ tin tỷ giá ghi trên từng đơn.
+            ty_gia_rmb: code === "SG" ? tyGia : tyGia ?? s.rate_twd_rmb ?? null,
             ty_gia_vnd: s.rate_rmb_vnd ?? null,
-            phi_rmb: chon.length === lines.length ? phi : null,
-            phai_nhan_vnd: chon.length === lines.length ? s.payable_vnd ?? null : null,
+            phi_rmb: Math.round(phi.reduce((t, l) => t + l.ship_fee + l.op_fee + (l.first_leg_fee ?? 0), 0) * 100) / 100,
+            don_phi: phi.length,
+            tien_hang_vnd: caFile ? (code === "SG" ? s.purchase_sg_vnd ?? s.purchase_vnd : s.purchase_vnd) ?? null : null,
+            phai_nhan_vnd: caFile ? s.payable_vnd ?? null : null,
             sheets: naza.sheets,
         },
     };
@@ -233,15 +267,17 @@ const khoaDong = (r: StatementRow) => normTracking(r.tracking) || `#${String(r.o
  * Tải lại CÙNG MỘT KỲ thì THAY, không cộng thêm — một đơn chỉ được trả một lần, để hai bản
  * cùng kỳ nằm cạnh nhau là mọi dòng bị đếm hai lượt (bài học kho Đài 13/09/2026).
  *
- * Cùng kỳ = cùng tên file, HOẶC trùng từ một nửa số đơn trở lên (bản sửa thường đổi tên file).
- * Không dùng luật "cùng ngày trên tên file" như Đài: chưa biết đối tác các nước gửi mấy file một
- * ngày, mà thay nhầm là mất cả một kỳ.
+ * Cùng kỳ = cùng tên file, HOẶC trùng từ một nửa số đơn trở lên (bản sửa thường đổi tên file),
+ * HOẶC hai file NAZA cùng ngày (NAZA gửi mỗi kỳ một file mỗi nước; kỳ chỉ có phí thì không có
+ * đơn nào để so trùng). Bảng của đối tác khác thì KHÔNG dùng luật cùng ngày: chưa biết họ gửi
+ * mấy file một ngày, mà thay nhầm là mất cả một kỳ.
  */
 export function thayKyCu(list: SaoKeNuoc[], moi: SaoKeNuoc): { list: SaoKeNuoc[]; thay: string[] } {
     const keyMoi = new Set(moi.rows.map(khoaDong));
     const thay: string[] = [];
     const giu = list.filter((s) => {
         if (tenFile(s.filename) === tenFile(moi.filename)) { thay.push(s.filename); return false; }
+        if (s.kieu === "naza" && moi.kieu === "naza" && s.ngay && s.ngay === moi.ngay) { thay.push(s.filename); return false; }
         const ks = new Set(s.rows.map(khoaDong));
         let chung = 0;
         for (const k of ks) if (keyMoi.has(k)) chung++;
@@ -266,8 +302,13 @@ export function ngayKy(filename: string, rows: StatementRow[], ngayTen: (f: stri
 export type KyNuoc = {
     id: string; filename: string; uploaded_at: string; kieu: SaoKeNuoc["kieu"]; ngay: string | null;
     so_dong: number; cod_local: number;
-    phai_nhan_vnd: number | null;   // theo sao kê (NAZA có sheet TỔNG)
+    phai_nhan_vnd: number | null;   // theo sao kê (NAZA có sheet TỔNG) — có thể ÂM
     uoc_vnd: number | null;         // không có thì ước = tiền COD × tỷ giá, CHƯA trừ phí
+    /** Kỳ âm (chỉ có phí + tiền hàng) không cộng vào "đã gửi về": NAZA trừ khoản đó ở chỗ khác. */
+    tinh_vao_da_gui: boolean;
+    /** Kỳ âm đã được NAZA trừ thẳng vào tiền COD Đài cùng ngày (bản gộp, như 24/09/2026). */
+    tru_vao_dai: string | null;
+    phi_rmb: number | null; don_phi: number; tien_hang_vnd: number | null;
     khop: number; lech: number; khong_co_don: number;
     cot?: SaoKeNuoc["cot"]; canh_bao: string[];
 };
@@ -278,7 +319,7 @@ export type KetQuaKhop = {
     lech: { order_id: string; tracking: string; cod_don: number; tra: number; ky: string }[];
     khong_co_don: { order_id: string; tracking: string; so_tien: number; ky: string }[];
     tra_hai_lan: { order_id: string; tracking: string; ky: string[] }[];
-    da_gui_ve: { vnd: number; co_uoc: boolean; cod_local: number; so_ky: number };
+    da_gui_ve: { vnd: number; co_uoc: boolean; cod_local: number; so_ky: number; ky_am: number; am_vnd: number };
     da_tra: { so_don: number; cod_local: number };
 };
 
@@ -289,8 +330,13 @@ export type KetQuaKhop = {
  *
  * Khoá như Đài (reconcile): mã vận đơn trước, mã đơn sau. Mỗi kỳ khớp riêng nên một đơn được
  * hai kỳ trả là bắt được (tra_hai_lan).
+ *
+ * "Đã gửi về" cộng số phải nhận các kỳ DƯƠNG, như màn Đài (kỳ âm Đài cũng không cộng — NAZA
+ * mang sang trừ kỳ sau, số kỳ sau đã trừ rồi). Kỳ âm Sing 24/09/2026 (−3.600.206đ) NAZA trừ thẳng
+ * vào tiền COD Đài cùng ngày (bản gộp) — cộng ở đây nữa là trừ hai lần. `ngayGopDai` = các ngày
+ * kỳ Đài có gộp phần Sing, để màn hình ghi rõ khoản âm đó đã trừ ở đâu.
  */
-export function khopSaoKeNuoc(don: DonCod[], kho: SaoKeNuoc[], rateVnd: number): KetQuaKhop {
+export function khopSaoKeNuoc(don: DonCod[], kho: SaoKeNuoc[], rateVnd: number, ngayGopDai: string[] = []): KetQuaKhop {
     const uid = (i: number) => `D${i}`;
     const pos: PosOrder[] = don.map((d, i) => ({
         order_uid: uid(i), order_id: d.order_id, tracking: d.tracking || null,
@@ -300,7 +346,7 @@ export function khopSaoKeNuoc(don: DonCod[], kho: SaoKeNuoc[], rateVnd: number):
     const traO = new Map<string, { ky: string; so_tien: number }[]>();
     const out: KetQuaKhop = {
         ky: [], don: [], lech: [], khong_co_don: [], tra_hai_lan: [],
-        da_gui_ve: { vnd: 0, co_uoc: false, cod_local: 0, so_ky: kho.length },
+        da_gui_ve: { vnd: 0, co_uoc: false, cod_local: 0, so_ky: kho.length, ky_am: 0, am_vnd: 0 },
         da_tra: { so_don: 0, cod_local: 0 },
     };
 
@@ -324,15 +370,20 @@ export function khopSaoKeNuoc(don: DonCod[], kho: SaoKeNuoc[], rateVnd: number):
         }
         const cod = s.rows.reduce((t, x) => t + (Number(x.amount) || 0), 0);
         const phai = s.naza?.phai_nhan_vnd ?? null;
-        const uoc = phai == null && rateVnd > 0 ? Math.round(cod * rateVnd) : null;
+        const uoc = phai == null && rateVnd > 0 && cod > 0 ? Math.round(cod * rateVnd) : null;
+        const am = phai != null && phai < 0;
         out.ky.push({
             id: s.id, filename: s.filename, uploaded_at: s.uploaded_at, kieu: s.kieu, ngay: s.ngay,
             so_dong: s.rows.length, cod_local: Math.round(cod * 100) / 100,
             phai_nhan_vnd: phai, uoc_vnd: uoc,
+            tinh_vao_da_gui: !am,
+            tru_vao_dai: am && s.ngay && ngayGopDai.includes(s.ngay) ? s.ngay : null,
+            phi_rmb: s.naza?.phi_rmb ?? null, don_phi: s.naza?.don_phi ?? 0, tien_hang_vnd: s.naza?.tien_hang_vnd ?? null,
             khop, lech, khong_co_don: khong, cot: s.cot, canh_bao: s.canh_bao || [],
         });
         out.da_gui_ve.cod_local += cod;
-        if (phai != null) out.da_gui_ve.vnd += phai;
+        if (am) { out.da_gui_ve.ky_am++; out.da_gui_ve.am_vnd += phai; }
+        else if (phai != null) out.da_gui_ve.vnd += phai;
         else if (uoc != null) { out.da_gui_ve.vnd += uoc; out.da_gui_ve.co_uoc = true; }
     }
     out.da_gui_ve.cod_local = Math.round(out.da_gui_ve.cod_local * 100) / 100;

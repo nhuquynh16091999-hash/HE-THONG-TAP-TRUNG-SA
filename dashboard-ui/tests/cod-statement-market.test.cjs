@@ -93,6 +93,37 @@ t("màn UAE: file Sing / file Đài đều bị chặn", () => {
     assert.ok(/ĐÀI LOAN/.test(S.chonDongNaza(naza([["1870", "TW", "STWCOD专线-711", 1399]]), "AE", "x.xlsx").loi));
 });
 
+// Kỳ Sing CHƯA thu COD (thật: "ĐỐI SOÁT COD SINGAPORE 2026.09.24") — chỉ có sheet TỔNG + PHÍ.
+const phiSg = (n) => Array.from({ length: n }, (_, i) => ({ market: "SG", channel: "S新加坡CODJT专线", tracking: "JT" + i,
+    order_id: "O" + i, ship_fee: 28, op_fee: 3, first_leg_fee: 7 }));
+t("màn Sing: kỳ chỉ có phí → nhận, phải nhận âm, đếm đơn bị tính phí", () => {
+    const n = { ...naza([], { cod_twd: 0, rate_twd_rmb: 0.2021, payable_vnd: -3600206, purchase_sg_vnd: 1840046 }), fee_lines: phiSg(12) };
+    const r = S.chonDongNaza(n, "SG", "ĐỐI SOÁT COD SINGAPORE 2026.09.24.xlsx");
+    assert.strictEqual(r.rows.length, 0);
+    assert.strictEqual(r.tong.phai_nhan_vnd, -3600206);
+    assert.strictEqual(r.tong.don_phi, 12); assert.strictEqual(r.tong.phi_rmb, 456);
+    assert.strictEqual(r.tong.tien_hang_vnd, 1840046);
+    assert.strictEqual(r.tong.ty_gia_rmb, null, "tỷ giá 0,2021 là số Đài chép sang, không tin");
+});
+t("màn UAE: kỳ Sing chỉ có phí cũng bị chặn", () => {
+    const n = { ...naza([]), fee_lines: phiSg(2) };
+    assert.ok(/SINGAPORE/.test(S.chonDongNaza(n, "AE", "x.xlsx").loi));
+});
+// Mẫu Sing thật kỳ 05/10/2026: sheet TỔNG ghi 本期回款金额 bằng TỆ sau phí thu hộ, không phải SGD.
+t("mẫu Sing: so tiền về (tệ) từng đơn với sheet TỔNG — khớp thì KHÔNG báo lệch", () => {
+    const n = naza([["JT1", "SG", "", 69], ["JT2", "SG", "", 99]], { cod_twd: 849.85, payable_vnd: 5448788 });
+    n.cod_lines[0].ve_rmb = 349.05; n.cod_lines[0].ty_gia_rmb = 5.2151;
+    n.cod_lines[1].ve_rmb = 500.80; n.cod_lines[1].ty_gia_rmb = 5.2151;
+    const r = S.chonDongNaza(n, "SG", "新加坡COD对账单 2026.10.05.xlsx");
+    assert.deepStrictEqual(r.canh_bao, []);
+    assert.strictEqual(r.tong.cod_local, 168); assert.strictEqual(r.tong.ty_gia_rmb, 5.2151);
+});
+t("mẫu Sing: tiền về lệch sheet TỔNG → cảnh báo bằng tệ", () => {
+    const n = naza([["JT1", "SG", "", 69]], { cod_twd: 400 });
+    n.cod_lines[0].ve_rmb = 349.05;
+    assert.ok(/349,05¥.*400¥/.test(S.chonDongNaza(n, "SG", "新加坡COD对账单.xlsx").canh_bao[0]));
+});
+
 console.log("── Thay kỳ cũ ──");
 const ky = (id, filename, trks) => ({
     id, filename, uploaded_at: "2026-10-08T00:00:00Z", kieu: "bang", ngay: null, canh_bao: [],
@@ -109,6 +140,15 @@ t("đổi tên nhưng trùng ≥ nửa số đơn → bản sửa, thay", () => 
 t("kỳ khác (không trùng đơn) → giữ cả hai", () => {
     const r = S.thayKyCu([ky("a", "k1.xlsx", ["JT1", "JT2"])], ky("b", "k2.xlsx", ["JT3", "JT4"]));
     assert.deepStrictEqual(r.list.map((x) => x.id), ["a", "b"]); assert.strictEqual(r.thay.length, 0);
+});
+t("hai file NAZA cùng ngày → cùng kỳ (kỳ chỉ có phí không có đơn để so trùng)", () => {
+    const a = { ...ky("a", "ĐỐI SOÁT COD SINGAPORE 2026.09.24.xlsx", []), kieu: "naza", ngay: "2026-09-24" };
+    const b = { ...ky("b", "SINGAPORE 2026.09.24 (sửa).xlsx", []), kieu: "naza", ngay: "2026-09-24" };
+    const c = { ...ky("c", "新加坡COD对账单 2026.10.05.xlsx", ["JT1"]), kieu: "naza", ngay: "2026-10-05" };
+    assert.deepStrictEqual(S.thayKyCu([a, c], b).list.map((x) => x.id), ["c", "b"]);
+    // Bảng đối tác khác cùng ngày thì GIỮ cả hai — chưa biết họ gửi mấy file một ngày.
+    const d = { ...ky("d", "cod 1.csv", ["X1"]), ngay: "2026-10-05" }, e = { ...ky("e", "cod 2.csv", ["X2"]), ngay: "2026-10-05" };
+    assert.deepStrictEqual(S.thayKyCu([d], e).list.map((x) => x.id), ["d", "e"]);
 });
 t("ngày kỳ: theo tên file, không có thì ngày trả muộn nhất", () => {
     const ten = (f) => (/(\d{4})\.(\d{2})\.(\d{2})/.exec(f) || []).slice(1).join("-") || null;
@@ -145,6 +185,17 @@ t("đã gửi về: không có số phải nhận → ước theo tỷ giá, đ�
 t("kỳ có số phải nhận (NAZA) → dùng đúng số đó, không ước", () => {
     const k = S.khopSaoKeNuoc(DON, [{ ...KHO[0], naza: { phai_nhan_vnd: 1234567 } }], 20000);
     assert.strictEqual(k.da_gui_ve.vnd, 1234567); assert.strictEqual(k.da_gui_ve.co_uoc, false);
+});
+t("kỳ âm KHÔNG cộng vào đã gửi về; gộp vào kỳ Đài cùng ngày thì ghi rõ", () => {
+    const am = { ...ky("am", "SING 24.09.xlsx", []), kieu: "naza", ngay: "2026-09-24", naza: { phai_nhan_vnd: -3600206, don_phi: 12, phi_rmb: 456 } };
+    const duong = { ...KHO[0], kieu: "naza", ngay: "2026-10-05", naza: { phai_nhan_vnd: 5448788 } };
+    const k = S.khopSaoKeNuoc(DON, [am, duong], 20000, ["2026-09-24"]);
+    assert.strictEqual(k.da_gui_ve.vnd, 5448788);
+    assert.strictEqual(k.da_gui_ve.ky_am, 1); assert.strictEqual(k.da_gui_ve.am_vnd, -3600206);
+    const kyAm = k.ky.find((x) => x.id === "am");
+    assert.strictEqual(kyAm.tinh_vao_da_gui, false); assert.strictEqual(kyAm.tru_vao_dai, "2026-09-24");
+    assert.strictEqual(kyAm.uoc_vnd, null);
+    assert.strictEqual(S.khopSaoKeNuoc(DON, [am], 20000).ky[0].tru_vao_dai, null);
 });
 t("tên kho riêng từng nước", () => {
     assert.strictEqual(S.tenKhoSaoKe("SG"), "cod_statements_sg");
