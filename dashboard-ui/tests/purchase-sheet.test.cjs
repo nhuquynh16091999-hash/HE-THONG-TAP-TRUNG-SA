@@ -51,6 +51,16 @@ t("ghi 'đã thanh toán' mà không ghi số thì coi như trả đủ tổng",
     assert.strictEqual(DOT[0].da_tra_vnd, 1009562);
 });
 
+t("số có dấu cách gõ nhầm sau dấu chấm vẫn đọc được (đợt 2/10/2026: '420. 325')", () => {
+    const d = P.docDotTienHang([["29/9", "X", "1", "", "", "THANH TOÁN NGÀY 2/10 \n\nTỔNG : 420. 325 VND"]]);
+    assert.strictEqual(d.length, 1);
+    assert.strictEqual(d[0].ngay, "2026-10-02");
+    assert.strictEqual(d[0].tong_vnd, 420325);
+});
+t("dấu cách KHÔNG có dấu ngăn thì không nối hai số (năm 2026 với số tiền)", () => {
+    assert.strictEqual(DOT[2].moi_vnd, 6185790);
+});
+
 console.log("── Ngày sao kê từ tên file ──");
 t("đọc được cả ba kiểu tên file NAZA", () => {
     assert.strictEqual(P.ngaySaoKe("ĐỐI SOÁT COD 2026.9.11.xlsx"), "2026-09-11");

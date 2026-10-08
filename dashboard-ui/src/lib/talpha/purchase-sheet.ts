@@ -68,12 +68,17 @@ function soVnd(s: string): number {
     return Number(String(s).replace(/[^\d]/g, "")) || 0;
 }
 
+// Số tiền: nhóm số ngăn bằng "." hoặc ",", cho phép MỘT dấu cách gõ nhầm ngay sau
+// dấu ngăn. Đợt 2/10/2026 ghi "TỔNG : 420. 325 VND" — bộ đọc cũ trượt cả ô, kỳ
+// sao kê 05/10 báo "không có đợt nào" dù NAZA trừ đúng 420.325đ. Cách mà không có
+// dấu ngăn thì không nối ("2026 6.185.790" vẫn là hai số).
+const SO = String.raw`\d+(?:[.,]\s?\d+)*`;
 const RE_NGAY = /THANH\s*TOÁN\s*NGÀY\s*(\d{1,2})\s*\/\s*(\d{1,2})(?:\s*\/\s*(\d{4}))?/;
-const RE_TONG = /TỔNG\s*:?\s*(\d[\d.,]*\d)\s*VN/;
-const RE_CONG = /(\d[\d.,]*\d)\s*\+\s*(\d[\d.,]*\d)/;
-const RE_DA_TRA_SO = /ĐÃ\s*THANH\s*TOÁN\s*(\d[\d.,]*\d)/;
+const RE_TONG = new RegExp(String.raw`TỔNG\s*:?\s*(${SO})\s*VN`);
+const RE_CONG = new RegExp(String.raw`(${SO})\s*\+\s*(${SO})`);
+const RE_DA_TRA_SO = new RegExp(String.raw`ĐÃ\s*THANH\s*TOÁN\s*(${SO})`);
 const RE_DA_TRA = /ĐÃ\s*THANH\s*TOÁN/;
-const RE_CON_THIEU = /CÒN\s*THIẾU\s*:?\s*(\d[\d.,]*\d)/;
+const RE_CON_THIEU = new RegExp(String.raw`CÒN\s*THIẾU\s*:?\s*(${SO})`);
 
 /**
  * Tìm mọi đợt thanh toán trong lưới ô.
