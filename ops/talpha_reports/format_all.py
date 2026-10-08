@@ -18,6 +18,7 @@ import calendar as _cal
 # "Tháng N" trên Drive. Trước đây GRAND_KEY + <nước>_files.json là MỘT bộ ID cố định: 01/10/2026
 # sang tháng không ai đổi ID, 16 file tháng 9 bị xoá sạch rồi ghi số tháng 10.
 import report_files as _rf
+import talpha_paths   # repo_dir(): nơi ghi data/bao_cao_nuoc cho bot Zalo
 _T=_rf.ngay_chot(os.environ.get('TALPHA_REPORT_MONTH'))
 _HERE=os.path.dirname(os.path.abspath(__file__))
 _RT=os.environ.get('TALPHA_RUNTIME_DIR') or os.path.expanduser('~/talpha_reports/runtime')
@@ -392,6 +393,31 @@ if GRAND_KEY and not GRAND_KEY.endswith("placeholder"):
             sub={k:v for k,v in cell.items() if k[1]==mkt and k[0]!=UNASSIGNED and not str(k[0]).startswith(EXT_PREFIX)}
             tabs.append((safe(_TEN_NUOC[mkt],used),market_tab(sub,RATE[mkt],LOCALCUR[mkt],MONEY_DIV[mkt])))
     write_file(GRAND_KEY,tabs,title=f"TỔNG TEAM THÁNG {_T.month}"); n+=1; print(f"[{n}] GRAND TỔNG THÁNG: {len(tabs)} tab")
+    # ── SỐ THEO NƯỚC × NGƯỜI cho bot Zalo (Sỹ Anh chốt 08/10/2026: mỗi nước một nhóm "ADS + VẬN
+    # ĐƠN") ── File TỔNG TEAM chỉ có tab nước (gộp người) và tab người (gộp nước); bảng xếp hạng
+    # người TRONG một nước không có ở đâu. Ghi ra data/bao_cao_nuoc/<tháng>.json NGAY SAU khi ghi
+    # xong TỔNG TEAM, cùng một bộ ô `cell` → tổng người trong nước = đúng tab nước của Sheet.
+    # Chỉ người trong team (như tab nước), "(không gán)" để riêng; người ngoài team bỏ. Hỏng thì
+    # chỉ log — không bao giờ làm chết vòng ghi Sheet.
+    try:
+        _ban={}
+        for (_nv,_m,_tab,_d),_c in cell.items():
+            if str(_nv).startswith(EXT_PREFIX) or _m not in RATE: continue
+            _o=_ban.setdefault(_m,{}).setdefault(_d,{}).setdefault(_nv,{"ads":0.0,"mess":0,"don":0,"doanh_so":0.0,"ds_giao_tc":0.0})
+            _o["ads"]+=_c["spend"]; _o["mess"]+=_c["msg"]; _o["don"]+=_c["orders"]
+            _o["doanh_so"]+=_c["cod"]/MONEY_DIV[_m]*RATE[_m]; _o["ds_giao_tc"]+=_c["cod_gtc"]/MONEY_DIV[_m]*RATE[_m]
+        for _m in _ban.values():
+            for _ng in _m.values():
+                for _o in _ng.values():
+                    for _k in ("ads","doanh_so","ds_giao_tc"): _o[_k]=round(_o[_k])
+        _thu=os.path.join(talpha_paths.repo_dir(),"data","bao_cao_nuoc"); os.makedirs(_thu,exist_ok=True)
+        _f=os.path.join(_thu,f"{_T.year}-{_T.month:02d}.json"); _tam=f"{_f}.{os.getpid()}.tmp"
+        with open(_tam,"w",encoding="utf-8") as _fh:
+            json.dump({"thang":f"{_T.year}-{_T.month:02d}","ghi_luc":datetime.datetime.utcnow().isoformat()+"Z",
+                       "khong_gan":UNASSIGNED,"nuoc":_ban},_fh,ensure_ascii=False)
+        os.replace(_tam,_f); print(f"BAN NUOC: {_f} ({', '.join(sorted(_ban))})")
+    except Exception as _e:
+        print(f"CANH BAO: khong ghi duoc so theo nuoc cho bot Zalo: {_e}")
 # ── FILE TEST mỗi marketer (chung mọi thị trường, tab theo page) ──
 # ID từ bộ file của tháng: file có chữ TEST trong tên, người theo thư mục/tên file.
 TESTMAP=dict(BO.get('test') or {})
@@ -423,7 +449,7 @@ if THIEU_FILE:
         print(f"    {_e:8s} {_m:10s}")
 if THIEU_NUOC:
     _tn=sum(THIEU_NUOC.values())
-    print(f"CANH BAO: {len(THIEU_NUOC)} campaign KHONG GHI NUOC o dau ten — {_tn:,.0f} d dang tinh ve {PRIMARY_MARKET}. Doi ten thanh TW/… SG/… AE/… de khoi nham nuoc.")
+    print(f"CANH BAO: {len(THIEU_NUOC)} campaign KHONG GHI NUOC o dau ten — {_tn:,.0f} d dang tinh ve {PRIMARY_MARKET}. Doi ten thanh TW/… SG/… AE/… JP/… de khoi nham nuoc.")
     for _c,_s in sorted(THIEU_NUOC.items(), key=lambda x:-x[1])[:10]:
         print(f"    {_s:>12,.0f} d | {_c[:90]}")
 if DROPPED:

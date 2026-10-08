@@ -20,6 +20,7 @@
 const { B, I } = require("./zalo_text");
 const {
     chuCamp, MARKETERS, DISPLAY, THU_TU, UNASSIGN, TAB_NUOC, CO_NUOC, isTestCampaign, tenNganCamp,
+    NUOC, campaignMarket,
 } = require("./rules");
 const { ngayChuaDu } = require("./schedule");   // "ngày đó xong chưa" — có test riêng
 
@@ -338,12 +339,31 @@ function buildTinAds({ dateStr, sheet, sheetTruoc, camps, cfg, canhBaoCamp, opts
 }
 
 // ── Chi tiết camp theo marketer — nối vào cuối các dòng đầu tin rồi trả cả tin ──
+// opts.khongDon: nước chưa nối shop POS (Nhật lúc mở) — không có đơn để chấm camp, nên không
+// gắn 🔴 "đốt tiền" (mọi camp đều 0 đơn), chỉ in tiền + tin nhắn + giá mỗi tin.
 function ghepChiTietCamp(dong, { camps, cfg, canhBaoCamp, opts }) {
     dong.push("", B(opts.intraday ? "📋 CHI TIẾT CAMP HÔM NAY" : "📋 CHI TIẾT CAMP"));
     if (canhBaoCamp) {
         dong.push(I("(chưa lấy được chi tiết camp lúc này — số tổng ở trên vẫn đúng theo Sheet)"));
     } else if (!camps.length) {
         dong.push(I("(không có camp nào tiêu tiền)"));
+    } else if (opts.khongDon) {
+        const nhom = new Map();
+        for (const c of camps) {
+            const mk = marketerOf(c.campaign_name) || "Chưa gán";
+            if (!nhom.has(mk)) nhom.set(mk, []);
+            nhom.get(mk).push(c);
+        }
+        const tien = (xs) => xs.reduce((n, c) => n + (c.spend_vnd || 0), 0);
+        for (const [mk, xs] of [...nhom].sort((a, b) => (a[0] === "Chưa gán") - (b[0] === "Chưa gán") || tien(b[1]) - tien(a[1]))) {
+            xs.sort((a, b) => b.spend_vnd - a.spend_vnd);
+            dong.push("", `${B(`👤 ${mk}`)} · ${xs.length} camp · ads ${gonTien(tien(xs))}`);
+            for (const c of xs) {
+                const mess = c.messages || 0;
+                dong.push(`• ${String(c.campaign_name || "").trim()}`,
+                    `    ${[gonTien(c.spend_vnd), `${fmt(mess)} mess`, ...(mess > 0 ? [`${gonTien(c.spend_vnd / mess)}/mess`] : [])].join(" · ")}`);
+            }
+        }
     } else {
         dong.push(I("🟢 ngon · 🟡 có đơn · ⚪ chưa ra đơn · 🔴 đốt tiền"));
         const nhom = new Map();
@@ -368,6 +388,174 @@ function ghepChiTietCamp(dong, { camps, cfg, canhBaoCamp, opts }) {
         dong.push("", I("Đơn trong chi tiết camp gán theo quảng cáo nên có thể khác số đầu tin (đầu tin gán theo tag POS, khớp Sheet)."));
     }
     return dong.join("\n");
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════════════
+// TIN ADS MỘT NƯỚC — nhóm "ADS + VẬN ĐƠN <nước>" (Sỹ Anh chốt 08/10/2026: mỗi nước một nhóm,
+// ads + vận đơn chung nhóm, bỏ nhóm BÁO CÁO ADS gộp). Cùng khuôn tin đã duyệt 26/09 (số đầu
+// tin · xếp hạng · chi tiết MỌI camp tên đầy đủ), nhưng chỉ số + camp của MỘT nước.
+//
+// Số lấy ở đâu:
+//   1. data/bao_cao_nuoc/<tháng>.json — format_all.py ghi NGAY SAU khi ghi file TỔNG TEAM, cùng
+//      bộ ô: { nuoc: { Taiwan: { "2026-10-08": { Loc: {ads, mess, don, doanh_so, ds_giao_tc} …
+//      "(không gán)": {…} } } } }. Cộng người trong team = đúng tab nước của Sheet, và có luôn
+//      xếp hạng người TRONG nước — thứ file TỔNG TEAM không có (tab người gộp mọi nước).
+//   2. Chưa có file đó (máy Mac, hoặc vòng ghi Sheet chưa chạy bản mới) hoặc file cũ hơn vòng ghi
+//      Sheet OK gần nhất → tab nước của TỔNG TEAM (/api/talpha/sheet-report): đủ số đầu tin,
+//      không có xếp hạng người.
+// Chi tiết camp: /api/talpha/realtime lọc theo nước của tên camp (campaignMarket) — bot gọi MỘT
+// lần mỗi mốc cho cả bốn nước (opts.layRealtime).
+// ═══════════════════════════════════════════════════════════════════════════════════════
+const soRong = () => ({ ads: 0, mess: 0, don: 0, doanh_so: 0, ds_giao_tc: 0 });
+const tyLe = (s) => ({
+    ...s,
+    ty_le_chot: s.mess > 0 ? (s.don / s.mess) * 100 : 0,
+    phan_tram_ads: s.doanh_so > 0 ? (s.ads / s.doanh_so) * 100 : 0,
+});
+const CAC_KHOAN = ["ads", "mess", "don", "doanh_so", "ds_giao_tc"];
+
+/**
+ * Số một nước một ngày → { team, nguoi: [{tab, mk, …so}] | null, khongGan, nguon: "ban" | "sheet" }.
+ * nguoi null = không có xếp hạng (đang đọc tab nước của Sheet).
+ */
+async function soMotNuoc(cfg, dateStr, n, opts, f) {
+    const ban = opts.docBan ? opts.docBan(dateStr.slice(0, 7)) : null;
+    const banCu = ban && opts.stale && opts.stale.lastOkTs != null && ban.ghi_luc
+        && Date.parse(ban.ghi_luc) < opts.stale.lastOkTs - 45 * 60000;
+    if (ban && !banCu) {
+        const kg = ban.khong_gan || KHONG_GAN;
+        const ng = ((ban.nuoc || {})[n.key] || {})[dateStr] || {};
+        const nguoi = Object.entries(ng).filter(([k]) => k !== kg)
+            .map(([tab, v]) => tyLe({ ...soRong(), ...v, tab, mk: DISPLAY[tab] || tab }));
+        const team = soRong();
+        for (const r of nguoi) for (const k of CAC_KHOAN) team[k] += Number(r[k] || 0);
+        return { team: tyLe(team), nguoi, khongGan: ng[kg] ? tyLe({ ...soRong(), ...ng[kg] }) : null, nguon: "ban" };
+    }
+    if (banCu && opts.log) opts.log(`bao_cao_nuoc/${dateStr.slice(0, 7)}.json cũ hơn vòng ghi Sheet — đọc tab nước của TỔNG TEAM`);
+    const sheet = await fetchSheetReport(cfg, dateStr, f);
+    const r = (sheet.marketers || []).find((x) => x.tab === n.ten || x.tab === n.key);
+    const team = soRong();
+    if (r) for (const k of CAC_KHOAN) team[k] = Number(r[k] || 0);
+    return { team: tyLe(team), nguoi: null, khongGan: null, nguon: "sheet" };
+}
+
+/**
+ * @param opts.nuoc        mã nước: TW · SG · AE · JP
+ * @param opts.docBan      (thang "YYYY-MM") → nội dung data/bao_cao_nuoc/<thang>.json, hoặc null
+ * @param opts.layRealtime (dateStr) → Promise<{campaigns}> — bot dùng chung một lượt cho bốn nước
+ * Còn lại như buildMarketerReports: label, intraday, stale, tieuDe, nguon, soCungGio, khongSoCaNgay, log, fetch.
+ * @returns { tinGop, teamMessage, tinNguoi(ten), nguoi, so, chuaDu, label }
+ */
+async function buildBaoCaoNuoc(cfg, dateStr, opts = {}) {
+    const n = NUOC[String(opts.nuoc || "").toUpperCase()];
+    if (!n) throw new Error(`nước lạ "${opts.nuoc}"`);
+    const f = opts.fetch || fetch;
+    const label = opts.label || ddmm(dateStr);
+    const so = await soMotNuoc(cfg, dateStr, n, opts, f);
+
+    // ▲▼: mốc trưa/chiều so CÙNG MỐC hôm qua (bot nhớ); tối so cả ngày hôm qua của chính nước đó.
+    let truoc = null;
+    if (opts.intraday && opts.soCungGio && opts.soCungGio.so) truoc = { team: opts.soCungGio.so, nhan: opts.soCungGio.nhan };
+    else if (opts.intraday && !opts.khongSoCaNgay) {
+        try { truoc = { team: (await soMotNuoc(cfg, homQuaCua(dateStr), n, opts, f)).team }; }
+        catch (e) { if (opts.log) opts.log(`không lấy được số hôm qua của ${n.ma} để so: ${e.message}`); }
+    }
+    const canhBao = canhBaoSoCu(opts.stale, dateStr, opts.intraday);
+    opts = { ...opts, canhBao, label, khongDon: n.sapChay };
+
+    let camps = [], canhBaoCamp = "";
+    try {
+        const data = opts.layRealtime ? await opts.layRealtime(dateStr) : await fetchRealtime(cfg, dateStr, f);
+        camps = (data.campaigns || []).filter((c) => (c.spend_vnd || 0) > 0 && !isTestCampaign(c.campaign_name)
+            && campaignMarket(c.campaign_name).market === n.key);
+    } catch (e) {
+        canhBaoCamp = e.message;
+        if (opts.log) opts.log(`realtime lỗi — tin ${n.ma} không kèm chi tiết campaign: ${e.message}`);
+    }
+
+    const rows = (so.nguoi || [])
+        .filter((r) => !DA_NGHI.has(r.mk) && (r.ads > 0 || r.don > 0 || r.mess > 0))
+        .sort((a, b) => (n.sapChay ? 0 : b.doanh_so - a.doanh_so) || (b.ads - a.ads));
+    const dauTin = (cungCamp) => buildTinNuoc({ n, dateStr, so, rows, truoc, camps: cungCamp, cfg, canhBaoCamp, opts });
+
+    return {
+        dateStr, label, nuoc: n.ma, nguoi: rows.map((r) => r.mk),
+        tinGop: dauTin(camps),
+        teamMessage: dauTin(null),
+        tinNguoi: (ten) => {
+            const r = rows.find((x) => x.mk === ten);
+            const cua = camps.filter((c) => marketerOf(c.campaign_name) === ten);
+            if (!r && !cua.length) return `ℹ️ ${ten} chưa có số ở ${n.flag} ${n.ten} ${opts.intraday ? "hôm nay" : "ngày " + ddmm(dateStr)}.`;
+            const x = r || tyLe(soRong());
+            const dong = [B(`📊 ADS ${n.flag} ${n.ten.toUpperCase()} · ${label} — ${ten}`)];
+            if (canhBao) dong.unshift(canhBao.replace(/\n+$/, ""), "");
+            dong.push(n.sapChay
+                ? `💰 Ads ${B(fmt(Math.round(x.ads)) + "đ")} · ${fmt(x.mess)} mess${x.mess > 0 ? ` · ${gonTien(x.ads / x.mess)}/mess` : ""}`
+                : `💰 Ads ${B(fmt(Math.round(x.ads)) + "đ")} · DS ${B(fmt(Math.round(x.doanh_so)) + "đ")} · %ads ${B(x.doanh_so > 0 ? p1(x.phan_tram_ads) + "%" : "—")}\n`
+                  + `🛒 ${fmt(x.don)} đơn · ${fmt(x.mess)} mess · chốt ${chot(x.don, x.mess)}`);
+            if (!r && so.nguoi === null) dong.push(I("(số theo người chưa có — đang đọc tab nước của file TỔNG TEAM)"));
+            return ghepChiTietCamp(dong, { camps: cua, cfg, canhBaoCamp, opts });
+        },
+        chuaDu: canhBao !== "",
+        so: { ads: Math.round(so.team.ads), don: so.team.don, mess: so.team.mess, doanh_so: Math.round(so.team.doanh_so) },
+    };
+}
+
+// camps null → chỉ phần đầu tin (lệnh /baocao team), không kèm chi tiết camp.
+function buildTinNuoc({ n, dateStr, so, rows, truoc, camps, cfg, canhBaoCamp, opts }) {
+    const T = so.team, Tc = truoc && truoc.team;
+    const mt = (k, laTien) => (opts.intraday && Tc ? muiTen(Number(T[k] || 0), Number(Tc[k] || 0), laTien) : "");
+    const dong = [];
+    if (opts.canhBao) dong.push(opts.canhBao.replace(/\n+$/, ""), "");
+    const bq = ghiChuBoQua(opts.stale);
+    if (bq) dong.push(bq, "");
+    dong.push(B(opts.tieuDe || `📊 ADS ${n.flag} ${n.ten.toUpperCase()} · ${opts.label || ddmm(dateStr)}`));
+    if (opts.nguon) dong.push(I(opts.nguon));
+    dong.push("");
+    const ketThuc = () => (camps ? ghepChiTietCamp(dong, { camps, cfg, canhBaoCamp, opts }) : dong.join("\n"));
+
+    if (sheetChuaCoSoHomNay(T, opts, dateStr)) {
+        dong.push(`💰 ${B("Sheet chưa có số hôm nay")} — vòng ghi Sheet chưa chạy được lần nào từ 00:00.`);
+        const tien = (camps || []).reduce((s, c) => s + (c.spend_vnd || 0), 0);
+        if (tien > 0) dong.push(`Ads theo Meta (trực tiếp): ${B(fmt(Math.round(tien)) + "đ")} — từng camp ở dưới`);
+        return ketThuc();
+    }
+    if (n.sapChay) {
+        dong.push(`💰 Ads ${B(fmt(Math.round(T.ads)) + "đ")}${mt("ads", true)} · ${fmt(T.mess)} mess${mt("mess")}`
+            + (T.mess > 0 ? ` · ${gonTien(T.ads / T.mess)}/mess` : ""));
+        dong.push(I(`🛒 ${n.ten} chưa nối shop POS — chưa có đơn, doanh số.`));
+    } else {
+        dong.push(`💰 Ads ${B(fmt(Math.round(T.ads)) + "đ")}${mt("ads", true)} · DS ${B(fmt(Math.round(T.doanh_so)) + "đ")}${mt("doanh_so", true)}`
+            + ` · %ads ${B(T.doanh_so > 0 ? p1(T.phan_tram_ads) + "%" : "—")}`);
+        dong.push(`🛒 ${fmt(T.don)} đơn${mt("don")} · ${fmt(T.mess)} mess${mt("mess")} · chốt ${p1(T.ty_le_chot)}%`);
+    }
+    rows.forEach((r, i) => {
+        const dau = `${i === 0 ? "🏆 " : "    "}${B(r.mk)} `;
+        dong.push(n.sapChay
+            ? `${dau}ads ${gonTien(r.ads)} · ${fmt(r.mess)} mess`
+            : `${dau}${gonTien(r.doanh_so)} · ${fmt(r.don)} đơn · ads ${gonTien(r.ads)} · %ads ${r.doanh_so > 0 ? Math.round(r.phan_tram_ads) + "%" : "—"}`);
+    });
+    if (so.nguoi === null) dong.push(I("(chưa có xếp hạng theo người — đang đọc tab nước của file TỔNG TEAM)"));
+    const un = so.khongGan;
+    if (un && (un.doanh_so > 0 || un.don > 0)) dong.push(`📍 Chưa gán cho ai: ${gonTien(un.doanh_so)} · ${fmt(un.don)} đơn`);
+    if (opts.intraday && Tc) dong.push(I(`▲▼ so với ${(truoc && truoc.nhan) || "cả ngày hôm qua"}`));
+    return ketThuc();
+}
+
+/** /canhbao trong nhóm một nước: camp của nước đó tiêu từ adsWasteSpend mà 0 tin nhắn (Meta trực tiếp). */
+function buildCanhBaoNuoc(campsHomNay, cfg, nuoc, dateStr) {
+    const n = NUOC[nuoc];
+    const camps = (campsHomNay || []).filter((c) => (c.spend_vnd || 0) > 0 && campaignMarket(c.campaign_name).market === n.key);
+    const tong = camps.reduce((s, c) => s + (c.spend_vnd || 0), 0);
+    const nguong = cfg.adsWasteSpend || 300000;
+    const dot = camps.filter((c) => c.spend_vnd >= nguong && !(c.messages > 0)).sort((a, b) => b.spend_vnd - a.spend_vnd);
+    const dau = `${I(`${n.flag} ${n.ten} · hôm nay ${ddmm(dateStr)} · Meta trực tiếp`)}\nChi tiêu: ${fmt(Math.round(tong))}đ · ${camps.length} camp\n`;
+    if (!dot.length) {
+        return `✅ ${B("ADS — chưa thấy gì bất thường")}\n${dau}Không camp nào tiêu từ ${fmt(nguong)}đ mà 0 tin nhắn.`;
+    }
+    return `🔥 ${B(`Camp ĐỐT TIỀN KHÔNG RA TIN NHẮN (${dot.length})`)}\n${dau}`
+        + dot.slice(0, 12).map((c) => `\n• ${fmt(Math.round(c.spend_vnd))}đ · 0 tin nhắn${marketerOf(c.campaign_name) ? " · " + marketerOf(c.campaign_name) : ""}\n   ${String(c.campaign_name || "").trim()}`).join("")
+        + (dot.length > 12 ? `\n…và ${dot.length - 12} camp khác.` : "");
 }
 
 /**
@@ -491,4 +679,5 @@ function buildTinDinhChinh({ tin, soCu, soMoi, label, luc, intraday }) {
 module.exports = {
     buildMarketerReports, buildTeamReport, buildTinGop, buildTinAds, recommend,
     buildTinDinhChinh, dongLech, soDauBai,
+    buildBaoCaoNuoc, buildCanhBaoNuoc,
 };

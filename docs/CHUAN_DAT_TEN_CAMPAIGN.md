@@ -30,16 +30,19 @@ AE/THAI/PHI/040-VONGVANG1/LumoraJewelry/1509
 
 ### 1. Nước — BẮT BUỘC, luôn ở ô đầu
 
-Từ 15/09/2026 công ty chạy ba nước. Chi tiêu quảng cáo được chia về nước **bằng chính
-ô này** (Sỹ Anh chốt) — không có ô thứ hai nào để máy dựa vào.
+Từ 15/09/2026 công ty chạy ba nước, 08/10/2026 thêm Nhật. Chi tiêu quảng cáo được chia về
+nước **bằng chính ô này** (Sỹ Anh chốt) — không có ô thứ hai nào để máy dựa vào.
 
 | Nước | Mã | Tình trạng |
 |---|---|---|
 | Đài Loan | `TW` | đang bán |
 | Singapore | `SG` | đang bán |
 | UAE | `AE` | đang bán |
+| Nhật Bản | `JP` | mở 08/10/2026 — có ads, chưa có shop POS |
 
-Máy cũng nhận `TAIWAN`, `SINGAPORE`, `SING`, `SGP`, `UAE`, `DUBAI`, nhưng hãy dùng mã hai chữ.
+Máy cũng nhận `TAIWAN`, `SINGAPORE`, `SING`, `SGP`, `UAE`, `DUBAI`, `JAPAN`, `JPN`, `NHẬT`, nhưng
+hãy dùng mã hai chữ. (Camp Nhật đầu tiên `JP/THANG/…` chạy trước khi khai mã `JP` → mấy giờ đầu
+08/10/2026 tiền ads Nhật bị tính về Đài.)
 
 **Campaign không ghi nước** (tên cũ kiểu `Lộc/Philippine/…`) vẫn được tính về **Đài
 Loan**, và bị liệt kê trong log báo cáo mỗi giờ dưới dòng `KHONG GHI NUOC`. Bẫy thật

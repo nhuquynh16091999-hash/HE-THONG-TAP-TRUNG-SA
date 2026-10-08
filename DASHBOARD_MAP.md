@@ -18,13 +18,18 @@ TKQC chạy nó phải nằm trong `/me/adaccounts` của token, nếu không l�
 Hàng Đài đi từ kho Trung Quốc qua 3PL **NAZA供应链**; khách trả tiền cho shipper; NAZA gom
 rồi chuyển về theo kỳ. Singapore: bảng giá 3PL khai ở `shipping_fees.SG` (25/09/2026, chưa ghi tên đối tác), chờ sao kê mẫu.
 
-**Ba thị trường = ba team riêng, không liên quan nhau** (Sỹ Anh chốt 05/10/2026):
+**Mỗi thị trường = một team riêng, không liên quan nhau** (Sỹ Anh chốt 05/10/2026; Nhật thêm 08/10/2026):
 
 | Team | Nước | Leader |
 |:--|:--|:--|
 | Trung Đông | UAE | Lộc |
 | Đông Nam Á | Singapore | Thái |
 | Đông Á | Đài Loan | Sỹ Anh (tạm thời) |
+| Nhật Bản | Nhật Bản | Sỹ Anh (tạm thời) |
+
+**Nhật Bản (mở 08/10/2026)** — camp đặt `JP/…` (Thắng, Thương chạy từ 08/10). CHƯA CÓ SHOP POS nên
+`status: "sap_chay"`: chỉ có tiền ads + tin nhắn, chưa có đơn/doanh số/vận đơn. Tỷ giá 1 JPY = 160đ
+(Sỹ Anh chốt). Có shop thì làm theo `markets.Japan._status_note` trong `talpha_rules.json`.
 
 | Vai (`role`) | Người | Thấy gì |
 |:--|:--|:--|
@@ -218,7 +223,7 @@ Meta theo nước ở tên campaign); bảng gộp mọi nước (`vw_attributio
 | `order-ledger/market?market=SG\|AE` | Sổ đơn Singapore, UAE (29/09/2026): đơn + khách + hàng + trạng thái giao + đèn việc phải làm; cùng nguồn `loadMarketShipments` với Theo dõi vận đơn và Tiền COD về. Hàng: Sing ở cột SKU bảng đối tác, UAE ở `order_items`. Chưa có sao kê nên chưa có cột tiền về | Giao diện (nút Đài Loan / Singapore / UAE) |
 | `cod-recon` | Khớp sao kê 3PL với đơn đã giao | Giao diện |
 | `cod-recon/market?market=SG\|AE` | Tiền COD về nước ngoài Đài, bước 1 (26/09/2026): tiền còn ở đâu — đã giao / chưa giao / hoàn-huỷ. SG đọc bảng đối tác + 17TRACK, UAE (từ 28/09/2026) đọc đơn POS + trạng thái tra ở WeShip — cả hai chung `lib/talpha/tracking-market.ts` với Theo dõi vận đơn. Chưa có sao kê → chưa khớp từng kỳ | Giao diện (nút Đài Loan / Singapore / UAE) |
-| `tracking` · `tracking/import` | 17TRACK + nạp bảng đơn đối tác. `?market=SG`: Singapore sổ riêng (`data/tracking_sg.json`), đơn đọc từ BigQuery `partner_orders`. `?market=AE` (28/09/2026): UAE không có bảng đối tác, 17TRACK không có hãng — đơn đọc từ POS (mã AWB ở `sale_order.partner → extend_code`), POST tra thẳng trang WeShip `portal.weshipme.com/tracking` (`lib/talpha/weship.ts`, miễn phí, không quota), sổ `data/tracking_ae.json` | Giao diện (nút Đài Loan / Singapore / UAE, nút “Tra WeShip”) · `talpha-tracking.timer` 6h + 21:30 (nạp bảng Đài + đồng bộ từng nước) · bot Zalo 08:30 + 22:00 (mỗi nước một tin, nhóm riêng) |
+| `tracking` · `tracking/import` | 17TRACK + nạp bảng đơn đối tác. `?market=SG`: Singapore sổ riêng (`data/tracking_sg.json`), đơn đọc từ BigQuery `partner_orders`. `?market=AE` (28/09/2026): UAE không có bảng đối tác, 17TRACK không có hãng — đơn đọc từ POS (mã AWB ở `sale_order.partner → extend_code`), POST tra thẳng trang WeShip `portal.weshipme.com/tracking` (`lib/talpha/weship.ts`, miễn phí, không quota), sổ `data/tracking_ae.json` | Giao diện (nút Đài Loan / Singapore / UAE, nút “Tra WeShip”) · `talpha-tracking.timer` 6h + 21:30 (nạp bảng Đài + đồng bộ từng nước) · bot Zalo 08:30 + 22:00 (mỗi nước một tin, vào nhóm "ADS + VẬN ĐƠN" của nước đó) |
 | `ads-recon` | Đối soát chi phí TKQC với sao kê thẻ | Giao diện |
 | `cod-actions` | Đánh dấu đã đòi / đã nhận tiền | Giao diện |
 | `ad-spend` · `marketer-perf` · `product-costs` · `targets` | Số phụ trợ cho tab | Giao diện |
@@ -272,7 +277,7 @@ talpha-sync: mã vận đơn, ngày xuất kho, trạng thái giao, COD đối t
 | Kéo số vào BigQuery | VPS, mỗi giờ phút :00 | systemd `talpha-sync.timer` → `sync/talpha/talpha_sync.py` |
 | Ghi Google Sheets | VPS, mỗi giờ phút :20 | systemd `talpha-report.timer` → `/root/talpha_reports/daily_guarded.sh` |
 | Nạp bảng đơn đối tác | VPS, 6h sáng mỗi ngày | systemd `talpha-tracking.timer` → `ops/deploy/tracking-import.sh` (gọi route `tracking/import`) |
-| Bot báo cáo ads Zalo | VPS — tự gửi 08:30, còn lại khi có người gõ `/baocao`, `/canhbao` trong nhóm "BOT AI NHẬN THÔNG BÁO" | pm2 `talpha-zalo-alerts` — nick Zalo phụ ghép 15/09/2026; ghép lại, đổi nhóm: `ops/zalo-alerts/README.md` |
+| Bot Zalo ads + vận đơn | VPS — MỖI NƯỚC MỘT NHÓM "ADS + VẬN ĐƠN TAIWAN · SGP · UAE · JAPAN" (08/10/2026; bỏ nhóm BÁO CÁO ADS gộp + 3 nhóm VẬN ĐƠN cũ): ads 08:30 · 13:00 · 18:00 · 22:00, vận đơn 08:30 · 22:00, lệnh `/baocao` `/canhbao` `/vandon` trả số đúng nước của nhóm. Số theo nước × người đọc `data/bao_cao_nuoc/<tháng>.json` do `format_all.py` ghi cùng lúc file TỔNG TEAM | pm2 `talpha-zalo-alerts` — nick Zalo phụ ghép 15/09/2026; bot tự nhận nhóm theo tên; ghép lại, đổi nhóm: `ops/zalo-alerts/README.md` |
 | Bot cảnh báo WhatsApp | — | **Tắt**. Code ở `ops/whatsapp-alerts/`, cách bật trong `ops/pm2/README.md` |
 | Máy Mac | Máy dev | `cd dashboard-ui && npm run dev`. Không job nền nào. |
 

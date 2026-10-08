@@ -1,13 +1,16 @@
-# TALPHA — Bot báo cáo ads vào nhóm Zalo
+# TALPHA — Bot báo cáo ads + vận đơn vào nhóm Zalo
 
-Gửi vào **một nhóm Zalo** — hiện là **BOT AI NHẬN THÔNG BÁO** — chỉ tin **ads**.
-Sỹ Anh chốt 15/09/2026: **tự động chỉ gửi mốc 8h30**, còn lại gửi khi có người gõ lệnh.
-(Sau đó thêm dần mốc giữa ngày — nay là 13:00 · 18:00 · 22:00, xem bảng dưới.)
+**Mỗi nước một nhóm** (Sỹ Anh chốt 08/10/2026): **ADS + VẬN ĐƠN TAIWAN · SGP · UAE · JAPAN**.
+Tin ads của nước đó và tin vận đơn của nước đó chung một nhóm; nhóm nào chỉ thấy số nước mình.
+**Bỏ hẳn nhóm cũ** — BÁO CÁO ADS (tin gộp mọi nước) và VẬN ĐƠN TW / SGP / UAE: bot không đọc
+`zalo_group.json`, `zalo_group_vandon*.json` nữa, không gửi, không nghe lệnh ở đó.
+Nhật (mở 08/10/2026) chưa có shop POS: tin ads chỉ có tiền + tin nhắn, chưa có vận đơn.
+(Lịch sử: 15/09/2026 chỉ gửi mốc 8h30 vào một nhóm ads; thêm dần 13:00 · 18:00 · 22:00.)
 
 | Khi nào | Tin |
 |---|---|
-| **08:30** mỗi ngày | **Một tin duy nhất**: số tổng + bảng xếp hạng + camp đáng xử — số **hôm qua** |
-| **13:00**, **18:00** và **22:00** mỗi ngày | Cùng khuôn tin đó nhưng là số **ĐANG CHẠY HÔM NAY** — 22:00 từ 26/09, 13:00 + 18:00 Sỹ Anh thêm 29/09/2026 |
+| **08:30** mỗi ngày | Mỗi nhóm **một tin ads** của nước đó (số **hôm qua**), rồi tin **vận đơn** sáng |
+| **13:00**, **18:00** và **22:00** mỗi ngày | Tin ads số **ĐANG CHẠY HÔM NAY** của nước đó; 22:00 thêm tin vận đơn tối |
 | Có người gõ lệnh trong nhóm | Xem bảng lệnh dưới |
 
 Không tự gửi từ 23h đến 7h (lệnh gõ tay thì trả lời bất cứ lúc nào). Không có tồn kho,
@@ -18,12 +21,12 @@ thẻ/TKQC như bot WhatsApp cũ (`ops/whatsapp-alerts/`, đang tắt).
 Nguyên tắc: **đọc xong tin là làm được ngay**, không mở dashboard. Mẫu duyệt ở trang
 "Bản tin Zalo 08:30 · 22:00" (bản 3).
 
-| Nhóm | 08:30 | 22:00 |
+| Tin | 08:30 | 22:00 |
 |---|---|---|
-| **BÁO CÁO ADS** | Kết quả hôm qua: tiền ads · DS · %ads · đơn · mess · chốt, từng nước, xếp hạng marketer, **chi tiết mọi camp có tiêu tiền** (tên đầy đủ như trên Meta, theo marketer, tiêu nhiều trước) | Cùng khuôn, số hôm nay, **▲▼ so với cả ngày hôm qua** |
-| **VẬN ĐƠN TW** | Hôm qua (khách đã lấy, mới tới, bắt đầu hoàn) + **@Thương gọi khách sắp bị trả về** và **nhắn khách mới tới** + **🔁 nhắc lại khách đã nhắn mà chưa lấy** (mỗi sáng tới khi lấy; sổ nhắc ở state.json → vanDonNhac): mỗi khách đủ tên, SĐT, cửa hàng, mã lấy hàng (= mã tracking), hạn, **💬 tin tiếng Trung soạn sẵn** (lần đầu nhẹ nhàng, nhắc lại gấp hơn) · hỏi đối tác · kiểm đơn lệch | Khách phải gọi sáng nay: đã lấy (cứu bao nhiêu tiền) / chưa lấy (MAI HẾT HẠN) / bị trả về · khách mới tới đã lấy chưa · số cả ngày |
-| **VẬN ĐƠN SGP** | Cùng khuôn; gọi = **đơn giao hỏng / khách hẹn giao lại**, kèm khu vực, ghi chú đối tác, **💬 tin tiếng Anh soạn sẵn** | Đơn hẹn lại đã giao chưa · số cả ngày |
-| **VẬN ĐƠN UAE** (28/09/2026) | Cùng khuôn Singapore; trạng thái tra ở **trang WeShip** (không qua 17TRACK). Gọi = khách **từ chối / không nghe máy / hẹn giao lại** kèm số lần, khu vực, ghi chú đơn POS, **💬 tin tiếng Anh theo lý do** | Như Singapore |
+| **Ads** (mọi nhóm) | Kết quả hôm qua CỦA NƯỚC ĐÓ: tiền ads · DS · %ads · đơn · mess · chốt, **xếp hạng người trong nước**, **chi tiết mọi camp của nước đó** (tên đầy đủ như trên Meta, theo marketer, tiêu nhiều trước). Nhật: tiền ads · mess · giá/mess, chưa có đơn | Cùng khuôn, số hôm nay, **▲▼ so với cả ngày hôm qua của nước đó** |
+| **Vận đơn Đài** (nhóm TAIWAN) | Hôm qua (khách đã lấy, mới tới, bắt đầu hoàn) + **@Thương gọi khách sắp bị trả về** và **nhắn khách mới tới** + **🔁 nhắc lại khách đã nhắn mà chưa lấy** (mỗi sáng tới khi lấy; sổ nhắc ở state.json → vanDonNhac): mỗi khách đủ tên, SĐT, cửa hàng, mã lấy hàng (= mã tracking), hạn, **💬 tin tiếng Trung soạn sẵn** (lần đầu nhẹ nhàng, nhắc lại gấp hơn) · hỏi đối tác · kiểm đơn lệch | Khách phải gọi sáng nay: đã lấy (cứu bao nhiêu tiền) / chưa lấy (MAI HẾT HẠN) / bị trả về · khách mới tới đã lấy chưa · số cả ngày |
+| **Vận đơn Singapore** (nhóm SGP) | Cùng khuôn; gọi = **đơn giao hỏng / khách hẹn giao lại**, kèm khu vực, ghi chú đối tác, **💬 tin tiếng Anh soạn sẵn** | Đơn hẹn lại đã giao chưa · số cả ngày |
+| **Vận đơn UAE** (nhóm UAE, 28/09/2026) | Cùng khuôn Singapore; trạng thái tra ở **trang WeShip** (không qua 17TRACK). Gọi = khách **từ chối / không nghe máy / hẹn giao lại** kèm số lần, khu vực, ghi chú đơn POS, **💬 tin tiếng Anh theo lý do** | Như Singapore |
 
 * Bỏ phần "việc hôm nay" của ads, bỏ lệnh /tin và /xong (Sỹ Anh chốt).
 * **Ads 13:00 (TRƯA) · 18:00 (CHIỀU)** — Sỹ Anh thêm 29/09/2026. Cùng khuôn tin 22:00, số
@@ -36,32 +39,41 @@ Nguyên tắc: **đọc xong tin là làm được ngay**, không mở dashboard
 * Tin sáng lưu danh sách khách phải gọi/nhắn vào `state.json → vanDonSang` để tin tối chấm.
   17TRACK cập nhật lại 21:30 (`talpha-tracking.timer`) trước tin 22:00.
 * Ngày đông khách: tin vận đơn tự tách thành 2–3 tin Zalo (khung 1800 ký tự).
-* Mỗi nước một nhóm, một mốc riêng: nước này hỏng không kéo nước kia.
+* Mỗi nước một nhóm, một mốc riêng: nước này hỏng không kéo nước kia. Trong một nhóm, tin ads
+  luôn đứng trước tin vận đơn cùng mốc.
+* **Số ads theo nước** đọc `data/bao_cao_nuoc/<tháng>.json` — `format_all.py` ghi ngay sau khi
+  ghi file TỔNG TEAM, cùng bộ ô, nên tổng người trong nước = đúng tab nước của Sheet, và có xếp
+  hạng người TRONG nước (file TỔNG TEAM không có: tab người gộp mọi nước). Chưa có file (hoặc cũ
+  hơn vòng ghi Sheet OK gần nhất quá 45') → đọc tab nước của TỔNG TEAM, tin ghi rõ thiếu xếp hạng.
+* ▲▼ trưa/chiều nhớ theo nước: `state.json → soMoc["TW|13:00"]`. Mốc ghi `state.json → moc["ads:TW:sang"]`.
 
-Chọn nhóm (nick phụ phải nằm sẵn trong nhóm):
+Chọn nhóm (nick phụ phải nằm sẵn trong nhóm). **Bot tự nhận** lúc khởi động và mỗi vòng 5' khi
+còn nước thiếu nhóm — chỉ nhận nhóm đúng mẫu tên `ADS + VẬN ĐƠN <nước>` (TAIWAN · SGP · UAE ·
+JAPAN); một nước khớp hai nhóm thì không đoán:
 
 ```bash
 node pair.js --groups                                  # xem id nhóm
-node pair.js --chon <id>                               # nhóm ads → zalo_group.json
-node pair.js --chon-vandon <id>                        # vận đơn Đài → zalo_group_vandon.json
-node pair.js --chon-vandon <id> --nuoc SG              # vận đơn Singapore → zalo_group_vandon_sg.json
-node pair.js --chon-vandon <id> --nuoc AE              # vận đơn UAE → zalo_group_vandon_ae.json
+node pair.js --tu-nhan                                 # nhận nhóm từng nước theo tên → zalo_group_nuoc_<mã>.json
+node pair.js --chon-nuoc <id> --nuoc JP                # chọn tay một nước
 pm2 restart talpha-zalo-alerts
-node bot.js --dry-run --vandon sang --nuoc SG          # IN thử, không gửi
-node bot.js --vandon toi                               # gửi ngay tin tối mọi nước
+node bot.js --dry-run --report --nuoc TW               # IN thử tin ads sáng của Đài, không gửi
+node bot.js --dry-run --vandon sang --nuoc SG          # IN thử vận đơn, không gửi
+node bot.js --vandon toi                               # gửi ngay tin vận đơn tối mọi nước
 ```
 
 ## Lệnh trong nhóm
 
 | Gõ | Bot trả |
 |---|---|
-| `/baocao` | Số **đang chạy hôm nay**, gộp một tin, dán nhãn `HÔM NAY dd/mm · giờ` |
+| `/baocao` | Số **đang chạy hôm nay** của nước của nhóm, một tin |
 | `/baocao homqua` · `/baocao 14/09` | Số hôm qua · số một ngày |
-| `/baocao Lộc` · `/baocao homqua Lộc` | Chi tiết campaign + đề xuất của một người |
-| `/baocao team` | Chỉ số TỔNG TEAM, không kèm campaign |
-| `/canhbao` | Camp tiêu ≥ 300k mà 0 tin nhắn, chi tiêu hôm nay so với TB 7 ngày |
-| `/vandon` · `/vd` | Vận đơn mới nhất của nước của nhóm (khuôn tin sáng) — **chỉ ở nhóm vận đơn** (`/vandon uae` · `sg` · `tw` chọn nước) |
+| `/baocao Lộc` · `/baocao homqua Lộc` | Số + camp của một người Ở NƯỚC CỦA NHÓM |
+| `/baocao team` | Chỉ phần số đầu tin, không kèm camp |
+| `/canhbao` | Camp của nước đó tiêu ≥ 300k mà 0 tin nhắn (Meta trực tiếp) |
+| `/vandon` · `/vd` | Vận đơn mới nhất của nước của nhóm (khuôn tin sáng). Nhóm Nhật: báo chưa theo dõi |
 | `/bot` | Cách dùng |
+
+Mọi lệnh chỉ trả số của **nước của nhóm** — gõ `/vandon sg` trong nhóm UAE vẫn ra UAE.
 
 Có dấu hay không dấu, hoa hay thường đều được; `/bc`, `/cb` là viết tắt. Chữ không bắt đầu
 bằng `/` bot bỏ qua. Cùng một lệnh gõ lại trong 60 giây thì bot bỏ lần sau.
@@ -71,8 +83,8 @@ một tin cho mỗi marketer — 5–6 tin liền nhau, trong nhóm đọc thàn
 từng người KHÔNG mất, gõ `/baocao <tên>` là ra — gộp cả vào một tin thì dài gấp ba khung,
 lại bị Zalo chia thành mấy tin, đúng cái đang tránh.
 
-**Chỉ nghe nhóm nhận tin**: nick phụ còn ở các nhóm COD có người của đối tác — gõ `/baocao`
-ở đó bot im, không lộ số ra ngoài.
+**Chỉ nghe 4 nhóm nước**: nick phụ còn ở các nhóm COD có người của đối tác và ở nhóm cũ —
+gõ `/baocao` ở đó bot im, không lộ số ra ngoài.
 
 ## Số lấy ở đâu
 
@@ -145,8 +157,8 @@ giả làm Zalo Web bằng một nick thật. Không cần trình duyệt (bot W
 ```bash
 cd /opt/talpha/ops/zalo-alerts && npm ci
 node pair.js                      # in "QR_READY": mở qr.png, quét bằng app Zalo của NICK PHỤ
-node pair.js --chon <id nhóm>     # id lấy từ danh sách nhóm vừa in
-node bot.js --dry-run --report    # IN thử báo cáo hôm qua, không gửi
+node pair.js --tu-nhan            # nhận nhóm "ADS + VẬN ĐƠN <nước>" theo tên
+node bot.js --dry-run --report    # IN thử báo cáo hôm qua mọi nước, không gửi
 pm2 start /opt/talpha/ops/pm2/ecosystem.vps.config.js --only talpha-zalo-alerts
 pm2 save
 ```
@@ -163,10 +175,10 @@ Ghép lại khi bot đang chạy: xong thì `pm2 restart talpha-zalo-alerts`.
 ## Chạy tay
 
 ```bash
-node bot.js --lenh "/baocao homqua"   # làm như có người gõ lệnh đó trong nhóm (gửi thật)
-node bot.js --report 2026-09-14       # gửi báo cáo ngày đó (bỏ ngày = hôm qua)
-node bot.js --moc 18:00               # gửi ngay tin mốc 18:00 (số hôm nay, không ghi đè số đã nhớ)
-node bot.js --dry-run --lenh "/baocao Lộc"   # --dry-run: chỉ in, không đăng nhập, không gửi
+node bot.js --lenh "/baocao homqua" --nuoc TW   # làm như có người gõ lệnh đó trong nhóm Đài (gửi thật)
+node bot.js --report 2026-09-14 --nuoc SG       # gửi báo cáo ngày đó (bỏ ngày = hôm qua, bỏ --nuoc = mọi nước)
+node bot.js --moc 18:00                         # gửi ngay tin mốc 18:00 mọi nước (không ghi đè số đã nhớ)
+node bot.js --dry-run --lenh "/baocao Lộc" --nuoc AE   # --dry-run: chỉ in, không đăng nhập, không gửi
 node pair.js --groups                 # nick phụ đang ở những nhóm nào
 pm2 logs talpha-zalo-alerts --lines 40
 ```
@@ -190,7 +202,7 @@ Chạy thử từ máy Mac: `TALPHA_DASHBOARD_URL=http://139.180.131.21:3000 nod
 |---|---|---|
 | `dailyReport.at` / `atCatchUpMinutes` | `08:30` / 210 | Giờ tin sáng; quá 210' (12:00) thì bỏ hôm đó |
 | `dailyReport.intradaySlots` | `["13:00", "18:00", "22:00"]` | Mốc tự gửi số ĐANG CHẠY HÔM NAY (bỏ 20:00 từ 26/09, thêm 13:00 + 18:00 từ 29/09/2026). Trước 16h là tin TRƯA, trước 20h là CHIỀU, còn lại TỐI. Trễ quá `intradayCatchUpMinutes` (60') thì bỏ mốc đó, không dồn sang mốc sau |
-| `adsPollMinutes` | `0` — **tắt** | Tự gửi cảnh báo ads mỗi N phút (bot WhatsApp để 180) |
+| `adsPollMinutes` | `0` | Bỏ từ 08/10/2026 (cảnh báo gộp mọi nước không hợp nhóm theo nước) — bot không đọc khoá này nữa |
 | `adsWasteSpend` | 300000 | Camp tiêu từ mức này mà 0 tin nhắn là camp đốt tiền |
 | `adsSpikeRatio` / `adsMinTotalForSpike` | 1,5 / 3000000 | Chi tiêu hôm nay ≥ 1,5 lần TB 7 ngày VÀ ≥ 3tr là bất thường |
 | `quietStartHour` / `quietEndHour` | 23 / 7 | Giờ không tự gửi |
@@ -210,11 +222,12 @@ Chạy thử từ máy Mac: `TALPHA_DASHBOARD_URL=http://139.180.131.21:3000 nod
 | `commands.js` | Đọc lệnh gõ trong nhóm (hàm thuần, có test) |
 | `pair.js` | Ghép nick bằng QR, chọn nhóm |
 | `zalo.js` | Phiên, gửi, nghe tin qua zca-js |
-| `daily_report.js` · `ads_alerts.js` · `van_don.js` | Dựng nội dung tin (hàm thuần, có test) |
+| `daily_report.js` · `van_don.js` | Dựng nội dung tin (hàm thuần, có test) — `buildBaoCaoNuoc` là tin ads một nước |
+| `ads_alerts.js` | Cảnh báo ads gộp mọi nước (BigQuery) — bot không dùng từ 08/10/2026, giữ lại cùng test |
 | `zalo_text.js` | Chữ đậm/nghiêng → style Zalo, chia tin dài |
-| `rules.js` | Đọc `config/talpha_rules.json` — thiếu file là dừng, không dùng bảng dự phòng |
+| `rules.js` | Đọc `config/talpha_rules.json` — thiếu file là dừng, không dùng bảng dự phòng. `NUOC`, `nuocTuTenNhom`: mã nước ↔ tên nhóm |
 | `schedule.js` | "Mốc này gửi bây giờ không" — chép từ bot WhatsApp |
 
 ```bash
-npm test        # 5 bộ test, không gọi mạng, không cần đăng nhập
+npm test        # 6 bộ test, không gọi mạng, không cần đăng nhập
 ```

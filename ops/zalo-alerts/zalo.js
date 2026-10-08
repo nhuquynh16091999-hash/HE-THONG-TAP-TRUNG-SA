@@ -13,14 +13,11 @@ const { toZalo, chiaTin } = require("./zalo_text");
 
 const DIR = __dirname;
 const SESSION_FILE = path.join(DIR, ".zalo_session.json");
-const GROUP_FILE = path.join(DIR, "zalo_group.json");
-// Nhóm nhận tin VẬN ĐƠN (Sỹ Anh chốt 25/09/2026: nhóm riêng, không phải nhóm ads — tin có
-// tên + SĐT khách). MỖI nước một nhóm (26/09/2026: VẬN ĐƠN TW, VẬN ĐƠN SGP):
-//   Đài   → zalo_group_vandon.json      `node pair.js --chon-vandon <id>`
-//   nước khác → zalo_group_vandon_<mã>.json  `node pair.js --chon-vandon <id> --nuoc SG`
-const GROUP_VANDON_FILE = path.join(DIR, "zalo_group_vandon.json");
-const fileNhomVanDon = (m = "TW") => (String(m).toUpperCase() === "TW" ? GROUP_VANDON_FILE
-    : path.join(DIR, `zalo_group_vandon_${String(m).toLowerCase().replace(/[^a-z]/g, "")}.json`));
+// MỖI NƯỚC MỘT NHÓM "ADS + VẬN ĐƠN <nước>" (Sỹ Anh chốt 08/10/2026) — tin ads của nước đó
+// và tin vận đơn của nước đó chung một nhóm. Nhóm cũ (BÁO CÁO ADS gộp các nước: zalo_group.json;
+// VẬN ĐƠN TW/SGP/UAE: zalo_group_vandon*.json) bỏ hẳn — bot không đọc các file đó nữa.
+//   zalo_group_nuoc_<mã>.json   `node pair.js --tu-nhan` (theo tên nhóm) hoặc `--chon-nuoc <id> --nuoc TW`
+const fileNhomNuoc = (m) => path.join(DIR, `zalo_group_nuoc_${String(m).toLowerCase().replace(/[^a-z]/g, "")}.json`);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 function docJson(file) {
@@ -66,16 +63,16 @@ async function dangNhap() {
     return api;
 }
 
-/** Nhóm nhận tin, chọn bằng `node pair.js --chon <id>`. null = chưa chọn. */
-function docNhomDich() {
-    const g = docJson(GROUP_FILE);
+/** Nhóm "ADS + VẬN ĐƠN" của một nước. null = chưa chọn → bot không gửi gì cho nước đó. */
+function docNhomNuoc(m) {
+    const g = docJson(fileNhomNuoc(m));
     return g && g.id ? g : null;
 }
 
-/** Nhóm nhận tin vận đơn của một nước. null = chưa chọn → bot không gửi tin vận đơn nước đó. */
-function docNhomVanDon(m = "TW") {
-    const g = docJson(fileNhomVanDon(m));
-    return g && g.id ? g : null;
+function ghiNhomNuoc(m, g, cach = "") {
+    fs.writeFileSync(fileNhomNuoc(m), JSON.stringify({ id: g.id, name: g.name, nuoc: String(m).toUpperCase(),
+        chonLuc: new Date().toISOString(), ...(cach ? { cach } : {}) }, null, 2) + "\n");
+    return fileNhomNuoc(m);
 }
 
 async function danhSachNhom(api) {
@@ -119,6 +116,6 @@ function batNghe(api, { onMessage, onClosed, log }) {
 }
 
 module.exports = {
-    SESSION_FILE, GROUP_FILE, GROUP_VANDON_FILE, fileNhomVanDon, ThreadType,
-    taoZalo, ghiRieng, luuPhien, dangNhap, docNhomDich, docNhomVanDon, danhSachNhom, guiNhom, batNghe,
+    SESSION_FILE, fileNhomNuoc, ThreadType,
+    taoZalo, ghiRieng, luuPhien, dangNhap, docNhomNuoc, ghiNhomNuoc, danhSachNhom, guiNhom, batNghe,
 };

@@ -7,8 +7,8 @@
 //   /baocao Lộc           chi tiết campaign của một người (ghép ngày: /baocao homqua Lộc)
 //   /baocao team          chỉ số TỔNG TEAM, không kèm campaign
 //   /canhbao              camp đốt tiền 0 tin nhắn + chi tiêu bất thường, ngay lúc gõ
-//   /vandon               vận đơn cần xử lý mọi nước (CHỈ trả lời ở nhóm vận đơn — tin có SĐT khách)
-//   /vandon sg · /vandon tw · /vandon uae   chỉ Singapore · chỉ Đài Loan · chỉ UAE
+//   /vandon               vận đơn cần xử lý của nước của nhóm (nhóm "ADS + VẬN ĐƠN <nước>", 08/10/2026)
+//   /vandon sg · tw · uae · jp   (dòng lệnh) chọn nước
 //   /bot                  cách dùng
 // Có dấu hay không dấu, hoa hay thường đều được. Không bắt đầu bằng "/" → không phải lệnh,
 // bot im — tin báo cáo của chính bot cũng đi qua đây nên điều này là bắt buộc.
@@ -50,8 +50,9 @@ function docLenh(text, { today, nguoi = [] }) {
         if (["sg", "sing", "singapore", "sgp"].includes(nuoc)) return { lenh, nuoc: "SG" };
         if (["tw", "dai", "dailoan", "taiwan"].includes(nuoc)) return { lenh, nuoc: "TW" };
         if (["ae", "uae", "dubai"].includes(nuoc)) return { lenh, nuoc: "AE" };
+        if (["jp", "jpn", "japan", "nhat", "nhatban"].includes(nuoc)) return { lenh, nuoc: "JP" };
         // Mang theo lenh "vandon" để lỗi được trả lời ở nhóm VẬN ĐƠN (lỗi trơn bị bỏ ở đó).
-        return { lenh, loi: `Không hiểu "${con.join(" ")}". Gõ /vandon, /vandon sg, /vandon tw hoặc /vandon uae.` };
+        return { lenh, loi: `Không hiểu "${con.join(" ")}". Gõ /vandon (vận đơn của nước của nhóm này).` };
     }
     if (lenh !== "baocao") return { lenh };
 
@@ -114,4 +115,33 @@ function huongDanVanDon({ at, toi, nuoc, nguon } = {}) {
         + `${I("Có dấu hay không dấu đều được.")}`;
 }
 
-module.exports = { docLenh, huongDan, huongDanVanDon, homQua, boDau };
+/**
+ * Tin hướng dẫn của nhóm "ADS + VẬN ĐƠN <nước>" (08/10/2026) — gửi MỘT lần khi bot gặp nhóm mới.
+ * @param o { nuoc: {ten, flag, sapChay}, at, mocAds, vanDon: {at, toi, nguon} | null, nguoi }
+ */
+function huongDanNuoc({ nuoc, at, mocAds, vanDon, nguoi = [] } = {}) {
+    const vi = nguoi[0] ? nguoi[0].ten : "Lộc";
+    const ten = nuoc ? `${nuoc.flag} ${nuoc.ten}` : "";
+    const dong = [
+        `🤖 ${B(`Bot TALPHA — ADS + VẬN ĐƠN ${ten}`)}`,
+        `Nhóm này chỉ nhận số của ${ten} (mỗi nước một nhóm từ 08/10/2026).`,
+        "",
+        `📊 ${B("Ads")} tự gửi ${at || "08:30"} (kết quả hôm qua)${mocAds ? ` và ${mocAds} (số đang chạy hôm nay)` : ""}: `
+            + `số tổng${nuoc && nuoc.sapChay ? "" : ", xếp hạng từng người"} và chi tiết từng camp của ${ten}.`,
+    ];
+    if (nuoc && nuoc.sapChay) dong.push(I(`${nuoc.ten} chưa nối shop POS — tin chỉ có tiền ads và tin nhắn, chưa có đơn/doanh số.`));
+    dong.push(vanDon
+        ? `📦 ${B("Vận đơn")} tự gửi ${vanDon.at || "08:30"}${vanDon.toi ? ` và ${vanDon.toi}` : ""}: khách phải gọi, nhắn (đủ tên, SĐT, tin soạn sẵn); `
+            + `trạng thái lấy từ ${vanDon.nguon || "bảng đối tác + 17TRACK"}.`
+        : `📦 ${I(`Vận đơn ${nuoc ? nuoc.ten : "nước này"} chưa theo dõi — làm khi có đơn và biết hãng giao.`)}`);
+    dong.push("", B("Gõ trong nhóm:"),
+        "• /baocao — số đang chạy hôm nay · /baocao homqua · /baocao 14/09",
+        `• /baocao ${vi} — chi tiết campaign của một người ở nước này`,
+        "• /baocao team — chỉ số tổng, không kèm camp",
+        "• /canhbao — camp đốt tiền không ra tin nhắn");
+    if (vanDon) dong.push("• /vandon — danh sách vận đơn mới nhất");
+    dong.push(I("Có dấu hay không dấu đều được."));
+    return dong.join("\n");
+}
+
+module.exports = { docLenh, huongDan, huongDanVanDon, huongDanNuoc, homQua, boDau };

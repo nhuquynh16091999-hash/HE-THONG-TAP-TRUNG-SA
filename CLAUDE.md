@@ -1,7 +1,8 @@
 # TALPHA — hướng dẫn cho Claude Code
 
 Dashboard vận hành cho đội ANTALO (Tiểu Alpha): bán trang sức và mỹ phẩm qua Facebook Ads +
-chat-sale + COD ở **ba nước — Đài Loan, Singapore, UAE** (từ 15/09/2026). Mỗi nước một shop
+chat-sale + COD ở **ba nước — Đài Loan, Singapore, UAE** (từ 15/09/2026), thêm **Nhật Bản**
+(08/10/2026, `sap_chay`: có ads, chưa có shop POS). Mỗi nước một shop
 POS Poscake (`config/talpha_rules.json → markets`); tài khoản quảng cáo Meta khai ở
 `config/projects/talpha.yaml`, chạy chung cho mọi nước.
 

@@ -26,6 +26,16 @@ const TAB_NUOC = new Set(Object.entries(khongGhiChu(RULES.markets)).flatMap(([ke
 // Tab nước → cờ, theo thứ tự khai trong markets (Đài, Singapore, UAE) — dòng "theo nước" của tin ads.
 const CO_NUOC = Object.entries(khongGhiChu(RULES.markets)).map(([key, v]) => ({ key, tab: v.display || key, flag: v.flag || "" }));
 
+// Mã nước (mã shop: TW, SG, AE, JP) → { key: khoá trong markets, ten, flag, sapChay }. Nhóm Zalo
+// "ADS + VẬN ĐƠN <nước>" (08/10/2026) đặt theo mã này. sapChay = nước chưa có shop POS (Nhật lúc
+// mở) — chỉ có tiền ads + tin nhắn, tin không in đơn / doanh số / %ads.
+const NUOC = Object.fromEntries(Object.entries(khongGhiChu(RULES.markets))
+    .filter(([, v]) => v && typeof v === "object" && v.shop_label)
+    .map(([key, v]) => {
+        const ma = String(v.shop_label).toUpperCase();
+        return [ma, { ma, key, ten: v.display || key, flag: v.flag || "", sapChay: v.status === "sap_chay" }];
+    }));
+
 const CAMP_TOKENS = khongGhiChu(RULES.camp_marketer_tokens);
 const CAMP_MARKETS = Object.fromEntries((RULES.camp_market_tokens || []).map((t) => [t, RULES.market_aliases[t]]));
 const PRIMARY_MARKET = RULES.primary_market || null;
@@ -101,7 +111,49 @@ function tenNganCamp(name) {
     return co ? `${co} ${ngan}` : ngan;
 }
 
+/**
+ * Tên nhóm Zalo → mã nước, CHỈ khi tên đúng mẫu "ADS + VẬN ĐƠN <nước>" (Sỹ Anh tạo 08/10/2026:
+ * ADS + VẬN ĐƠN TAIWAN · SGP · UAE · JAPAN). Tin vận đơn có tên + SĐT khách nên khớp CHẶT: sai
+ * mẫu → null, bot không tự nhận nhóm đó. Nước đọc theo market_aliases (TAIWAN, SGP, JAPAN…) hoặc
+ * tên hiển thị / mã shop.
+ */
+function nuocTuTenNhom(ten) {
+    const bo = String(ten || "").normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[đĐ]/g, "D").toUpperCase();
+    const m = /^\s*ADS\s*\+\s*VAN\s*DON\s+(.+?)\s*$/.exec(bo);
+    if (!m) return null;
+    const duoi = m[1].replace(/\s+/g, " ");
+    const boDauTen = (s) => String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[đĐ]/g, "D").toUpperCase();
+    for (const [tok, key] of Object.entries(khongGhiChu(RULES.market_aliases))) {
+        if (boDauTen(tok) === duoi) return Object.values(NUOC).find((n) => n.key === key)?.ma || null;
+    }
+    const n = Object.values(NUOC).find((x) => boDauTen(x.ten) === duoi || x.ma === duoi || boDauTen(x.key) === duoi);
+    return n ? n.ma : null;
+}
+
+/**
+ * Danh sách nhóm nick phụ đang ở → nhóm của từng nước theo tên. Một nước khớp HAI nhóm trở lên
+ * thì KHÔNG chọn (trung) — đoán sai là tin có SĐT khách vào nhầm nhóm; người chọn tay bằng
+ * `node pair.js --chon-nuoc <id> --nuoc <mã>`.
+ * @returns { chon: {TW: nhóm…}, trung: {TW: [nhóm…]}, thieu: [mã…] }
+ */
+function chonNhomTheoTen(dsNhom, cacNuoc) {
+    const theoNuoc = {};
+    for (const g of dsNhom || []) {
+        const m = nuocTuTenNhom(g.name);
+        if (m && cacNuoc.includes(m)) (theoNuoc[m] = theoNuoc[m] || []).push(g);
+    }
+    const chon = {}, trung = {}, thieu = [];
+    for (const m of cacNuoc) {
+        const xs = theoNuoc[m] || [];
+        if (xs.length === 1) chon[m] = xs[0];
+        else if (xs.length > 1) trung[m] = xs;
+        else thieu.push(m);
+    }
+    return { chon, trung, thieu };
+}
+
 module.exports = {
+    NUOC, nuocTuTenNhom, chonNhomTheoTen,
     RULES, MARKETERS, DISPLAY, THU_TU, UNASSIGN, PRIMARY_MARKET, TAB_NUOC, CO_NUOC,
     chuCamp, normCampMarketer, campaignMarket, isTestCampaign, tenNganCamp,
 };

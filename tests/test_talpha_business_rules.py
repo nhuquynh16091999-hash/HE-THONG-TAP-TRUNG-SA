@@ -28,12 +28,14 @@ class TestBaThiTruong:
     """15/09/2026: Đài Loan và Singapore đang bán; UAE đã nối shop nhưng chưa có tỷ giá."""
 
     def test_khai_du_ba_nuoc(self):
-        assert set(MARKET_NAMES) == {"TW", "SG", "AE"}
+        # 08/10/2026: thêm Nhật (JP) — chưa có shop POS, chỉ có số ads.
+        assert set(MARKET_NAMES) == {"TW", "SG", "AE", "JP"}
 
     def test_chi_nuoc_da_co_so_moi_co_ty_gia_va_so_chia(self):
         # Nước chưa có tỷ giá thì không được có dòng — nhân với số đoán là sai tiền.
-        assert FX_RATES_TO_VND == {"TW": 800, "SG": 20000, "AE": 7000, "USD": 25700}
-        assert POS_MONEY_DIVISOR == {"TW": 1, "SG": 100, "AE": 100}
+        # Nhật: 1 JPY = 160đ (Sỹ Anh chốt 08/10/2026), số chia TẠM 1 — chưa có đơn để đo.
+        assert FX_RATES_TO_VND == {"TW": 800, "SG": 20000, "AE": 7000, "JP": 160, "USD": 25700}
+        assert POS_MONEY_DIVISOR == {"TW": 1, "SG": 100, "AE": 100, "JP": 1}
 
     def test_singapore_49_sgd_luu_4900(self):
         # Poscake lưu SGD theo đơn vị nhỏ: cod 4900 = 49 SGD = 980.000đ.

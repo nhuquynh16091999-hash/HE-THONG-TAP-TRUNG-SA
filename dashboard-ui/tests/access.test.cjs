@@ -21,11 +21,12 @@ const q = (s) => new URLSearchParams(s);
 const track = (m) => (["SG", "AE"].includes(String(m || "").toUpperCase()) ? String(m).toUpperCase() : "TW");
 
 console.log("── Luật khai ở talpha_rules.json ──");
-t("ba team, mỗi team một nước, đủ ba nước đang bán", () => {
+t("bốn team, mỗi team một nước (Nhật thành team riêng 08/10/2026)", () => {
     assert.deepStrictEqual(A.TEAMS.trung_dong.markets, ["UAE"]);
     assert.deepStrictEqual(A.TEAMS.dong_nam_a.markets, ["Singapore"]);
     assert.deepStrictEqual(A.TEAMS.dong_a.markets, ["Taiwan"]);
-    assert.deepStrictEqual([...A.ALL_MARKET_KEYS].sort(), ["Singapore", "Taiwan", "UAE"]);
+    assert.deepStrictEqual(A.TEAMS.nhat_ban.markets, ["Japan"]);
+    assert.deepStrictEqual([...A.ALL_MARKET_KEYS].sort(), ["Japan", "Singapore", "Taiwan", "UAE"]);
 });
 t("mọi tab khai trong access.roles đều là tab có thật của shell", () => {
     for (const [k, r] of Object.entries(A.ROLES)) {
@@ -44,8 +45,8 @@ t("Thái chỉ thấy Singapore", () => {
     assert.deepStrictEqual(thai.codes, ["SG"]);
     assert.ok(!A.canMarket(thai, "AE") && !A.canMarket(thai, "TW"));
 });
-t("Thương (sale, mọi team) thấy cả ba nước nhưng không phải giám đốc", () => {
-    assert.deepStrictEqual([...thuong.codes].sort(), ["AE", "SG", "TW"]);
+t("Thương (sale, mọi team) thấy mọi nước (cả Nhật từ 08/10/2026) nhưng không phải giám đốc", () => {
+    assert.deepStrictEqual([...thuong.codes].sort(), ["AE", "JP", "SG", "TW"]);
     assert.strictEqual(thuong.full, false);
     assert.ok(A.seesAllMarkets(thuong));
 });

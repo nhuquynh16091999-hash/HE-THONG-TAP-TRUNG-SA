@@ -74,10 +74,27 @@
       "_note": "Shop POS 'D&T314 x ANTALO - UAE FULFILLMENT' (101090498) — Sỹ Anh đổi sang ngày 25/09/2026, đơn đầu tiên 23/09. Shop nối 15/09 (101085629) không có đơn nào. Khác shop UAE thời GCC (1635200759). Tỷ giá 1 AED = 7.000đ (Sỹ Anh chốt 15/09/2026) — soát lại mỗi tháng.",
       "_divisor_note": "ĐÃ ĐO 25/09/2026 trên 14 đơn thật của shop 101090498: cod = 10900 · 11900 · 14900 · 15900 · 16900 → 109–169 AED/đơn (≈0,8–1,2 triệu đồng), cùng tầm giá đơn Đài và Singapore. Chia 1 thì một đơn thành 83 triệu đồng — vô lý. POS để total_price và giá bán item = 0, chỉ cod mang tiền.",
       "_todo": "3PL: D&T Fulfillment — bảng giá khai ở shipping_fees.AE (25/09/2026). Chưa chạy quảng cáo UAE: đơn tới 25/09/2026 là đơn tự nhiên (Sỹ Anh xác nhận)."
+    },
+    "Japan": {
+      "shop_label": "JP",
+      "shop_id": null,
+      "currency": "JPY",
+      "currency_symbol": "¥",
+      "rate_vnd": 160,
+      "pos_money_divisor": 1,
+      "pos_money_divisor_confirmed": false,
+      "display": "Nhật Bản",
+      "flag": "🇯🇵",
+      "phone": { "cc": "81", "national_len": 10, "trunk": "0", "whatsapp": false },
+      "status": "sap_chay",
+      "orders_from": null,
+      "_note": "Mở 08/10/2026 (Sỹ Anh). Camp đầu tiên chạy cùng ngày: `JP/THANG/…` (SA ANTALO 01) và `JP/THƯƠNG/…` (SA ANTALO 02) — trước khi khai mục này, mã JP không có trong camp_market_tokens nên tiền ads Nhật bị tính về Đài. Tỷ giá 1 JPY = 160đ (Sỹ Anh chốt 08/10/2026) — soát lại mỗi tháng.",
+      "_status_note": "sap_chay vì CHƯA CÓ SHOP POS (Sỹ Anh xác nhận 08/10/2026): Nhật chỉ có số ads (tiền, tin nhắn), chưa có đơn/doanh số. Có shop thì điền shop_id + orders_from, khai shop ở config/projects/talpha.yaml → poscake.shops (name \"Japan\"), key TALPHA_POSCAKE_JP_KEY trong .env.local, ĐO số chia trên đơn thật rồi mới chuyển dang_ban.",
+      "_divisor_note": "CHƯA ĐO. Yên không có đơn vị lẻ nên tạm để 1; shop Singapore/UAE lưu ×100 nên có thể shop Nhật cũng vậy — đo trên đơn thật đầu tiên trước khi chuyển dang_ban."
     }
   },
   "market_aliases": {
-    "_note": "Mọi cách viết thị trường → tên chuẩn. Mã chuẩn ở ô đầu tên campaign: TW · SG · AE. SGP khai thêm 15/09/2026 (Sỹ Anh chốt): đội đã đặt 'SGP/…' cho camp Singapore, máy không nhận nên tính cả về Đài — ngày 14/09 khoảng 675k chi tiêu Singapore nằm nhầm bên Đài.",
+    "_note": "Mọi cách viết thị trường → tên chuẩn. Mã chuẩn ở ô đầu tên campaign: TW · SG · AE · JP (Nhật, 08/10/2026). SGP khai thêm 15/09/2026 (Sỹ Anh chốt): đội đã đặt 'SGP/…' cho camp Singapore, máy không nhận nên tính cả về Đài — ngày 14/09 khoảng 675k chi tiêu Singapore nằm nhầm bên Đài.",
     "TW": "Taiwan",
     "TAIWAN": "Taiwan",
     "TAIWAIN": "Taiwan",
@@ -89,7 +106,12 @@
     "SINGAPORE": "Singapore",
     "AE": "UAE",
     "UAE": "UAE",
-    "DUBAI": "UAE"
+    "DUBAI": "UAE",
+    "JP": "Japan",
+    "JPN": "Japan",
+    "JAPAN": "Japan",
+    "NHẬT": "Japan",
+    "NHAT": "Japan"
   },
   "camp_market_tokens": [
     "TW",
@@ -103,7 +125,12 @@
     "SINGAPORE",
     "AE",
     "UAE",
-    "DUBAI"
+    "DUBAI",
+    "JP",
+    "JPN",
+    "JAPAN",
+    "NHẬT",
+    "NHAT"
   ],
   "_audience_note": "TỆP KHÁCH: cộng đồng đang SỐNG Ở NƯỚC BÁN mà quảng cáo nhắm tới — lao động Philippines, Indonesia, Việt Nam, và người bản địa. ĐÂY KHÔNG PHẢI THỊ TRƯỜNG: campaign TW/…/PHI giao ở Đài, thu TWD; SG/…/PHI giao ở Singapore, thu SGD. Ô thứ hai của tên campaign là tệp khách chứ không phải nước giao hàng — đọc nhầm chỗ này là tưởng công ty đang bán ở bốn nước khác nhau.",
   "audiences": {
@@ -201,12 +228,13 @@
     "display": "Giám đốc",
     "full": "Hồ Sỹ Anh"
   },
-  "_access_note": "PHÂN QUYỀN DASHBOARD (Sỹ Anh chốt 05/10/2026). Ba thị trường tách thành ba TEAM riêng, không liên quan nhau: Trung Đông (UAE — leader Lộc), Đông Nam Á (Singapore — leader Thái), Đông Á (Đài Loan — tạm thời Sỹ Anh). Thương làm vận đơn + sale cho cả ba team. Sỹ Anh là giám đốc: thấy hết, quản lý người dùng. Mỗi tài khoản (config/users.json, sửa ở trang /admin → Quản lý User) mang `role` + `teams`: role quyết định THẤY TAB NÀO (access.roles.*.tabs), teams quyết định THẤY NƯỚC NÀO (access.teams.*.markets, khoá = tên ở mục markets). teams [\"*\"] = mọi team. Mở thêm nước cho một team = thêm khoá vào markets của team đó, leader tự thấy, không sửa tài khoản. Chặn ở MÁY CHỦ (dashboard-ui/src/proxy.ts + từng route API), không chỉ ẩn nút: gõ thẳng địa chỉ API nước khác cũng bị từ chối. Đối soát chi phí QC, trợ lý CEO, xuất Sheet, quản lý người dùng/TKQC: chỉ giám đốc. 07/10/2026 (Sỹ Anh chốt): mục KẾ TOÁN = Tiền COD về (cod-recon) + Thanh toán quảng cáo (ads-recon). Tiền COD về do LEADER nước đó và giám đốc kiểm soát chung — leader xem, tải sao kê NAZA, nhập tiền về ngân hàng; không có vai trò kế toán riêng; sale (Thương) KHÔNG vào. Việc đòi NAZA tiền đơn quá hạn nằm ở Sổ đơn hàng, sale vẫn làm được. Thanh toán quảng cáo vẫn chỉ giám đốc.",
+  "_access_note": "PHÂN QUYỀN DASHBOARD (Sỹ Anh chốt 05/10/2026). Ba thị trường tách thành ba TEAM riêng, không liên quan nhau: Trung Đông (UAE — leader Lộc), Đông Nam Á (Singapore — leader Thái), Đông Á (Đài Loan — tạm thời Sỹ Anh). Thương làm vận đơn + sale cho cả ba team. Sỹ Anh là giám đốc: thấy hết, quản lý người dùng. Mỗi tài khoản (config/users.json, sửa ở trang /admin → Quản lý User) mang `role` + `teams`: role quyết định THẤY TAB NÀO (access.roles.*.tabs), teams quyết định THẤY NƯỚC NÀO (access.teams.*.markets, khoá = tên ở mục markets). teams [\"*\"] = mọi team. Mở thêm nước cho một team = thêm khoá vào markets của team đó, leader tự thấy, không sửa tài khoản. Chặn ở MÁY CHỦ (dashboard-ui/src/proxy.ts + từng route API), không chỉ ẩn nút: gõ thẳng địa chỉ API nước khác cũng bị từ chối. Đối soát chi phí QC, trợ lý CEO, xuất Sheet, quản lý người dùng/TKQC: chỉ giám đốc. 07/10/2026 (Sỹ Anh chốt): mục KẾ TOÁN = Tiền COD về (cod-recon) + Thanh toán quảng cáo (ads-recon). Tiền COD về do LEADER nước đó và giám đốc kiểm soát chung — leader xem, tải sao kê NAZA, nhập tiền về ngân hàng; không có vai trò kế toán riêng; sale (Thương) KHÔNG vào. Việc đòi NAZA tiền đơn quá hạn nằm ở Sổ đơn hàng, sale vẫn làm được. Thanh toán quảng cáo vẫn chỉ giám đốc. 08/10/2026 (Sỹ Anh chốt): mở NHẬT BẢN thành team riêng `nhat_ban` (leader tạm thời Sỹ Anh) — không gộp vào Đông Á.",
   "access": {
     "teams": {
       "trung_dong": { "name": "Trung Đông", "markets": ["UAE"], "leader": "Lộc" },
       "dong_nam_a": { "name": "Đông Nam Á", "markets": ["Singapore"], "leader": "Thái" },
-      "dong_a": { "name": "Đông Á", "markets": ["Taiwan"], "leader": "Sỹ Anh (tạm thời)" }
+      "dong_a": { "name": "Đông Á", "markets": ["Taiwan"], "leader": "Sỹ Anh (tạm thời)" },
+      "nhat_ban": { "name": "Nhật Bản", "markets": ["Japan"], "leader": "Sỹ Anh (tạm thời)" }
     },
     "roles": {
       "director": {
@@ -1090,9 +1118,10 @@
     "exempt_markets": [
       "Taiwan",
       "Singapore",
-      "UAE"
+      "UAE",
+      "Japan"
     ],
-    "_note": "campaign chứa từ 'test' đứng riêng = test sản phẩm → tách khỏi báo cáo doanh số. Cả ba nước đều MIỄN: Đài vì cả nước đang thử, Singapore và UAE vì mới mở (Sỹ Anh chốt 15/09/2026)."
+    "_note": "campaign chứa từ 'test' đứng riêng = test sản phẩm → tách khỏi báo cáo doanh số. Cả ba nước đều MIỄN: Đài vì cả nước đang thử, Singapore và UAE vì mới mở (Sỹ Anh chốt 15/09/2026). Nhật mở 08/10/2026 — miễn theo cùng lý do."
   },
   "targets": {
     "monthly_revenue_vnd": {

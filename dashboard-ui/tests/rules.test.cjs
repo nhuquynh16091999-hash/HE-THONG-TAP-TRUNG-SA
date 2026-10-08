@@ -102,10 +102,15 @@ t("campaign lạc quy ước → không đoán MARKETER, nhưng thị trường 
 });
 
 console.log("── Thị trường ──");
-t("ba nước đều đang bán — UAE có tỷ giá từ 15/09/2026", () => {
-    assert.deepStrictEqual(Object.keys(R.RULES.markets), ["Taiwan", "Singapore", "UAE"]);
+t("ba nước đang bán + Nhật sắp chạy (08/10/2026: có ads, chưa có shop POS)", () => {
+    assert.deepStrictEqual(Object.keys(R.RULES.markets), ["Taiwan", "Singapore", "UAE", "Japan"]);
     const dangBan = Object.entries(R.RULES.markets).filter(([, v]) => v.status === "dang_ban").map(([k]) => k);
     assert.deepStrictEqual(dangBan, ["Taiwan", "Singapore", "UAE"]);
+    assert.strictEqual(R.RULES.markets.Japan.status, "sap_chay");
+});
+t("camp JP/… tính về Nhật, không rơi về Đài", () => {
+    assert.deepStrictEqual(R.campaignMarket("JP/THANG/PHI/002-ATTL/Lucky Charm JP/08-10"), { market: "Japan", source: "o_dau" });
+    assert.strictEqual(R.campaignMarket("TW/THƯƠNG/PHI/042/Japan Prime Leather/6-10").market, "Taiwan");
 });
 t("mỗi nước có shop thì có mốc ngày tính đơn hợp lệ", () => {
     for (const [ten, v] of Object.entries(R.RULES.markets)) {
@@ -334,8 +339,12 @@ t("tỷ giá và số chia: Singapore 20.000 ÷100, UAE 7.000 ÷100", () => {
 });
 t("thông tin nước cho giao diện: mã, ký hiệu tiền, trạng thái, mã trong tên campaign", () => {
     const m = Object.fromEntries(R.MARKETS_PUBLIC.markets.map((x) => [x.code, x]));
-    assert.deepStrictEqual(Object.keys(m).sort(), ["AE", "SG", "TW"]);
+    assert.deepStrictEqual(Object.keys(m).sort(), ["AE", "JP", "SG", "TW"]);
     assert.strictEqual(m.TW.symbol, "NT$");
+    assert.strictEqual(m.JP.symbol, "¥");
+    assert.strictEqual(m.JP.status, "sap_chay");
+    assert.strictEqual(m.JP.rate_vnd, 160);
+    assert.ok(m.JP.tokens.includes("JP"));
     assert.strictEqual(m.SG.symbol, "S$");
     assert.strictEqual(m.SG.status, "dang_ban");
     assert.strictEqual(m.AE.status, "dang_ban");

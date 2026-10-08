@@ -1,9 +1,13 @@
 // Ghép nick Zalo PHỤ cho bot — chạy TRÊN MÁY CHỦ, trong thư mục này:
 //   node pair.js                   đăng nhập bằng QR → lưu phiên → in danh sách nhóm
 //   node pair.js --groups          dùng phiên đã lưu, in lại danh sách nhóm
-//   node pair.js --chon <id nhóm>  chọn nhóm nhận tin ADS → zalo_group.json
-//   node pair.js --chon-vandon <id nhóm> [--nuoc SG]  chọn nhóm nhận tin VẬN ĐƠN của một nước
-//                                  (Đài → zalo_group_vandon.json, SG → zalo_group_vandon_sg.json)
+//   node pair.js --tu-nhan         chọn nhóm của MỖI NƯỚC theo tên "ADS + VẬN ĐƠN <nước>"
+//                                  (TAIWAN · SGP · UAE · JAPAN) → zalo_group_nuoc_<mã>.json
+//   node pair.js --chon-nuoc <id nhóm> --nuoc TW   chọn tay nhóm của một nước
+//
+// Từ 08/10/2026 (Sỹ Anh chốt) MỖI NƯỚC MỘT NHÓM, ads + vận đơn chung nhóm. Nhóm cũ (BÁO CÁO
+// ADS gộp các nước, VẬN ĐƠN TW/SGP/UAE) bỏ — --chon / --chon-vandon cũ đã xoá. Bot dịch vụ cũng
+// tự nhận nhóm theo tên lúc khởi động nếu nước nào chưa có file — lệnh dưới để chạy tay/soát.
 //
 // Ghép TRÊN MÁY CHỦ chứ không ghép ở máy Mac rồi chép phiên lên: phiên sinh ra ở IP nào
 // thì dùng ở IP đó, Zalo ít hỏi lại. QR ghi ra qr.png — hết hạn sau ~100 giây, tự làm mã
@@ -12,12 +16,15 @@
 const fs = require("fs");
 const path = require("path");
 const { LoginQRCallbackEventType: E } = require("zca-js");
-const { SESSION_FILE, GROUP_FILE, fileNhomVanDon, taoZalo, ghiRieng, luuPhien, dangNhap, danhSachNhom } = require("./zalo");
+const { SESSION_FILE, taoZalo, ghiRieng, luuPhien, dangNhap, danhSachNhom, ghiNhomNuoc } = require("./zalo");
+const { NUOC, chonNhomTheoTen } = require("./rules");
+const CFG = require("./config");
 
 const QR_FILE = path.join(__dirname, "qr.png");
 const GROUPS_FILE = path.join(__dirname, "groups.txt");
 const SO_LAN_QR = 5;
 const log = (...a) => console.log(new Date().toISOString(), ...a);
+const CAC_NUOC = ((CFG.nhomNuoc || {}).markets || Object.keys(NUOC)).map((x) => String(x).toUpperCase());
 
 function argAfter(flag) {
     const i = process.argv.indexOf(flag);
@@ -67,19 +74,34 @@ async function inNhom(api) {
     return nhom;
 }
 
+async function tuNhan(api) {
+    const { chon, trung, thieu } = chonNhomTheoTen(await danhSachNhom(api), CAC_NUOC);
+    for (const [m, g] of Object.entries(chon)) {
+        const file = ghiNhomNuoc(m, g, "tu-nhan");
+        log(`${m} ${NUOC[m] ? NUOC[m].flag : ""} → "${g.name}" (${g.members ?? "?"} người) → ${path.basename(file)}`);
+    }
+    for (const [m, xs] of Object.entries(trung)) {
+        log(`${m}: ${xs.length} nhóm cùng tên kiểu "ADS + VẬN ĐƠN" — KHÔNG tự chọn: ${xs.map((g) => `"${g.name}" (${g.id})`).join(", ")}. Chọn tay: node pair.js --chon-nuoc <id> --nuoc ${m}`);
+    }
+    for (const m of thieu) log(`${m}: nick phụ không ở nhóm nào tên "ADS + VẬN ĐƠN ${NUOC[m] ? NUOC[m].ten.toUpperCase() : m}" — thêm nick vào nhóm rồi chạy lại.`);
+    log("Bot đang chạy thì: pm2 restart talpha-zalo-alerts");
+}
+
 async function main() {
-    const chonVD = argAfter("--chon-vandon");
-    const chon = chonVD || argAfter("--chon");
-    if (chon) {
+    const chonNuoc = argAfter("--chon-nuoc");
+    if (chonNuoc) {
+        const nuoc = argAfter("--nuoc").toUpperCase();
+        if (!CAC_NUOC.includes(nuoc)) throw new Error(`thiếu/sai --nuoc (${CAC_NUOC.join(", ")})`);
         const api = await dangNhap();
-        const nhom = await danhSachNhom(api);
-        const g = nhom.find((x) => x.id === chon);
-        if (!g) throw new Error(`nick phụ không ở nhóm id ${chon} — chạy \`node pair.js --groups\` xem lại`);
-        const nuoc = (argAfter("--nuoc") || "TW").toUpperCase();
-        const file = chonVD ? fileNhomVanDon(nuoc) : GROUP_FILE;
-        fs.writeFileSync(file, JSON.stringify({ id: g.id, name: g.name, chonLuc: new Date().toISOString() }, null, 2) + "\n");
-        log(`Đã chọn nhóm nhận tin ${chonVD ? `VẬN ĐƠN ${nuoc}` : "ADS"}: "${g.name}" (${g.members ?? "?"} người) → ${path.basename(file)}`);
+        const g = (await danhSachNhom(api)).find((x) => x.id === chonNuoc);
+        if (!g) throw new Error(`nick phụ không ở nhóm id ${chonNuoc} — chạy \`node pair.js --groups\` xem lại`);
+        const file = ghiNhomNuoc(nuoc, g, "chon-tay");
+        log(`Đã chọn nhóm ADS + VẬN ĐƠN ${nuoc}: "${g.name}" (${g.members ?? "?"} người) → ${path.basename(file)}`);
         log("Bot đang chạy thì: pm2 restart talpha-zalo-alerts");
+        return;
+    }
+    if (process.argv.includes("--tu-nhan")) {
+        await tuNhan(await dangNhap());
         return;
     }
     if (process.argv.includes("--groups")) {
@@ -89,7 +111,7 @@ async function main() {
     const api = await ghepQR();
     log("GHÉP XONG.");
     await inNhom(api);
-    log("Chọn nhóm: node pair.js --chon <id nhóm>");
+    log("Chọn nhóm từng nước: node pair.js --tu-nhan");
 }
 
 main().then(() => process.exit(0)).catch((e) => { log("LỖI:", e.message); process.exit(1); });

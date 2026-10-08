@@ -30,6 +30,15 @@
     "recHighAdsPct": 30,
     "recGoodAdsPct": 20
   },
+  "nhomNuoc": {
+    "_note": "Mỗi nước một nhóm 'ADS + VẬN ĐƠN <nước>' (Sỹ Anh chốt 08/10/2026). Nhóm nhận ở zalo_group_nuoc_<mã>.json — bot tự nhận theo tên lúc khởi động, hoặc node pair.js --tu-nhan.",
+    "markets": [
+      "TW",
+      "SG",
+      "AE",
+      "JP"
+    ]
+  },
   "vanDon": {
     "at": "08:30",
     "catchUpMinutes": 180,
