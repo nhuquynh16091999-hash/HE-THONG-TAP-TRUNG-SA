@@ -39,8 +39,10 @@ pm2 save
 pm2 logs talpha-dashboard --lines 40
 ```
 
-Dashboard **không tự reload** — sửa code xong phải `npm run build` rồi
-`pm2 restart talpha-dashboard`, không thì vẫn chạy bản cũ.
+Dashboard **không tự reload** — cập nhật bằng `ops/deploy/from-mac.sh` (hoặc
+`vps-deploy.sh` trên máy chủ). Đừng `npm run build` tay trên máy chủ: bản chạy nằm ở
+`.next-a`/`.next-b` (tên ghi trong `dashboard-ui/.next-active`), build tay ra `.next`
+không được dùng — xem `ops/deploy/dashboard-slot.sh`.
 
 ## Máy Mac
 

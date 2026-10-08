@@ -32,3 +32,8 @@ ts-debug.log*
 *.tsbuildinfo
 next-env.d.ts
 .test-build/
+
+# bản build trên máy chủ (ops/deploy/dashboard-slot.sh)
+/.next-a/
+/.next-b/
+/.next-active

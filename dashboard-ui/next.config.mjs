@@ -55,6 +55,12 @@ function docMaDeploy() {
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+    // Máy chủ dựng bản mới vào thư mục KHÁC thư mục bản đang chạy (.next-a ⇄ .next-b), xong
+    // mới chuyển — xem ops/deploy/dashboard-slot.sh. Dựng đè lên .next thì `next build` xoá
+    // sạch CSS/JS cũ ngay từ đầu, mà bản cũ vẫn phục vụ suốt 3–5 phút build: ai mở trang lúc
+    // đó nhận HTML trỏ vào file đã mất → trang trơn không giao diện (iPad 08/10/2026 19:5x).
+    // Máy Mac không đặt biến → vẫn là .next như cũ.
+    distDir: process.env.NEXT_DIST_DIR || ".next",
     turbopack: {},
     deploymentId: docMaDeploy(),
     // Gốc workspace là dashboard-ui/ — nơi có package.json và lockfile duy nhất.

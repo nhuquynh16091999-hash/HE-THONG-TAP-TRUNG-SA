@@ -110,16 +110,15 @@ if [ ! -f .env.local ]; then
     echo "!! THIẾU dashboard-ui/.env.local — chép lên trước rồi chạy lại." >&2
     exit 1
 fi
-npm ci --no-audit --no-fund
-# Chặn trần bộ nhớ của Node dưới mức RAM+swap để build không bị giết đột ngột.
-NODE_OPTIONS="--max-old-space-size=1536" npm run build
+# Dựng vào thư mục khác bản đang chạy rồi mới chuyển — lý do ở đầu dashboard-slot.sh.
+. "$APP_DIR/ops/deploy/dashboard-slot.sh"
+cai_goi
+dung_ban_moi
 
 # ─────────────────────────────────────────────────────────────────────────
 say "7/8 · pm2 khởi chạy + bật lại khi máy reboot"
+chuyen_sang_ban_moi
 cd "$APP_DIR"
-pm2 delete talpha-dashboard >/dev/null 2>&1 || true
-pm2 start ops/pm2/ecosystem.vps.config.js --only talpha-dashboard
-pm2 save
 
 # Bot Zalo (ops/zalo-alerts): code vừa kéo về, nhưng tiến trình đang chạy giữ code cũ
 # tới khi restart. Chỉ đụng khi bot ĐANG CHẠY — chưa ghép nick Zalo thì để yên, bật

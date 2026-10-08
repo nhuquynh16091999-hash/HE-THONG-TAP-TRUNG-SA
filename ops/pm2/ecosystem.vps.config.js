@@ -16,9 +16,21 @@
 // Máy Mac chạy dev bằng `cd dashboard-ui && npm run dev`. Build ở Mac KHÔNG phải
 // là deploy — deploy là `bash ops/deploy/from-mac.sh`.
 // ═══════════════════════════════════════════════════════════════════
+const fs = require('fs');
 const path = require('path');
 
 const REPO = path.resolve(__dirname, '..', '..');
+
+// Thư mục bản build đang dùng (.next-a / .next-b) — ops/deploy/dashboard-slot.sh ghi sau
+// mỗi lần dựng xong, next.config.mjs đọc qua NEXT_DIST_DIR. Chưa có file (máy dựng theo
+// cách cũ) thì là .next.
+function banBuildDangDung() {
+    try {
+        return fs.readFileSync(path.join(REPO, 'dashboard-ui', '.next-active'), 'utf8').trim() || '.next';
+    } catch {
+        return '.next';
+    }
+}
 
 module.exports = {
     apps: [
@@ -48,7 +60,7 @@ module.exports = {
             merge_logs: true,
             out_file: '/var/log/talpha/dashboard-out.log',
             error_file: '/var/log/talpha/dashboard-error.log',
-            env: { NODE_ENV: 'production', PORT: '3000' },
+            env: { NODE_ENV: 'production', PORT: '3000', NEXT_DIST_DIR: banBuildDangDung() },
         },
 
         // ─────────────────────────────────────────────────────────────
