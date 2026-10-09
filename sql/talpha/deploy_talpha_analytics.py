@@ -73,7 +73,9 @@ def ad_tz_sql() -> str:
     lines = []
     for aid, tz in tzs.items():
         num = str(aid).replace('act_', '')
-        if not num.isdigit() or not re.match(r'^[A-Za-z_]+/[A-Za-z_]+$', str(tz)):
+        # Tên IANA có thể mang số và dấu ± (Etc/GMT-5 — múi giờ Meta khai cho TK Canada, 20/09/2026).
+        # Bản cũ chỉ nhận chữ nên chặn cả lượt dựng view từ đó. Vẫn cấm dấu nháy/khoảng trắng.
+        if not num.isdigit() or not re.match(r'^[A-Za-z_]+(/[A-Za-z0-9_+\-]+)+$', str(tz)):
             raise SystemExit(f"❌ mục múi giờ lạ: {aid} → {tz}")
         lines.append(f"                WHEN {num:<20} THEN '{tz}'")
     return ("CASE SAFE_CAST(account_id AS INT64)\n" + "\n".join(lines) +
