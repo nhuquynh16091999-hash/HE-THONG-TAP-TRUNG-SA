@@ -31,6 +31,12 @@ rồi chuyển về theo kỳ. Singapore: bảng giá 3PL khai ở `shipping_fee
 1022115860 nối 09/10/2026 (`TALPHA_POSCAKE_JP_KEY`), JPY lưu nguyên yên (chia 1, đã đo), tỷ giá 1 JPY =
 160đ (Sỹ Anh chốt). CHƯA CÓ: hãng giao + tra vận đơn (`tracking.markets`), phí ship 3PL, giá vốn —
 nên các tab theo nước dựa trên vận đơn (Sổ đơn, Theo dõi vận đơn) chưa có Nhật.
+**Meta không báo số tin nhắn cho quảng cáo ở Nhật** (luật bảo vệ thông tin liên lạc của Nhật) —
+camp Nhật là camp tin nhắn mà insights trả 0 mess. Số tin nhắn thật đếm từ Pancake:
+`/api/talpha/pancake-nuoc?market=JP&date=` (`lib/talpha/pancake.ts`, token tài khoản Pancake
+`TALPHA_PANCAKE_API_TOKEN`) — tin nhắn / bình luận mới / SĐT theo page + đơn, doanh số theo page.
+Bot Zalo dùng cho tin MỖI GIỜ của nhóm Nhật và số mess trong bản tin ads Nhật. File Sheet (tab
+Nhật Bản) VẪN là mess Meta = 0.
 
 | Vai (`role`) | Người | Thấy gì |
 |:--|:--|:--|

@@ -32,7 +32,8 @@ const { docLenh, huongDanNuoc, homQua } = require("./commands");
 const { buildVanDonSang, buildVanDonToi, fetchVanDon, ghiSoNhac } = require("./van_don");
 const { slotAction, toMin, canDinhChinh, hanDinhChinh } = require("./schedule");
 const { toZalo, chiaTin } = require("./zalo_text");
-const { MARKETERS, DISPLAY, NUOC, chonNhomTheoTen } = require("./rules");
+const { MARKETERS, DISPLAY, NUOC, chonNhomTheoTen, trangCuaCamp, campaignMarket } = require("./rules");
+const { buildTinGio, messThayTuPancake } = require("./tin_gio");
 
 const DIR = __dirname;
 const STATE_FILE = path.join(DIR, "state.json");
@@ -52,6 +53,11 @@ const ddmm = (d) => (/^\d{4}-\d{2}-\d{2}$/.test(String(d)) ? `${d.slice(8, 10)}/
 const CAC_NUOC = ((CFG.nhomNuoc || {}).markets || Object.keys(NUOC)).map((x) => String(x).toUpperCase()).filter((m) => NUOC[m]);
 // Nước có theo dõi vận đơn (Nhật chưa có).
 const VD_MARKETS = (Array.isArray(VD.markets) && VD.markets.length ? VD.markets : ["TW"]).map((x) => String(x).toUpperCase());
+// Nước Meta không báo số tin nhắn (Nhật): bản tin ads lấy mess từ Pancake (09/10/2026).
+const MESS_PANCAKE = (((CFG.nhomNuoc || {}).messPancake) || []).map((x) => String(x).toUpperCase());
+// Tin MỖI GIỜ (ads + tin nhắn Pancake + đơn theo page) — Sỹ Anh yêu cầu 09/10/2026 cho Nhật.
+const MG = CFG.moiGio || {};
+const MG_MARKETS = (MG.markets || []).map((x) => String(x).toUpperCase()).filter((m) => NUOC[m]);
 // UAE không qua 17TRACK: đơn POS + tra thẳng trang WeShip (Sỹ Anh chốt 28/09/2026).
 const NGUON_NUOC = { AE: "đơn POS + tra trang WeShip" };
 
@@ -129,6 +135,20 @@ function layRealtime(dateStr) {
     rtNho.set(dateStr, { at: Date.now(), p });
     p.catch(() => { if (rtNho.get(dateStr) && rtNho.get(dateStr).p === p) rtNho.delete(dateStr); });
     return p;
+}
+
+// Tin nhắn Pancake + đơn POS theo page của một nước một ngày (/api/talpha/pancake-nuoc). camps:
+// campaign Meta cùng ngày — gửi kèm tên page của camp nước đó (camp tạo hôm nay chưa kịp sync).
+async function fetchPancakeNuoc(m, ngay, camps) {
+    if (!MG.url) throw new Error("thiếu moiGio.url trong config");
+    const trang = [...new Set((camps || [])
+        .filter((c) => campaignMarket(c.campaign_name).market === NUOC[m].key)
+        .map((c) => trangCuaCamp(c.campaign_name)).filter(Boolean))];
+    const q = new URLSearchParams({ market: m, date: ngay, ...(trang.length ? { trang: trang.join("|") } : {}) });
+    const res = await fetch(`${MG.url}?${q}`, { headers: { "cache-control": "no-store" } });
+    const j = await res.json().catch(() => ({}));
+    if (!res.ok || j.error) throw new Error(j.error || `pancake-nuoc HTTP ${res.status}`);
+    return j;
 }
 
 // ─── Kết nối + gửi ───
@@ -232,6 +252,15 @@ async function dungBaoCao(m, ngay, homNay, label, staleCoSan, kieu = "", moc = "
         tieuDe = `📊 ADS ${nuoc} · ${ddmm(ngay)}`;
         nguon = "Số từ vòng ghi file TỔNG TEAM";
     }
+    // Nhật: Meta không báo tin nhắn → số mess lấy từ Pancake. Lỗi thì giữ số Meta và nói rõ.
+    if (MESS_PANCAKE.includes(m)) {
+        try {
+            const rt = await layRealtime(ngay);
+            const mt = messThayTuPancake(await fetchPancakeNuoc(m, ngay, rt.campaigns), rt.campaigns);
+            if (mt) { them.messThay = mt; nguon += " · tin nhắn đếm từ Pancake"; }
+            else nguon += " · ⚠️ chưa đếm được tin nhắn Pancake";
+        } catch (e) { log(`Pancake ${m} lỗi — tin dùng số mess Meta:`, e.message); nguon += " · ⚠️ chưa đếm được tin nhắn Pancake"; }
+    }
     return buildBaoCaoNuoc(DR, ngay, {
         nuoc: m, docBan, layRealtime, intraday: homNay, label: label || (homNay ? slotLabel(gio) : undefined),
         stale, log, tieuDe, nguon, ...them,
@@ -262,6 +291,44 @@ function guiBaoCao(m, ngay, { homNay = false, label, theoDoi, kieu = "", moc = "
         if (theoDoi && r.chuaDu && !DRY) xepDinhChinh(theoDoi, r, ngay, homNay, m);
         return { n, ghiChu: `tin ads ${m} (${n} tin, ${r.nguoi.length} người trong bảng)`, chuaDu: r.chuaDu };
     });
+}
+
+// ─── Tin MỖI GIỜ (Nhật, 09/10/2026) ───
+// Ads Meta trực tiếp + tin nhắn Pancake + đơn POS, theo page. Nhớ tổng lần trước (state.gioTruoc)
+// để in "(+N) thêm trong giờ qua". Meta hay Pancake hỏng thì tin vẫn đi, ghi rõ phần thiếu.
+async function dungTinGio(m) {
+    const ngay = vnDateStr();
+    let camps = [], loiCamp = "";
+    try { camps = (await layRealtime(ngay)).campaigns || []; } catch (e) { loiCamp = e.message; }
+    let pk = null;
+    try { pk = await fetchPancakeNuoc(m, ngay, camps); } catch (e) { log(`pancake-nuoc ${m} lỗi:`, e.message); }
+    if (!pk && loiCamp) throw new Error(`Meta: ${loiCamp} · Pancake/đơn cũng lỗi`);
+    return buildTinGio({ n: NUOC[m], ngay, gio: vnHHMM(), pk, camps, loiCamp,
+        truoc: ((loadState().gioTruoc || {})[m]) || null });
+}
+
+function guiTinGio(m, nho = true) {
+    const nhom = nhomCua(m);
+    if (!nhom) return Promise.reject(new Error(`chưa có nhóm ADS + VẬN ĐƠN ${m}`));
+    return lanLuot(async () => {
+        const r = await dungTinGio(m);
+        const n = await guiLoat([r.text], nhom);
+        if (nho && !DRY) markState((s) => { (s.gioTruoc = s.gioTruoc || {})[m] = { ngay: vnDateStr(), tong: r.tong }; });
+        return { n, ghiChu: `tin mỗi giờ ${m} (${r.tong.mess} mess, ${r.tong.don} đơn)` };
+    });
+}
+
+// Các mốc mỗi giờ của hôm nay: HH:<phut> từ `tu` tới `den`, bỏ giờ đã có bản tin thường.
+function mocMoiGio() {
+    const phut = String(Number.isFinite(Number(MG.phut)) ? Number(MG.phut) : 5).padStart(2, "0");
+    const coBanTin = new Set(INTRADAY_SLOTS.map((x) => x.split(":")[0].padStart(2, "0")));
+    const out = [];
+    for (let h = Number(MG.tu ?? 7); h <= Number(MG.den ?? 23); h++) {
+        const hh = String(h).padStart(2, "0");
+        if (MG.boGioCoBanTin !== false && coBanTin.has(hh)) continue;
+        out.push(`${hh}:${phut}`);
+    }
+    return out;
 }
 
 // ─── Vận đơn ───
@@ -349,6 +416,7 @@ const lanCuoi = new Map();     // chữ lệnh → lúc nhận; cùng lệnh tro
 
 const tinHuongDan = (m) => huongDanNuoc({
     nuoc: NUOC[m], at: DAILY_AT, mocAds: INTRADAY_SLOTS.join(" · "), nguoi: NGUOI,
+    moiGio: MG_MARKETS.includes(m) ? mocMoiGio() : null,
     vanDon: VD_MARKETS.includes(m) ? { at: VD_AT, toi: VD_TOI, nguon: NGUON_NUOC[m] } : null,
 });
 
@@ -371,6 +439,12 @@ async function lamLenh(text, ai = "dòng lệnh", m = null) {
             try {
                 if (lenh.loi) { await guiMot(`⚠️ ${lenh.loi}`, nhom); return; }
                 if (lenh.lenh === "trogiup") { await guiMot(tinHuongDan(x), nhom); return; }
+                if (lenh.lenh === "gio") {
+                    if (!MG_MARKETS.includes(x)) { await guiMot(`ℹ️ ${NUOC[x].ten} chưa bật tin mỗi giờ — gõ /baocao để xem số hôm nay.`, nhom); return; }
+                    // Gõ tay không ghi "lần trước": giữ mốc (+N) của tin tự gửi đúng giờ.
+                    await guiLoat([(await dungTinGio(x)).text], nhom);
+                    return;
+                }
                 if (lenh.lenh === "vandon") {
                     if (!VD_MARKETS.includes(x)) { await guiMot(`ℹ️ ${NUOC[x].ten} chưa theo dõi vận đơn — làm khi có đơn và biết hãng giao.`, nhom); return; }
                     await guiLoat([(await dungTinVanDon(x, "")).text], nhom);
@@ -483,6 +557,11 @@ async function ratMoc() {
     for (const m of VD_MARKETS.filter((x) => nhomNuoc[x])) {
         if (VD_TOI) await chayMoc(`vandon_toi:${m}`, VD_TOI, Number(VD.toiCatchUpMinutes || 60), () => guiVanDon(m, "toi"));
     }
+    // Tin mỗi giờ: trễ quá catchUpMinutes thì bỏ giờ đó (bot vừa bật lại lúc 15:20 không bắn
+    // lại 7 giờ đã qua — slotAction trả "skip" cho các giờ cũ).
+    for (const m of MG_MARKETS.filter((x) => nhomNuoc[x])) {
+        for (const moc of mocMoiGio()) await chayMoc(`gio:${m}:${moc}`, moc, Number(MG.catchUpMinutes || 40), () => guiTinGio(m));
+    }
 }
 
 async function giuPhien() {
@@ -566,11 +645,18 @@ async function chayDichVu() {
 
 async function main() {
     const lenh = argAfter("--lenh");
-    if (lenh || ARGS.includes("--report") || ARGS.includes("--vandon") || ARGS.includes("--moc")) {
+    if (lenh || ARGS.includes("--report") || ARGS.includes("--vandon") || ARGS.includes("--moc") || ARGS.includes("--gio")) {
         if (!DRY) { zalo = require("./zalo"); docCacNhom(); }
         const nuoc = argAfter("--nuoc") ? [argAfter("--nuoc").toUpperCase()] : null;
         if (nuoc && !NUOC[nuoc[0]]) throw new Error(`--nuoc lạ: ${nuoc[0]} (có: ${CAC_NUOC.join(", ")})`);
-        if (ARGS.includes("--vandon")) {
+        if (ARGS.includes("--gio")) {
+            // --gio [--nuoc JP]: gửi ngay tin mỗi giờ (không ghi mốc "lần trước").
+            for (const m of (nuoc || MG_MARKETS)) {
+                if (!nhomCua(m)) { log(`Bỏ ${m}: chưa có nhóm.`); continue; }
+                const r = await guiTinGio(m, false);
+                log(`${DRY ? "In thử" : "Đã gửi"} ${r.ghiChu}.`);
+            }
+        } else if (ARGS.includes("--vandon")) {
             // --vandon [sang|toi] [--nuoc SG]: gửi ngay (mặc định: khuôn sáng, mọi nước có vận đơn).
             const kieu = ["sang", "toi"].includes(argAfter("--vandon")) ? argAfter("--vandon") : "sang";
             for (const m of (nuoc || VD_MARKETS)) {

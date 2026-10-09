@@ -51,6 +51,9 @@ for (const k of URL_KEYS) if (raw[k] != null) CFG[k] = absolutize(raw[k]);
 if (raw.vanDon) {
     CFG.vanDon = { ...raw.vanDon, url: absolutize(raw.vanDon.url) };
 }
+if (raw.moiGio) {
+    CFG.moiGio = { ...raw.moiGio, url: absolutize(raw.moiGio.url) };
+}
 if (raw.dailyReport) {
     CFG.dailyReport = { ...raw.dailyReport };
     for (const k of DAILY_URL_KEYS) if (raw.dailyReport[k] != null) CFG.dailyReport[k] = absolutize(raw.dailyReport[k]);

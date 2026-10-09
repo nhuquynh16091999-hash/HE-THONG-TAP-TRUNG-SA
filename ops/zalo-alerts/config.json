@@ -37,7 +37,23 @@
       "SG",
       "AE",
       "JP"
+    ],
+    "_messPancake_note": "Nước Meta không báo số tin nhắn (Nhật — luật bảo vệ thông tin liên lạc): bản tin ads lấy số mess từ Pancake (/api/talpha/pancake-nuoc). Sỹ Anh yêu cầu 09/10/2026.",
+    "messPancake": [
+      "JP"
     ]
+  },
+  "moiGio": {
+    "_note": "Tin MỖI GIỜ (Sỹ Anh yêu cầu 09/10/2026): ads Meta + tin nhắn Pancake + đơn/doanh số POS theo page, gửi vào nhóm nước. Gửi phút `phut` mỗi giờ từ `tu` tới `den` (giờ VN) — phút 5 để kịp đơn của lượt sync phút :01. Giờ trùng bản tin thường (dailyReport.intradaySlots) thì bỏ — bản tin thường cùng giờ đã mang đủ số.",
+    "markets": [
+      "JP"
+    ],
+    "tu": 7,
+    "den": 23,
+    "phut": 5,
+    "catchUpMinutes": 40,
+    "boGioCoBanTin": true,
+    "url": "/api/talpha/pancake-nuoc"
   },
   "vanDon": {
     "at": "08:30",

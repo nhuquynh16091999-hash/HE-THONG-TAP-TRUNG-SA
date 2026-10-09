@@ -4,6 +4,14 @@
 Tin ads của nước đó và tin vận đơn của nước đó chung một nhóm; nhóm nào chỉ thấy số nước mình.
 **Bỏ hẳn nhóm cũ** — BÁO CÁO ADS (tin gộp mọi nước) và VẬN ĐƠN TW / SGP / UAE: bot không đọc
 `zalo_group.json`, `zalo_group_vandon*.json` nữa, không gửi, không nghe lệnh ở đó.
+**Tin MỖI GIỜ cho Nhật** (Sỹ Anh yêu cầu 09/10/2026): HH:05 từ 07:05 tới 23:05, trừ 13h · 18h · 22h
+(giờ đã có bản tin ads). Quảng cáo ở Nhật KHÔNG có chỉ số tin nhắn trên Meta (luật bảo vệ thông tin
+liên lạc của Nhật), nên tin ghép: tiền ads Meta trực tiếp + **tin nhắn / bình luận mới / SĐT đếm từ
+Pancake** + đơn, doanh số POS — theo từng page (camp nối page bằng tên page trong tên camp), có
+"(+N)" thêm trong giờ qua. Nguồn `/api/talpha/pancake-nuoc` (token tài khoản Pancake ở
+`TALPHA_PANCAKE_API_TOKEN`, hết hạn 02/01/2027 — tin tự nhắc trước 14 ngày). Bản tin ads thường của
+nhóm Nhật cũng lấy số mess từ Pancake (`nhomNuoc.messPancake`). Gõ `/gio` trong nhóm, hoặc
+`node bot.js --dry-run --gio --nuoc JP` để in thử. Cấu hình: `config.json → moiGio`.
 Nhật (mở 08/10/2026, shop POS nối 09/10/2026): tin ads đủ đơn / DS như các nước khác, chưa có vận đơn
 (chưa biết hãng giao). Nước nào còn `sap_chay` (chưa shop) thì tin chỉ có tiền ads + tin nhắn.
 (Lịch sử: 15/09/2026 chỉ gửi mốc 8h30 vào một nhóm ads; thêm dần 13:00 · 18:00 · 22:00.)
@@ -224,11 +232,12 @@ Chạy thử từ máy Mac: `TALPHA_DASHBOARD_URL=http://139.180.131.21:3000 nod
 | `pair.js` | Ghép nick bằng QR, chọn nhóm |
 | `zalo.js` | Phiên, gửi, nghe tin qua zca-js |
 | `daily_report.js` · `van_don.js` | Dựng nội dung tin (hàm thuần, có test) — `buildBaoCaoNuoc` là tin ads một nước |
+| `tin_gio.js` | Tin mỗi giờ + số mess Pancake (ghép camp · page · đơn theo tên page; hàm thuần, có test) |
 | `ads_alerts.js` | Cảnh báo ads gộp mọi nước (BigQuery) — bot không dùng từ 08/10/2026, giữ lại cùng test |
 | `zalo_text.js` | Chữ đậm/nghiêng → style Zalo, chia tin dài |
 | `rules.js` | Đọc `config/talpha_rules.json` — thiếu file là dừng, không dùng bảng dự phòng. `NUOC`, `nuocTuTenNhom`: mã nước ↔ tên nhóm |
 | `schedule.js` | "Mốc này gửi bây giờ không" — chép từ bot WhatsApp |
 
 ```bash
-npm test        # 6 bộ test, không gọi mạng, không cần đăng nhập
+npm test        # 7 bộ test, không gọi mạng, không cần đăng nhập
 ```

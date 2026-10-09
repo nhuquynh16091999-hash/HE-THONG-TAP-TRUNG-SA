@@ -111,6 +111,22 @@ function tenNganCamp(name) {
     return co ? `${co} ${ngan}` : ngan;
 }
 
+/** Tên page để SO KHỚP — ≡ chuanTenPage (dashboard-ui/src/lib/talpha/pancake.ts) và chuan_ten_page
+ *  (talpha_rules.py): bỏ kiểu chữ trang trí (𝑱𝒂𝒑𝒂𝒏 → japan), hoa thường, dấu câu, khoảng trắng thừa. */
+function chuanTenPage(s) {
+    return String(s || "").normalize("NFKC").toLowerCase()
+        .replace(/[^\p{L}\p{N}_]+/gu, " ").trim().replace(/\s+/g, " ");
+}
+
+/** Ô TÊN PAGE trong tên campaign (NƯỚC/MARKETER/TỆP/SẢNPHẨM/TRANG/NGÀY) — ≡ trangCuaCamp bên TS. */
+function trangCuaCamp(cn) {
+    const p = String(cn || "").split("/").map((x) => x.trim());
+    const mi = p.findIndex((s) => s.toUpperCase() in CAMP_MARKETS);
+    const k = mi >= 0 ? mi + 1 : p.slice(0, 2).findIndex((s) => normCampMarketer(s));
+    if (k < 0) return null;
+    return p[k + 3] || null;
+}
+
 /**
  * Tên nhóm Zalo → mã nước, CHỈ khi tên đúng mẫu "ADS + VẬN ĐƠN <nước>" (Sỹ Anh tạo 08/10/2026:
  * ADS + VẬN ĐƠN TAIWAN · SGP · UAE · JAPAN). Tin vận đơn có tên + SĐT khách nên khớp CHẶT: sai
@@ -153,7 +169,7 @@ function chonNhomTheoTen(dsNhom, cacNuoc) {
 }
 
 module.exports = {
-    NUOC, nuocTuTenNhom, chonNhomTheoTen,
+    NUOC, nuocTuTenNhom, chonNhomTheoTen, chuanTenPage, trangCuaCamp,
     RULES, MARKETERS, DISPLAY, THU_TU, UNASSIGN, PRIMARY_MARKET, TAB_NUOC, CO_NUOC,
     chuCamp, normCampMarketer, campaignMarket, isTestCampaign, tenNganCamp,
 };

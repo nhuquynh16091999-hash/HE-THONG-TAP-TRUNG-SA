@@ -473,6 +473,18 @@ async function buildBaoCaoNuoc(cfg, dateStr, opts = {}) {
         if (opts.log) opts.log(`realtime lỗi — tin ${n.ma} không kèm chi tiết campaign: ${e.message}`);
     }
 
+    // Nước Meta không báo tin nhắn (Nhật, 09/10/2026): số mess lấy từ Pancake (tin_gio.messThayTuPancake)
+    // — thay cho cả số đầu tin, từng người và từng camp. Không lấy được thì giữ số Meta, tin ghi rõ.
+    const mt = opts.messThay;
+    if (mt) {
+        so.team.mess = mt.tong;
+        Object.assign(so.team, tyLe(so.team));
+        for (const r of so.nguoi || []) { r.mess = mt.theoNguoi[r.mk] || 0; Object.assign(r, tyLe(r)); }
+        camps = camps.map((c) => ({ ...c, messages: mt.theoCamp[c.campaign_name] || 0 }));
+        // So ▲▼ với số Sheet (mess Meta = 0) là ▲ giả — bỏ ▲▼ mess khi số trước không phải từ bot.
+        if (truoc && !truoc.nhan) truoc = { ...truoc, team: { ...truoc.team, mess: null } };
+    }
+
     const rows = (so.nguoi || [])
         .filter((r) => !DA_NGHI.has(r.mk) && (r.ads > 0 || r.don > 0 || r.mess > 0))
         .sort((a, b) => (n.sapChay ? 0 : b.doanh_so - a.doanh_so) || (b.ads - a.ads));
@@ -504,7 +516,7 @@ async function buildBaoCaoNuoc(cfg, dateStr, opts = {}) {
 // camps null → chỉ phần đầu tin (lệnh /baocao team), không kèm chi tiết camp.
 function buildTinNuoc({ n, dateStr, so, rows, truoc, camps, cfg, canhBaoCamp, opts }) {
     const T = so.team, Tc = truoc && truoc.team;
-    const mt = (k, laTien) => (opts.intraday && Tc ? muiTen(Number(T[k] || 0), Number(Tc[k] || 0), laTien) : "");
+    const mt = (k, laTien) => (opts.intraday && Tc && Tc[k] != null ? muiTen(Number(T[k] || 0), Number(Tc[k] || 0), laTien) : "");
     const dong = [];
     if (opts.canhBao) dong.push(opts.canhBao.replace(/\n+$/, ""), "");
     const bq = ghiChuBoQua(opts.stale);

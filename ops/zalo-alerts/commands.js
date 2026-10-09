@@ -9,6 +9,7 @@
 //   /canhbao              camp đốt tiền 0 tin nhắn + chi tiêu bất thường, ngay lúc gõ
 //   /vandon               vận đơn cần xử lý của nước của nhóm (nhóm "ADS + VẬN ĐƠN <nước>", 08/10/2026)
 //   /vandon sg · tw · uae · jp   (dòng lệnh) chọn nước
+//   /gio                  tin mỗi giờ (ads + tin nhắn Pancake + đơn theo page) ngay lúc gõ — nước có moiGio
 //   /bot                  cách dùng
 // Có dấu hay không dấu, hoa hay thường đều được. Không bắt đầu bằng "/" → không phải lệnh,
 // bot im — tin báo cáo của chính bot cũng đi qua đây nên điều này là bắt buộc.
@@ -22,6 +23,7 @@ const TEN_LENH = {
     baocao: "baocao", bc: "baocao",
     canhbao: "canhbao", cb: "canhbao",
     vandon: "vandon", vd: "vandon",
+    gio: "gio",
     bot: "trogiup", lenh: "trogiup", help: "trogiup",
 };
 
@@ -119,7 +121,7 @@ function huongDanVanDon({ at, toi, nuoc, nguon } = {}) {
  * Tin hướng dẫn của nhóm "ADS + VẬN ĐƠN <nước>" (08/10/2026) — gửi MỘT lần khi bot gặp nhóm mới.
  * @param o { nuoc: {ten, flag, sapChay}, at, mocAds, vanDon: {at, toi, nguon} | null, nguoi }
  */
-function huongDanNuoc({ nuoc, at, mocAds, vanDon, nguoi = [] } = {}) {
+function huongDanNuoc({ nuoc, at, mocAds, vanDon, nguoi = [], moiGio = null } = {}) {
     const vi = nguoi[0] ? nguoi[0].ten : "Lộc";
     const ten = nuoc ? `${nuoc.flag} ${nuoc.ten}` : "";
     const dong = [
@@ -130,6 +132,9 @@ function huongDanNuoc({ nuoc, at, mocAds, vanDon, nguoi = [] } = {}) {
             + `số tổng${nuoc && nuoc.sapChay ? "" : ", xếp hạng từng người"} và chi tiết từng camp của ${ten}.`,
     ];
     if (nuoc && nuoc.sapChay) dong.push(I(`${nuoc.ten} chưa nối shop POS — tin chỉ có tiền ads và tin nhắn, chưa có đơn/doanh số.`));
+    if (moiGio && moiGio.length) {
+        dong.push(`⏰ ${B("Mỗi giờ")} (${moiGio[0]} → ${moiGio[moiGio.length - 1]}, trừ giờ đã có bản tin ads): tiền ads, tin nhắn đếm từ Pancake, giá mỗi tin, đơn, doanh số — theo từng page.`);
+    }
     dong.push(vanDon
         ? `📦 ${B("Vận đơn")} tự gửi ${vanDon.at || "08:30"}${vanDon.toi ? ` và ${vanDon.toi}` : ""}: khách phải gọi, nhắn (đủ tên, SĐT, tin soạn sẵn); `
             + `trạng thái lấy từ ${vanDon.nguon || "bảng đối tác + 17TRACK"}.`
@@ -139,6 +144,7 @@ function huongDanNuoc({ nuoc, at, mocAds, vanDon, nguoi = [] } = {}) {
         `• /baocao ${vi} — chi tiết campaign của một người ở nước này`,
         "• /baocao team — chỉ số tổng, không kèm camp",
         "• /canhbao — camp đốt tiền không ra tin nhắn");
+    if (moiGio && moiGio.length) dong.push("• /gio — số mỗi giờ (ads + tin nhắn + đơn theo page) ngay lúc gõ");
     if (vanDon) dong.push("• /vandon — danh sách vận đơn mới nhất");
     dong.push(I("Có dấu hay không dấu đều được."));
     return dong.join("\n");

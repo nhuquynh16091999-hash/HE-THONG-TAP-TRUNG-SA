@@ -185,6 +185,8 @@ export const API_RULES: Record<string, ApiRule> = {
     // Chi tiêu Meta theo campaign — route tự lọc theo nước ở tên campaign.
     "/api/talpha/ad-spend": { tabs: ["ad-spend"] },
     "/api/talpha/realtime": { tabs: ["ads-command"] },
+    // Tin nhắn Pancake + đơn theo page của MỘT nước (Nhật: Meta không báo mess, 09/10/2026).
+    "/api/talpha/pancake-nuoc": { tabs: ["ads-command", "marketing"], market: "param" },
 
     // Chỉ bot gọi (cảnh báo spend cả công ty, chưa tách nước) — không tab nào dùng.
     "/api/talpha/ads-alerts": { full: true },
