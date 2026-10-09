@@ -88,6 +88,8 @@
       "phone": { "cc": "81", "national_len": 10, "trunk": "0", "whatsapp": false },
       "status": "dang_ban",
       "orders_from": "2026-10-08",
+      "mess_source": "pancake",
+      "_mess_source_note": "Meta KHÔNG báo số tin nhắn cho quảng cáo ở Nhật (luật bảo vệ thông tin liên lạc của Nhật) — camp tin nhắn mà messaging_conversations_started = 0. Số tin nhắn của nước này lấy từ hộp thư Pancake theo page (ops/talpha_reports/pancake_mess.py cho Sheet, /api/talpha/pancake-nuoc cho bot Zalo), token TALPHA_PANCAKE_API_TOKEN. Sỹ Anh yêu cầu 09/10/2026.",
       "_note": "Mở 08/10/2026 (Sỹ Anh). Camp đầu tiên chạy cùng ngày: `JP/THANG/…` (SA ANTALO 01) và `JP/THƯƠNG/…` (SA ANTALO 02) — trước khi khai mục này, mã JP không có trong camp_market_tokens nên tiền ads Nhật bị tính về Đài. Tỷ giá 1 JPY = 160đ (Sỹ Anh chốt 08/10/2026) — soát lại mỗi tháng. Shop POS 'JAPAN' (1022115860, JPY) — Sỹ Anh gửi ID + key 09/10/2026; key ở TALPHA_POSCAKE_JP_KEY.",
       "_orders_from_note": "Shop chỉ có 1 đơn khi nối (tạo 23:28 ngày 08/10/2026 giờ VN, page Lucky Charm JP) — mốc 08/10 là ngày mở thị trường, không có đơn nào trước đó bị bỏ.",
       "_divisor_note": "ĐÃ ĐO 09/10/2026 trên đơn thật đầu tiên: cod = 8999, total_price = 8999, order_currency JPY, 1 vòng phong thuỷ 002-ATTL → 8.999¥ (≈1,44 triệu đồng), cùng tầm giá đơn Đài/Singapore/UAE. Chia 100 thì đơn còn 90¥ ≈ 14.400đ — vô lý. Yên không có đơn vị lẻ, POS lưu nguyên yên → chia 1.",

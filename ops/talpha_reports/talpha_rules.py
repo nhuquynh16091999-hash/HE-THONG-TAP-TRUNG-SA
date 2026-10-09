@@ -30,6 +30,8 @@ LOCALCUR = {m: v["currency"] for m, v in _MK.items()}
 CURRENCY_SYMBOL = {m: v.get("currency_symbol") or v["currency"] for m, v in _MK.items()}
 STATUS   = {m: v.get("status", "dang_ban") for m, v in _MK.items()}
 DANG_BAN = [m for m in _MK if STATUS[m] == "dang_ban"]
+# Nước lấy số TIN NHẮN từ Pancake thay Meta (Nhật — Meta không báo mess ở Nhật, 09/10/2026).
+MESS_PANCAKE = {m for m, v in _MK.items() if v.get("mess_source") == "pancake"}
 # X13 — số chia đưa cod/phí thô của POS về ĐƠN VỊ TIỀN THẬT của shop. 6 shop GCC lưu
 # minor units (cod=9900 ⇒ 99,00 SAR) nên 100; shop Đài lưu NGUYÊN TWD (cod=950 ⇒
 # 950 TWD) nên 1. Trước 20/08 mọi chỗ gõ thẳng "/100" ⇒ tiền Đài tụt 100 lần trên cả

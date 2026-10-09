@@ -19,6 +19,7 @@ import calendar as _cal
 # sang tháng không ai đổi ID, 16 file tháng 9 bị xoá sạch rồi ghi số tháng 10.
 import report_files as _rf
 import talpha_paths   # repo_dir(): nơi ghi data/bao_cao_nuoc cho bot Zalo
+import pancake_mess   # tin nhắn Nhật từ Pancake — Meta không báo mess ở Nhật (09/10/2026)
 _T=_rf.ngay_chot(os.environ.get('TALPHA_REPORT_MONTH'))
 _HERE=os.path.dirname(os.path.abspath(__file__))
 _RT=os.environ.get('TALPHA_RUNTIME_DIR') or os.path.expanduser('~/talpha_reports/runtime')
@@ -39,7 +40,7 @@ from talpha_rules import (RATE, LOCALCUR, MONEY_DIV, ALLM, MARKETS, SHOP2MKT, GT
                           DISPLAY, EXTERNAL_DISPLAY, norm_pos_external, norm_nv_external,
                           UNASSIGN, bucket_nv, campaign_market,
                           camp_san_pham, tao_chi_muc_page, tim_camp_theo_page,
-                          tao_ten_tab_page, ten_tab_cua_don, sql_la_don_trong)
+                          tao_ten_tab_page, ten_tab_cua_don, sql_la_don_trong, MESS_PANCAKE)
 # SHOP2MKT + norm_pos_nv: import từ talpha_rules (xem trên)
 def parse_camp(cn):
     p=[x.strip() for x in (cn or "").split("/")]
@@ -130,7 +131,30 @@ for r in bq.query(f"SELECT date, campaign_name, SUM(spend) spend, SUM(messaging_
     if pid:
         (test_pages if t else main_pages).add(pid)
     tab=CAMP_TAB.get(r.campaign_name) or "(khác)"
-    c=(cell_test if t else cell)[(nv,mkt,tab,str(r.date))]; c["spend"]+=r.spend or 0; c["msg"]+=r.msg or 0; c["pur"]+=r.pur or 0
+    c=(cell_test if t else cell)[(nv,mkt,tab,str(r.date))]; c["spend"]+=r.spend or 0; c["pur"]+=r.pur or 0
+    # Nước lấy tin nhắn từ Pancake (Nhật): BỎ số Meta (luôn 0 ở Nhật) — số thật cộng ở khối dưới.
+    if mkt not in MESS_PANCAKE: c["msg"]+=r.msg or 0
+# ── TIN NHẮN TỪ PANCAKE cho nước Meta không báo mess (Nhật, Sỹ Anh yêu cầu 09/10/2026) ──
+# Hội thoại không ghi đến từ camp nào → gom theo page rồi gán cho camp tiêu nhiều nhất trên page đó
+# trong ngày (ngày page không tiêu: camp gần nhất trước đó). Pancake hỏng → giữ 0, có CANH BAO.
+PANCAKE_MESS={}
+for _m in sorted(MESS_PANCAKE):
+    _ma=RULES_MARKETS[_m]["shop_label"]
+    _dong=[(r.campaign_name, str(r.date), r.spend or 0) for r in ADS_CHI_MUC]
+    _cua=lambda cn,_m=_m: campaign_market(cn)[0]==_m
+    _trang={camp_san_pham(cn)[1] for cn,_,_ in _dong if _cua(cn)}
+    _so=pancake_mess.tin_nhan_theo_trang(_trang, _ma, FROM, TO, log=print)
+    if _so is None: continue
+    _gan,_khong=pancake_mess.gan_cho_camp(_so, _dong, _cua, lambda cn: camp_san_pham(cn)[1])
+    _n=0
+    for (_cn,_d),_k in _gan.items():
+        if not (FROM <= _d <= TO): continue
+        _mk,_nv,_=parse_camp(_cn)
+        if not _mk or not _nv: continue
+        _c=(cell_test if is_test(_cn,_mk) else cell)[(bucket_nv(_nv),_mk,CAMP_TAB.get(_cn) or "(khác)",_d)]
+        _c["msg"]+=_k; _n+=_k
+    PANCAKE_MESS[_m]=(_n,len(_so),_khong)
+    print(f"PANCAKE MESS {_ma}: {_n} tin nhan tu {len(_so)} page" + (f" · KHONG GAN DUOC (page chua co camp): {_khong}" if _khong else ""))
 # ad_id → chủ campaign (marketer) — dùng cho FALLBACK đơn không tag (duyệt 06/07).
 # X9 (06/08): POS không phải lúc nào cũng ghi ad_id vào ô `ad_id` — 999 đơn/10.634 (9,4%)
 # mang ADSET id ở ô đó. Nạp CẢ adset vào chung bảng tra; ad_id nạp SAU để đè lên adset

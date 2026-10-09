@@ -33,6 +33,7 @@ PAIRS=(
   "ops/talpha_reports/report_account_health.py|report_account_health.py"
   "ops/talpha_reports/ad_accounts.json|runtime/config/ad_accounts.json"
   "ops/talpha_reports/report_files.py|report_files.py"
+  "ops/talpha_reports/pancake_mess.py|pancake_mess.py"
 )
 # Bộ file báo cáo theo tháng (01/10/2026): format_all.py tự quét thư mục "Tháng N" trên Drive;
 # tháng nào khai tay thì có report_files/YYYY-MM.json. Quét theo mẫu tên chứ không liệt kê
