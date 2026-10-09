@@ -414,6 +414,12 @@ function CodNuocKhac({ code, nutNuoc, dateRange }: { code: string; nutNuoc?: Rea
         return `${p(x.getHours())}:${p(x.getMinutes())} ngày ${p(x.getDate())}/${p(x.getMonth() + 1)}`;
     })() : null;
 
+    // Số khối liền nhau dù khối nào bị ẩn (chưa có kỳ nào thì không có ② ③).
+    const coTyGia = so.fx.rows.length > 1;
+    const soKhoi = { ky: "2", mo: "3", tyGia: String(1 + (ky.length ? 2 : 0) + 1) };
+    const soDaGiao = String(1 + (ky.length ? 2 : 0) + (coTyGia ? 1 : 0) + 1);
+    const soChuaGiao = String(Number(soDaGiao) + 1);
+
     /** Nút "Nhập số" ở Việc hôm nay: mở ô nhập ở đúng dòng kỳ đó trong bảng ② rồi cuộn tới. */
     const moNhapBank = (filename: string) => {
         setNhapBank(filename);
@@ -553,7 +559,7 @@ function CodNuocKhac({ code, nutNuoc, dateRange }: { code: string; nutNuoc?: Rea
 
             {/* ═══ ② BẢNG CÁC KỲ ═══ */}
             {ky.length > 0 && (
-                <Khoi so="2" ten={`${ky.length} kỳ sao kê`} phamVi="all" phu="bấm một dòng để mở chi tiết kỳ đó · tải nhầm thì bấm ✕">
+                <Khoi so={soKhoi.ky} ten={`${ky.length} kỳ sao kê`} phamVi="all" phu="bấm một dòng để mở chi tiết kỳ đó · tải nhầm thì bấm ✕">
                     {hep ? (
                         <ul className="divide-y divide-border/60">
                             {ky.map((k) => {
@@ -648,7 +654,7 @@ function CodNuocKhac({ code, nutNuoc, dateRange }: { code: string; nutNuoc?: Rea
 
             {/* ═══ ③ KỲ ĐANG MỞ ═══ */}
             {period && (
-                <Khoi so="3" ten={period.ngay ? `Kỳ chốt ${dmy(period.ngay)}` : tenKy(period.filename)} phamVi="one" phu={tenKy(period.filename)}
+                <Khoi so={soKhoi.mo} ten={period.ngay ? `Kỳ chốt ${dmy(period.ngay)}` : tenKy(period.filename)} phamVi="one" phu={tenKy(period.filename)}
                     phai={
                         <>
                             <div className="relative max-w-full">
@@ -719,10 +725,10 @@ function CodNuocKhac({ code, nutNuoc, dateRange }: { code: string; nutNuoc?: Rea
             )}
 
             {/* ═══ ④ TỶ GIÁ ═══ */}
-            {so.fx.rows.length > 1 && <KhoiTyGia so="4" fx={so.fx} kyDangXem={period?.filename} te={te} />}
+            {coTyGia && <KhoiTyGia so={soKhoi.tyGia} fx={so.fx} kyDangXem={period?.filename} te={te} />}
 
             {/* Hai khối gập — chưa có ở màn Đài (đơn từng đơn của Đài nằm ở Sổ đơn hàng). */}
-            <Khoi so={so.fx.rows.length > 1 ? "5" : "4"} ten={ky.length ? "Đơn đã giao — chưa thấy tiền trên sao kê" : "Đơn đã giao — tiền bên giao hàng đang giữ"}
+            <Khoi so={soDaGiao} ten={ky.length ? "Đơn đã giao — chưa thấy tiền trên sao kê" : "Đơn đã giao — tiền bên giao hàng đang giữ"}
                 phamVi="all" dem={`${formatNumber(daGiao.length)} đơn`} gap={{ mo: false }}>
                 {!daGiao.length ? (
                     <p className="px-5 py-4 text-sm text-muted-foreground">
@@ -771,7 +777,7 @@ function CodNuocKhac({ code, nutNuoc, dateRange }: { code: string; nutNuoc?: Rea
                 )}
             </Khoi>
 
-            <Khoi so={so.fx.rows.length > 1 ? "6" : "5"} ten="Đơn chưa giao xong — tiền còn ngoài đường" phamVi="all"
+            <Khoi so={soChuaGiao} ten="Đơn chưa giao xong — tiền còn ngoài đường" phamVi="all"
                 dem={`${formatNumber(t.chua_giao.so_don)} đơn`} gap={{ mo: false }}>
                 {t.chua_giao.theo_trang_thai.length ? (
                     <ul className="divide-y divide-border/60">

@@ -55,16 +55,31 @@ function Tick({ on, title }: { on: boolean; title: string }) {
 export default function TALPHAOrderLedgerTab(props: Props) {
     const [nuoc, setNuoc] = useState("TW");
     const [ds, setDs] = useState<{ code: string; display: string }[] | null>(null);
+    // Nước của team đang bán nhưng chưa có sổ (chưa khai hãng vận chuyển — Nhật 09/10/2026).
+    const [chuaCoSo, setChuaCoSo] = useState<string[]>([]);
     useEffect(() => {
         fetch("/api/talpha/markets").then((r) => r.json())
-            .then((d: { markets?: { code: string; display: string; status?: string }[] }) => {
-                const list = (d.markets || []).filter((m) => m.status !== "sap_chay").map((m) => ({ code: m.code, display: m.display }));
+            .then((d: { markets?: { code: string; display: string; status?: string; co_van_don?: boolean }[] }) => {
+                const dangBan = (d.markets || []).filter((m) => m.status !== "sap_chay");
+                // Sổ đơn đọc đơn + trạng thái giao qua hãng vận chuyển: nước chưa khai tracking.markets
+                // (Nhật Bản lúc mới mở) gọi sổ là máy chủ trả 400 — ẩn nút thay vì hiện màn lỗi.
+                const list = dangBan.filter((m) => m.co_van_don !== false).map((m) => ({ code: m.code, display: m.display }));
+                setChuaCoSo(dangBan.filter((m) => m.co_van_don === false).map((m) => m.display));
                 setDs(list);
                 setNuoc((n) => (list.length && !list.some((m) => m.code === n) ? list[0].code : n));
             })
             .catch(() => setDs([]));   // không lấy được danh sách nước thì vẫn hiện sổ Đài như cũ
     }, []);
     if (ds === null) return <TabSkeleton />;
+    // Team chỉ có nước chưa có sổ: nói thẳng, đừng mở sổ Đài (máy chủ sẽ từ chối, màn lỗi khó hiểu).
+    if (!ds.length && chuaCoSo.length) {
+        return (
+            <div className="rounded-xl border border-border bg-card px-5 py-6 text-sm text-muted-foreground">
+                Sổ đơn {chuaCoSo.join(", ")} chưa mở được: chưa khai hãng vận chuyển (chưa có mã vận đơn để theo dõi giao hàng).
+                Đơn của nước này xem tạm ở Kế toán → Tiền COD về.
+            </div>
+        );
+    }
     // Nút chọn nước nằm CÙNG hàng với thanh công cụ của sổ (07/10/2026) — truyền xuống để sổ tự xếp.
     const nutNuoc = ds.length > 1 ? (
         <div className="inline-flex rounded-lg border border-border bg-muted/40 p-1">
