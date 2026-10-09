@@ -77,20 +77,21 @@
     },
     "Japan": {
       "shop_label": "JP",
-      "shop_id": "",
+      "shop_id": "1022115860",
       "currency": "JPY",
       "currency_symbol": "¥",
       "rate_vnd": 160,
       "pos_money_divisor": 1,
-      "pos_money_divisor_confirmed": false,
+      "pos_money_divisor_confirmed": true,
       "display": "Nhật Bản",
       "flag": "🇯🇵",
       "phone": { "cc": "81", "national_len": 10, "trunk": "0", "whatsapp": false },
-      "status": "sap_chay",
-      "orders_from": null,
-      "_note": "Mở 08/10/2026 (Sỹ Anh). Camp đầu tiên chạy cùng ngày: `JP/THANG/…` (SA ANTALO 01) và `JP/THƯƠNG/…` (SA ANTALO 02) — trước khi khai mục này, mã JP không có trong camp_market_tokens nên tiền ads Nhật bị tính về Đài. Tỷ giá 1 JPY = 160đ (Sỹ Anh chốt 08/10/2026) — soát lại mỗi tháng.",
-      "_status_note": "sap_chay vì CHƯA CÓ SHOP POS (Sỹ Anh xác nhận 08/10/2026): Nhật chỉ có số ads (tiền, tin nhắn), chưa có đơn/doanh số. Có shop thì điền shop_id + orders_from, khai shop ở config/projects/talpha.yaml → poscake.shops (name \"Japan\"), key TALPHA_POSCAKE_JP_KEY trong .env.local, ĐO số chia trên đơn thật rồi mới chuyển dang_ban.",
-      "_divisor_note": "CHƯA ĐO. Yên không có đơn vị lẻ nên tạm để 1; shop Singapore/UAE lưu ×100 nên có thể shop Nhật cũng vậy — đo trên đơn thật đầu tiên trước khi chuyển dang_ban."
+      "status": "dang_ban",
+      "orders_from": "2026-10-08",
+      "_note": "Mở 08/10/2026 (Sỹ Anh). Camp đầu tiên chạy cùng ngày: `JP/THANG/…` (SA ANTALO 01) và `JP/THƯƠNG/…` (SA ANTALO 02) — trước khi khai mục này, mã JP không có trong camp_market_tokens nên tiền ads Nhật bị tính về Đài. Tỷ giá 1 JPY = 160đ (Sỹ Anh chốt 08/10/2026) — soát lại mỗi tháng. Shop POS 'JAPAN' (1022115860, JPY) — Sỹ Anh gửi ID + key 09/10/2026; key ở TALPHA_POSCAKE_JP_KEY.",
+      "_orders_from_note": "Shop chỉ có 1 đơn khi nối (tạo 23:28 ngày 08/10/2026 giờ VN, page Lucky Charm JP) — mốc 08/10 là ngày mở thị trường, không có đơn nào trước đó bị bỏ.",
+      "_divisor_note": "ĐÃ ĐO 09/10/2026 trên đơn thật đầu tiên: cod = 8999, total_price = 8999, order_currency JPY, 1 vòng phong thuỷ 002-ATTL → 8.999¥ (≈1,44 triệu đồng), cùng tầm giá đơn Đài/Singapore/UAE. Chia 100 thì đơn còn 90¥ ≈ 14.400đ — vô lý. Yên không có đơn vị lẻ, POS lưu nguyên yên → chia 1.",
+      "_todo": "Chưa có: hãng giao + tra vận đơn (tracking.markets), bảng phí ship 3PL (shipping_fees.JP), giá vốn theo tên sản phẩm shop Nhật."
     }
   },
   "market_aliases": {

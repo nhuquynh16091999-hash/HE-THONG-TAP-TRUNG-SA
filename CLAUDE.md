@@ -2,7 +2,7 @@
 
 Dashboard vận hành cho đội ANTALO (Tiểu Alpha): bán trang sức và mỹ phẩm qua Facebook Ads +
 chat-sale + COD ở **ba nước — Đài Loan, Singapore, UAE** (từ 15/09/2026), thêm **Nhật Bản**
-(08/10/2026, `sap_chay`: có ads, chưa có shop POS). Mỗi nước một shop
+(mở 08/10/2026, shop POS nối 09/10/2026; chưa có tra vận đơn). Mỗi nước một shop
 POS Poscake (`config/talpha_rules.json → markets`); tài khoản quảng cáo Meta khai ở
 `config/projects/talpha.yaml`, chạy chung cho mọi nước.
 

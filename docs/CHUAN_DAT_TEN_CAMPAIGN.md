@@ -38,7 +38,7 @@ nước **bằng chính ô này** (Sỹ Anh chốt) — không có ô thứ hai 
 | Đài Loan | `TW` | đang bán |
 | Singapore | `SG` | đang bán |
 | UAE | `AE` | đang bán |
-| Nhật Bản | `JP` | mở 08/10/2026 — có ads, chưa có shop POS |
+| Nhật Bản | `JP` | đang bán — mở 08/10/2026, shop POS từ 09/10/2026 |
 
 Máy cũng nhận `TAIWAN`, `SINGAPORE`, `SING`, `SGP`, `UAE`, `DUBAI`, `JAPAN`, `JPN`, `NHẬT`, nhưng
 hãy dùng mã hai chữ. (Camp Nhật đầu tiên `JP/THANG/…` chạy trước khi khai mã `JP` → mấy giờ đầu

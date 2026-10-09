@@ -4,7 +4,8 @@
 Tin ads của nước đó và tin vận đơn của nước đó chung một nhóm; nhóm nào chỉ thấy số nước mình.
 **Bỏ hẳn nhóm cũ** — BÁO CÁO ADS (tin gộp mọi nước) và VẬN ĐƠN TW / SGP / UAE: bot không đọc
 `zalo_group.json`, `zalo_group_vandon*.json` nữa, không gửi, không nghe lệnh ở đó.
-Nhật (mở 08/10/2026) chưa có shop POS: tin ads chỉ có tiền + tin nhắn, chưa có vận đơn.
+Nhật (mở 08/10/2026, shop POS nối 09/10/2026): tin ads đủ đơn / DS như các nước khác, chưa có vận đơn
+(chưa biết hãng giao). Nước nào còn `sap_chay` (chưa shop) thì tin chỉ có tiền ads + tin nhắn.
 (Lịch sử: 15/09/2026 chỉ gửi mốc 8h30 vào một nhóm ads; thêm dần 13:00 · 18:00 · 22:00.)
 
 | Khi nào | Tin |

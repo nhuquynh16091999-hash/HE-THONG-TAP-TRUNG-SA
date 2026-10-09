@@ -29,7 +29,8 @@ class TestGanNuocTheoTenCampaign:
         assert campaign_market("JP/THƯƠNG/PHI/011/Lucky Silver JP/08-10") == ("Japan", "o_dau")
         # Tên trang có chữ Japan/JP KHÔNG phải ô nước.
         assert campaign_market("TW/THƯƠNG/PHI/042/Japan Prime Leather/6-10")[0] == "Taiwan"
-        assert "Japan" not in DANG_BAN, "Nhật chưa có shop POS — phải là sap_chay"
+        # 09/10/2026 nối shop POS "JAPAN" 1022115860 — đang bán, POS lưu nguyên yên.
+        assert "Japan" in DANG_BAN and MONEY_DIV["Japan"] == 1 and RATE["Japan"] == 160
 
     def test_cac_cach_viet_nuoc(self):
         for ten, nuoc in (("SINGAPORE/LOC/x", "Singapore"), ("sing/LOC/x", "Singapore"),
@@ -58,7 +59,8 @@ class TestTrangThaiNuoc:
         assert RATE["UAE"] == 7000 and MONEY_DIV["UAE"] == 100
 
     def test_ca_ba_nuoc_dang_ban(self):
-        assert DANG_BAN == ["Taiwan", "Singapore", "UAE"]
+        # Nhật nối shop 09/10/2026.
+        assert DANG_BAN == ["Taiwan", "Singapore", "UAE", "Japan"]
 
     def test_ky_hieu_tien(self):
         assert CURRENCY_SYMBOL == {"Taiwan": "NT$", "Singapore": "S$", "UAE": "AED", "Japan": "¥"}

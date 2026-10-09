@@ -27,9 +27,10 @@ rồi chuyển về theo kỳ. Singapore: bảng giá 3PL khai ở `shipping_fee
 | Đông Á | Đài Loan | Sỹ Anh (tạm thời) |
 | Nhật Bản | Nhật Bản | Sỹ Anh (tạm thời) |
 
-**Nhật Bản (mở 08/10/2026)** — camp đặt `JP/…` (Thắng, Thương chạy từ 08/10). CHƯA CÓ SHOP POS nên
-`status: "sap_chay"`: chỉ có tiền ads + tin nhắn, chưa có đơn/doanh số/vận đơn. Tỷ giá 1 JPY = 160đ
-(Sỹ Anh chốt). Có shop thì làm theo `markets.Japan._status_note` trong `talpha_rules.json`.
+**Nhật Bản (mở 08/10/2026)** — camp đặt `JP/…` (Thắng, Thương chạy từ 08/10). Shop POS **JAPAN**
+1022115860 nối 09/10/2026 (`TALPHA_POSCAKE_JP_KEY`), JPY lưu nguyên yên (chia 1, đã đo), tỷ giá 1 JPY =
+160đ (Sỹ Anh chốt). CHƯA CÓ: hãng giao + tra vận đơn (`tracking.markets`), phí ship 3PL, giá vốn —
+nên các tab theo nước dựa trên vận đơn (Sổ đơn, Theo dõi vận đơn) chưa có Nhật.
 
 | Vai (`role`) | Người | Thấy gì |
 |:--|:--|:--|

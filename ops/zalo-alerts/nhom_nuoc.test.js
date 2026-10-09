@@ -81,8 +81,13 @@ const khongGoiMang = async (url) => { throw new Error(`không được gọi m�
         assert.deepStrictEqual(r.nguoi, ["Thương", "Lộc"]);
     });
 
-    await t("tin Nhật (chưa có shop POS): chỉ tiền ads + tin nhắn, không %ads, không chấm 🔴 camp", async () => {
-        const r = await buildBaoCaoNuoc(CFG, NGAY, { nuoc: "JP", docBan: () => BAN, layRealtime: rt, fetch: khongGoiMang });
+    await t("nước chưa có shop POS (như Nhật 08/10): chỉ tiền ads + tin nhắn, không %ads, không chấm 🔴 camp", async () => {
+        // Nhật nối shop 09/10/2026 nên trong rules đã là dang_ban — giả lập lại lúc chưa có shop.
+        const cu = NUOC.JP.sapChay;
+        NUOC.JP.sapChay = true;
+        let r;
+        try { r = await buildBaoCaoNuoc(CFG, NGAY, { nuoc: "JP", docBan: () => BAN, layRealtime: rt, fetch: khongGoiMang }); }
+        finally { NUOC.JP.sapChay = cu; }
         const c = tron(r.tinGop);
         assert.ok(c.includes("📊 ADS 🇯🇵 NHẬT BẢN"));
         assert.ok(c.includes("💰 Ads 500.000đ · 16 mess · 31k/mess"), c);
@@ -91,6 +96,16 @@ const khongGoiMang = async (url) => { throw new Error(`không được gọi m�
         assert.ok(c.includes("JP/THANG/PHI/002-ATTL/Lucky Charm JP/08-10") && c.includes("JP/THƯƠNG/PHI/011/Lucky Silver JP/08-10"));
         assert.ok(!c.includes("🔴") && !c.includes("%ads"), "Nhật chưa có đơn — không gắn đốt tiền, không %ads");
         assert.ok(!c.includes("TW/"), "camp Đài không lọt vào nhóm Nhật");
+    });
+
+    await t("Nhật đã nối shop (09/10/2026): tin như các nước khác — có đơn, DS, %ads", async () => {
+        assert.strictEqual(NUOC.JP.sapChay, false);
+        const ban = JSON.parse(JSON.stringify(BAN));
+        ban.nuoc.Japan[NGAY].Thang = { ads: 300000, mess: 12, don: 1, doanh_so: 1439840, ds_giao_tc: 0 };
+        const c = tron((await buildBaoCaoNuoc(CFG, NGAY, { nuoc: "JP", docBan: () => ban, layRealtime: rt, fetch: khongGoiMang })).tinGop);
+        assert.ok(c.includes("💰 Ads 500.000đ · DS 1.439.840đ · %ads 34,7%"), c);
+        assert.ok(c.includes("🏆 Thắng 1,4tr · 1 đơn · ads 300k"));
+        assert.ok(!c.includes("chưa nối shop POS"));
     });
 
     await t("tối: ▲▼ so cả ngày hôm qua CỦA CHÍNH NƯỚC ĐÓ", async () => {
@@ -149,7 +164,7 @@ const khongGoiMang = async (url) => { throw new Error(`không được gọi m�
     });
 
     await t("tin hướng dẫn: nhóm Nhật nói rõ chưa có vận đơn", () => {
-        const jp = tron(huongDanNuoc({ nuoc: NUOC.JP, at: "08:30", mocAds: "13:00 · 18:00 · 22:00", vanDon: null }));
+        const jp = tron(huongDanNuoc({ nuoc: { ...NUOC.JP, sapChay: true }, at: "08:30", mocAds: "13:00 · 18:00 · 22:00", vanDon: null }));
         assert.ok(jp.includes("Vận đơn Nhật Bản chưa theo dõi") && !jp.includes("/vandon"));
         const tw = tron(huongDanNuoc({ nuoc: NUOC.TW, at: "08:30", vanDon: { at: "08:30", toi: "22:00" } }));
         assert.ok(tw.includes("/vandon") && tw.includes("xếp hạng từng người"));
