@@ -516,13 +516,14 @@ function batDauNghe(a) {
 // rà tự lo hai việc: chống bắn lại (state ghi TỪNG mốc, TỪNG nước) và chống bắn MUỘN (cửa sổ
 // bù). Dựng tin hỏng (Sheet chưa có dòng, dashboard lỗi) → CHƯA đánh dấu, vòng sau thử lại
 // trong cửa sổ. Gửi được ít nhất một tin rồi mới hỏng → vẫn đánh dấu, để không gửi lặp.
-async function chayMoc(khoa, moc, cuaSo, lamViec) {
+// quaGioYen: mốc mà chính lịch đã đặt trong giờ yên (tin mỗi giờ tới 23:05) — gửi luôn, không chờ.
+async function chayMoc(khoa, moc, cuaSo, lamViec, { quaGioYen = false } = {}) {
     const today = vnDateStr();
     const act = slotAction(moc, vnHHMM(), (loadState().moc || {})[khoa], today, cuaSo);
     if (!act) return;
     const danhDau = () => markState((s) => { (s.moc = s.moc || {})[khoa] = today; });
     if (act === "skip") { danhDau(); log(`Bỏ mốc ${khoa} hôm nay (quá cửa sổ ${cuaSo}', bây giờ ${vnHHMM()}).`); return; }
-    if (inQuietHours()) return;
+    if (!quaGioYen && inQuietHours()) return;
     try {
         const r = await lamViec();
         danhDau();
@@ -558,9 +559,10 @@ async function ratMoc() {
         if (VD_TOI) await chayMoc(`vandon_toi:${m}`, VD_TOI, Number(VD.toiCatchUpMinutes || 60), () => guiVanDon(m, "toi"));
     }
     // Tin mỗi giờ: trễ quá catchUpMinutes thì bỏ giờ đó (bot vừa bật lại lúc 15:20 không bắn
-    // lại 7 giờ đã qua — slotAction trả "skip" cho các giờ cũ).
+    // lại 7 giờ đã qua — slotAction trả "skip" cho các giờ cũ). Mốc 23:05 rơi vào giờ yên
+    // (23h–7h) nên đêm 09/10 và 10/10/2026 đều bị chặn tới quá cửa sổ rồi bỏ → quaGioYen.
     for (const m of MG_MARKETS.filter((x) => nhomNuoc[x])) {
-        for (const moc of mocMoiGio()) await chayMoc(`gio:${m}:${moc}`, moc, Number(MG.catchUpMinutes || 40), () => guiTinGio(m));
+        for (const moc of mocMoiGio()) await chayMoc(`gio:${m}:${moc}`, moc, Number(MG.catchUpMinutes || 40), () => guiTinGio(m), { quaGioYen: true });
     }
 }
 
