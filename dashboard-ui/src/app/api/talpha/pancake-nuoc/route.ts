@@ -145,7 +145,9 @@ export async function GET(req: NextRequest) {
             }
             // Page có camp mà tài khoản Pancake không thấy — nói ra, đừng lặng lẽ thành 0 mess.
             const thay = new Set(tatCa.map((p) => chuanTenPage(p.name)));
-            for (const [k, v] of chuTrang) if (!thay.has(k)) pages.push({ page_id: null, name: v.ten, nv: v.nv, camps: [...v.camps], loi: "tài khoản Pancake không thấy page này" });
+            // Chỉ báo khi camp CÓ TIÊU trong ngày: page đổi tên (10/10/2026 "Lucky Silver JP" thành
+            // "Veloura Collection Gold") thì camp cũ đã tắt vẫn mang tên cũ — báo là nhiễu.
+            for (const [k, v] of chuTrang) if (!thay.has(k) && v.ngayCuoi === ngay) pages.push({ page_id: null, name: v.ten, nv: v.nv, camps: [...v.camps], loi: "tài khoản Pancake không thấy page này (page đổi tên?)" });
             pancake.ok = true;
         } catch (e: any) { pancake.loi = String(e?.message || e); }
     }

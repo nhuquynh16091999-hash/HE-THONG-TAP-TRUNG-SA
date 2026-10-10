@@ -278,6 +278,15 @@
       "key": "SAnh"
     },
     {
+      "contains": "SỸ AANH",
+      "key": "SAnh",
+      "_note": "Tài khoản POS 'Hồ Sỹ Aanh' (gõ thừa chữ a — cùng tên VIA 'Hồ Sỹ Aanh GL') là Sỹ Anh. 10/10/2026: 17 đơn shop Nhật mang tag này rơi vào '(không gán)'."
+    },
+    {
+      "contains": "SY AANH",
+      "key": "SAnh"
+    },
+    {
       "contains": "S.ANH",
       "key": "SAnh",
       "_note": "Ba dòng của Sỹ Anh phải đứng TRƯỚC mọi tên khác. Không dùng 'ANH' trần: 'ANH' nằm trong rất nhiều tên Việt (Thanh, Ánh, Anh Tuấn…) nên sẽ vơ nhầm."
@@ -423,6 +432,8 @@
     "SỸANH": "SAnh",
     "SYANH": "SAnh",
     "SANH": "SAnh",
+    "ANH": "SAnh",
+    "_ANH_note": "Ô marketer 'ANH' = Sỹ Anh (10/10/2026: camp Nhật JAPAN/ANH/PHI/… tiêu 3,8tr trong ngày bị Sheet bỏ hẳn vì không nhận ra người). Chỉ khớp NGUYÊN Ô — không đụng tên page/tên người có chữ Anh.",
     "THÁI": "Thai",
     "THAI": "Thai",
     "THƯƠNG": "Thuong",

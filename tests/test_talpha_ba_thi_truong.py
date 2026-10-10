@@ -12,6 +12,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "ops" / "talpha_reports"))
 
 from talpha_rules import (  # noqa: E402
+    norm_nv, norm_pos_nv,
     campaign_market, RATE, MONEY_DIV, DANG_BAN, CURRENCY_SYMBOL, NO_TEST_MARKETS, is_test,
     cost_price_vnd, COST_RATE_RMB_VND, RULES,
 )
@@ -31,6 +32,13 @@ class TestGanNuocTheoTenCampaign:
         assert campaign_market("TW/THƯƠNG/PHI/042/Japan Prime Leather/6-10")[0] == "Taiwan"
         # 09/10/2026 nối shop POS "JAPAN" 1022115860 — đang bán, POS lưu nguyên yên.
         assert "Japan" in DANG_BAN and MONEY_DIV["Japan"] == 1 and RATE["Japan"] == 160
+
+    def test_camp_va_don_cua_sy_anh_o_nhat(self):
+        # 10/10/2026: camp JAPAN/ANH/… (3,8tr/ngày) bị Sheet bỏ hẳn, 17 đơn tag "Hồ Sỹ Aanh" vào (không gán).
+        assert campaign_market("JAPAN/ANH/PHI/Birstone/Veloura Collection Gold/10-10")[0] == "Japan"
+        assert norm_nv("ANH") == "SAnh"
+        assert norm_pos_nv("Hồ Sỹ Aanh") == "SAnh"
+        assert norm_pos_nv("Anh Tuấn") is None and norm_pos_nv("Ánh") is None   # không vơ tên khác có chữ Anh
 
     def test_cac_cach_viet_nuoc(self):
         for ten, nuoc in (("SINGAPORE/LOC/x", "Singapore"), ("sing/LOC/x", "Singapore"),
