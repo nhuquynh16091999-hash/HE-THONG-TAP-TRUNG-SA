@@ -24,8 +24,15 @@ rồi chuyển về theo kỳ. Singapore: bảng giá 3PL khai ở `shipping_fee
 |:--|:--|:--|
 | Trung Đông | UAE | Lộc |
 | Đông Nam Á | Singapore | Thái |
-| Đông Á | Đài Loan | Sỹ Anh (tạm thời) |
-| Nhật Bản | Nhật Bản | Sỹ Anh (tạm thời) |
+| Đông Á | Đài Loan + Nhật Bản (gộp 10/10/2026) | Sỹ Anh (tạm thời) |
+
+Thành viên: Trung Đông — Lộc · Đông Nam Á — Thái · Đông Á — Sỹ Anh, Quỳnh, Thương, Thắng
+(`access.teams.*.members`). **Chạy lấn nước** của team khác (camp cũ chưa đổi tên) thì tiền ads,
+tin nhắn, đơn, doanh số tính cho **người cầm nước** đó (`markets.*.nguoi_cam`): Đài → Thương,
+Singapore → Thái, UAE → Lộc, Nhật → Sỹ Anh (Sỹ Anh chốt 10/10/2026). Áp ở `format_all.py`
+(Sheet, file riêng, số cho bot) và bot Zalo (`rules.chuTinhSo`); các tab dashboard tự tính từ
+BigQuery vẫn theo tên camp gốc. Thư mục Drive tháng: `Tháng N / TEAM … / <NGƯỜI> / <NƯỚC> T<n>` —
+người nhận theo thư mục gần file nhất, nước theo tên file.
 
 **Nhật Bản (mở 08/10/2026)** — camp đặt `JP/…` (Thắng, Thương chạy từ 08/10). Shop POS **JAPAN**
 1022115860 nối 09/10/2026 (`TALPHA_POSCAKE_JP_KEY`), JPY lưu nguyên yên (chia 1, đã đo), tỷ giá 1 JPY =

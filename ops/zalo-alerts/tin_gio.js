@@ -6,7 +6,7 @@
 //   • đơn + doanh số — bảng đơn POS, cùng luật Sheet (/api/talpha/pancake-nuoc).
 // Camp nối page bằng ô tên page trong tên camp (mỗi camp Nhật một page). Hàm thuần — có test.
 const { B, I } = require("./zalo_text");
-const { chuanTenPage, trangCuaCamp, chuCamp, DISPLAY, campaignMarket, isTestCampaign } = require("./rules");
+const { chuanTenPage, trangCuaCamp, chuTinhSo, DISPLAY, campaignMarket, isTestCampaign } = require("./rules");
 
 const fmt = (n) => Number(n || 0).toLocaleString("vi-VN");
 const p1 = (x) => Number(x || 0).toFixed(1).replace(".", ",");
@@ -17,7 +17,8 @@ const gonTien = (n) => {
     if (x >= 1_000) return `${Math.round(x / 1_000)}k`;
     return `${Math.round(x)}đ`;
 };
-const chuCua = (cn) => { const k = chuCamp(cn); return k ? DISPLAY[k] || k : null; };
+// Chủ camp sau khi chuyển số lấn nước (Sỹ Anh chốt 10/10/2026) — cùng luật Sheet.
+const chuCua = (cn) => { const k = chuTinhSo(cn); return k ? DISPLAY[k] || k : null; };
 
 /**
  * Ghép camp (Meta) + page (Pancake) + đơn (POS) theo tên page đã chuẩn hoá.

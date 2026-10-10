@@ -30,6 +30,26 @@ LOCALCUR = {m: v["currency"] for m, v in _MK.items()}
 CURRENCY_SYMBOL = {m: v.get("currency_symbol") or v["currency"] for m, v in _MK.items()}
 STATUS   = {m: v.get("status", "dang_ban") for m, v in _MK.items()}
 DANG_BAN = [m for m in _MK if STATUS[m] == "dang_ban"]
+# ── Ai cầm nước nào (Sỹ Anh chốt 10/10/2026) ──
+# Số một người chạy LẤN sang nước của team khác (camp cũ chưa đổi tên: Lộc còn camp Đài + Sing,
+# Thái còn camp Đài, Thương còn camp Sing) tính cho NGƯỜI CẦM nước đó. Thành viên team ở
+# access.teams.*.members, người cầm ở markets.*.nguoi_cam. Người không thuộc team nào: giữ nguyên.
+NUOC_CUA_NGUOI = {}
+for _t in (RULES.get("access", {}).get("teams") or {}).values():
+    if isinstance(_t, dict):
+        for _nv in _t.get("members") or []:
+            NUOC_CUA_NGUOI.setdefault(_nv, set()).update(_t.get("markets") or [])
+NGUOI_CAM = {m: v["nguoi_cam"] for m, v in _MK.items() if v.get("nguoi_cam")}
+
+
+def nguoi_tinh_so(nv, mkt):
+    """Người được tính số của ô (nv, nước): chạy lấn nước của team khác → người cầm nước đó."""
+    nuoc = NUOC_CUA_NGUOI.get(nv)
+    if nuoc is None or mkt in nuoc:
+        return nv
+    return NGUOI_CAM.get(mkt) or nv
+
+
 # Nước lấy số TIN NHẮN từ Pancake thay Meta (Nhật — Meta không báo mess ở Nhật, 09/10/2026).
 MESS_PANCAKE = {m for m, v in _MK.items() if v.get("mess_source") == "pancake"}
 # X13 — số chia đưa cod/phí thô của POS về ĐƠN VỊ TIỀN THẬT của shop. 6 shop GCC lưu

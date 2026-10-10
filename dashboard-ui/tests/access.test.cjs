@@ -21,10 +21,10 @@ const q = (s) => new URLSearchParams(s);
 const track = (m) => (["SG", "AE"].includes(String(m || "").toUpperCase()) ? String(m).toUpperCase() : "TW");
 
 console.log("── Luật khai ở talpha_rules.json ──");
-t("bốn team, mỗi team một nước (Nhật thành team riêng 08/10/2026)", () => {
+t("ba team: Đông Á = Đài + Nhật (gộp 10/10/2026); khoá nhat_ban giữ cho tài khoản cũ", () => {
     assert.deepStrictEqual(A.TEAMS.trung_dong.markets, ["UAE"]);
     assert.deepStrictEqual(A.TEAMS.dong_nam_a.markets, ["Singapore"]);
-    assert.deepStrictEqual(A.TEAMS.dong_a.markets, ["Taiwan"]);
+    assert.deepStrictEqual(A.TEAMS.dong_a.markets, ["Taiwan", "Japan"]);
     assert.deepStrictEqual(A.TEAMS.nhat_ban.markets, ["Japan"]);
     assert.deepStrictEqual([...A.ALL_MARKET_KEYS].sort(), ["Japan", "Singapore", "Taiwan", "UAE"]);
 });

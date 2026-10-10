@@ -79,5 +79,14 @@ const CAMPS = [
         assert.strictEqual(r.so.mess, 4);
     });
 
+    await t("camp lấn nước tính cho người cầm nước (10/10/2026): Lộc chạy Đài → Thương", () => {
+        const { chuTinhSo } = require("./rules");
+        assert.strictEqual(chuTinhSo("TW/LỘC/PHI/042/Japan Prime Leather/26-9"), "Thuong");
+        assert.strictEqual(chuTinhSo("SGP/LỘC/PHI/011/Lucky Silver Philippines/28-9"), "Thai");
+        assert.strictEqual(chuTinhSo("SGP/THƯƠNG/PHI/071/Biyaya/30-9"), "Thai");
+        assert.strictEqual(chuTinhSo("JP/THƯƠNG/PHI/011/Lucky Silver JP/08-10"), "Thuong");
+        assert.strictEqual(chuTinhSo("AE/LOC/PHI/040/x/1509"), "Loc");
+    });
+
     console.log(`tin_gio.test.js: ${ok}/${ok} PASS`);
 })().catch((e) => { console.error(e); process.exit(1); });

@@ -40,7 +40,7 @@ from talpha_rules import (RATE, LOCALCUR, MONEY_DIV, ALLM, MARKETS, SHOP2MKT, GT
                           DISPLAY, EXTERNAL_DISPLAY, norm_pos_external, norm_nv_external,
                           UNASSIGN, bucket_nv, campaign_market,
                           camp_san_pham, tao_chi_muc_page, tim_camp_theo_page,
-                          tao_ten_tab_page, ten_tab_cua_don, sql_la_don_trong, MESS_PANCAKE)
+                          tao_ten_tab_page, ten_tab_cua_don, sql_la_don_trong, MESS_PANCAKE, nguoi_tinh_so)
 # SHOP2MKT + norm_pos_nv: import từ talpha_rules (xem trên)
 def parse_camp(cn):
     p=[x.strip() for x in (cn or "").split("/")]
@@ -214,6 +214,21 @@ for r in DON:
     # Thị trường miễn rule test (Taiwan) → đơn LUÔN tính thật.
     t=(mkt not in NO_TEST_MARKETS) and ((r.ad_id in test_ads) or (str(r.page_id) in purely_test_pages))
     c=(cell_test if t else cell)[(nv,mkt,prod,str(r.d))]; c["orders"]+=1; c["cod"]+=r.cod or 0; c["cod_gtc"]+=r.cod_gtc or 0
+# ── LẤN NƯỚC → NGƯỜI CẦM NƯỚC (Sỹ Anh chốt 10/10/2026) ── tiền ads, tin nhắn, đơn, doanh số của
+# một người ở nước thuộc team khác (camp cũ chưa đổi tên) chuyển cho người cầm nước đó: Đài →
+# Thương, Singapore → Thái, UAE → Lộc (talpha_rules.nguoi_tinh_so). Làm SAU khi gom đủ ads + đơn,
+# TRƯỚC khi ghi file — Sheet, file riêng và số cho bot Zalo cùng một cách tính.
+def _gom_lan_nuoc(cells):
+    moi=collections.defaultdict(lambda:{"spend":0.0,"msg":0,"pur":0,"orders":0,"cod":0.0,"cod_gtc":0.0}); lan=collections.defaultdict(lambda:[0.0,0])
+    for (nv,mkt,tab,d),c in cells.items():
+        nv2=nguoi_tinh_so(nv,mkt)
+        if nv2!=nv: lan[(nv,nv2,mkt)][0]+=c["spend"]; lan[(nv,nv2,mkt)][1]+=c["orders"]
+        x=moi[(nv2,mkt,tab,d)]
+        for kk in x: x[kk]+=c.get(kk,0)
+    return moi,lan
+cell,_LAN=_gom_lan_nuoc(cell); cell_test,_=_gom_lan_nuoc(cell_test)
+for (_a,_b,_m),(_s,_o) in sorted(_LAN.items()):
+    print(f"LAN NUOC: {DISPLAY.get(_a,_a)} chay {_m} → tinh cho {DISPLAY.get(_b,_b)}: {_s:,.0f} d ads · {_o} don")
 def H(local): return ["Ngày","TỔNG TIỀN ADS","SỐ TIN NHẮN","Giá Tiền/TN","CPO","Tỷ lệ chốt","Số đơn",local,"Tỉ giá","Doanh Số","DS Giao TC","% Ads/DT","% Ads/DT giao","TB đơn"]
 def drow(day,c,rate,div):
     # X13: `div` là số chia của CHÍNH thị trường đó (MONEY_DIV) — GCC 100, Đài 1.

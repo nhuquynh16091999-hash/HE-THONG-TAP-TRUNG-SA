@@ -20,7 +20,7 @@
 const { B, I } = require("./zalo_text");
 const {
     chuCamp, MARKETERS, DISPLAY, THU_TU, UNASSIGN, TAB_NUOC, CO_NUOC, isTestCampaign, tenNganCamp,
-    NUOC, campaignMarket,
+    NUOC, campaignMarket, chuTinhSo,
 } = require("./rules");
 const { ngayChuaDu } = require("./schedule");   // "ngày đó xong chưa" — có test riêng
 
@@ -46,8 +46,10 @@ const KHONG_GAN = "(không gán)";
 
 // Chủ campaign theo đúng luật của Sheet (xem chuCamp trong rules.js) — phần chi tiết phải
 // cộng lại khớp số đầu bài của chính tin đó.
-function marketerOf(name) {
-    const key = chuCamp(name);
+// camNuoc: tin của NHÓM MỘT NƯỚC — camp chạy lấn nước của team khác tính cho NGƯỜI CẦM nước đó
+// (rules.chuTinhSo, Sỹ Anh chốt 10/10/2026), cùng luật vòng ghi Sheet. Tin gộp cũ giữ chủ camp gốc.
+function marketerOf(name, camNuoc = false) {
+    const key = camNuoc ? chuTinhSo(name) : chuCamp(name);
     return key ? DISPLAY[key] || key : "";
 }
 
@@ -350,7 +352,7 @@ function ghepChiTietCamp(dong, { camps, cfg, canhBaoCamp, opts }) {
     } else if (opts.khongDon) {
         const nhom = new Map();
         for (const c of camps) {
-            const mk = marketerOf(c.campaign_name) || "Chưa gán";
+            const mk = marketerOf(c.campaign_name, !!opts.camNuoc) || "Chưa gán";
             if (!nhom.has(mk)) nhom.set(mk, []);
             nhom.get(mk).push(c);
         }
@@ -368,7 +370,7 @@ function ghepChiTietCamp(dong, { camps, cfg, canhBaoCamp, opts }) {
         dong.push(I("🟢 ngon · 🟡 có đơn · ⚪ chưa ra đơn · 🔴 đốt tiền"));
         const nhom = new Map();
         for (const c of camps) {
-            const mk = marketerOf(c.campaign_name) || "Chưa gán";
+            const mk = marketerOf(c.campaign_name, !!opts.camNuoc) || "Chưa gán";
             if (!nhom.has(mk)) nhom.set(mk, []);
             nhom.get(mk).push(c);
         }
@@ -461,7 +463,7 @@ async function buildBaoCaoNuoc(cfg, dateStr, opts = {}) {
         catch (e) { if (opts.log) opts.log(`không lấy được số hôm qua của ${n.ma} để so: ${e.message}`); }
     }
     const canhBao = canhBaoSoCu(opts.stale, dateStr, opts.intraday);
-    opts = { ...opts, canhBao, label, khongDon: n.sapChay };
+    opts = { ...opts, canhBao, label, khongDon: n.sapChay, camNuoc: true };
 
     let camps = [], canhBaoCamp = "";
     try {
@@ -496,7 +498,7 @@ async function buildBaoCaoNuoc(cfg, dateStr, opts = {}) {
         teamMessage: dauTin(null),
         tinNguoi: (ten) => {
             const r = rows.find((x) => x.mk === ten);
-            const cua = camps.filter((c) => marketerOf(c.campaign_name) === ten);
+            const cua = camps.filter((c) => marketerOf(c.campaign_name, true) === ten);
             if (!r && !cua.length) return `ℹ️ ${ten} chưa có số ở ${n.flag} ${n.ten} ${opts.intraday ? "hôm nay" : "ngày " + ddmm(dateStr)}.`;
             const x = r || tyLe(soRong());
             const dong = [B(`📊 ADS ${n.flag} ${n.ten.toUpperCase()} · ${label} — ${ten}`)];
@@ -566,7 +568,7 @@ function buildCanhBaoNuoc(campsHomNay, cfg, nuoc, dateStr) {
         return `✅ ${B("ADS — chưa thấy gì bất thường")}\n${dau}Không camp nào tiêu từ ${fmt(nguong)}đ mà 0 tin nhắn.`;
     }
     return `🔥 ${B(`Camp ĐỐT TIỀN KHÔNG RA TIN NHẮN (${dot.length})`)}\n${dau}`
-        + dot.slice(0, 12).map((c) => `\n• ${fmt(Math.round(c.spend_vnd))}đ · 0 tin nhắn${marketerOf(c.campaign_name) ? " · " + marketerOf(c.campaign_name) : ""}\n   ${String(c.campaign_name || "").trim()}`).join("")
+        + dot.slice(0, 12).map((c) => `\n• ${fmt(Math.round(c.spend_vnd))}đ · 0 tin nhắn${marketerOf(c.campaign_name, true) ? " · " + marketerOf(c.campaign_name, true) : ""}\n   ${String(c.campaign_name || "").trim()}`).join("")
         + (dot.length > 12 ? `\n…và ${dot.length - 12} camp khác.` : "");
 }
 

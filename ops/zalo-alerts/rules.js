@@ -168,8 +168,27 @@ function chonNhomTheoTen(dsNhom, cacNuoc) {
     return { chon, trung, thieu };
 }
 
+// ── Ai cầm nước nào (Sỹ Anh chốt 10/10/2026) — ≡ nguoi_tinh_so bên talpha_rules.py ──
+// Số một người chạy LẤN sang nước của team khác (camp cũ chưa đổi tên) tính cho người cầm nước đó.
+const NUOC_CUA_NGUOI = {};
+for (const t of Object.values(khongGhiChu((RULES.access || {}).teams))) {
+    if (!t || typeof t !== "object") continue;
+    for (const nv of t.members || []) for (const m of t.markets || []) (NUOC_CUA_NGUOI[nv] = NUOC_CUA_NGUOI[nv] || new Set()).add(m);
+}
+const NGUOI_CAM = Object.fromEntries(Object.entries(khongGhiChu(RULES.markets)).filter(([, v]) => v && v.nguoi_cam).map(([k, v]) => [k, v.nguoi_cam]));
+function nguoiTinhSo(key, marketKey) {
+    const nuoc = NUOC_CUA_NGUOI[key];
+    if (!nuoc || nuoc.has(marketKey)) return key;
+    return NGUOI_CAM[marketKey] || key;
+}
+/** Chủ camp SAU khi chuyển số lấn nước — dùng cho mọi chỗ gom camp theo người. */
+function chuTinhSo(cn) {
+    const k = chuCamp(cn);
+    return k ? nguoiTinhSo(k, campaignMarket(cn).market) : null;
+}
+
 module.exports = {
-    NUOC, nuocTuTenNhom, chonNhomTheoTen, chuanTenPage, trangCuaCamp,
+    NUOC, nuocTuTenNhom, chonNhomTheoTen, chuanTenPage, trangCuaCamp, nguoiTinhSo, chuTinhSo,
     RULES, MARKETERS, DISPLAY, THU_TU, UNASSIGN, PRIMARY_MARKET, TAB_NUOC, CO_NUOC,
     chuCamp, normCampMarketer, campaignMarket, isTestCampaign, tenNganCamp,
 };

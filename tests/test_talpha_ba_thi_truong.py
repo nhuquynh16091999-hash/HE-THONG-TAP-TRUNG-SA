@@ -12,7 +12,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "ops" / "talpha_reports"))
 
 from talpha_rules import (  # noqa: E402
-    norm_nv, norm_pos_nv,
+    norm_nv, norm_pos_nv, nguoi_tinh_so, NGUOI_CAM,
     campaign_market, RATE, MONEY_DIV, DANG_BAN, CURRENCY_SYMBOL, NO_TEST_MARKETS, is_test,
     cost_price_vnd, COST_RATE_RMB_VND, RULES,
 )
@@ -39,6 +39,16 @@ class TestGanNuocTheoTenCampaign:
         assert norm_nv("ANH") == "SAnh"
         assert norm_pos_nv("Hồ Sỹ Aanh") == "SAnh"
         assert norm_pos_nv("Anh Tuấn") is None and norm_pos_nv("Ánh") is None   # không vơ tên khác có chữ Anh
+
+    def test_lan_nuoc_tinh_cho_nguoi_cam_nuoc(self):
+        # Sỹ Anh chốt 10/10/2026: camp cũ chưa đổi tên chạy lấn nước của team khác → người cầm nước đó.
+        assert NGUOI_CAM == {"Taiwan": "Thuong", "Singapore": "Thai", "UAE": "Loc", "Japan": "SAnh"}
+        assert nguoi_tinh_so("Loc", "Taiwan") == "Thuong" and nguoi_tinh_so("Loc", "Singapore") == "Thai"
+        assert nguoi_tinh_so("Thai", "Taiwan") == "Thuong" and nguoi_tinh_so("Thuong", "Singapore") == "Thai"
+        # Đúng nước của team mình thì giữ nguyên — Đông Á gồm Đài + Nhật.
+        assert nguoi_tinh_so("Loc", "UAE") == "Loc" and nguoi_tinh_so("Thuong", "Japan") == "Thuong"
+        assert nguoi_tinh_so("Quynh", "Taiwan") == "Quynh" and nguoi_tinh_so("SAnh", "Japan") == "SAnh"
+        assert nguoi_tinh_so("(không gán)", "Taiwan") == "(không gán)"
 
     def test_cac_cach_viet_nuoc(self):
         for ten, nuoc in (("SINGAPORE/LOC/x", "Singapore"), ("sing/LOC/x", "Singapore"),
