@@ -22,6 +22,7 @@
 //       node bot.js --report [YYYY-MM-DD] [--nuoc TW]   (gửi ngay báo cáo ngày đó — mặc định hôm qua, mọi nước)
 //       node bot.js --vandon [sang|toi] [--nuoc SG]     (gửi ngay tin vận đơn)
 //       node bot.js --moc 13:00 [--nuoc AE]             (gửi ngay tin một mốc giữa ngày)
+//       node bot.js --dinh-chinh [--nuoc SG]            (gửi ngay tin ĐÍNH CHÍNH đang chờ — kể cả 23h–7h)
 //       thêm --dry-run: IN tin ra màn hình, không đăng nhập, không gửi.
 // ═══════════════════════════════════════════════════════════════════
 const fs = require("fs");
@@ -381,29 +382,33 @@ function xepDinhChinh(khoa, r, ngay, homNay, m) {
     log(`Tin ${m} "${r.label}" gửi khi số CHƯA ĐỦ — chờ vòng sync đủ số để đính chính (hạn ${new Date(cho.hanTs).toISOString()}).`);
 }
 
-async function ratDinhChinh() {
+// goiTay: chạy `--dinh-chinh` — người gọi đã chọn gửi lúc này nên giờ yên không chặn (Sỹ Anh
+// 11/10/2026: tin 22:00 SỐ CHƯA ĐỦ, sync đủ lúc 23:22 — chờ tới 7h thì tin giữa ngày đã hết hạn).
+// chiNuoc: chỉ đính chính nước đó. Dry-run chỉ IN, không xoá lịch chờ.
+async function ratDinhChinh({ goiTay = false, chiNuoc = null } = {}) {
     const cho = loadState().dinhChinh || {};
-    const khoa = Object.keys(cho);
-    if (!khoa.length) return;                       // không có gì chờ → không hỏi sync-health
+    const khoa = Object.keys(cho).filter((k) => !chiNuoc || (cho[k] && cho[k].nuoc === chiNuoc));
+    if (!khoa.length) { if (goiTay) log("Không có tin nào đang chờ đính chính."); return; }   // không hỏi sync-health
     const stale = await fetchStale();
     for (const k of khoa) {
         const p = cho[k];
-        const xoa = () => markState((s) => { if (s.dinhChinh) delete s.dinhChinh[k]; });
+        const xoa = () => { if (!DRY) markState((s) => { if (s.dinhChinh) delete s.dinhChinh[k]; }); };
+        const nhom = p && nhomCua(p.nuoc);
         // Lịch chờ của tin gộp cũ (trước 08/10/2026, không gắn nước) — nhóm đó đã bỏ.
-        if (!p || !NUOC[p.nuoc] || !nhomNuoc[p.nuoc]) { xoa(); log(`Bỏ chờ đính chính "${k}" — không có nhóm nước để gửi.`); continue; }
+        if (!p || !NUOC[p.nuoc] || !nhom) { xoa(); log(`Bỏ chờ đính chính "${k}" — không có nhóm nước để gửi.`); continue; }
         const act = canDinhChinh(p, stale);
-        if (!act) continue;
+        if (!act) { if (goiTay) log(`${p.nuoc} "${p.label}": sync chưa có vòng đủ số nào sau tin cũ — chưa đính chính được.`); continue; }
         if (act === "het-han") { xoa(); log(`Bỏ chờ đính chính ${p.nuoc} "${p.label}" — quá hạn mà số vẫn chưa đủ.`); continue; }
-        if (inQuietHours()) return;                 // 23h–7h: không đánh thức nhóm, vòng sau gửi
+        if (!goiTay && inQuietHours()) return;      // 23h–7h: không đánh thức nhóm, vòng sau gửi
         try {
             await lanLuot(async () => {
                 const r = await dungBaoCao(p.nuoc, p.ngay, p.intraday, p.label, stale);
                 await guiLoat([buildTinDinhChinh({
                     tin: r.tinGop, soCu: p.so, soMoi: r.so, label: `${NUOC[p.nuoc].flag} ${p.label}`, luc: p.luc, intraday: p.intraday,
-                })], nhomNuoc[p.nuoc]);
+                })], nhom);
             });
             xoa();
-            log(`Đã gửi đính chính ${p.nuoc} "${p.label}".`);
+            log(`${DRY ? "In thử" : "Đã gửi"} đính chính ${p.nuoc} "${p.label}".`);
         } catch (e) {
             if (e.daGui > 0) { xoa(); log(`Đính chính ${p.nuoc} "${p.label}" gửi được một phần — không gửi lại:`, e.message); }
             else log(`Đính chính ${p.nuoc} "${p.label}" lỗi — vòng sau thử lại:`, e.message);
@@ -647,11 +652,14 @@ async function chayDichVu() {
 
 async function main() {
     const lenh = argAfter("--lenh");
-    if (lenh || ARGS.includes("--report") || ARGS.includes("--vandon") || ARGS.includes("--moc") || ARGS.includes("--gio")) {
+    if (lenh || ["--report", "--vandon", "--moc", "--gio", "--dinh-chinh"].some((a) => ARGS.includes(a))) {
         if (!DRY) { zalo = require("./zalo"); docCacNhom(); }
         const nuoc = argAfter("--nuoc") ? [argAfter("--nuoc").toUpperCase()] : null;
         if (nuoc && !NUOC[nuoc[0]]) throw new Error(`--nuoc lạ: ${nuoc[0]} (có: ${CAC_NUOC.join(", ")})`);
-        if (ARGS.includes("--gio")) {
+        if (ARGS.includes("--dinh-chinh")) {
+            // --dinh-chinh [--nuoc SG]: gửi ngay các tin đính chính đang chờ (state.json), bỏ qua giờ yên.
+            await ratDinhChinh({ goiTay: true, chiNuoc: nuoc ? nuoc[0] : null });
+        } else if (ARGS.includes("--gio")) {
             // --gio [--nuoc JP]: gửi ngay tin mỗi giờ (không ghi mốc "lần trước").
             for (const m of (nuoc || MG_MARKETS)) {
                 if (!nhomCua(m)) { log(`Bỏ ${m}: chưa có nhóm.`); continue; }
