@@ -394,8 +394,10 @@ async function toGrids(buf: Buffer): Promise<{ name: string; grid: Grid }[]> {
         const grid: Grid = [];
         ws.eachRow({ includeEmpty: true }, (row, n) => {
             const vals = row.values as unknown[];
-            // ExcelJS đánh số cột từ 1 — bỏ phần tử 0 để về mảng 0-based.
-            grid[n - 1] = Array.isArray(vals) ? vals.slice(1) : [];
+            // ExcelJS đánh số cột từ 1 — bỏ phần tử 0 để về mảng 0-based. Ô trống là "lỗ"
+            // (mảng thưa): .map() bỏ qua lỗ còn findIndex thì không → Array.from lấp thành
+            // undefined (sao kê Sing 12/10/2026 có ô tiêu đề trống, cả file báo "không mở được").
+            grid[n - 1] = Array.isArray(vals) ? Array.from(vals.slice(1)) : [];
         });
         for (let i = 0; i < grid.length; i++) if (!grid[i]) grid[i] = [];
         return { name: ws.name, grid };

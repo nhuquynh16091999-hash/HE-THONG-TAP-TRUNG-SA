@@ -387,5 +387,25 @@ const FEE_OK = [
         assert.strictEqual(st.market, "SG");
     });
 
+    console.log("── Ô tiêu đề để TRỐNG giữa các cột ──");
+    // Sao kê Sing tải lên 12/10/2026: dòng tiêu đề sheet phí có một ô trống giữa hai cột.
+    // ExcelJS bỏ "lỗ" ở ô trống (mảng thưa) → bộ tìm cột gọi .includes trên undefined →
+    // cả file báo "Không mở được file .xlsx".
+    await t("dòng tiêu đề có ô trống: vẫn đọc được COD và phí", async () => {
+        const wb = new ExcelJS.Workbook();
+        wb.addWorksheet("TỔNG").addRow(["本期回款金额", "", 50]);
+        const c = wb.addWorksheet("COD");
+        c.addRow(["收货日期", "原单号", null, "转单号", "产品名称", "国家名称", "COD金额"]);
+        c.addRow(["2026-10-01", "S2001", null, "JT2027", "S新加坡CODJT专线", "新加坡", 50]);
+        const f = wb.addWorksheet("运费账单");
+        f.addRow(["序号", "出货日期", "原单号", null, "转单号", "运输方式", "计费重", "快递运费", "操作费"]);
+        f.addRow([1, "2026-09-30", "S2001", null, "JT2027", "S新加坡CODJT专线", 0.2, 28, 3]);
+        const st = await N.parseNazaStatement(Buffer.from(await wb.xlsx.writeBuffer()), "新加坡COD对账单 2026.10.12.xlsx");
+        assert.strictEqual(st.cod_lines.length, 1);
+        assert.strictEqual(st.cod_lines[0].tracking, "JT2027");
+        assert.strictEqual(st.fee_lines.length, 1);
+        assert.strictEqual(st.fee_lines[0].tracking, "JT2027");
+    });
+
     console.log(`\n${pass} phép thử — tất cả đạt.`);
 })().catch((e) => { console.error("\n✗ HỎNG:", e.message); process.exit(1); });
