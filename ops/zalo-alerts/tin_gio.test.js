@@ -79,6 +79,47 @@ const CAMPS = [
         assert.strictEqual(r.so.mess, 4);
     });
 
+    await t("chi tiết camp (12/10/2026): nhãn gọn, chia mess theo click, nhóm QC, phần tăng giờ qua", () => {
+        const { nhanCamp, nhanNhom, chiaMessTheoCamp } = require("./tin_gio");
+        assert.strictEqual(nhanCamp("JAPAN/ANH/PHI/Birstone/Veloura Collection Gold/10-10"), "PHI/Birstone/10-10");
+        assert.strictEqual(nhanCamp("JAPAN/THANG/PHI/042/𝑷𝒓𝒊𝒎𝒆 𝑳𝒆𝒂𝒕𝒉𝒆𝒓 𝑱𝒂𝒑𝒂𝒏/10-12"), "PHI/042/10-12");
+        assert.strictEqual(nhanNhom("JP/THANG/PHI/042/𝑷𝒓𝒊𝒎𝒆 𝑳𝒆𝒂𝒕𝒉𝒆𝒓 𝑱𝒂𝒑𝒂𝒏/12-10 VD2 - Bản sao"), "12-10 VD2 - Bản sao");
+        assert.strictEqual(nhanNhom("Content 1 - Bản sao 2"), "Content 1 - Bản sao 2");
+        assert.deepStrictEqual(chiaMessTheoCamp(34, [{ link_clicks: 74 }, { link_clicks: 11 }]), [30, 4]);
+        assert.deepStrictEqual(chiaMessTheoCamp(7, [{ link_clicks: 1 }, { link_clicks: 1 }, { link_clicks: 1 }]).reduce((a, b) => a + b), 7, "tổng chia luôn bằng mess page");
+        assert.deepStrictEqual(chiaMessTheoCamp(5, [{ link_clicks: 0, spend_vnd: 300 }, { link_clicks: 0, spend_vnd: 100 }]), [4, 1], "không có click thì chia theo tiền");
+        assert.deepStrictEqual(chiaMessTheoCamp(9, [{ link_clicks: 3 }]), [9]);
+
+        const ad = (adset, spend, hien, click, don = 0) => ({ adset_name: adset, spend_vnd: spend, impressions: hien, link_clicks: click, purchases: don });
+        const camps = [
+            { campaign_id: "c1", account_name: "SA ANTALO 01", campaign_name: "JAPAN/ANH/PHI/Birstone/Veloura Collection Gold/10-10",
+              spend_vnd: 863000, impressions: 3170, link_clicks: 74, purchases: 4,
+              ads: [ad("Content 1 - Bản sao 2", 657000, 2540, 58, 2), ad("Content 1 - Bản sao", 190000, 600, 15, 2), ad("Content 1", 16000, 30, 1)] },
+            { campaign_id: "c2", account_name: "SA ANTALO 02", campaign_name: "JAPAN/ANH/PHI/Birstone/Veloura Collection Gold/12-10",
+              spend_vnd: 205000, impressions: 810, link_clicks: 11, purchases: 0, ads: [ad("12-10", 205000, 810, 11)] },
+        ];
+        const pk = { ...PK, pages: [{ page_id: "1357521110781458", name: "Veloura Collection Gold", nv: "Sỹ Anh", inbox_moi: 34, comment_moi: 4, co_sdt: 4 }],
+            don: [{ page_name: "Veloura Collection Gold", page_id: "1357521110781458", tag: null, don: 4, ds_local: 39996, ds_vnd: 6399360 }] };
+        const r1 = buildTinGio({ n: NUOC.JP, ngay: "2026-10-12", gio: "15:05", pk, camps });
+        assert.deepStrictEqual(r1.tong.trang, { "veloura collection gold": { mess: 34, don: 4 } });
+        assert.deepStrictEqual(r1.tong.camp, { c1: { ads: 863000, click: 74 }, c2: { ads: 205000, click: 11 } });
+
+        const truoc = { ngay: "2026-10-12", tong: { ...r1.tong, mess: 32, trang: { "veloura collection gold": { mess: 32, don: 4 } }, camp: { c1: { ads: 783000, click: 70 } } } };
+        const c = tron(buildTinGio({ n: NUOC.JP, ngay: "2026-10-12", gio: "16:05", pk, camps, truoc }).text);
+        assert.ok(c.includes("📄 THEO PAGE · CAMP"), c);
+        assert.ok(c.includes("ads 1,1tr · 34 mess (+2) · 31k/mess · 4 bình luận · 4 SĐT · 4 đơn · 39.996¥ ≈ 6,4tr · 267k/đơn"), c);
+        assert.ok(c.includes("  ▸ PHI/Birstone/10-10 · SA ANTALO 01\n      ads 863k (+80k) · ~30 mess · 29k/mess · 4 đơn Meta · 216k/đơn\n      74 click · 12k/click · CTR 2,3% · CPM 272k"), c);
+        assert.ok(c.includes("      • Content 1 - Bản sao 2: 657k · 58 click · 11k/click · CTR 2,3% · 2 đơn"), c);
+        assert.ok(c.includes("  ▸ PHI/Birstone/12-10 · SA ANTALO 02\n      ads 205k · ~4 mess · 51k/mess · 0 đơn Meta\n      11 click · 19k/click · CTR 1,4% · CPM 253k\n"), "camp một nhóm thì không in nhóm: " + c);
+        assert.ok(c.includes("~mess = page chạy nhiều camp, chia mess theo click"), c);
+
+        // Máy chủ chưa có bản API mới (thiếu link_clicks): không in dòng click, mess chia theo tiền.
+        const cu = camps.map(({ link_clicks, ads, ...x }) => ({ ...x, ads: ads.map(({ link_clicks: _, ...a }) => a) }));
+        const c3 = tron(buildTinGio({ n: NUOC.JP, ngay: "2026-10-12", gio: "16:05", pk, camps: cu }).text);
+        assert.ok(!c3.includes(" click") && c3.includes("~27 mess") && c3.includes("~7 mess"), c3);
+        assert.ok(c3.includes("chia mess theo tiền"), c3);
+    });
+
     await t("camp lấn nước tính cho người cầm nước (10/10/2026): Lộc chạy Đài → Thương", () => {
         const { chuTinhSo } = require("./rules");
         assert.strictEqual(chuTinhSo("TW/LỘC/PHI/042/Japan Prime Leather/26-9"), "Thuong");

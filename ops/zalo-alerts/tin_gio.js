@@ -20,6 +20,64 @@ const gonTien = (n) => {
 // Chủ camp sau khi chuyển số lấn nước (Sỹ Anh chốt 10/10/2026) — cùng luật Sheet.
 const chuCua = (cn) => { const k = chuTinhSo(cn); return k ? DISPLAY[k] || k : null; };
 
+// ── Chi tiết từng camp dưới mỗi page (Sỹ Anh yêu cầu 12/10/2026: "lấy thông số để tối ưu camp") ──
+// Ở Nhật Meta không báo mess, Pancake không ghi hội thoại đến từ ad nào (ad_clicks rỗng), đơn POS
+// không có ad_id. Số theo camp nên là: tiền + click vào Messenger (inline_link_clicks) + đơn Meta
+// tự ghi theo ad (messaging_order_created — 12/10 khớp POS, 10/10 Meta 9 / POS 19 nên chỉ để SO
+// camp với nhau). Mess của page CHỈ chia cho camp khi page chạy nhiều camp — chia theo click.
+
+/** "JAPAN/ANH/PHI/Birstone/Veloura Collection Gold/10-10" → "PHI/Birstone/10-10": bỏ ô nước,
+ *  marketer và page (page đã in ở dòng trên) — đủ để tìm camp trên Ads Manager. */
+function nhanCamp(cn) {
+    const p = String(cn || "").split("/").map((s) => s.trim());
+    const t = trangCuaCamp(cn);
+    const k = t ? p.indexOf(t) : -1;
+    if (k < 2) return String(cn || "");
+    return [...p.slice(k - 2, k), ...p.slice(k + 1)].filter(Boolean).join("/") || String(cn);
+}
+
+/** Tên nhóm quảng cáo gọn: nhóm đặt tên kiểu camp ("JP/THANG/…/12-10 VD2 - Bản sao") lấy ô cuối. */
+function nhanNhom(s) {
+    const x = String(s || "").split("/").pop().trim() || String(s || "") || "(không tên)";
+    return x.length > 40 ? x.slice(0, 40) + "…" : x;
+}
+
+/** Mess của page chia cho các camp của page theo click Messenger (không có click thì theo tiền).
+ *  Phần dư làm tròn trao cho camp có phần lẻ lớn nhất — tổng luôn đúng bằng mess của page. */
+function chiaMessTheoCamp(tongMess, cs) {
+    if (cs.length <= 1) return cs.map(() => tongMess);
+    let w = cs.map((c) => Number(c.link_clicks || 0));
+    if (!w.some((v) => v > 0)) w = cs.map((c) => Number(c.spend_vnd || 0));
+    const S = w.reduce((a, b) => a + b, 0) || 1;
+    const raw = w.map((v) => (tongMess * v) / S);
+    const out = raw.map(Math.floor);
+    const le = raw.map((v, i) => [v - Math.floor(v), i]).sort((a, b) => b[0] - a[0]);
+    for (let j = 0, du = tongMess - out.reduce((a, b) => a + b, 0); j < du; j++) out[le[j % le.length][1]]++;
+    return out;
+}
+
+/** Gom ad của camp theo nhóm quảng cáo (adset), xếp theo tiền. */
+function nhomCuaCamp(c) {
+    const m = new Map();
+    for (const a of c.ads || []) {
+        if (!(a.spend_vnd > 0)) continue;
+        const k = a.adset_name || "";
+        if (!m.has(k)) m.set(k, { ten: nhanNhom(k), ads: 0, hien: 0, click: 0, don: 0 });
+        const g = m.get(k);
+        g.ads += a.spend_vnd; g.hien += Number(a.impressions || 0); g.click += Number(a.link_clicks || 0); g.don += Number(a.purchases || 0);
+    }
+    return [...m.values()].sort((a, b) => b.ads - a.ads);
+}
+
+/** "74 click · 12k/click · CTR 4,9%" — CTR tính trên click Messenger, không phải mọi lượt bấm. */
+function soClick(ads, click, hien) {
+    const o = [`${fmt(click)} click`];
+    if (click > 0) o.push(`${gonTien(ads / click)}/click`);
+    if (hien > 0) o.push(`CTR ${p1((click / hien) * 100)}%`);
+    return o;
+}
+const NHOM_TOI_DA = 4;
+
 /**
  * Ghép camp (Meta) + page (Pancake) + đơn (POS) theo tên page đã chuẩn hoá.
  * @param pk    kết quả /api/talpha/pancake-nuoc
@@ -30,7 +88,7 @@ function ghepTheoTrang(pk, camps) {
     const map = new Map();
     const lay = (ten) => {
         const k = chuanTenPage(ten);
-        if (!map.has(k)) map.set(k, { ten, nv: null, ads: 0, mess: 0, cmt: 0, sdt: 0, don: 0, dsLocal: 0, dsVnd: 0, camps: [], loi: "" });
+        if (!map.has(k)) map.set(k, { ten, nv: null, ads: 0, mess: 0, cmt: 0, sdt: 0, don: 0, dsLocal: 0, dsVnd: 0, camps: [], cs: [], loi: "" });
         return map.get(k);
     };
     for (const p of (pk && pk.pages) || []) {
@@ -43,7 +101,7 @@ function ghepTheoTrang(pk, camps) {
         if (!(c.spend_vnd > 0) || isTestCampaign(c.campaign_name) || campaignMarket(c.campaign_name).market !== pk.key) continue;
         const t = trangCuaCamp(c.campaign_name) || "(camp không ghi page)";
         const x = lay(t);
-        x.ads += c.spend_vnd; x.camps.push(c.campaign_name);
+        x.ads += c.spend_vnd; x.camps.push(c.campaign_name); x.cs.push(c);
         x.nv = chuCua(c.campaign_name) || x.nv;
     }
     const khongRo = { don: 0, dsLocal: 0, dsVnd: 0 };
@@ -110,21 +168,77 @@ function buildTinGio({ n, ngay, gio, pk, camps, truoc, loiCamp }) {
     if (tong.sdt) dong.push(`📞 ${fmt(tong.sdt)} khách mới đã để SĐT`);
     if (tc) dong.push(I(`(+…) = thêm trong giờ qua`));
 
-    if (trang.length) dong.push("", B("📄 THEO PAGE"));
+    // Số từng page/camp lần này — nhớ lại (state.gioTruoc) để giờ sau in phần tăng.
+    tong.trang = {}; tong.camp = {};
+    const truocTrang = (tc && tc.trang) || {}, truocCamp = (tc && tc.camp) || {};
+    const tang = (nay, cu) => (tc && cu != null && nay - cu > 0 ? nay - cu : 0);
+    let coCamp = false, coClickTin = false;
+    const uocTheo = new Set();   // page nhiều camp: mess chia theo "click" hay "tiền"
+
+    if (trang.length) dong.push("", B("📄 THEO PAGE · CAMP"));
     for (const x of trang) {
+        const kt = chuanTenPage(x.ten), cu = truocTrang[kt] || {};
+        tong.trang[kt] = { mess: x.mess, don: x.don };
+        const tMess = tang(x.mess, cu.mess), tDon = tang(x.don, cu.don);
         dong.push(`${B(x.ten)}${x.nv ? ` — ${x.nv}` : ""}`);
-        const chi = [`ads ${gonTien(x.ads)}`, `${fmt(x.mess)} mess`];
+        const chi = [`ads ${gonTien(x.ads)}`, `${fmt(x.mess)} mess${tMess ? ` (+${fmt(tMess)})` : ""}`];
         if (x.mess > 0 && x.ads > 0) chi.push(`${gonTien(x.ads / x.mess)}/mess`);
         if (x.cmt) chi.push(`${fmt(x.cmt)} bình luận`);
         if (x.sdt) chi.push(`${fmt(x.sdt)} SĐT`);
-        chi.push(`${fmt(x.don)} đơn`);
+        chi.push(`${fmt(x.don)} đơn${tDon ? ` (+${fmt(tDon)})` : ""}`);
         if (x.don) chi.push(tienNuoc(x.dsLocal, x.dsVnd, sym));
+        if (x.don && x.ads > 0) chi.push(`${gonTien(x.ads / x.don)}/đơn`);
         dong.push(`    ${chi.join(" · ")}`);
         if (x.loi) dong.push(`    ⚠️ ${I(x.loi)}`);
+
+        // Từng camp của page: tiền (+giờ qua) · mess (chia theo click nếu page nhiều camp) ·
+        // đơn Meta · click Messenger · CTR · CPM; camp nhiều nhóm thì thêm từng nhóm.
+        const cs = [...x.cs].sort((a, b) => b.spend_vnd - a.spend_vnd);
+        const coClick = cs.some((c) => c.link_clicks != null);
+        if (coClick) coClickTin = true;
+        const messCamp = chiaMessTheoCamp(x.mess, cs);
+        cs.forEach((c, i) => {
+            coCamp = true;
+            const hien = Number(c.impressions || 0), click = Number(c.link_clicks || 0), donMeta = Number(c.purchases || 0);
+            const id = c.campaign_id || c.campaign_name;
+            const cuC = truocCamp[id] || {};
+            tong.camp[id] = { ads: Math.round(c.spend_vnd), click };
+            const tAds = tang(Math.round(c.spend_vnd), cuC.ads);
+            const uoc = cs.length > 1;
+            if (uoc && x.mess > 0) uocTheo.add(coClick && cs.some((c) => c.link_clicks > 0) ? "click" : "tiền");
+            const chu = chuCua(c.campaign_name);
+            dong.push(`  ▸ ${B(nhanCamp(c.campaign_name))}${c.account_name ? ` · ${c.account_name}` : ""}${chu && chu !== x.nv ? ` — ${chu}` : ""}`);
+            const d1 = [`ads ${gonTien(c.spend_vnd)}${tAds ? ` (+${gonTien(tAds)})` : ""}`];
+            if (x.mess > 0) {
+                const m = messCamp[i];
+                d1.push(`${uoc ? "~" : ""}${fmt(m)} mess`);
+                if (m > 0) d1.push(`${gonTien(c.spend_vnd / m)}/mess`);
+            }
+            d1.push(`${fmt(donMeta)} đơn Meta`);
+            if (donMeta > 0) d1.push(`${gonTien(c.spend_vnd / donMeta)}/đơn`);
+            dong.push(`      ${d1.join(" · ")}`);
+            const d2 = coClick ? soClick(c.spend_vnd, click, hien) : [];
+            if (hien > 0) d2.push(`CPM ${gonTien((c.spend_vnd / hien) * 1000)}`);
+            if (d2.length) dong.push(`      ${d2.join(" · ")}`);
+
+            const nhom = nhomCuaCamp(c);
+            if (nhom.length < 2) return;
+            for (const g of nhom.slice(0, NHOM_TOI_DA)) {
+                const o = [gonTien(g.ads)];
+                if (coClick) o.push(...soClick(g.ads, g.click, g.hien));
+                if (g.don) o.push(`${fmt(g.don)} đơn`);
+                dong.push(`      • ${g.ten}: ${o.join(" · ")}`);
+            }
+            const con = nhom.slice(NHOM_TOI_DA);
+            if (con.length) dong.push(`      • +${con.length} nhóm khác: ${gonTien(con.reduce((s, g) => s + g.ads, 0))}`);
+        });
     }
+    if (coCamp) dong.push(I(["Camp:", coClickTin ? "click = bấm vào Messenger ·" : "",
+        "đơn Meta = đơn Meta tự ghi theo ad (có lúc thiếu so với POS)",
+        uocTheo.size ? `· ~mess = page chạy nhiều camp, chia mess theo ${[...uocTheo].join("/")}` : ""].filter(Boolean).join(" ")));
     if (khongRo.don) dong.push(`📍 Đơn không ghi page: ${fmt(khongRo.don)} đơn · ${tienNuoc(khongRo.dsLocal, khongRo.dsVnd, sym)}`);
     if (!trang.length && !khongRo.don) dong.push("", I("(hôm nay chưa có tiền ads, tin nhắn hay đơn nào)"));
     return { text: dong.join("\n"), tong };
 }
 
-module.exports = { ghepTheoTrang, messThayTuPancake, buildTinGio };
+module.exports = { ghepTheoTrang, messThayTuPancake, buildTinGio, nhanCamp, nhanNhom, chiaMessTheoCamp };

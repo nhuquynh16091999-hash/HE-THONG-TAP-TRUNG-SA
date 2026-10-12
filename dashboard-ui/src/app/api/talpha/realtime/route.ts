@@ -122,7 +122,9 @@ function loadConfig(): YamlConfig {
 
 // ═══ META API: Fetch insights per ad for date range (with pagination) ═══
 async function fetchMetaAds(token: string, accountIds: string[], accountNames: Record<string, string>, activeOnly: boolean, fromDate: string, toDate: string, warnings: string[]) {
-    const fields = "campaign_name,campaign_id,adset_name,ad_name,ad_id,spend,impressions,cpm,cpc,ctr,actions";
+    // inline_link_clicks = lượt bấm vào Messenger của camp tin nhắn. Ở Nhật Meta không báo số mess
+    // nên tin Zalo mỗi giờ dùng nó để so camp với nhau (Sỹ Anh yêu cầu 12/10/2026).
+    const fields = "campaign_name,campaign_id,adset_name,ad_name,ad_id,spend,impressions,inline_link_clicks,cpm,cpc,ctr,actions";
     const allAds: any[] = [];
     // Filter to ACTIVE campaigns only if requested
     const filtering = activeOnly
@@ -168,6 +170,7 @@ async function fetchMetaAds(token: string, accountIds: string[], accountNames: R
                         ad_id: row.ad_id,
                         spend_vnd: parseFloat(row.spend || "0"), // Already VND (accounts are VND-billed)
                         impressions: parseInt(row.impressions || "0"),
+                        link_clicks: parseInt(row.inline_link_clicks || "0"),
                         cpm_vnd: parseFloat(row.cpm || "0"),
                         cpc_vnd: parseFloat(row.cpc || "0"),
                         ctr: parseFloat(row.ctr || "0"),
@@ -472,6 +475,7 @@ export async function GET(request: Request) {
             if (existing) {
                 existing.spend_vnd += ad.spend_vnd;
                 existing.impressions += ad.impressions;
+                existing.link_clicks += ad.link_clicks;
                 existing.messages += ad.messages;
                 existing.purchases += ad.purchases;
                 existing.orders += ad.orders;
@@ -486,6 +490,7 @@ export async function GET(request: Request) {
                     campaign_name: ad.campaign_name,
                     spend_vnd: ad.spend_vnd,
                     impressions: ad.impressions,
+                    link_clicks: ad.link_clicks,
                     cpm_vnd: ad.cpm_vnd,
                     ctr: ad.ctr,
                     messages: ad.messages,
@@ -548,6 +553,7 @@ export async function GET(request: Request) {
                 adset_name: a.adset_name,
                 spend_vnd: a.spend_vnd,
                 impressions: a.impressions,
+                link_clicks: a.link_clicks,
                 cpm_vnd: a.cpm_vnd,
                 cpc_vnd: a.cpc_vnd,
                 ctr: a.ctr,
