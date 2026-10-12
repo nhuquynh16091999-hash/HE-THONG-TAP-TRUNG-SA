@@ -561,7 +561,36 @@
       "_ship_note": "Vận chuyển đơn thành công 17 AED, đồng giá cho đơn dưới 1 kg; đơn hoàn miễn phí vận chuyển. Thu hộ COD 2% doanh thu đơn.",
       "warehouse": "Miễn phí lưu kho nếu mỗi ngày xuất dưới 10% tổng tồn kho; vượt thì tính phí lưu kho (bảng giá không ghi mức)."
     },
-    "_todo_other_markets": "Đài Loan (TW), Singapore (SG), UAE (AE) đã khai."
+    "JP": {
+      "partner": "NAZA",
+      "_source": "File 'NAZA BẢNG BÁO GIÁ COD NHẬT.xlsx' — Sỹ Anh gửi 13/10/2026. Cước bằng TỆ (RMB), các phí ở Nhật bằng YÊN (JPY).",
+      "currency": "RMB",
+      "declared": true,
+      "first_half_kg": { "thuong": 45, "dac_thu": 55 },
+      "extra_half_kg": { "thuong": 9, "dac_thu": 13.5 },
+      "_cuoc_note": "Cước theo KIỆN, bậc 0,5 kg: 0,5 kg đầu + mỗi 0,5 kg tiếp theo. 'thuong' = hàng thường (trang sức, phụ kiện); 'dac_thu' = mỹ phẩm / thiết bị làm đẹp / cốc liên quan Luật Dược phẩm Nhật. Trọng lượng tính phí = max(cân thật, D×R×C cm / 6000). P&L ước tính mọi đơn là hàng thường.",
+      "volumetric_divisor": 6000,
+      "cod_fee_jpy_tiers": [
+        { "max_cod_jpy": 9999, "fee": 480 },
+        { "max_cod_jpy": 29999, "fee": 570 },
+        { "max_cod_jpy": 99999, "fee": 810 },
+        { "max_cod_jpy": 299999, "fee": 1335 }
+      ],
+      "_cod_note": "Phí ủy thác thu hộ theo SỐ TIỀN COD của đơn, bằng yên: dưới 10.000¥ 480¥ · 10.000–29.999¥ 570¥ · 30.000–99.999¥ 810¥ · 100.000–299.999¥ 1.335¥. Thu dù khách có ký nhận hay không.",
+      "refusal_fee_jpy": 800,
+      "_refusal_note": "Khách từ chối nhận / từ chối ký: 800¥/đơn (phí xử lý hàng hoàn), hàng về kho hải ngoại của NAZA nhập lại kho.",
+      "redelivery_fee_jpy": 1100,
+      "_redelivery_note": "Chuyển phát lại lần hai: 800¥/kiện (sửa đơn, in đơn, đóng gói, giao lại) + 300¥/kiện phí lên kệ.",
+      "remote_surcharge_jpy": 1600,
+      "_remote_note": "Phụ thu vùng xa 1.600¥/kiện: Hokkaido, Okinawa, Kagoshima. P&L chưa cộng (chưa đọc địa chỉ từng đơn).",
+      "returns": { "return_fee_jpy": 800, "bank_transfer_fee_jpy": 880, "return_handling_jpy": 300 },
+      "_returns_note": "Hoàn hàng + hoàn tiền: 800¥/kiện + phí chuyển khoản liên ngân hàng 880¥; phí xử lý hàng hoàn 300¥/đơn. P&L chưa trừ vì chưa biết tỷ lệ hoàn.",
+      "storage": "Hàng hoàn / không giao được lưu kho miễn phí 30 ngày, quá hạn 50¥/ngày/đơn.",
+      "payout": "Tiền COD đã ký nhận + thanh toán thành công chuyển về vào THỨ SÁU hằng tuần.",
+      "limits": "Tổng ba cạnh ≤ 180 cm, nặng ≤ 15 kg. Cấm: hàng tươi sống, thực phẩm, dược phẩm, chất dễ cháy nổ, ăn mòn, chất lỏng, bột, vũ khí, ma tuý; hàng giả / nhái thương hiệu phạt 2.000 CNY/đơn; gửi sai tuyến phạt 2.000 CNY/đơn.",
+      "_estimate_note": "Chưa có sao kê Nhật nên chưa biết cân từng kiện: P&L lấy cân tính phí của các kiện NAZA Đài (cùng loại hàng), làm tròn lên bậc 0,5 kg từng kiện rồi lấy trung bình. Có sao kê Nhật đầu tiên thì thay bằng số thật."
+    },
+    "_todo_other_markets": "Đài Loan (TW), Singapore (SG), UAE (AE), Nhật Bản (JP) đã khai."
   },
   "cod_settlement": {
     "_note": "Công thức quyết toán của NAZA, đã kiểm đúng trên cả 7 kỳ (lệch 0).",
@@ -1622,6 +1651,56 @@
       "name": "076 - SET 20",
       "cost_price_rmb": 21.0,
       "_ghi_chu": "200G — thêm 25/09/2026 từ file 'BẢN SAO BÁO GÍA TIỀN HÀNG' (1z3si2P_…), dòng 112"
+    },
+    "077": {
+      "name": "077 - SET21",
+      "cost_price_rmb": 11.5,
+      "_ghi_chu": "200G — thêm 13/10/2026 từ file 'BẢN SAO BÁO GÍA TIỀN HÀNG' (1z3si2P_…), dòng 113 (Sỹ Anh: 'giá vốn lấy từ file báo giá')"
+    },
+    "078": {
+      "name": "078 - SET 22",
+      "cost_price_rmb": 8.5,
+      "_ghi_chu": "200G — thêm 13/10/2026 từ file 'BẢN SAO BÁO GÍA TIỀN HÀNG' (1z3si2P_…), dòng 114 (Sỹ Anh: 'giá vốn lấy từ file báo giá')"
+    },
+    "079": {
+      "name": "079 - SET 23",
+      "cost_price_rmb": 14.0,
+      "_ghi_chu": "150G — thêm 13/10/2026 từ file 'BẢN SAO BÁO GÍA TIỀN HÀNG' (1z3si2P_…), dòng 115 (Sỹ Anh: 'giá vốn lấy từ file báo giá')"
+    },
+    "080": {
+      "name": "080 - SET 24",
+      "cost_price_rmb": 10.5,
+      "_ghi_chu": "150G — thêm 13/10/2026 từ file 'BẢN SAO BÁO GÍA TIỀN HÀNG' (1z3si2P_…), dòng 116 (Sỹ Anh: 'giá vốn lấy từ file báo giá')"
+    },
+    "081": {
+      "name": "081 - Nhansam",
+      "cost_price_rmb": 4.5,
+      "_ghi_chu": "120ML · 300G — thêm 13/10/2026 từ file 'BẢN SAO BÁO GÍA TIỀN HÀNG' (1z3si2P_…), dòng 117 (Sỹ Anh: 'giá vốn lấy từ file báo giá')"
+    },
+    "082": {
+      "name": "082 -GOUT",
+      "cost_price_rmb": 24.5,
+      "_ghi_chu": "60 viên/hộp · 400G — thêm 13/10/2026 từ file 'BẢN SAO BÁO GÍA TIỀN HÀNG' (1z3si2P_…), dòng 118 (Sỹ Anh: 'giá vốn lấy từ file báo giá')"
+    },
+    "083": {
+      "name": "083 - sachket",
+      "cost_price_rmb": 24.7,
+      "_ghi_chu": "500g — thêm 13/10/2026 từ file 'BẢN SAO BÁO GÍA TIỀN HÀNG' (1z3si2P_…), dòng 119 (Sỹ Anh: 'giá vốn lấy từ file báo giá')"
+    },
+    "084": {
+      "name": "084 - MAGNESIUM",
+      "cost_price_rmb": 16.0,
+      "_ghi_chu": "500G — thêm 13/10/2026 từ file 'BẢN SAO BÁO GÍA TIỀN HÀNG' (1z3si2P_…), dòng 120 (Sỹ Anh: 'giá vốn lấy từ file báo giá')"
+    },
+    "085": {
+      "name": "085 - SET 25",
+      "cost_price_rmb": 20.8,
+      "_ghi_chu": "300G — giá ghi theo BỘ — thêm 13/10/2026 từ file 'BẢN SAO BÁO GÍA TIỀN HÀNG' (1z3si2P_…), dòng 121 (Sỹ Anh: 'giá vốn lấy từ file báo giá')"
+    },
+    "086": {
+      "name": "086 - SET 26",
+      "cost_price_rmb": 23.8,
+      "_ghi_chu": "300G — giá ghi theo BỘ — thêm 13/10/2026 từ file 'BẢN SAO BÁO GÍA TIỀN HÀNG' (1z3si2P_…), dòng 122 (Sỹ Anh: 'giá vốn lấy từ file báo giá')"
     },
     "_note_ten": "Giá lấy từ bảng 'Giá tới Taiwan' của Sỹ Anh (10/09/2026). Bảng đó không có cột tên sản phẩm, chỉ có nhãn kiểu '053 - SET10', nên tên tiếng Anh cũ được giữ lại để màn hình còn đọc được; nhãn gốc trong bảng lưu ở _nhan_bang_gia. Tên là tên, giá là giá — KHÔNG lấy giá cũ của hệ thống GCC."
   },

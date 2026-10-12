@@ -365,4 +365,30 @@ t("ba nước đều miễn luật campaign test", () => {
     assert.strictEqual(R.isTestCampaign("AE/LOC/PHI/TEST/Trang/1509", "UAE"), false);
 });
 
+console.log("── Phí ship Nhật theo bảng giá NAZA (13/10/2026) + giá vốn 077–086 ──");
+const J = require("../.test-build/phi-ship-nhat.js");
+t("phí thu hộ Nhật theo bậc tiền COD (yên), vượt bậc cuối thì không đoán", () => {
+    assert.strictEqual(J.phiThuHoNhat(8999), 480);
+    assert.strictEqual(J.phiThuHoNhat(9999), 480);
+    assert.strictEqual(J.phiThuHoNhat(10000), 570);
+    assert.strictEqual(J.phiThuHoNhat(29999), 570);
+    assert.strictEqual(J.phiThuHoNhat(30000), 810);
+    assert.strictEqual(J.phiThuHoNhat(150000), 1335);
+    assert.strictEqual(J.phiThuHoNhat(300000), null);
+});
+t("cước Nhật: 45 tệ 0,5 kg đầu + 9 tệ mỗi 0,5 kg tiếp (hàng thường)", () => {
+    assert.strictEqual(J.cuocNhatRmb(1), 45);
+    assert.strictEqual(J.cuocNhatRmb(3), 63);
+    assert.strictEqual(J.cuocNhatRmb(1.5), 49.5, "trung bình bậc của nhiều kiện");
+});
+t("phí ship một đơn Nhật quy VND: cước × 3.860 + thu hộ × 160", () => {
+    assert.strictEqual(J.phiShipNhatVnd(8999, 1, 160, 3860), 45 * 3860 + 480 * 160);
+    assert.strictEqual(J.phiShipNhatVnd(18000, 2, 160, 3860), 54 * 3860 + 570 * 160);
+    assert.strictEqual(J.phiShipNhatVnd(8999, null, 160, 3860), null, "chưa có cân → không đoán");
+});
+t("giá vốn mã mới từ file báo giá: 084 MAGNESIUM 16 tệ, 086 SET 26 23,8 tệ", () => {
+    assert.strictEqual(R.costPriceVnd("084"), Math.round(16 * 3860));
+    assert.strictEqual(R.costPriceVnd("086"), Math.round(23.8 * 3860));
+});
+
 console.log(`\n${pass} phép thử — tất cả đạt.`);

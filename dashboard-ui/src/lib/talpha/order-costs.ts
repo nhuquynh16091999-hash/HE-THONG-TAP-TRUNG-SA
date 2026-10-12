@@ -21,6 +21,8 @@
 //     thu hộ COD (% tiền của chính đơn đó, có mức sàn).
 //   • UAE (AE): bảng giá D&T Fulfillment shipping_fees.AE — phí fulfillment theo bậc số đơn
 //     trung bình/ngày + vận chuyển đơn thành công (đồng giá dưới 1 kg) + thu hộ COD % tiền đơn.
+//   • Nhật (JP, 13/10/2026): bảng giá NAZA shipping_fees.JP (lib/talpha/phi-ship-nhat.ts) — cước
+//     theo bậc 0,5 kg (cân lấy từ kiện NAZA Đài như Singapore) + thu hộ theo bậc tiền COD (yên).
 //   • Nước khác: không đoán — null để giao diện ghi "thiếu".
 // ═══════════════════════════════════════════════════════════════════
 import { bigquery } from "@/lib/bigquery";
@@ -29,6 +31,7 @@ import {
     costPriceVnd, posMoneyDivisor,
 } from "@/lib/talpha/rules";
 import { productCodes } from "@/lib/talpha/order-ledger";
+import { BANG_GIA_NHAT, cuocNhatRmb, phiShipNhatVnd } from "@/lib/talpha/phi-ship-nhat";
 import { readStoreFresh } from "@/lib/talpha/store";
 
 const BQ_PROJECT = process.env.NEXT_PUBLIC_BQ_PROJECT || "cty-507710";
@@ -97,7 +100,7 @@ for (const m of Object.values(RULES.markets as Record<string, {
 /** Đọc kho sao kê NAZA (Đài): phí trung bình một kiện + cân tính phí trung bình. */
 async function docSaoKeNaza() {
     const kho = await readStoreFresh<{ statements: Statement[] }>("cod_statements", { statements: [] });
-    let kien = 0, vnd = 0, ky = 0, kienCoCan = 0, tongCan = 0, tongNac = 0;
+    let kien = 0, vnd = 0, ky = 0, kienCoCan = 0, tongCan = 0, tongNac = 0, tongBac500 = 0;
     for (const s of kho.statements || []) {
         const lines = s.naza?.fee_lines || [];
         if (!lines.length) continue;
@@ -115,12 +118,14 @@ async function docSaoKeNaza() {
                 tongCan += kg;
                 // Chặng đầu Singapore tính theo TỪNG 0,1 kg — làm tròn lên từng kiện rồi mới lấy trung bình.
                 tongNac += Math.ceil(kg * 10 - 1e-9);
+                // Cước Nhật tính theo bậc 0,5 kg — cũng làm tròn lên từng kiện (tối thiểu 1 bậc).
+                tongBac500 += Math.max(1, Math.ceil(kg * 2 - 1e-9));
             }
         }
     }
     return {
         tw: kien ? { per_order_vnd: vnd / kien, parcels: kien, periods: ky } : null,
-        can: kienCoCan ? { kg_tb: tongCan / kienCoCan, nac_100g_tb: tongNac / kienCoCan, kien: kienCoCan } : null,
+        can: kienCoCan ? { kg_tb: tongCan / kienCoCan, nac_100g_tb: tongNac / kienCoCan, bac_500g_tb: tongBac500 / kienCoCan, kien: kienCoCan } : null,
     };
 }
 
@@ -228,6 +233,7 @@ export async function tinhChiPhiDon(from: string, to: string, chiShop?: (shop: s
     const donAe = [...donMap.values()].filter((o) => o.shop === "AE").length;
     const fulfillAe = phiFulfillmentAe(donAe / soNgay);
     const tyGiaAe = EXCHANGE_RATES[SHOP2MKT.AE] || 0;
+    const tyGiaJp = EXCHANGE_RATES[SHOP2MKT.JP] || 0;
     for (const o of donMap.values()) {
         if (o.shop === "TW") o.ship = naza.tw ? naza.tw.per_order_vnd : null;
         else if (o.shop === "SG") {
@@ -236,6 +242,8 @@ export async function tinhChiPhiDon(from: string, to: string, chiShop?: (shop: s
         } else if (o.shop === "AE") {
             o.ship = fulfillAe === null || !AE_FEES?.delivered_ship_fee || !tyGiaAe ? null
                 : (fulfillAe + AE_FEES.delivered_ship_fee + (AE_FEES.cod_fee_pct || 0) * (o.vnd / tyGiaAe)) * tyGiaAe;
+        } else if (o.shop === "JP") {
+            o.ship = tyGiaJp ? phiShipNhatVnd(o.vnd / tyGiaJp, naza.can ? naza.can.bac_500g_tb : null, tyGiaJp, COST_RATE_RMB_VND) : null;
         }
     }
 
@@ -263,6 +271,15 @@ export async function tinhChiPhiDon(from: string, to: string, chiShop?: (shop: s
             + `fulfillment ${fulfillAe} AED (${(donAe / soNgay).toFixed(1)} đơn/ngày) + vận chuyển đơn thành công `
             + `${AE_FEES.delivered_ship_fee} AED + thu hộ COD ${((AE_FEES.cod_fee_pct || 0) * 100).toFixed(0)}% tiền đơn, `
             + `quy ${fmt(tyGiaAe)}đ/AED. Đơn hoàn chỉ mất phí fulfillment — P&L đang tính như đơn giao thành công.`;
+    }
+    const jp = tbShip("JP");
+    if (BANG_GIA_NHAT && naza.can && jp !== null) {
+        const bac = naza.can.bac_500g_tb;
+        ship_basis.JP = `trung bình ${fmt(jp)}đ/đơn theo bảng giá NAZA Nhật: cước ${BANG_GIA_NHAT.first_half_kg?.thuong} tệ 0,5 kg đầu `
+            + `+ ${BANG_GIA_NHAT.extra_half_kg?.thuong} tệ mỗi 0,5 kg tiếp (trung bình ${bac.toFixed(2)} bậc 0,5 kg/kiện theo cân `
+            + `${fmt(naza.can.kien)} kiện NAZA Đài → ${(cuocNhatRmb(bac) || 0).toFixed(1)} tệ) + phí thu hộ theo bậc tiền COD `
+            + `(${(BANG_GIA_NHAT.cod_fee_jpy_tiers || []).map((x) => `≤${fmt(x.max_cod_jpy)}¥: ${x.fee}¥`).join(" · ")}), `
+            + `quy ${fmt(COST_RATE_RMB_VND)}đ/tệ, ${fmt(tyGiaJp)}đ/yên. Chưa gồm phụ thu vùng xa 1.600¥, phí từ chối / hoàn 800¥.`;
     }
     if (chiShop) for (const k of Object.keys(ship_basis)) if (!chiShop(k)) delete ship_basis[k];
 
