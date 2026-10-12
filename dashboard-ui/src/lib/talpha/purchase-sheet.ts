@@ -138,11 +138,17 @@ export function docDotTienHang(grid: string[][]): DotTienHang[] {
     return dot;
 }
 
-/** Ngày NAZA gửi sao kê, đọc từ TÊN FILE: "2026.9.11" · "2026-7-24" · "14.08.2026". */
+/**
+ * Ngày NAZA gửi sao kê, đọc từ TÊN FILE: "2026.9.11" · "2026-7-24" · "14.08.2026" ·
+ * "20261012" (viết liền — kỳ 12/10/2026 tên "TAIWAN 20261012.xlsx", trước đây đọc ra rỗng nên
+ * kỳ đó không ghép được đợt nào trong file tiền hàng).
+ */
 export function ngaySaoKe(filename: string): string | null {
     const ymd = filename.match(/(20\d{2})[.\-_/](\d{1,2})[.\-_/](\d{1,2})/);
     const dmy = filename.match(/(\d{1,2})[.\-_/](\d{1,2})[.\-_/](20\d{2})/);
-    const [y, m, d] = ymd ? [ymd[1], ymd[2], ymd[3]] : dmy ? [dmy[3], dmy[2], dmy[1]] : [];
+    const lien = filename.match(/(?<!\d)(20\d{2})(\d{2})(\d{2})(?!\d)/);
+    const [y, m, d] = ymd ? [ymd[1], ymd[2], ymd[3]] : dmy ? [dmy[3], dmy[2], dmy[1]]
+        : lien ? [lien[1], lien[2], lien[3]] : [];
     if (!y) return null;
     const mm = Number(m), dd = Number(d);
     if (mm < 1 || mm > 12 || dd < 1 || dd > 31) return null;

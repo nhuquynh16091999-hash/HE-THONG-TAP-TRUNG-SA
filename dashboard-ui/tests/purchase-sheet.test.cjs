@@ -68,6 +68,12 @@ t("đọc được cả ba kiểu tên file NAZA", () => {
     assert.strictEqual(P.ngaySaoKe("ĐỐI SOÁT COD TAIWAN 14.08.2026.xlsx"), "2026-08-14");
     assert.strictEqual(P.ngaySaoKe("sao kê không ngày.xlsx"), null);
 });
+t("tên viết liền YYYYMMDD (kỳ 12/10/2026: \"TAIWAN 20261012.xlsx\")", () => {
+    assert.strictEqual(P.ngaySaoKe("TAIWAN 20261012.xlsx"), "2026-10-12");
+    assert.strictEqual(P.ngaySaoKe("台湾COD对账单 20261005.xlsx"), "2026-10-05");
+    assert.strictEqual(P.ngaySaoKe("TAIWAN 20261399.xlsx"), null);        // tháng 13 → không phải ngày
+    assert.strictEqual(P.ngaySaoKe("đơn 1202610125.xlsx"), null);         // dãy số dài hơn 8 chữ
+});
 
 console.log("── Ghép đợt vào kỳ ──");
 t("đợt nằm giữa hai kỳ về kỳ GẦN HƠN, không về kỳ duyệt trước", () => {
