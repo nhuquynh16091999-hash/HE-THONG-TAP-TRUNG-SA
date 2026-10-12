@@ -263,6 +263,16 @@ const sang = (d, o = {}) => buildVanDonSang(d, { today: TODAY, nowTs: NOW, phuTr
         assert.ok(!m.includes("J1004"), "bảng đối tác ghi đang vận chuyển — có thể còn ở chặng gửi từ Đài sang");
     });
 
+    await t("JP: 17TRACK từ chối đăng ký mọi mã Sagawa → không ghi '17TRACK ✓', nói rõ đang theo bảng đối tác", () => {
+        const ls = { at: "2026-09-25T23:05:00Z", ok: true, registered: 0, register_rejected: 33, quota: { total: 600, used: 479, remain: 121 } };
+        const m = tron(sang(JP({ last_sync: ls, shipments: [don({ store_name: "", status: "InfoReceived", source: "doi_tac", registered: false })] })).text);
+        assert.ok(m.includes("theo bảng đối tác, trễ ~2 ngày"), m);
+        assert.ok(!m.includes("17TRACK 06:05 ✓"), m);
+        assert.ok(m.includes("⚠️ 17TRACK từ chối đăng ký 33 mã (hãng tạm chưa hỗ trợ qua API) — trạng thái theo bảng đối tác"), m);
+        const sg = tron(sang(SG({ last_sync: ls, shipments: [don({ registered: true })] })).text);
+        assert.ok(!sg.includes("từ chối đăng ký"), "nước có mã đã đăng ký thì không kêu");
+    });
+
     // ── SÁNG · UAE (WeShip, 28/09/2026) ──
     const AE = (o = {}) => DATA({ market: { code: "AE", label: "UAE", currency: "AED" }, provider: "weship",
         last_sync: { at: "2026-09-25T23:03:00Z", ok: true, provider: "weship", targets: 27, checked: 27, failed: 0 },

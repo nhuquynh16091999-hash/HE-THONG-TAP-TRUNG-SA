@@ -46,6 +46,12 @@ async function fetchVanDon(cfg, today, f = fetch, market = "") {
     return j;
 }
 
+/** 17TRACK chạy được nhưng KHÔNG mã nào của nước này được theo dõi vì hãng bị từ chối đăng ký
+ *  (Nhật 13/10/2026: Sagawa — "The carrier temporarily does not support registration"). Ghi
+ *  "17TRACK ✓" lúc đó là nói dối: trạng thái thật vẫn chỉ theo bảng đối tác. */
+const biTuChoiHet = (d) => d.provider !== "weship" && !!d.last_sync && Number(d.last_sync.register_rejected) > 0
+    && !(d.shipments || []).some((s) => s.registered);
+
 /**
  * Cảnh báo "số này mới tới đâu" — MỖI VẤN ĐỀ MỘT DÒNG, không có vấn đề thì không có dòng
  * nào. Số cũ mà không ai nói thì sale gọi nhầm khách đã lấy hàng rồi — nên tin TỰ TỐ khi
@@ -80,6 +86,10 @@ function dongNguon(d, nowTs, { quotaWarn = 200, staleHours = 26 } = {}) {
         // Ngưỡng theo cỡ gói: gói miễn phí vài trăm mã thì "còn dưới 200" là kêu mỗi ngày.
         const nguong = Math.min(quotaWarn, Math.ceil(ls.quota.total * 0.15));
         if (ls.quota.remain < nguong) ra.push(`⚠️ ${B(`Quota 17TRACK sắp hết: còn ${fmt(ls.quota.remain)}/${fmt(ls.quota.total)}`)}`);
+    }
+    if (ls && ls.ok && biTuChoiHet(d)) {
+        ra.push(`⚠️ ${B(`17TRACK từ chối đăng ký ${fmt(ls.register_rejected)} mã`)} (hãng tạm chưa hỗ trợ qua API) — `
+            + "trạng thái theo bảng đối tác, máy tự thử lại mỗi lượt");
     }
     if (cu(d.last_import)) ra.push(`⚠️ ${B(`Bảng đối tác chưa nạp từ ${gioVN(d.last_import)}`)}`);
     return ra.join("\n");
@@ -558,7 +568,7 @@ function buildVanDonSang(d, opts = {}) {
 
     const dong = [B(opts.tieuDe || `☀️ VẬN ĐƠN ${ten} · SÁNG ${ddmm(today)}`)];
     const nguon = [];
-    if (!d.has_api_key) nguon.push("theo bảng đối tác, trễ ~2 ngày");
+    if (!d.has_api_key || biTuChoiHet(d)) nguon.push("theo bảng đối tác, trễ ~2 ngày");
     else if (ls && ls.ok) nguon.push(`${tenNguon(d)} ${gioVN(ls.at).slice(0, 5)} ✓` + (ls.quota ? ` · quota còn ${fmt(ls.quota.remain)}/${fmt(ls.quota.total)}` : ""));
     if (nguon.length) dong.push(I(nguon.join(" · ")));
     const canhBao = dongNguon(d, nowTs, opts);
