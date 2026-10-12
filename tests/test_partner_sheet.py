@@ -65,3 +65,31 @@ def test_thieu_cot_bat_buoc_thi_bao_loi():
     import pytest
     with pytest.raises(ValueError):
         chuan_dong([["MKT", "SKU"], ["Lộc", "040"]], COT, META, "t")
+
+
+# Bảng Nhật THẬT "BS UP DATA JAPAN" (Sỹ Anh gửi 13/10/2026): thêm cột 17TRACK, cửa hàng tiện lợi,
+# một cột không tiêu đề; ô A1 đang ghi nhầm "T1611" thay vì "MKT".
+TIEU_DE_JP = ["T1611", "Đối soát", "", "Ghi chú", "Trạng Thái", "Ngày lên đơn ", "Ngày xuất kho",
+              "PHƯƠNG THỨC VẬN CHUYỂN ", "Order No.", "Mã đơn mới của đơn đi kho hàng hoàn ", "Tracking number ",
+              "MÃ TRA CỨU 17 TRACK ", "SKU ", "Quantity ", "Contact Name(*)", "Phone", "Country(*)", "States(*)",
+              "City(*)", "Address(*)", "Tên của hàng tiện lợi", "PostCode(*)", "Mã cửa hàng tiện lợi ", "Ảnh mã cửa hàng",
+              "COD Amount (JPY)", ""]
+
+
+def test_bang_nhat_doc_du_cot_chinh():
+    cot = gan_cot(TIEU_DE_JP, COT)
+    assert cot["order_no"] == 8 and cot["tracking"] == 10 and cot["cod"] == 24
+    assert cot["return_order_no"] == 9 and cot["status"] == 4 and cot["note"] == 3
+    assert cot["ship_method"] == 7 and cot["order_date"] == 5
+    assert "marketer" not in cot          # A1 "T1611" — phải sửa thành "MKT" trên Sheet mới có tên
+
+
+def test_bang_nhat_dong_that():
+    values = [TIEU_DE_JP,
+              ["S.Anh", "", "", "khách nhận 4-6h chiều ", "Đã lên đơn ", "10/10/2026", "", "giao tại nhà ", "J1000", "",
+               "256500702942", "", "042 - BLACK + 043 - COFFEE", "2", "Sato", "08033162030", "", "", "",
+               "〒166-0003 東京都杉並区高円寺南 5-9-4", "", "166-0003", "", "", "8,999", "JPY"]]
+    r = chuan_dong(values, COT, {"market": "Japan", "shop_label": "JP", "sheet_id": "x"}, "2026-10-13T00:00:00")[0]
+    assert r["tracking"] == "256500702942" and r["order_no"] == "J1000"
+    assert r["cod"] == 8999 and r["order_date"] == "2026-10-10" and r["status"] == "Đã lên đơn"
+    assert r["market"] == "Japan" and r["shop_label"] == "JP"

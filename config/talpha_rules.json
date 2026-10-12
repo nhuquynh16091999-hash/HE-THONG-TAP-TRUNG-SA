@@ -998,6 +998,35 @@
           { "match": "submitted|collection\\s*point|collected|picked", "status": "InfoReceived", "vi": "Hãng đã nhận đơn" }
         ],
         "_status_rules_note": "Chữ trạng thái WeShip (ô Current Status, không khớp thì hoạt động mới nhất trong History) → trạng thái chuẩn, so KHÔNG phân biệt hoa thường, luật TRÊN thắng luật dưới. Đã gặp thật 28/09/2026: Submitted, Shipment at Collection Point, Check-in process done at hub, DELIVERY SCHEDULED ON NEXT DAY, Dispatched, OUT FOR DELIVERY, Rescheduled, NO RESPONSE, REFUSED (hoạt động CUSTOMER CANCELLED / package cancelled), Delivered. Luật hoàn (return…) là ĐOÁN — chưa gặp đơn hoàn nào; gặp chữ lạ thì màn Theo dõi vận đơn báo 'Có trạng thái chưa khai' để thêm luật. REFUSED xếp giao hỏng chứ không phải hoàn: hãng còn đi giao lại (đơn 12, 14 bị từ chối 26/09 rồi 28/09 đi tiếp) — gọi khách vẫn cứu được."
+      },
+      "JP": {
+        "label": "Nhật Bản",
+        "store": "tracking_jp",
+        "partner_market": "Japan",
+        "currency": "JPY",
+        "carrier": 100040,
+        "_carrier_note": "Sagawa (佐川急便) — mã 17TRACK 100040. Sỹ Anh 13/10/2026: 'vận chuyển bên Nhật Bản cũng dùng 17Track qua đơn vị vận chuyển này (Sagawa)'. Mã dạng 12 số (2565…). KHÔNG dùng 100041 SGHグローバル (Sagawa Global — hàng quốc tế).",
+        "stale_days": 7,
+        "_stale_note": "Giống Singapore: giao tận nhà, 7 ngày không có cập nhật là đơn kẹt. Hàng Nhật có chặng gửi từ Đài sang trước khi vào Sagawa (bảng ghi 'đi hàng back từ đài qua').",
+        "status_map": {
+          "Chưa lên đơn": "InfoReceived",
+          "Đã lên đơn": "InfoReceived",
+          "Xuất kho": "InTransit",
+          "Đang trung chuyển": "InTransit",
+          "Đang giao hàng": "OutForDelivery",
+          "Đã giao thành công": "Delivered",
+          "Giao thành công": "Delivered",
+          "Giao không thành công": "DeliveryFailure",
+          "Khách hẹn lúc khác giao": "DeliveryFailure",
+          "Khách từ chối nhận hàng": "DeliveryFailure",
+          "Đang hoàn": "Exception",
+          "Đang hoàn về kho": "Exception",
+          "Đã hoàn": "Returned",
+          "Hoàn hàng": "Returned",
+          "Hủy đơn": "Cancelled",
+          "Huỷ đơn": "Cancelled"
+        },
+        "_status_note": "Cột 'Trạng Thái' của bảng 'BS UP DATA JAPAN' — cùng bộ chữ với bảng Singapore (cùng đối tác lên đơn). Đã gặp 13/10/2026: Đã lên đơn, Chưa lên đơn. Chữ lạ hiện nguyên văn ở màn Theo dõi vận đơn để khai thêm."
       }
     },
     "code_fixes": [
@@ -1616,6 +1645,14 @@
         "sheet_gid": "0",
         "_ten": "BS UP DATA SGP",
         "_note": "Bảng đơn đối tác Singapore — Sỹ Anh chia sẻ 25/09/2026. Mã vận đơn J&T, COD tính SGD."
+      },
+      {
+        "market": "Japan",
+        "shop_label": "JP",
+        "sheet_id": "111lgWJoMkaNnUGsvqxfyWOWHCsa4n0KV8zvxwsGdiCQ",
+        "sheet_gid": "0",
+        "_ten": "BS UP DATA JAPAN",
+        "_note": "Bảng đơn đối tác Nhật — Sỹ Anh gửi 13/10/2026 (đã chia sẻ cho tài khoản dịch vụ). Mã vận đơn Sagawa 12 số, COD tính JPY, giao tại nhà. Tiêu đề cột A phải là 'MKT' thì mới đọc được tên marketer."
       }
     ],
     "column_map": {

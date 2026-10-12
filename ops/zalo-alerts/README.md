@@ -12,8 +12,8 @@ Pancake** + đơn, doanh số POS — theo từng page (camp nối page bằng t
 `TALPHA_PANCAKE_API_TOKEN`, hết hạn 02/01/2027 — tin tự nhắc trước 14 ngày). Bản tin ads thường của
 nhóm Nhật cũng lấy số mess từ Pancake (`nhomNuoc.messPancake`). Gõ `/gio` trong nhóm, hoặc
 `node bot.js --dry-run --gio --nuoc JP` để in thử. Cấu hình: `config.json → moiGio`.
-Nhật (mở 08/10/2026, shop POS nối 09/10/2026): tin ads đủ đơn / DS như các nước khác, chưa có vận đơn
-(chưa biết hãng giao). Nước nào còn `sap_chay` (chưa shop) thì tin chỉ có tiền ads + tin nhắn.
+Nhật (mở 08/10/2026, shop POS nối 09/10/2026): tin ads đủ đơn / DS như các nước khác; vận đơn từ
+13/10/2026 (bảng đối tác "BS UP DATA JAPAN" + 17TRACK hãng Sagawa, giao tận nhà như Singapore). Nước nào còn `sap_chay` (chưa shop) thì tin chỉ có tiền ads + tin nhắn.
 (Lịch sử: 15/09/2026 chỉ gửi mốc 8h30 vào một nhóm ads; thêm dần 13:00 · 18:00 · 22:00.)
 
 | Khi nào | Tin |

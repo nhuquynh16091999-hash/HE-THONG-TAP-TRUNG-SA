@@ -4,7 +4,7 @@
 //     chép gửi luôn — đọc tin là làm, không mở dashboard, không cần lệnh.
 //   • 22:00 TỐI: hôm nay làm được gì — khách phải gọi sáng nay đã lấy chưa, cứu được bao
 //     nhiêu tiền, khách nào còn treo sang mai; và số cả ngày.
-// Mỗi thị trường một nhóm (VẬN ĐƠN TW, VẬN ĐƠN SGP, VẬN ĐƠN UAE). Việc giao cho người phụ trách
+// Mỗi thị trường một nhóm (VẬN ĐƠN TW, VẬN ĐƠN SGP, VẬN ĐƠN UAE; từ 08/10/2026 nhóm "ADS + VẬN ĐƠN <nước>", có cả Nhật). Việc giao cho người phụ trách
 // (@Thương). UAE (28/09/2026) không qua 17TRACK: trạng thái tra thẳng trang WeShip — tin ghi
 // "WeShip" ở chỗ Đài/Singapore ghi "17TRACK" (d.provider).
 //
@@ -220,6 +220,9 @@ function ghiSoNhac(soNhac, trackings, today) {
     return so;
 }
 
+// Hãng giao tận nhà của nước đọc bảng đối tác + 17TRACK — tên hãng nói với khách.
+const HANG_NHA = { SG: "J&T", JP: "Sagawa" };
+
 // ─── Singapore giao tận nhà (J&T) — Sỹ Anh chốt 01/10/2026 ───────────────────
 // Tiếng Anh gửi khách + bản dịch tiếng Việt cho anh em, như Đài.
 //   TH1 — SẮP GIAO: 17TRACK thấy hàng đã vào tay J&T (InTransit) → báo trước khách mở máy,
@@ -250,21 +253,49 @@ function tinKhachSing(s, { nhacLai = false, lan = null } = {}, lang = "en") {
         + "from the J&T driver and contact them directly to arrange a new delivery time. If you need help, just reply to us. Thank you!";
 }
 
+// ─── Nhật Bản giao tận nhà (Sagawa) — Sỹ Anh yêu cầu 13/10/2026 ───────────────
+// Khách là người Philippines ở Nhật (camp JAPAN/…/PHI/…) → tiếng Anh như Đài, Sing. Sagawa
+// giao không gặp thì để PHIẾU BÁO VẮNG NHÀ (不在連絡票) trong hộp thư; khách hẹn giao lại
+// (再配達) bằng số điện thoại / mã QR trên phiếu. Sagawa chỉ giữ hàng khoảng 1 tuần rồi trả về.
+function tinKhachNhat(s, { nhacLai = false, lan = null } = {}, lang = "en") {
+    const vi = lang === "vi";
+    const ten = s.customer || (vi ? "bạn" : "there");
+    const ma = s.track17_code || s.tracking;
+    if (nhacLai) {
+        if (vi) {
+            const lau = lan >= 2 ? `Sagawa đã giao hàng (${ma}) ${lan} lần mà vẫn không gặp được bạn!` : `Sagawa vẫn chưa giao được hàng (${ma}) cho bạn!`;
+            return `Chào ${ten}, shop nhắc bạn lần nữa: ${lau} Bạn xem hộp thư có phiếu báo vắng nhà của Sagawa (不在連絡票) không, `
+                + "rồi gọi số trên phiếu hoặc quét mã QR để hẹn giao lại ngay hôm nay nhé — Sagawa chỉ giữ hàng khoảng 1 tuần, quá hạn hàng sẽ bị trả về. "
+                + "Không thấy phiếu thì bạn nhắn shop giờ nhận hàng tiện cho bạn. Cảm ơn bạn!";
+        }
+        const lau = lan >= 2 ? `Sagawa has tried to deliver your parcel (${ma}) ${lan} times and still couldn't reach you!` : `Sagawa still hasn't been able to deliver your parcel (${ma})!`;
+        return `Hi ${ten}, this is another reminder: ${lau} Please check your mailbox for the Sagawa missed-delivery notice (不在連絡票) `
+            + "and call the number or scan the QR code on it to request redelivery today — Sagawa only keeps the parcel for about a week before returning it. "
+            + "If you can't find the notice, just reply with a good time for delivery. Thank you!";
+    }
+    if (vi) {
+        return `Chào ${ten}, Sagawa đã tới giao hàng (${ma}) nhưng bạn không có nhà. Bạn xem hộp thư có phiếu báo vắng nhà (不在連絡票) không, `
+            + "rồi gọi số trên phiếu hoặc quét mã QR để hẹn ngày giờ giao lại nhé. Không thấy phiếu thì bạn nhắn shop giờ nhận hàng tiện cho bạn. Cảm ơn bạn!";
+    }
+    return `Hi ${ten}, Sagawa tried to deliver your parcel (${ma}) but you weren't home. Please check your mailbox for the missed-delivery notice (不在連絡票) `
+        + "and call the number or scan the QR code on it to choose a new delivery time. If you can't find it, just reply with a good time and we'll arrange it. Thank you!";
+}
+
 /**
- * TH1 — mốc BÁO TRƯỚC khi giao (Sing + UAE). null = không báo.
+ * TH1 — mốc BÁO TRƯỚC khi giao (Sing + Nhật + UAE). null = không báo.
  *   "HomNay"  — đi giao / hẹn giao đúng HÔM NAY (sự kiện hôm nay, không lấy sự kiện hôm qua:
  *               tin 08:30 VN là 05:30 UAE, trước giờ tài xế xuất phát);
  *   "NgayMai" — WeShip "DELIVERY SCHEDULED ON NEXT DAY" (đúng kiểu báo trước 1 ngày);
  *   "SapGiao" — đã vào kho hãng / đi giao từ hôm qua mà chưa xong.
- * Sự kiện cũ quá 2 ngày thì thôi — đơn đứng im đã có mục hỏi đối tác. Sing chỉ tin 17TRACK:
- * "đang vận chuyển" của bảng đối tác có thể còn ở chặng Trung Quốc.
+ * Sự kiện cũ quá 2 ngày thì thôi — đơn đứng im đã có mục hỏi đối tác. Sing, Nhật chỉ tin 17TRACK:
+ * "đang vận chuyển" của bảng đối tác có thể còn ở chặng Trung Quốc / chặng gửi từ Đài sang.
  */
 function mocSapGiao(s, today, nuoc) {
     const ngay = ngayVN(s.last_event_time || s.status_since);
     if (!ngay || ngay < cong(today, -2)) return null;
     if (s.status === "OutForDelivery") return ngay === today ? "HomNay" : "SapGiao";
     if (s.status !== "InTransit") return null;
-    if (nuoc === "SG" && s.source !== "17track") return null;
+    if (HANG_NHA[nuoc] && s.source !== "17track") return null;
     if (/Scheduled/.test(String(s.sub_status || "")) || /SCHEDULED\s*ON\s*NEXT\s*DAY/i.test(String(s.raw_status || ""))) {
         const giao = cong(ngay, 1);
         return giao === today ? "HomNay" : giao > today ? "NgayMai" : "SapGiao";
@@ -272,23 +303,24 @@ function mocSapGiao(s, today, nuoc) {
     return "SapGiao";
 }
 
-/** TH1 — câu báo trước. Sing nói "J&T", UAE nói "the courier" và "order (parcel …)". */
+/** TH1 — câu báo trước. Sing nói "J&T", Nhật nói "Sagawa", UAE nói "the courier" và "order (parcel …)". */
 function tinSapGiao(s, moc, nuoc, lang = "en") {
     const vi = lang === "vi";
     const ten = s.customer || (vi ? "bạn" : "there");
     const ma = s.track17_code || s.tracking;
-    const sg = nuoc === "SG";
+    const tenHang = HANG_NHA[nuoc];
+    const sg = !!tenHang;
     if (vi) {
-        const hang = sg ? "J&T" : "bên giao hàng";
-        const tx = sg ? "shipper J&T" : "tài xế giao hàng";
+        const hang = sg ? tenHang : "bên giao hàng";
+        const tx = sg ? `shipper ${tenHang}` : "tài xế giao hàng";
         const don = sg ? `hàng của bạn (${ma})` : `đơn của bạn (mã ${ma})`;
         const luc = moc === "HomNay" ? `${don} sẽ được ${hang} giao trong hôm nay!`
             : moc === "NgayMai" ? `${don} đã được hẹn giao vào ngày mai!`
                 : `${don} đã tới ${hang} và sắp được giao (thường trong 1–2 ngày).`;
         return `Chào ${ten}, ${luc} Bạn nhớ mở máy và để ý cuộc gọi, tin nhắn của ${tx} để không lỡ nhận hàng nhé. Cảm ơn bạn!`;
     }
-    const hang = sg ? "J&T" : "the courier";
-    const tx = sg ? "the J&T driver" : "the delivery driver";
+    const hang = sg ? tenHang : "the courier";
+    const tx = sg ? `the ${tenHang} driver` : "the delivery driver";
     const don = sg ? `your parcel (${ma})` : `your order (parcel ${ma})`;
     const tn = sg ? "calls or SMS" : "calls or messages";
     const luc = moc === "HomNay" ? (s.status === "OutForDelivery" ? `${don} is out for delivery with ${hang} today!` : `${don} is scheduled for delivery today!`)
@@ -336,7 +368,8 @@ function tinKhachUae(s, { nhacLai = false, lan = null } = {}, lang = "en") {
         ? `Chào ${ten}, đơn của bạn (mã ${ma}) đã được hẹn giao lại. Bạn kiểm tra điện thoại xem có cuộc gọi nhỡ hoặc tin nhắn của tài xế không, rồi liên hệ lại để chốt giờ giao, hoặc nhắn shop giờ nhận hàng tiện cho bạn nhé. Nhớ mở máy giúp shop. Cảm ơn bạn!`
         : `Hi ${ten}, the delivery of your order (parcel ${ma}) has been rescheduled. Please check your phone for missed calls or messages from the delivery driver and contact them to confirm a delivery time, or reply to us with a good time. Please keep your phone on. Thank you!`;
 }
-const tinKhachNha = (s, ma, han, lang) => (ma === "AE" ? tinKhachUae(s, han, lang) : tinKhachSing(s, han, lang));
+const tinKhachNha = (s, ma, han, lang) => (ma === "AE" ? tinKhachUae(s, han, lang)
+    : ma === "JP" ? tinKhachNhat(s, han, lang) : tinKhachSing(s, han, lang));
 /** Hai dòng: câu tiếng Anh gửi khách + bản dịch tiếng Việt cho anh em. */
 const haiDong = (f) => { const en = f("en"); return en ? [`💬 ${en}`, `🇻🇳 Dịch: ${f("vi")}`] : []; };
 
@@ -372,7 +405,7 @@ function khoiGoi(a, i, tien, giaoTanNha, ma = "") {
 function khoiSapGiao(x, tien, nuoc) {
     const s = x.shipment;
     const nhan = x.moc === "HomNay" ? "GIAO HÔM NAY" : x.moc === "NgayMai" ? "hẹn giao NGÀY MAI"
-        : nuoc === "SG" ? "đã vào J&T, sắp giao" : "đã vào kho hãng, sắp giao";
+        : HANG_NHA[nuoc] ? `đã vào ${HANG_NHA[nuoc]}, sắp giao` : "đã vào kho hãng, sắp giao";
     const dong = [B([maDon(s), s.cod_local ? `${fmt(Math.round(s.cod_local))} ${tien}` : "", nhan].filter(Boolean).join(" · "))];
     const khach = [s.customer, s.phone, s.city].filter(Boolean).join(" · ");
     if (khach) dong.push(`👤 ${khach}`);
@@ -686,4 +719,4 @@ function buildVanDonToi(d, opts = {}) {
     return dong.join("\n");
 }
 
-module.exports = { buildVanDonSang, buildVanDonToi, fetchVanDon, dongNguon, ghiSoNhac, lanTruoc, lyDo, maLayHang, suKienNgay, tinKhachDai, tinKhachSing, tinKhachUae, tinSapGiao, mocSapGiao };
+module.exports = { buildVanDonSang, buildVanDonToi, fetchVanDon, dongNguon, ghiSoNhac, lanTruoc, lyDo, maLayHang, suKienNgay, tinKhachDai, tinKhachSing, tinKhachNhat, tinKhachUae, tinSapGiao, mocSapGiao };

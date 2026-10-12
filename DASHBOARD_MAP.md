@@ -36,8 +36,10 @@ người nhận theo thư mục gần file nhất, nước theo tên file.
 
 **Nhật Bản (mở 08/10/2026)** — camp đặt `JP/…` (Thắng, Thương chạy từ 08/10). Shop POS **JAPAN**
 1022115860 nối 09/10/2026 (`TALPHA_POSCAKE_JP_KEY`), JPY lưu nguyên yên (chia 1, đã đo), tỷ giá 1 JPY =
-160đ (Sỹ Anh chốt). CHƯA CÓ: hãng giao + tra vận đơn (`tracking.markets`), phí ship 3PL, giá vốn —
-nên các tab theo nước dựa trên vận đơn (Sổ đơn, Theo dõi vận đơn) chưa có Nhật.
+160đ (Sỹ Anh chốt). Vận đơn từ 13/10/2026 giống Singapore: bảng đối tác "BS UP DATA JAPAN"
+(`partner_orders.sheets` → BigQuery `partner_orders`, market "Japan") + 17TRACK hãng **Sagawa 100040**
+(`tracking.markets.JP`, sổ `data/tracking_jp.json`) → Sổ đơn, Theo dõi vận đơn, Tiền COD về và tin Zalo
+vận đơn 08:30 · 22:00 vào nhóm ADS + VẬN ĐƠN JAPAN. CHƯA CÓ: phí ship 3PL Nhật, giá vốn.
 **Meta không báo số tin nhắn cho quảng cáo ở Nhật** (luật bảo vệ thông tin liên lạc của Nhật) —
 camp Nhật là camp tin nhắn mà insights trả 0 mess. Số tin nhắn thật đếm từ Pancake:
 `/api/talpha/pancake-nuoc?market=JP&date=` (`lib/talpha/pancake.ts`, token tài khoản Pancake

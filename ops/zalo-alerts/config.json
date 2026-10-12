@@ -65,7 +65,8 @@
     "markets": [
       "TW",
       "SG",
-      "AE"
+      "AE",
+      "JP"
     ],
     "toiAt": "22:00",
     "toiCatchUpMinutes": 60,
