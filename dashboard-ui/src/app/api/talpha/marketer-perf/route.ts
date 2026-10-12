@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { bigquery } from "@/lib/bigquery";
 import {
-    RULES, DISPLAY, UNASSIGNED,
+    RULES, DISPLAY, UNASSIGNED, MESS_PANCAKE,
     attributeOrder, buildAdidOwner, campaignMarket, parseCampaign, isTestCampaign,
 } from "@/lib/talpha/rules";
+import { messPancakeTuBan } from "@/lib/talpha/ban-nuoc";
 import { getAccess } from "@/lib/talpha/access";
 import { canMarket, seesAllMarkets } from "@/lib/talpha/access-rules";
 
@@ -132,7 +133,16 @@ export async function GET(req: NextRequest) {
             if (!key) { spendChuaNhanRa += Number(r.spend || 0); continue; }
             const b = agg.get(key) || emptyBucket();
             b.spend += Number(r.spend || 0);
-            b.mess += Number(r.messages || 0);
+            // Nước Meta không báo tin nhắn (Nhật): mess lấy ở bản số vòng ghi Sheet (Pancake) bên dưới.
+            if (!MESS_PANCAKE.includes(campaignMarket(name).market || "")) b.mess += Number(r.messages || 0);
+            agg.set(key, b);
+        }
+        // Mess Nhật = số Pancake trong bản số theo nước (cùng số Sheet) — 13/10/2026.
+        const pk = messPancakeTuBan(from, to, (k) => !hep || (!!a && canMarket(a, k)));
+        for (const [nv, n] of Object.entries(pk.theoNguoi)) {
+            const key = nv in RULES.marketers ? nv : UNASSIGNED;
+            const b = agg.get(key) || emptyBucket();
+            b.mess += n;
             agg.set(key, b);
         }
 
@@ -207,6 +217,8 @@ export async function GET(req: NextRequest) {
                 test: { orders: donTest, revenue_vnd: doanhThuTest },
             },
             team_size: rows.length,
+            // Phần mess đếm ở Pancake (nước Meta không báo) — thieu_thang: tháng chưa có bản số.
+            mess_pancake: { tong: pk.tong, nuoc: pk.nuoc, ghi_luc: pk.ghi_luc, thieu_thang: pk.thieu_thang },
         });
     } catch (e: any) {
         console.error("marketer-perf:", e?.message || e);

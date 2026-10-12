@@ -15,6 +15,8 @@ type MarketInfo = {
     display?: string; status?: MarketStatus; flag?: string;
     orders_from?: string | null; pos_money_divisor_confirmed?: boolean;
     phone?: { cc: string; national_len: number; trunk?: string; whatsapp?: boolean };
+    /** "pancake" = Meta không báo số tin nhắn ở nước này (Nhật), đếm ở hộp thư Pancake. */
+    mess_source?: string;
 };
 type ScanRule = { key: string; substrings?: string[]; word_tokens?: string[]; regex?: string };
 type ShipFee = { partner?: string; packing: number; delivery: number; cod_pct: number; cod_flat: number };
@@ -51,6 +53,10 @@ const soDuong = (v: unknown): v is number => typeof v === "number" && v > 0;
 const MARKET_ENTRIES = Object.entries(RULES.markets).filter(([, v]) => v && typeof v === "object") as [string, MarketInfo][];
 export const EXCHANGE_RATES: Record<string, number> = Object.fromEntries(
     MARKET_ENTRIES.map(([m, v]) => [m, soDuong(v.rate_vnd) ? v.rate_vnd : 0]));
+/** Khoá nước ("Japan") mà Meta KHÔNG báo số tin nhắn — luật bảo vệ thông tin liên lạc của Nhật
+ *  (09/10/2026). Số mess của camp nước đó lấy ở Pancake (lib/talpha/pancake-api.ts) hoặc bản số
+ *  vòng ghi Sheet (lib/talpha/ban-nuoc.ts), không lấy Meta (luôn 0). */
+export const MESS_PANCAKE: string[] = MARKET_ENTRIES.filter(([, v]) => v.mess_source === "pancake").map(([k]) => k);
 export const SHOP2MKT: Record<string, string> = Object.fromEntries(
     MARKET_ENTRIES.map(([m, v]) => [v.shop_label, m]));
 

@@ -52,4 +52,33 @@ t("hạn token Pancake đọc từ JWT", () => {
     assert.strictEqual(P.hanToken(`x.${pl}.y`), 1798876733000);
     assert.strictEqual(P.hanToken("khong-phai-jwt"), null);
 });
+console.log("── Dashboard Nhật (13/10/2026): mess theo khoảng ngày, chia cho camp, bản số theo nước ──");
+t("đếm hội thoại TẠO trong khoảng ngày VN, bỏ trùng id, comment tách riêng", () => {
+    const hts = [
+        { id: "a", type: "INBOX", inserted_at: "2026-10-10T17:30:00", has_phone: true },   // 11/10 VN
+        { id: "b", type: "INBOX", inserted_at: "2026-10-12T02:00:00" },                    // 12/10
+        { id: "b", type: "INBOX", inserted_at: "2026-10-12T02:00:00" },                    // trùng
+        { id: "c", type: "COMMENT", inserted_at: "2026-10-12T03:00:00" },
+        { id: "d", type: "INBOX", inserted_at: "2026-10-09T10:00:00" },                    // trước khoảng
+    ];
+    assert.deepStrictEqual(P.demTrongKhoang(hts, "2026-10-11", "2026-10-12"), { inbox_moi: 2, comment_moi: 1, co_sdt: 1 });
+    assert.deepStrictEqual(P.demTrongKhoang(hts, "2026-10-12", "2026-10-12"), P.demTrongNgay(hts, "2026-10-12"));
+});
+t("chia mess page cho camp: theo click, không click thì theo tiền, tổng luôn đủ", () => {
+    assert.deepStrictEqual(P.chiaMessTheoCamp(10, [{ link_clicks: 30 }, { link_clicks: 10 }]), [8, 2]);
+    assert.deepStrictEqual(P.chiaMessTheoCamp(7, [{ spend_vnd: 100 }, { spend_vnd: 100 }]).reduce((a, b) => a + b, 0), 7);
+    assert.deepStrictEqual(P.chiaMessTheoCamp(5, [{ spend_vnd: 1 }]), [5]);
+    assert.deepStrictEqual(P.chiaMessTheoCamp(0, [{ link_clicks: 3 }, { link_clicks: 1 }]), [0, 0]);
+});
+const B = require("../.test-build/ban-nuoc.js");
+t("bản số theo nước: tháng trong khoảng, gom mess Nhật theo người trong khoảng ngày", () => {
+    assert.deepStrictEqual(B.cacThang("2026-09-28", "2026-11-02"), ["2026-09", "2026-10", "2026-11"]);
+    assert.deepStrictEqual(B.cacThang("2026-12-30", "2027-01-02"), ["2026-12", "2027-01"]);
+    const ban = { thang: "2026-10", nuoc: {
+        Japan: { "2026-10-11": { SAnh: { mess: 56 }, Thang: { mess: 30 } }, "2026-10-12": { SAnh: { mess: 10 } }, "2026-10-13": { SAnh: { mess: 99 } } },
+        Taiwan: { "2026-10-12": { Thuong: { mess: 40 } } },
+    } };
+    assert.deepStrictEqual(B.gomMess([ban], "2026-10-11", "2026-10-12", ["Japan"]), { tong: 96, theoNguoi: { SAnh: 66, Thang: 30 } });
+    assert.deepStrictEqual(B.gomMess([ban], "2026-10-11", "2026-10-12", []), { tong: 0, theoNguoi: {} }, "người xem không thấy Nhật → 0");
+});
 console.log(`${ok} phép thử Pancake qua.`);

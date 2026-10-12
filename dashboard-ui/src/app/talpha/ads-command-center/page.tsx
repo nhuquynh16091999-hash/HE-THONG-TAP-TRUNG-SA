@@ -71,11 +71,15 @@ interface RealtimeCampaign {
     spend_vnd: number; impressions: number; cpm_vnd: number; ctr: number;
     messages: number; purchases: number; orders: number; revenue_vnd: number; roas: number;
     ads_count: number; ads: AdDetail[];
+    /** "pancake" = nước Meta không báo tin nhắn (Nhật): mess đếm ở hộp thư Pancake của page. */
+    mess_nguon?: string;
 }
 
 interface Summary {
     total_spend_vnd: number; total_revenue_vnd: number; total_orders: number;
     total_messages: number; matched_orders: number; unmatched_orders: number;
+    /** Phần mess đếm ở Pancake (Nhật) — null khi không có camp nước đó. */
+    mess_pancake?: { nuoc: string[]; tong: number; ok: boolean } | null;
     total_pos_orders: number; total_meta_purchases: number; blended_roas: number;
     matched_via_adid?: number; matched_via_fallback?: number; unmatched_ambiguous?: number;
     accounts_fetched: number; shops_fetched: number;
@@ -407,7 +411,8 @@ export default function TALPHAAdsCommandCenterPage() {
                         </div>
                         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
                             <KpiCard icon={MessageSquare} accent="indigo" label="Messages" value={String(summary.total_messages)}
-                                sub={<>CPA: {cpaMsg > 0 ? formatVNDCompact(cpaMsg) : '-'}</>} />
+                                sub={<>CPA: {cpaMsg > 0 ? formatVNDCompact(cpaMsg) : '-'}
+                                    {summary.mess_pancake?.ok ? <> · gồm {summary.mess_pancake.tong} tin Nhật đếm từ Pancake</> : null}</>} />
                             <KpiCard icon={Target} accent="cyan" label="DT Giao TC" value={formatVNDCompact(deliveredRev)}
                                 sub={<>{summary.delivered_orders || 0} đơn đã giao</>} />
                             <KpiCard icon={TrendingUp} accent="cyan" label="ROAS Giao TC" value={`${deliveredRoas.toFixed(2)}x`}
@@ -529,7 +534,10 @@ export default function TALPHAAdsCommandCenterPage() {
                                                                 <div className="text-slate-400">CPM {formatVNDCompact(c.cpm_vnd)}</div>
                                                                 <div className="text-indigo-400">CTR {c.ctr.toFixed(2)}%</div>
                                                             </td>
-                                                            <td className="px-2 py-2.5 text-right font-mono text-xs text-indigo-400">{c.messages || 0}</td>
+                                                            <td className="px-2 py-2.5 text-right font-mono text-xs text-indigo-400"
+                                                                title={c.mess_nguon === "pancake" ? "Meta không báo tin nhắn ở Nhật — số này đếm hội thoại mới trên Pancake của page ghi trong tên camp" : undefined}>
+                                                                {c.messages || 0}{c.mess_nguon === "pancake" ? <span className="ml-0.5 text-[9px] text-amber-400">P</span> : null}
+                                                            </td>
                                                             <td className="px-2 py-2.5 text-right font-mono text-xs text-indigo-300">
                                                                 {c.messages > 0 ? formatVNDCompact(c.spend_vnd / c.messages) : '-'}
                                                             </td>

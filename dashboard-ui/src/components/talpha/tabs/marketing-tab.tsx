@@ -135,8 +135,12 @@ export default function TALPHAMarketingTab({ dateRange }: Props) {
                 })));
 
                 const s = results[1].data?.[0] || {};
+                // Tin nhắn theo Sheet (cùng số tab Tổng quan): Meta không báo mess ở Nhật nên số
+                // BigQuery thiếu phần Nhật — Sheet đã có phần đó đếm từ Pancake. Sheet lỗi / thiếu
+                // tháng thì lùi về số BigQuery.
+                const messSheet = !perf.error && !(perf.missing_months || []).length ? perf.team?.mess : null;
                 setSummary({
-                    spend: s.spend || 0, messages: s.messages || 0,
+                    spend: s.spend || 0, messages: messSheet ?? (s.messages || 0),
                     impressions: s.impressions || 0,
                     cpm: s.impressions > 0 ? (s.spend / s.impressions) * 1000 : 0,
                 });

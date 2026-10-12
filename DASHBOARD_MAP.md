@@ -39,13 +39,20 @@ người nhận theo thư mục gần file nhất, nước theo tên file.
 160đ (Sỹ Anh chốt). Vận đơn từ 13/10/2026 giống Singapore: bảng đối tác "BS UP DATA JAPAN"
 (`partner_orders.sheets` → BigQuery `partner_orders`, market "Japan") + 17TRACK hãng **Sagawa 100040**
 (`tracking.markets.JP`, sổ `data/tracking_jp.json`) → Sổ đơn, Theo dõi vận đơn, Tiền COD về và tin Zalo
-vận đơn 08:30 · 22:00 vào nhóm ADS + VẬN ĐƠN JAPAN. CHƯA CÓ: phí ship 3PL Nhật, giá vốn.
+vận đơn 08:30 · 22:00 vào nhóm ADS + VẬN ĐƠN JAPAN. 17TRACK API TỪ CHỐI đăng ký Sagawa ("carrier
+temporarily does not support registration", 13/10/2026) → trạng thái Nhật hiện theo cột Trạng Thái của
+bảng đối tác, mỗi lượt tự thử lại; màn hình + tin Zalo nói rõ nguồn. CHƯA CÓ: phí ship 3PL Nhật (P&L ship 0).
 **Meta không báo số tin nhắn cho quảng cáo ở Nhật** (luật bảo vệ thông tin liên lạc của Nhật) —
 camp Nhật là camp tin nhắn mà insights trả 0 mess. Số tin nhắn thật đếm từ Pancake:
 `/api/talpha/pancake-nuoc?market=JP&date=` (`lib/talpha/pancake.ts`, token tài khoản Pancake
 `TALPHA_PANCAKE_API_TOKEN`) — tin nhắn / bình luận mới / SĐT theo page + đơn, doanh số theo page.
-Bot Zalo dùng cho tin MỖI GIỜ của nhóm Nhật và số mess trong bản tin ads Nhật. File Sheet (tab
-Nhật Bản) VẪN là mess Meta = 0.
+Bot Zalo dùng cho tin MỖI GIỜ của nhóm Nhật và số mess trong bản tin ads Nhật. Vòng ghi Sheet đếm
+mess Nhật từ Pancake (ops/talpha_reports/pancake_mess.py, 09/10/2026) → file TỔNG TEAM, tab Nhật Bản và
+bản số `data/bao_cao_nuoc/<tháng>.json` đã có mess thật. Dashboard (13/10/2026): Ads Command Center
+(`/api/talpha/realtime`) thay mess camp Nhật bằng hội thoại mới Pancake của page trong tên camp, chia
+camp/ad theo click Messenger (`lib/talpha/pancake-api.ts`, dấu "P" ở cột mess); tab Marketing lấy ô
+Messages theo Sheet, bảng từng người (xem theo team) cộng mess Nhật từ bản số (`lib/talpha/ban-nuoc.ts`).
+Nước dùng luật này khai `markets.<nước>.mess_source = "pancake"` (`MESS_PANCAKE` trong rules.ts).
 
 | Vai (`role`) | Người | Thấy gì |
 |:--|:--|:--|

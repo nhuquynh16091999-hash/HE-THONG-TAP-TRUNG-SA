@@ -4,7 +4,7 @@ import * as yaml from "js-yaml";
 import { bigquery } from "@/lib/bigquery";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+export const maxDuration = 90;
 
 // ═══ CONFIG ═══
 // Danh sách TKQC Meta + shop POS: config/projects/talpha.yaml ở gốc repo.
@@ -16,8 +16,10 @@ const YAML_PATH = TALPHA_YAML();
 // Golden-test 29/07 = 100% khớp bản inline cũ. Sửa rule → sửa JSON, KHÔNG thêm map ở đây.
 import {
     EXCHANGE_RATES, posMoneyDivisor, MARKET_CANON, CAMP_MARKETS, PAGE_ID_RE,
-    normCampMarketer, normPosMarketer, isDelivered, campaignMarket,
+    normCampMarketer, normPosMarketer, isDelivered, campaignMarket, MESS_PANCAKE, MARKETS_PUBLIC,
 } from "@/lib/talpha/rules";
+import { messPancakeChoCamp } from "@/lib/talpha/pancake-api";
+import { chiaMessTheoCamp } from "@/lib/talpha/pancake";
 import { getAccess } from "@/lib/talpha/access";
 import { canMarket, seesAllMarkets } from "@/lib/talpha/access-rules";
 
@@ -541,6 +543,30 @@ export async function GET(request: Request) {
             }
         }
 
+        // ─── Nước Meta KHÔNG báo tin nhắn (Nhật — luật bảo vệ thông tin liên lạc, 09/10/2026) ───
+        // Meta trả 0 mess cho camp Nhật → thay bằng hội thoại mới trên Pancake của page ghi trong tên
+        // camp, chia cho các camp cùng page theo click Messenger (cùng luật tin mỗi giờ của bot), rồi
+        // chia tiếp xuống từng ad cùng luật. Pancake hỏng thì giữ số Meta và nói ra trong warnings.
+        let messPancake: { nuoc: string[]; tong: number; ok: boolean } | null = null;
+        const campPk = [...campaignMap.values()].filter((c) => MESS_PANCAKE.includes(campaignMarket(c.campaign_name).market || ""));
+        if (campPk.length) {
+            const tenNuoc = MESS_PANCAKE.map((k) => MARKETS_PUBLIC.markets.find((m) => m.key === k)?.display || k).join(", ");
+            const pk = await messPancakeChoCamp(campPk, fromDate, toDate, startTime + 40_000);
+            messPancake = { nuoc: MESS_PANCAKE, tong: pk.tong, ok: pk.ok };
+            if (!pk.ok) warnings.push(`Tin nhắn ${tenNuoc}: Pancake lỗi (${pk.loi}) — mess camp ${tenNuoc} đang là số Meta (Meta không báo, luôn 0).`);
+            else {
+                for (const c of campPk) {
+                    const n = pk.theoCamp.get(c) ?? 0;
+                    c.messages = n;
+                    c.mess_nguon = "pancake";
+                    const chia = chiaMessTheoCamp(n, c.ads);
+                    c.ads.forEach((a: any, i: number) => { a.messages = chia[i]; });
+                }
+                if (pk.thieu.length) warnings.push(`Tin nhắn ${tenNuoc}: đếm chưa hết ở ${pk.thieu.join(", ")} (khoảng ngày dài / hết giờ) — số mess đang THIẾU.`);
+                if (pk.khong_thay.length) warnings.push(`Tin nhắn ${tenNuoc}: tài khoản Pancake không thấy page ${pk.khong_thay.join(", ")} (page đổi tên?) — camp của page đó 0 mess.`);
+            }
+        }
+
         // Calculate ROAS per campaign
         const campaigns = Array.from(campaignMap.values()).map(c => ({
             ...c,
@@ -619,6 +645,8 @@ export async function GET(request: Request) {
                 delivered_roas: deliveredRoas,
                 total_orders: matchedOrderCount,
                 total_messages: totalMessages,
+                // Phần tin nhắn đếm ở Pancake (nước Meta không báo) — null khi không có camp nước đó.
+                mess_pancake: messPancake,
                 matched_orders: matchedOrders.length + fallbackMatchedCount,
                 matched_via_adid: matchedOrders.length,
                 matched_via_fallback: fallbackMatchedCount,

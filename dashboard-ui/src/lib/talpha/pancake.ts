@@ -71,6 +71,35 @@ export function demTrongNgay(hts: HoiThoai[], ngay: string): DemNgay {
     return out;
 }
 
+/** Như demTrongNgay nhưng cho KHOẢNG ngày VN [tu, den] (Ads Command Center chọn nhiều ngày). */
+export function demTrongKhoang(hts: HoiThoai[], tu: string, den: string): DemNgay {
+    const out: DemNgay = { inbox_moi: 0, comment_moi: 0, co_sdt: 0 };
+    const da = new Set<string>();
+    for (const h of hts) {
+        const d = h ? ngayVN(h.inserted_at) : null;
+        if (!h || da.has(h.id) || !d || d < tu || d > den) continue;
+        da.add(h.id);
+        if (String(h.type || "").toUpperCase() === "COMMENT") out.comment_moi++;
+        else { out.inbox_moi++; if (h.has_phone) out.co_sdt++; }
+    }
+    return out;
+}
+
+/** Mess của MỘT page chia cho các camp chạy page đó — CÙNG luật bot Zalo (tin_gio.chiaMessTheoCamp):
+ *  theo click Messenger, không camp nào có click thì theo tiền. Phần dư làm tròn trao cho camp có
+ *  phần lẻ lớn nhất — tổng luôn đúng bằng mess của page. */
+export function chiaMessTheoCamp(tongMess: number, cs: { link_clicks?: number | null; spend_vnd?: number | null }[]): number[] {
+    if (cs.length <= 1) return cs.map(() => tongMess);
+    let w = cs.map((c) => Number(c.link_clicks || 0));
+    if (!w.some((v) => v > 0)) w = cs.map((c) => Number(c.spend_vnd || 0));
+    const S = w.reduce((a, b) => a + b, 0) || 1;
+    const raw = w.map((v) => (tongMess * v) / S);
+    const out = raw.map(Math.floor);
+    const le = raw.map((v, i) => [v - Math.floor(v), i] as [number, number]).sort((a, b) => b[0] - a[0]);
+    for (let j = 0, du = tongMess - out.reduce((a, b) => a + b, 0); j < du; j++) out[le[j % le.length][1]]++;
+    return out;
+}
+
 /** Lật tiếp hay thôi: lô xếp theo updated_at giảm dần, nên khi CẢ lô đã cập nhật trước 00:00 ngày
  *  `ngay` thì không còn hội thoại nào TẠO trong ngày đó ở các lô sau (tạo ≤ cập nhật). */
 export function hetLoTrongNgay(lo: HoiThoai[], ngay: string): boolean {

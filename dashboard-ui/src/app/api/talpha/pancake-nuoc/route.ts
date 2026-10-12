@@ -14,10 +14,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { bigquery } from "@/lib/bigquery";
 import { MARKETS_PUBLIC, EXCHANGE_RATES, posMoneyDivisor, campaignMarket, DISPLAY, normCampMarketer, CAMP_MARKETS } from "@/lib/talpha/rules";
-import {
-    PANCAKE_API, chuanTenPage, trangCuaCamp, demTrongNgay, hetLoTrongNgay, hanToken, laTrangCuaNuoc,
-    type HoiThoai,
-} from "@/lib/talpha/pancake";
+import { chuanTenPage, trangCuaCamp, demTrongNgay, laTrangCuaNuoc } from "@/lib/talpha/pancake";
+import { cacPage, hoiThoaiTu, sleep, GIAN_MS, tokenPancake } from "@/lib/talpha/pancake-api";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;
@@ -25,51 +23,7 @@ export const maxDuration = 120;
 const BQ_PROJECT = process.env.NEXT_PUBLIC_BQ_PROJECT || "cty-507710";
 const BQ_DATASET = process.env.DATASET || "TALPHA_Dataset";
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const homNayVN = () => new Date(Date.now() + 7 * 3600_000).toISOString().slice(0, 10);
-
-// Pancake 429 khi gọi dồn: mỗi lượt cách nhau GIAN_MS, gặp 429 thì chờ 5s · 10s · 20s rồi thử lại.
-const GIAN_MS = 400;
-async function goiPancake(url: string): Promise<any> {
-    for (let lan = 0; lan < 4; lan++) {
-        const r = await fetch(url, { cache: "no-store" });
-        if (r.status === 429) { await sleep(5000 * 2 ** lan); continue; }
-        const j = await r.json().catch(() => null);
-        if (!r.ok || !j) throw new Error(`Pancake HTTP ${r.status}`);
-        if (j.success === false) throw new Error(`Pancake: ${j.message || "lỗi"}${j.error_code ? ` (mã ${j.error_code})` : ""}`);
-        return j;
-    }
-    throw new Error("Pancake 429 — gọi dồn quá, thử lại sau");
-}
-
-// Danh sách page của tài khoản — 10 phút mới hỏi lại.
-let dsPage: { at: number; tok: string; pages: { id: string; name: string }[] } | null = null;
-async function cacPage(tok: string) {
-    if (dsPage && dsPage.tok === tok && Date.now() - dsPage.at < 600_000) return dsPage.pages;
-    const j = await goiPancake(`${PANCAKE_API}/pages?access_token=${encodeURIComponent(tok)}`);
-    const c = j.categorized || {};
-    const pages = [...(c.activated || []), ...(c.inactivated || [])]
-        .filter((p: any) => p && p.id).map((p: any) => ({ id: String(p.id), name: String(p.name || "") }));
-    dsPage = { at: Date.now(), tok, pages };
-    return pages;
-}
-
-/** Mọi hội thoại có thể TẠO trong ngày `ngay` của một page (lật bằng current_count, tối đa 25 lô). */
-async function hoiThoaiNgay(tok: string, pageId: string, ngay: string): Promise<HoiThoai[]> {
-    const out: HoiThoai[] = [];
-    let cc = 0;
-    for (let lo = 0; lo < 25; lo++) {
-        const j = await goiPancake(`${PANCAKE_API}/pages/${pageId}/conversations?access_token=${encodeURIComponent(tok)}&current_count=${cc}`);
-        const ds: HoiThoai[] = (j.conversations || []).map((h: any) => ({
-            id: String(h.id), type: h.type, inserted_at: h.inserted_at, updated_at: h.updated_at, has_phone: !!h.has_phone,
-        }));
-        out.push(...ds);
-        if (hetLoTrongNgay(ds, ngay)) break;
-        cc += ds.length;
-        await sleep(GIAN_MS);
-    }
-    return out;
-}
 
 type KetQua = Record<string, unknown>;
 const NHO = new Map<string, { at: number; kq: KetQua }>();
@@ -120,13 +74,10 @@ export async function GET(req: NextRequest) {
     for (const t of trangThem) if (!chuTrang.has(chuanTenPage(t))) chuTrang.set(chuanTenPage(t), { ten: t, nv: null, camps: new Set(), ngayCuoi: "" });
 
     // ── Pancake: tin nhắn mới theo page ──
-    const tok = String(process.env.TALPHA_PANCAKE_API_TOKEN || "").trim();
-    const het = hanToken(tok);
-    const pancake = { ok: false, het_han: het ? new Date(het).toISOString() : null, loi: "" };
+    const { tok, het_han, loi: loiTok } = tokenPancake();
+    const pancake = { ok: false, het_han, loi: loiTok };
     const pages: KetQua[] = [];
-    if (!tok) pancake.loi = "chưa khai TALPHA_PANCAKE_API_TOKEN";
-    else if (het && het < Date.now()) pancake.loi = `token Pancake đã hết hạn ${new Date(het).toISOString().slice(0, 10)}`;
-    else {
+    if (!loiTok) {
         try {
             const tatCa = await cacPage(tok);
             // Khớp theo tên camp là chính; luật đuôi tên CHỈ nhận đúng mã nước (… JP) — "Prime Leather
@@ -135,7 +86,7 @@ export async function GET(req: NextRequest) {
             for (const p of cua) {
                 const ct = chuTrang.get(chuanTenPage(p.name));
                 try {
-                    const dem = demTrongNgay(await hoiThoaiNgay(tok, p.id, ngay), ngay);
+                    const dem = demTrongNgay((await hoiThoaiTu(tok, p.id, ngay)).hts, ngay);
                     pages.push({ page_id: p.id, name: p.name, nv: ct?.nv || null, camps: ct ? [...ct.camps] : [], ...dem });
                 } catch (e: any) {
                     // Page chưa chạy camp nào mà Pancake báo lỗi (chưa có gói cước…) thì bỏ, khỏi làm rối tin.
