@@ -163,7 +163,7 @@ function AuthPage() {
                 </div>
                 <h1 className="sr-only">{APP_NAME} Dashboard</h1>
                 <p className="text-sm text-muted-foreground">Dashboard vận hành</p>
-                <p className="mt-1 text-[11px] text-muted-foreground/70">🇹🇼 Đài Loan · 🇸🇬 Singapore · 🇦🇪 UAE</p>
+                <p className="mt-1 text-[11px] text-muted-foreground/70">🇹🇼 Đài Loan · 🇸🇬 Singapore · 🇦🇪 UAE · 🇯🇵 Nhật Bản</p>
             </div>
 
             <div className="rounded-2xl border border-border bg-card/80 p-8 shadow-xl backdrop-blur-xl dark:bg-white/[0.04] dark:shadow-none">

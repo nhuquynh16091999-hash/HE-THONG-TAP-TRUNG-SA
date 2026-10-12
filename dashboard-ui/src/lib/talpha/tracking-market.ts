@@ -121,6 +121,20 @@ export async function loadPosMarketShipments<S extends MarketStoreBase>(
     return { shipments, store, lastImport: null };
 }
 
+/**
+ * Nhãn nguồn số của nước đọc bảng đối tác. "+ 17TRACK" chỉ đúng khi có mã thật sự được 17TRACK
+ * theo dõi — Nhật 13/10/2026: 17TRACK từ chối đăng ký mọi mã Sagawa ("The carrier temporarily
+ * does not support registration") nên trạng thái chỉ theo bảng đối tác.
+ */
+export function nhanNguonDoiTac(
+    shipments: Pick<Shipment, "registered">[], store: { last_sync?: { register_rejected?: number } },
+): string {
+    if (!shipments.some((s) => s.registered) && Number(store.last_sync?.register_rejected) > 0) {
+        return "Bảng đối tác (17TRACK chưa nhận đăng ký hãng này)";
+    }
+    return "Bảng đối tác + 17TRACK";
+}
+
 /** Đơn của một thị trường ngoài Đài — chọn nguồn theo khai báo tracking.markets.<mã>.source. */
 export function loadMarketShipments<S extends MarketStoreBase>(
     mk: TrackMarket, emptyStore: () => S,

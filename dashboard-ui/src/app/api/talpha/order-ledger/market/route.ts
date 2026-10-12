@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { bigquery } from "@/lib/bigquery";
 import { MARKETS_PUBLIC, PHONE_RULES } from "@/lib/talpha/rules";
-import { buildAlerts, trackMarket } from "@/lib/talpha/tracking";
-import { loadMarketShipments } from "@/lib/talpha/tracking-market";
+import { buildAlerts, trackMarket, TRACK_MARKETS } from "@/lib/talpha/tracking";
+import { loadMarketShipments, nhanNguonDoiTac } from "@/lib/talpha/tracking-market";
 import { buildMarketLedger, type ProductInfo } from "@/lib/talpha/market-ledger";
 
 export const dynamic = "force-dynamic";
@@ -73,7 +73,9 @@ export async function GET(req: NextRequest) {
     const m = MARKETS_PUBLIC.markets.find((x) => x.code === code);
     const tm = trackMarket(code);
     if (!m || code === "TW" || tm.code !== code) {
-        return NextResponse.json({ error: "market phải là mã một nước ngoài Đài đã khai tracking.markets (SG, AE)" }, { status: 400 });
+        return NextResponse.json({
+            error: `market phải là mã một nước ngoài Đài đã khai tracking.markets (${TRACK_MARKETS.filter((x) => x.code !== "TW").map((x) => x.code).join(", ")})`,
+        }, { status: 400 });
     }
     try {
         const { shipments, store, lastImport } = await loadMarketShipments(tm, (): Empty => ({ registered: {}, statuses: {} }));
@@ -90,7 +92,7 @@ export async function GET(req: NextRequest) {
             market: { code: m.code, display: m.display, currency: m.currency, symbol: m.symbol, rate_vnd: m.rate_vnd },
             nguon: laPos
                 ? { nhan: "Đơn POS + trạng thái tra ở WeShip", cap_nhat: store.last_sync?.ok ? store.last_sync.at : null, loai: "tra" }
-                : { nhan: "Bảng đối tác + 17TRACK", cap_nhat: lastImport, loai: "nap" },
+                : { nhan: nhanNguonDoiTac(shipments, store as { last_sync?: { register_rejected?: number } }), cap_nhat: lastImport, loai: "nap" },
             canh_bao: hang.loi,
             rows,
         });

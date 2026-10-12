@@ -127,6 +127,8 @@ const LEVEL_STYLE = {
 type LastSync = {
     at: string; ok: boolean; error?: string;
     registered?: number; checked?: number; quota_out?: boolean;
+    /** Số mã 17TRACK từ chối đăng ký ở lượt cuối (Sagawa — Nhật, 13/10/2026). */
+    register_rejected?: number;
     /** Lượt tra WeShip (UAE): số mã đem tra, trang báo không có, lỗi. */
     targets?: number; not_found?: number; failed?: number;
     quota?: { total: number; used: number; remain: number } | null;
@@ -282,6 +284,9 @@ export default function TALPHATrackingTab({ dateRange }: Props) {
     const urgent = alerts.filter((a) => a.level === "gap");
     const atStore = counts.AvailableForPickup || 0;
     const laDai = market === "TW";
+    // 17TRACK chạy được nhưng từ chối MỌI mã của nước này (Sagawa — Nhật, 13/10/2026): nói thẳng,
+    // đừng để người xem tưởng "chưa đăng ký" là máy chưa chạy.
+    const tuChoiHet = provider !== "weship" && (lastSync?.register_rejected ?? 0) > 0 && totals.registered === 0;
     const dangGiao = shipments.filter((s) => s.status === "OutForDelivery");
 
     return (
@@ -335,7 +340,9 @@ export default function TALPHATrackingTab({ dateRange }: Props) {
                     value={formatNumber(totals.shipments)}
                     sub={provider === "weship"
                         ? (totals.pending_register > 0 ? `${totals.pending_register} mã AWB chưa tra WeShip` : "đã tra WeShip hết")
-                        : totals.pending_register > 0
+                        : tuChoiHet
+                            ? "17TRACK chưa nhận hãng này — theo bảng đối tác"
+                            : totals.pending_register > 0
                             ? `${totals.pending_register} mã chưa đăng ký theo dõi`
                             : "đã đăng ký theo dõi hết"} />
             </div>
@@ -418,6 +425,7 @@ export default function TALPHATrackingTab({ dateRange }: Props) {
                     {(lastSync.keys?.length ?? 0) > 1 ? ` (${lastSync.keys!.length} khoá)` : ""}
                     {lastSync.ok && lastSync.keys?.filter((k) => !k.ok).map((k) => ` · ${k.label} LỖI: ${k.error}`).join("")}
                     {lastSync.quota_out ? " · HẾT QUOTA — đơn mới không được theo dõi" : ""}
+                    {tuChoiHet ? ` · 17TRACK TỪ CHỐI đăng ký ${formatNumber(lastSync.register_rejected ?? 0)} mã (hãng tạm chưa hỗ trợ qua API) — trạng thái đang theo bảng đối tác, mỗi lượt máy tự thử lại` : ""}
                 </p>
             )}
             {syncMsg && <p className="rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-300">{syncMsg}</p>}

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { bigquery } from "@/lib/bigquery";
 import { MARKETS_PUBLIC } from "@/lib/talpha/rules";
 import { trackMarket } from "@/lib/talpha/tracking";
-import { loadMarketShipments } from "@/lib/talpha/tracking-market";
+import { loadMarketShipments, nhanNguonDoiTac } from "@/lib/talpha/tracking-market";
 import { trackingFromLink } from "@/lib/talpha/cod-recon";
 import {
     nhanTrangThai, nhanTrangThaiPos, nhomTheoPos, nhomTheoVanDon, tongHopCod, type DonCod,
@@ -79,7 +79,7 @@ async function layDon(code: string): Promise<{ don: DonCod[]; nguon: Nguon }> {
         });
         nguon = laPos
             ? { loai: "weship", nhan: "Đơn POS + trạng thái tra ở WeShip", cap_nhat: store.last_sync?.ok ? store.last_sync.at : null }
-            : { loai: "doi_tac", nhan: "Bảng đối tác + 17TRACK", cap_nhat: lastImport };
+            : { loai: "doi_tac", nhan: nhanNguonDoiTac(shipments, store as { last_sync?: { register_rejected?: number } }), cap_nhat: lastImport };
     } else {
         const [rows] = await bigquery.query({
             query: `SELECT v.order_id, CAST(v.order_date AS STRING) AS order_date,
