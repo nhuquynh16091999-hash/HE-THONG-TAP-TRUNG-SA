@@ -30,6 +30,18 @@ meta_ads:
   # TỰ BỎ QUA — vòng vẫn OK, vẫn ghi Sheet, bot Zalo nhắc tên TK (sync/core/tk_loi.py). TK ĐANG
   # tiêu tiền mà mất quyền thì vẫn chặn vòng ghi như luật 03/09 → cấp lại quyền hoặc bỏ id dưới đây.
   #
+  # BỎ 15/10/2026 — bốn tài khoản dưới đây ĐÃ BỎ khỏi danh sách, đều mất quyền (#200 has NOT
+  # grant ads_read) và rơi khỏi `/me/adaccounts` của token:
+  #   act_355509637365145   Sỹ Anh Taiwan 5 — CHƯA THANH TOÁN từ 12/10, chi lần cuối 10/10
+  #   act_2201353496727281  SA ANTALO 01 — Meta KHOÁ 14/10, chi lần cuối 13/10
+  #   act_1005930495298028  SL ANTALO 01 — Meta khoá, chi lần cuối 02/10
+  #   act_845959551784078   Xinh Mi Nguyen — chưa có camp, mất quyền 14/10
+  # Hai cái đầu 7 ngày qua có tiêu tiền nên tk_loi CHẶN: từ vòng 14:23 ngày 14/10 mọi vòng
+  # sync rc=1, Sheet đứng ở số 13:24 ngày 14/10 (tin Zalo 13:00 ngày 15/10 báo "sync đứng 23 giờ
+  # 37 phút"). Cả hai đã chết hẳn (khoá / nợ) nên không tiêu thêm được — bỏ ra KHÔNG thiếu số,
+  # chi tiêu cũ (tháng 10: Taiwan 5 5,84 tr · SA ANTALO 01 7,76 tr) vẫn nằm trong fb_ads_data.
+  # Dùng lại: cấp quyền cho System User trước, rồi mới khai lại id.
+  #
   # ĐỔI TOKEN 29/09/2026 — Sỹ Anh đá 5 tài khoản khỏi BM rồi cấp token mới (System User
   # "Dashboard", app "Dashboard Sỹ Anh Ngoài", không hết hạn). Từ 09:23 sáng đó cả 5 báo
   # `#200 has NOT grant ads_read`, mỗi vòng sync rc=1 → Sheet đứng ở số 09:23.
@@ -77,7 +89,7 @@ meta_ads:
   ad_account_ids:
     - "act_256210853826298"   # Sỹ Anh Taiwan 4 — đang chạy
     - "act_620354173588998"   # ANTALO 4 - CHẠY VPCS + THUẾ (Meta đổi tên 29/09; trước là CN1, Sỹ Anh Taiwan 6)
-    - "act_355509637365145"   # Sỹ Anh Taiwan 5 — đang chạy
+    # - "act_355509637365145"   # Sỹ Anh Taiwan 5 — BỎ 15/10/2026 (chưa thanh toán, mất quyền)
     - "act_9429066663871702"  # TKQC Chạy Đài Loan — đã tắt
     - "act_1044243500995626"  # Sỹ Anh Taiwan 3 — đã tắt
     # TẮT 23/09/2026 — BM Thuyên gỡ quyền ads_read của token từ 10:22 sáng; hai tài
@@ -121,7 +133,7 @@ meta_ads:
     # tới trưa 30/09 (tin Zalo 13:00 báo "sync đứng 20 giờ 38 phút"). Tháng 9 chi 0đ nên bỏ
     # không mất số nào. Cấp lại quyền rồi mới bỏ dấu # dòng dưới.
     # → ĐÃ CẤP LẠI QUYỀN, khai lại 07/10/2026 (khối THÊM 07/10 ngay dưới).
-    - "act_1005930495298028"  # SL ANTALO 01 (Meta đổi tên; 29/09 chưa đặt tên, tên = id)
+    # - "act_1005930495298028"  # SL ANTALO 01 — BỎ 15/10/2026 (bị khoá, mất quyền)
     - "act_1298353682322779"  # XT ANTALO 01 (Meta đổi tên; 29/09 là Quynh Vien)
     #
     # THÊM 07/10/2026 — Sỹ Anh gửi token mới để "lấy hết báo cáo về database". Soát bằng
@@ -130,11 +142,11 @@ meta_ads:
     # tiêu tháng 10 của chúng CHƯA vào fb_ads_data. Cả 5 đọc insights được, VND, giờ VN.
     # Chi tháng 10 tới 07/10: SA ANTALO 01 ≈740k · SA ANTALO 02 ≈432k · XT ANTALO 02 ≈143k
     # (camp `TW/THƯƠNG/…` và `SGP/THÁI/…` — đúng chuẩn, tự về đúng nước + marketer).
-    - "act_2201353496727281"  # SA ANTALO 01 (29/09 tên "K NEED khang ve 22") — camp TW/THƯƠNG
+    # - "act_2201353496727281"  # SA ANTALO 01 — BỎ 15/10/2026 (bị khoá 14/10, mất quyền)
     - "act_763967898998377"   # SA ANTALO 02 — camp TW/THƯƠNG từ 06/10
     - "act_2163887820576562"  # XT ANTALO 02 — camp SGP/THÁI từ 06/10
     - "act_1417734220486142"  # XT ANTALO 03 — mở 01/10, chưa có camp
-    - "act_845959551784078"   # Xinh Mi Nguyen — chưa có camp
+    # - "act_845959551784078"   # Xinh Mi Nguyen — BỎ 15/10/2026 (mất quyền, chưa có camp)
   ad_account_names:
     act_2316553302504985: "TK CÁ NHÂN NEW 1"
     act_1025294735296964: "NEW3"
