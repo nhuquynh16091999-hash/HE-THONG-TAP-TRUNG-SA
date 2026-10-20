@@ -199,6 +199,42 @@ function colIndex(cols: string[], anchorKey: string): number {
     return -1;
 }
 
+/** Dòng dữ liệu ăn khớp với cặp cột đang chọn: có mã đơn (không phải ngày giờ) và ô tiền là số. */
+function dongKhopCot(row: unknown[], iOrd: number, iVal: number): boolean {
+    if (iOrd < 0 || iVal < 0) return false;
+    return !!cellText(row[iOrd]) && toIsoDate(row[iOrd]) === null && toNumber(row[iVal]) !== null;
+}
+
+/**
+ * Hàng tiêu đề LỆCH CỘT so với dữ liệu → độ dịch (0, +1, −1) phải cộng vào mọi chỉ số cột.
+ *
+ * Kỳ 2026.10.16 ("AT ĐỐI SOÁT TAIWAN 2026.10.16"): NAZA làm rơi ô tiêu đề 收货日期, cả hàng
+ * tiêu đề sheet COD dồn sang trái một cột, cuối hàng lặp "COD金额" hai lần — dữ liệu vẫn nằm
+ * chỗ cũ (cột A là ngày xuất kho). Đọc theo chữ tiêu đề thì mã đơn ra NGÀY, tiền COD ra
+ * "中国台湾": bỏ cả 15 dòng, màn hình báo "không thấy dòng COD nào".
+ * Thử từng độ dịch trên tối đa 20 dòng dữ liệu đầu, lấy độ dịch nhiều dòng khớp nhất; hoà
+ * thì giữ 0 — file đúng mẫu không bị đụng tới.
+ */
+export function doLechCot(grid: Grid, headerRow: number, iOrd: number, iVal: number): number {
+    const mau = grid.slice(headerRow + 1).filter((r) => (r || []).some((c) => cellText(c))).slice(0, 20);
+    let best = 0, bestScore = 0;
+    for (const d of [0, 1, -1]) {
+        const score = mau.filter((r) => dongKhopCot(r || [], iOrd + d, iVal + d)).length;
+        if (score > bestScore) { best = d; bestScore = score; }
+    }
+    return best;
+}
+
+/** Cột ngày khi tiêu đề của nó bị mất (kỳ 2026.10.16): cột đầu tiên mà quá nửa dòng mẫu là ngày. */
+function cotNgayKhongTieuDe(grid: Grid, headerRow: number): number {
+    const mau = grid.slice(headerRow + 1).filter((r) => (r || []).some((c) => cellText(c))).slice(0, 20);
+    const rong = Math.max(0, ...mau.map((r) => (r || []).length));
+    for (let i = 0; i < rong; i++) {
+        if (mau.filter((r) => toIsoDate((r || [])[i]) !== null).length * 2 > mau.length) return i;
+    }
+    return -1;
+}
+
 // ─────────────────────────────────────────────────────────────────────────
 // Kiểu dữ liệu
 // ─────────────────────────────────────────────────────────────────────────
@@ -445,8 +481,11 @@ function readSummary(grid: Grid): NazaSummary {
     // 24/07: tính ra −1.098,29 RMB trong khi file ghi −163,29 RMB.
     const combined = grid.some((row) => {
         const label = cellText((row || [])[0]);
-        return label.includes("速递运费") && label.includes("操作费");
+        return label.includes("运费") && label.includes("操作费");
     });
+    // Kỳ 2026.10.16 NAZA đổi nhãn dòng phí ship ở sheet TỔNG thành '运费 人民币' — mất chữ
+    // 速递运费, nên phí ship của kỳ thành trống và phép tự soát quyết toán báo lệch giả 560¥.
+    const phiShip = pick("速递运费", "快递运费") ?? pickIf((l) => l.startsWith("运费"), "运费");
 
     return {
         cod_twd: pick("本期回款金额"),
@@ -454,7 +493,7 @@ function readSummary(grid: Grid): NazaSummary {
         // Tỷ giá tiền nước → tệ: Đài ~0,2 nhưng SGD ~5,5 và AED ~1,9 (file Sing riêng từ
         // 10/2026) — nên mốc là "dưới 100", không phải "dưới 2"; RMB→VND luôn cỡ nghìn.
         rate_twd_rmb: rates.find((r) => r > 0 && r < 100) ?? null,
-        ship_fee_rmb: pick("速递运费"),
+        ship_fee_rmb: phiShip,
         op_fee_rmb: combined ? 0 : pick("操作费"),
         net_rmb: pick("本期应退金额RMB"),
         rate_rmb_vnd: rates.find((r) => r >= 100) ?? null,
@@ -479,14 +518,17 @@ export async function parseNazaStatement(buf: Buffer, fileName = ""): Promise<Na
     if (sCod) {
         const h = findHeader(sCod.grid, ["原单号"]) || findHeader(sCod.grid, ["MÃ ĐƠN"]);
         if (h) {
-            const iOrd = colIndex(h.cols, "order_id");
-            const iTrk = colIndex(h.cols, "tracking");
-            const iAmt = colIndex(h.cols, "cod_amount");
-            const iRcv = colIndex(h.cols, "recv_date");
-            const iCh = colIndex(h.cols, "channel");
-            const iNuoc = h.cols.findIndex((c) => c.includes("国家"));
-            const iTyGia = h.cols.findIndex((c) => c.includes("汇率"));
-            const iVe = h.cols.findIndex((c) => c.includes("回款金额"));
+            const lech = doLechCot(sCod.grid, h.row, colIndex(h.cols, "order_id"), colIndex(h.cols, "cod_amount"));
+            const dich = (i: number) => (i >= 0 ? i + lech : -1);
+            const iOrd = dich(colIndex(h.cols, "order_id"));
+            const iTrk = dich(colIndex(h.cols, "tracking"));
+            const iAmt = dich(colIndex(h.cols, "cod_amount"));
+            const iRcvTd = dich(colIndex(h.cols, "recv_date"));
+            const iRcv = iRcvTd >= 0 ? iRcvTd : lech !== 0 ? cotNgayKhongTieuDe(sCod.grid, h.row) : -1;
+            const iCh = dich(colIndex(h.cols, "channel"));
+            const iNuoc = dich(h.cols.findIndex((c) => c.includes("国家")));
+            const iTyGia = dich(h.cols.findIndex((c) => c.includes("汇率")));
+            const iVe = dich(h.cols.findIndex((c) => c.includes("回款金额")));
             for (let r = h.row + 1; r < sCod.grid.length; r++) {
                 const row = sCod.grid[r] || [];
                 const amt = iAmt >= 0 ? toNumber(row[iAmt]) : null;
@@ -512,13 +554,16 @@ export async function parseNazaStatement(buf: Buffer, fileName = ""): Promise<Na
     if (sFee) {
         const h = findHeader(sFee.grid, ["原单号"]) || findHeader(sFee.grid, ["MÃ ĐƠN"]);
         if (h) {
-            const iOrd = colIndex(h.cols, "order_id");
-            const iTrk = colIndex(h.cols, "tracking");
-            const iShp = colIndex(h.cols, "ship_date");
-            const iKg = colIndex(h.cols, "chargeable_kg");
-            const iCh = h.cols.findIndex((c) => c.includes("运输方式"));
-            const iNuoc = h.cols.findIndex((c) => c.includes("国家"));
-            const { iFee, iOp, iFirstLeg } = cotPhi(h.cols);
+            const phi = cotPhi(h.cols);
+            const lech = doLechCot(sFee.grid, h.row, colIndex(h.cols, "order_id"), phi.iFee);
+            const dich = (i: number) => (i >= 0 ? i + lech : -1);
+            const iOrd = dich(colIndex(h.cols, "order_id"));
+            const iTrk = dich(colIndex(h.cols, "tracking"));
+            const iShp = dich(colIndex(h.cols, "ship_date"));
+            const iKg = dich(colIndex(h.cols, "chargeable_kg"));
+            const iCh = dich(h.cols.findIndex((c) => c.includes("运输方式")));
+            const iNuoc = dich(h.cols.findIndex((c) => c.includes("国家")));
+            const iFee = dich(phi.iFee), iOp = dich(phi.iOp), iFirstLeg = dich(phi.iFirstLeg);
             for (let r = h.row + 1; r < sFee.grid.length; r++) {
                 const row = sFee.grid[r] || [];
                 const ord = iOrd >= 0 ? cellText(row[iOrd]) : "";

@@ -407,5 +407,60 @@ const FEE_OK = [
         assert.strictEqual(st.fee_lines[0].tracking, "JT2027");
     });
 
+    console.log("── Hàng tiêu đề LỆCH một cột so với dữ liệu ──");
+    // Sao kê Đài 2026.10.16 tải lên 19/10/2026: NAZA làm rơi ô tiêu đề 收货日期, cả hàng tiêu đề
+    // sheet COD dồn sang trái một cột và lặp "COD金额" ở cuối. Dữ liệu vẫn ở chỗ cũ → bộ đọc lấy
+    // mã đơn ra ngày, tiền ra "中国台湾", bỏ hết dòng: "Mở được file nhưng không thấy dòng COD nào".
+    const fileLech = async () => {
+        const wb = new ExcelJS.Workbook();
+        const s = wb.addWorksheet("汇总 TỔNG");
+        SUM_OK.forEach((r) => s.addRow(r));
+        const c = wb.addWorksheet("COD 对账 Đối soát COD ");
+        c.addRow(["COD结算清单"]);
+        c.addRow(["原单号 Mã đơn hệ thống", "单号Mã đơn", "客户名称", "运单号Mã tracking", "运输方式", "国家 quốc gia", "COD金额", "COD金额"]);
+        c.addRow(["2026-10-05 16:45:01", "1870459566-Z", "1870459566-Z", "ANH THAI", "1871270402", "STWCOD专线-新竹(转寄)", "中国台湾", 6000]);
+        c.addRow(["2026-09-29 10:06:06", "20260928-1113923469-2032", "T1769", "ANH THAI", "18072790", "STWCOD专线-711", "中国台湾", 4000]);
+        c.addRow([null, null, null, null, null, null, null, 10000]);
+        return N.parseNazaStatement(Buffer.from(await wb.xlsx.writeBuffer()), "AT ĐỐI SOÁT TAIWAN 2026.10.16.xlsx");
+    };
+    await t("tiêu đề dồn trái một cột: vẫn đọc đủ dòng COD, đúng mã đơn và tiền", async () => {
+        const st = await fileLech();
+        assert.strictEqual(st.cod_lines.length, 2, "dòng tổng cuối sheet không có mã đơn — không tính");
+        assert.strictEqual(st.cod_lines[0].order_id, "1870459566-Z");
+        assert.strictEqual(st.cod_lines[0].cod_twd, 6000);
+        assert.strictEqual(st.cod_lines[1].order_id, "20260928-1113923469-2032");
+        assert.strictEqual(st.cod_lines[0].market, "TW");
+    });
+    await t("cột ngày mất tiêu đề: vẫn lấy được ngày xuất kho", async () => {
+        const st = await fileLech();
+        assert.strictEqual(st.cod_lines[0].recv_date, "2026-10-05");
+        assert.strictEqual(st.cod_lines[1].recv_date, "2026-09-29");
+    });
+    await t("sheet TỔNG ghi phí ship là '运费 人民币': vẫn đọc được, quyết toán tự khớp", async () => {
+        const wb = new ExcelJS.Workbook();
+        const s = wb.addWorksheet("汇总 TỔNG");
+        SUM_OK.map((r) => (String(r[0]).startsWith("速递运费") ? ["运费 人民币", r[1], r[2]] : r)).forEach((r) => s.addRow(r));
+        const c = wb.addWorksheet("COD");
+        c.addRow(["收货日期", "原单号", "转单号", "产品名称", "国家名称", "COD金额"]);
+        COD_OK.forEach((r) => c.addRow(r));
+        const f = wb.addWorksheet("速递运费 PHÍ VẬN CHUYỂN( RMB)");
+        f.addRow(["序号", "出货日期", "原单号", "转单号", "运输方式", "计费重", "速递运费", "操作费"]);
+        FEE_OK.forEach((r, i) => f.addRow([i + 1, r[0], r[1], r[2], r[3], r[4], r[5], r[6]]));
+        const st = await N.parseNazaStatement(Buffer.from(await wb.xlsx.writeBuffer()), "AT ĐỐI SOÁT TAIWAN 2026.10.16.xlsx");
+        assert.strictEqual(st.summary.ship_fee_rmb, -54);
+        assert.strictEqual(st.summary.fees_combined, false);
+        assert.strictEqual(st.checks.math_ok, true, st.checks.math_note);
+    });
+    await t("file đúng mẫu KHÔNG bị dịch cột", async () => {
+        const st = await N.parseNazaStatement(await makeBook({
+            sheetNames: ["汇总", "COD账单", "速递运费RMB"], summaryRows: SUM_OK, codRows: COD_OK, feeRows: FEE_OK,
+        }), "ĐỐI SOÁT COD 2026.08.25.xlsx");
+        assert.strictEqual(st.cod_lines.length, 2);
+        assert.strictEqual(st.cod_lines[0].order_id, "T1447");
+        assert.strictEqual(st.cod_lines[0].recv_date, "2026-08-25");
+        assert.strictEqual(st.fee_lines.length, 2);
+        assert.strictEqual(st.fee_lines[0].ship_fee, 27);
+    });
+
     console.log(`\n${pass} phép thử — tất cả đạt.`);
 })().catch((e) => { console.error("\n✗ HỎNG:", e.message); process.exit(1); });
