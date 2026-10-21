@@ -7,7 +7,7 @@
 // - Ads 08:30 (kết quả hôm qua) + 13:00 · 18:00 · 22:00 (số đang chạy hôm nay), giờ như cũ.
 //   13:00/18:00 so ▲▼ với CÙNG MỐC hôm qua của chính nước đó, 22:00 so với cả ngày hôm qua.
 // - Vận đơn 08:30 + 22:00 (Đài, Singapore, UAE, Nhật). Nhật từ 13/10/2026: bảng đối tác
-//   "BS UP DATA JAPAN" + 17TRACK hãng Sagawa, câu nhắn khách nói Sagawa / phiếu báo vắng nhà.
+//   "BS UP DATA JAPAN" + 17TRACK hãng Japan Post (21/10; 13/10 khai Sagawa bị từ chối), câu nhắn khách nói Japan Post / phiếu báo vắng nhà.
 // - Lệnh gõ trong nhóm (commands.js): /baocao [homqua | dd/mm] [tên | team] · /canhbao · /vandon
 //   · /bot — luôn trả số của NƯỚC CỦA NHÓM, không bao giờ số nước khác.
 // - Sync đang đứng thì tin vẫn gửi ĐÚNG KHUNG GIỜ (mang dòng "SỐ CHƯA ĐỦ") và bot NHỚ số đã

@@ -1033,8 +1033,8 @@
         "store": "tracking_jp",
         "partner_market": "Japan",
         "currency": "JPY",
-        "carrier": 100040,
-        "_carrier_note": "Sagawa (佐川急便) — mã 17TRACK 100040. Sỹ Anh 13/10/2026: 'vận chuyển bên Nhật Bản cũng dùng 17Track qua đơn vị vận chuyển này (Sagawa)'. Mã dạng 12 số (2565…). KHÔNG dùng 100041 SGHグローバル (Sagawa Global — hàng quốc tế).",
+        "carrier": 10021,
+        "_carrier_note": "Japan Post — mã 17TRACK 10021 (Sỹ Anh 21/10/2026: bên lên đơn báo tra được bằng JAPAN POST; thử thật mã 256500726156 → 17TRACK nhận, có sự kiện Naniwa). Trước đó 13/10 khai Sagawa 100040 nhưng 17TRACK từ chối mọi mã ('carrier temporarily does not support registration'). Mã dạng 12 số (2565…).",
         "stale_days": 7,
         "_stale_note": "Giống Singapore: giao tận nhà, 7 ngày không có cập nhật là đơn kẹt. Hàng Nhật có chặng gửi từ Đài sang trước khi vào Sagawa (bảng ghi 'đi hàng back từ đài qua').",
         "status_map": {

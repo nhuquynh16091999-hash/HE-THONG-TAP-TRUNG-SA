@@ -227,10 +227,10 @@ const sang = (d, o = {}) => buildVanDonSang(d, { today: TODAY, nowTs: NOW, phuTr
         assert.ok(m.includes("🚚 2 KHÁCH BÁO TRƯỚC SÁNG NAY → 1 đã nhận (69 SGD) · 1 chưa"), m);
     });
 
-    // ── SÁNG · Nhật Bản (Sagawa qua 17TRACK, 13/10/2026) ──
+    // ── SÁNG · Nhật Bản (Japan Post qua 17TRACK, 21/10/2026) ──
     const JP = (o = {}) => DATA({ market: { code: "JP", label: "Nhật Bản", currency: "JPY" },
         counts: { InTransit: 20, InfoReceived: 13 }, totals: { at_store_value: 0 }, ...o });
-    await t("JP: tiêu đề nước, giao hỏng → câu Sagawa + phiếu báo vắng nhà, không có mục cửa hàng", () => {
+    await t("JP: tiêu đề nước, giao hỏng → câu Japan Post + phiếu báo vắng nhà, không có mục cửa hàng", () => {
         const hong = (o) => canh("giao_hong", { level: "canh_bao" }, { store_name: "", store_code: "", source: "17track",
             status: "DeliveryFailure", sub_status: "DeliveryFailure_Other", cod_local: 8999, ...o });
         const r = sang(JP({ alerts: [
@@ -240,15 +240,15 @@ const sang = (d, o = {}) => buildVanDonSang(d, { today: TODAY, nowTs: NOW, phuTr
         const m = tron(r.text);
         assert.ok(m.startsWith("☀️ VẬN ĐƠN NHẬT BẢN · SÁNG 26/09"), m);
         assert.ok(m.includes("1. J1000 · 8.999 JPY · giao hỏng\n👤 Sato · 08033162030\n"
-            + "💬 Hi Sato, Sagawa tried to deliver your parcel (256500702942) but you weren't home. Please check your mailbox for the missed-delivery notice (不在連絡票)"), m);
-        assert.ok(m.includes("🇻🇳 Dịch: Chào Sato, Sagawa đã tới giao hàng (256500702942) nhưng bạn không có nhà."), m);
-        assert.ok(m.includes("Hi Kaye, this is another reminder: Sagawa has tried to deliver your parcel (256500726322) 2 times and still couldn't reach you!"), m);
-        assert.ok(m.includes("Sagawa only keeps the parcel for about a week"), m);
+            + "💬 Hi Sato, Japan Post tried to deliver your parcel (256500702942) but you weren't home. Please check your mailbox for the missed-delivery notice (不在連絡票)"), m);
+        assert.ok(m.includes("🇻🇳 Dịch: Chào Sato, Japan Post đã tới giao hàng (256500702942) nhưng bạn không có nhà."), m);
+        assert.ok(m.includes("Hi Kaye, this is another reminder: Japan Post has tried to deliver your parcel (256500726322) 2 times and still couldn't reach you!"), m);
+        assert.ok(m.includes("Japan Post only keeps the parcel for about a week"), m);
         assert.ok(!m.includes("J&T"), "Nhật không được nói J&T");
         assert.ok(!m.includes("📬"), "Nhật giao tận nhà — không có mục khách mới tới cửa hàng");
         assert.deepStrictEqual(r.goi, ["256500702942", "256500726322"]);
     });
-    await t("JP: BÁO TRƯỚC khách sắp nhận — nói Sagawa; 'đang vận chuyển' của bảng đối tác thì không báo", () => {
+    await t("JP: BÁO TRƯỚC khách sắp nhận — nói Japan Post; 'đang vận chuyển' của bảng đối tác thì không báo", () => {
         const jp = (o) => don({ store_name: "", source: "17track", status: "InTransit", last_event_time: luc("2026-09-25"), ...o });
         const r = sang(JP({ shipments: [
             jp({ order_id: "J1002", tracking: "256500700001", track17_code: "256500700001", customer: "Mae", status: "OutForDelivery", last_event_time: luc(TODAY, "07:00") }),
@@ -257,9 +257,9 @@ const sang = (d, o = {}) => buildVanDonSang(d, { today: TODAY, nowTs: NOW, phuTr
         ] }));
         const m = tron(r.text);
         assert.ok(m.includes("J1002 · 1.499 JPY · GIAO HÔM NAY"), m);
-        assert.ok(m.includes("💬 Hi Mae, your parcel (256500700001) is out for delivery with Sagawa today!"), m);
-        assert.ok(m.includes("J1003 · 1.499 JPY · đã vào Sagawa, sắp giao"), m);
-        assert.ok(m.includes("🇻🇳 Dịch (sắp giao): Chào {tên}, hàng của bạn ({mã}) đã tới Sagawa và sắp được giao"), m);
+        assert.ok(m.includes("💬 Hi Mae, your parcel (256500700001) is out for delivery with Japan Post today!"), m);
+        assert.ok(m.includes("J1003 · 1.499 JPY · đã vào Japan Post, sắp giao"), m);
+        assert.ok(m.includes("🇻🇳 Dịch (sắp giao): Chào {tên}, hàng của bạn ({mã}) đã tới Japan Post và sắp được giao"), m);
         assert.ok(!m.includes("J1004"), "bảng đối tác ghi đang vận chuyển — có thể còn ở chặng gửi từ Đài sang");
     });
 

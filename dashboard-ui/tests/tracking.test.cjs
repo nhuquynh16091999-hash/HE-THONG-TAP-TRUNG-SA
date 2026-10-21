@@ -496,7 +496,7 @@ t("SG khai trong rules: sổ riêng, J&T Express (SG) 100229, SGD, đứng im 7 
     // UAE (28/09/2026) theo dõi qua trang WeShip — test riêng ở weship.test.cjs.
     assert.deepStrictEqual(T.TRACK_MARKETS.map((m) => m.code), ["TW", "SG", "AE", "JP"]);
 });
-t("JP (13/10/2026): bảng đối tác 'Japan' + 17TRACK hãng Sagawa 100040, sổ riêng, JPY", () => {
+t("JP: bảng đối tác 'Japan' + 17TRACK hãng Japan Post 10021 (21/10/2026; Sagawa bị từ chối), sổ riêng, JPY", () => {
     const JP = T.trackMarket("jp");
     assert.strictEqual(JP.code, "JP");
     assert.strictEqual(JP.store, "tracking_jp");
@@ -504,7 +504,7 @@ t("JP (13/10/2026): bảng đối tác 'Japan' + 17TRACK hãng Sagawa 100040, s�
     assert.strictEqual(JP.source, "partner");
     assert.strictEqual(JP.provider, "17track");
     assert.strictEqual(JP.currency, "JPY");
-    assert.strictEqual(T.carrierFor("256500726156", "JP"), 100040, "mã 12 số của Sagawa — không theo luật mã Đài");
+    assert.strictEqual(T.carrierFor("256500726156", "JP"), 10021, "mã 12 số của Japan Post — không theo luật mã Đài");
     assert.strictEqual(T.mapMarketStatus(JP, "Đã lên đơn "), "InfoReceived");
     assert.strictEqual(T.mapMarketStatus(JP, "Chưa lên đơn"), "InfoReceived");
 });

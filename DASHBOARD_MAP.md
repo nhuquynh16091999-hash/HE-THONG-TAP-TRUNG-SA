@@ -37,11 +37,11 @@ người nhận theo thư mục gần file nhất, nước theo tên file.
 **Nhật Bản (mở 08/10/2026)** — camp đặt `JP/…` (Thắng, Thương chạy từ 08/10). Shop POS **JAPAN**
 1022115860 nối 09/10/2026 (`TALPHA_POSCAKE_JP_KEY`), JPY lưu nguyên yên (chia 1, đã đo), tỷ giá 1 JPY =
 160đ (Sỹ Anh chốt). Vận đơn từ 13/10/2026 giống Singapore: bảng đối tác "BS UP DATA JAPAN"
-(`partner_orders.sheets` → BigQuery `partner_orders`, market "Japan") + 17TRACK hãng **Sagawa 100040**
+(`partner_orders.sheets` → BigQuery `partner_orders`, market "Japan") + 17TRACK hãng **Japan Post 10021**
 (`tracking.markets.JP`, sổ `data/tracking_jp.json`) → Sổ đơn, Theo dõi vận đơn, Tiền COD về và tin Zalo
-vận đơn 08:30 · 22:00 vào nhóm ADS + VẬN ĐƠN JAPAN. 17TRACK API TỪ CHỐI đăng ký Sagawa ("carrier
-temporarily does not support registration", 13/10/2026) → trạng thái Nhật hiện theo cột Trạng Thái của
-bảng đối tác, mỗi lượt tự thử lại; màn hình + tin Zalo nói rõ nguồn. CHƯA CÓ: phí ship 3PL Nhật (P&L ship 0).
+vận đơn 08:30 · 22:00 vào nhóm ADS + VẬN ĐƠN JAPAN. 13/10 khai Sagawa 100040 nhưng 17TRACK API TỪ CHỐI
+mọi mã ("carrier temporarily does not support registration") nên Nhật chạy theo bảng đối tác; 21/10/2026
+bên lên đơn báo hàng đi JAPAN POST → đổi sang 10021, 17TRACK nhận (thử mã 256500726156). CHƯA CÓ: phí ship 3PL Nhật (P&L ship 0).
 **Meta không báo số tin nhắn cho quảng cáo ở Nhật** (luật bảo vệ thông tin liên lạc của Nhật) —
 camp Nhật là camp tin nhắn mà insights trả 0 mess. Số tin nhắn thật đếm từ Pancake:
 `/api/talpha/pancake-nuoc?market=JP&date=` (`lib/talpha/pancake.ts`, token tài khoản Pancake

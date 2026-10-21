@@ -231,7 +231,7 @@ function ghiSoNhac(soNhac, trackings, today) {
 }
 
 // Hãng giao tận nhà của nước đọc bảng đối tác + 17TRACK — tên hãng nói với khách.
-const HANG_NHA = { SG: "J&T", JP: "Sagawa" };
+const HANG_NHA = { SG: "J&T", JP: "Japan Post" };
 
 // ─── Singapore giao tận nhà (J&T) — Sỹ Anh chốt 01/10/2026 ───────────────────
 // Tiếng Anh gửi khách + bản dịch tiếng Việt cho anh em, như Đài.
@@ -263,31 +263,33 @@ function tinKhachSing(s, { nhacLai = false, lan = null } = {}, lang = "en") {
         + "from the J&T driver and contact them directly to arrange a new delivery time. If you need help, just reply to us. Thank you!";
 }
 
-// ─── Nhật Bản giao tận nhà (Sagawa) — Sỹ Anh yêu cầu 13/10/2026 ───────────────
-// Khách là người Philippines ở Nhật (camp JAPAN/…/PHI/…) → tiếng Anh như Đài, Sing. Sagawa
+// ─── Nhật Bản giao tận nhà — Sỹ Anh yêu cầu 13/10/2026; hãng là JAPAN POST từ 21/10/2026 ──
+// (13/10 khai Sagawa nhưng 17TRACK từ chối mọi mã; 21/10 bên lên đơn báo hàng đi Japan Post.)
+// Khách là người Philippines ở Nhật (camp JAPAN/…/PHI/…) → tiếng Anh như Đài, Sing. Bưu điện
 // giao không gặp thì để PHIẾU BÁO VẮNG NHÀ (不在連絡票) trong hộp thư; khách hẹn giao lại
-// (再配達) bằng số điện thoại / mã QR trên phiếu. Sagawa chỉ giữ hàng khoảng 1 tuần rồi trả về.
+// (再配達) bằng số điện thoại / mã QR trên phiếu. Bưu điện chỉ giữ hàng khoảng 1 tuần rồi trả về.
 function tinKhachNhat(s, { nhacLai = false, lan = null } = {}, lang = "en") {
     const vi = lang === "vi";
+    const H = HANG_NHA.JP;
     const ten = s.customer || (vi ? "bạn" : "there");
     const ma = s.track17_code || s.tracking;
     if (nhacLai) {
         if (vi) {
-            const lau = lan >= 2 ? `Sagawa đã giao hàng (${ma}) ${lan} lần mà vẫn không gặp được bạn!` : `Sagawa vẫn chưa giao được hàng (${ma}) cho bạn!`;
-            return `Chào ${ten}, shop nhắc bạn lần nữa: ${lau} Bạn xem hộp thư có phiếu báo vắng nhà của Sagawa (不在連絡票) không, `
-                + "rồi gọi số trên phiếu hoặc quét mã QR để hẹn giao lại ngay hôm nay nhé — Sagawa chỉ giữ hàng khoảng 1 tuần, quá hạn hàng sẽ bị trả về. "
+            const lau = lan >= 2 ? `${H} đã giao hàng (${ma}) ${lan} lần mà vẫn không gặp được bạn!` : `${H} vẫn chưa giao được hàng (${ma}) cho bạn!`;
+            return `Chào ${ten}, shop nhắc bạn lần nữa: ${lau} Bạn xem hộp thư có phiếu báo vắng nhà của ${H} (不在連絡票) không, `
+                + `rồi gọi số trên phiếu hoặc quét mã QR để hẹn giao lại ngay hôm nay nhé — ${H} chỉ giữ hàng khoảng 1 tuần, quá hạn hàng sẽ bị trả về. `
                 + "Không thấy phiếu thì bạn nhắn shop giờ nhận hàng tiện cho bạn. Cảm ơn bạn!";
         }
-        const lau = lan >= 2 ? `Sagawa has tried to deliver your parcel (${ma}) ${lan} times and still couldn't reach you!` : `Sagawa still hasn't been able to deliver your parcel (${ma})!`;
-        return `Hi ${ten}, this is another reminder: ${lau} Please check your mailbox for the Sagawa missed-delivery notice (不在連絡票) `
-            + "and call the number or scan the QR code on it to request redelivery today — Sagawa only keeps the parcel for about a week before returning it. "
+        const lau = lan >= 2 ? `${H} has tried to deliver your parcel (${ma}) ${lan} times and still couldn't reach you!` : `${H} still hasn't been able to deliver your parcel (${ma})!`;
+        return `Hi ${ten}, this is another reminder: ${lau} Please check your mailbox for the ${H} missed-delivery notice (不在連絡票) `
+            + `and call the number or scan the QR code on it to request redelivery today — ${H} only keeps the parcel for about a week before returning it. `
             + "If you can't find the notice, just reply with a good time for delivery. Thank you!";
     }
     if (vi) {
-        return `Chào ${ten}, Sagawa đã tới giao hàng (${ma}) nhưng bạn không có nhà. Bạn xem hộp thư có phiếu báo vắng nhà (不在連絡票) không, `
+        return `Chào ${ten}, ${H} đã tới giao hàng (${ma}) nhưng bạn không có nhà. Bạn xem hộp thư có phiếu báo vắng nhà (不在連絡票) không, `
             + "rồi gọi số trên phiếu hoặc quét mã QR để hẹn ngày giờ giao lại nhé. Không thấy phiếu thì bạn nhắn shop giờ nhận hàng tiện cho bạn. Cảm ơn bạn!";
     }
-    return `Hi ${ten}, Sagawa tried to deliver your parcel (${ma}) but you weren't home. Please check your mailbox for the missed-delivery notice (不在連絡票) `
+    return `Hi ${ten}, ${H} tried to deliver your parcel (${ma}) but you weren't home. Please check your mailbox for the missed-delivery notice (不在連絡票) `
         + "and call the number or scan the QR code on it to choose a new delivery time. If you can't find it, just reply with a good time and we'll arrange it. Thank you!";
 }
 
@@ -313,7 +315,7 @@ function mocSapGiao(s, today, nuoc) {
     return "SapGiao";
 }
 
-/** TH1 — câu báo trước. Sing nói "J&T", Nhật nói "Sagawa", UAE nói "the courier" và "order (parcel …)". */
+/** TH1 — câu báo trước. Sing nói "J&T", Nhật nói "Japan Post", UAE nói "the courier" và "order (parcel …)". */
 function tinSapGiao(s, moc, nuoc, lang = "en") {
     const vi = lang === "vi";
     const ten = s.customer || (vi ? "bạn" : "there");
