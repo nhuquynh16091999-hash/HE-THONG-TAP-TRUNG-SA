@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react
 import TabSkeleton, { ErrorState } from "@/components/ui/tab-skeleton";
 import WaLink from "@/components/talpha/wa-link";
 import { formatNumber, cn } from "../utils";
-import { VND, d6, STRIPE, PIN_TINT, rowCls, statusCls, mkCls, type Light } from "./ledger-shared";
+import { VND, d6, STRIPE, PIN_TINT, rowCls, statusCls, mkCls, demTyLeGiao, type Light } from "./ledger-shared";
 import { DanhSachThe, KhoiViecCanSua, OLocDon, TheDon, ThanhCongCu, useManHep, type ViecSua } from "./so-don-ui";
 
 /**
@@ -127,6 +127,7 @@ export default function SoDonNuoc({ code, nutNuoc }: { code: string; nutNuoc?: R
                     { id: "xam", label: "Không đòi", n: count("xam") },
                 ]}
                 tong={rows.length} chon={filter} onChon={setFilter}
+                tyLe={demTyLeGiao(rows, (r) => [r.status, r.status_vi])}
             />
 
             <KhoiViecCanSua viec={viec} hep={hep} />

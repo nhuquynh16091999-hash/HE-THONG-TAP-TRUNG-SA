@@ -3,7 +3,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { AlertTriangle, ChevronDown, Download, Info, RefreshCw, Search } from "lucide-react";
 import { formatNumber, cn } from "../utils";
-import { STRIPE, type Light } from "./ledger-shared";
+import { STRIPE, type Light, type TyLeGiao } from "./ledger-shared";
 
 /* ═══════════════════════════════════════════════════════════════════
    KHỐI GIAO DIỆN CHUNG CỦA SỔ ĐƠN HÀNG — Đài Loan, Singapore, UAE
@@ -89,9 +89,11 @@ const VIEN_CHON: Record<Light | "all", string> = {
 
 export type MucLoc = { id: Light; label: string; n: number };
 
-/** Bấm ô đang chọn lần nữa là về "Tất cả". */
-export function OLocDon({ muc, tong, chon, onChon }: {
+/** Bấm ô đang chọn lần nữa là về "Tất cả". `tyLe` thêm hai ô tỉ lệ giao thành công / hoàn ở cuối
+ *  hàng (22/10/2026) — chỉ để đọc, không lọc. */
+export function OLocDon({ muc, tong, chon, onChon, tyLe }: {
     muc: MucLoc[]; tong: number; chon: Light | "all"; onChon: (l: Light | "all") => void;
+    tyLe?: TyLeGiao;
 }) {
     const o = (id: Light | "all", label: string, n: number, tat?: boolean) => {
         const dangChon = chon === id;
@@ -113,10 +115,42 @@ export function OLocDon({ muc, tong, chon, onChon }: {
     };
     return (
         <div className={cn("grid gap-2",
-            // Điện thoại: "Tất cả" một hàng ngang, các đèn chia đều hàng dưới (3 đèn → 3 cột, 4 → 2×2).
-            muc.length === 3 ? "grid-cols-3 md:grid-cols-4" : "grid-cols-2 md:grid-cols-5")}>
+            // Điện thoại: "Tất cả" một hàng ngang, các đèn chia đều hàng dưới (3 đèn → 3 cột, 4 → 2×2),
+            // hai ô tỉ lệ thêm một hàng riêng.
+            muc.length === 3
+                ? (tyLe ? "grid-cols-3 md:grid-cols-6" : "grid-cols-3 md:grid-cols-4")
+                : (tyLe ? "grid-cols-2 md:grid-cols-7" : "grid-cols-2 md:grid-cols-5"))}>
             {o("all", "Tất cả", tong, true)}
             {muc.map((m) => o(m.id, m.label, m.n))}
+            {tyLe && (
+                <div className="col-span-full grid grid-cols-2 gap-2 md:col-span-2">
+                    <OTyLe label="Giao thành công" n={tyLe.giao} t={tyLe} mau="text-emerald-600 dark:text-emerald-400" cham="bg-emerald-500" />
+                    <OTyLe label="Hoàn" n={tyLe.hoan} t={tyLe} mau="text-slate-600 dark:text-slate-300" cham="bg-slate-400" />
+                </div>
+            )}
+        </div>
+    );
+}
+
+function OTyLe({ label, n, t, mau, cham }: { label: string; n: number; t: TyLeGiao; mau: string; cham: string }) {
+    const xong = t.giao + t.hoan;
+    const pt = xong ? `${((n / xong) * 100).toLocaleString("vi-VN", { maximumFractionDigits: 1 })}%` : "—";
+    const giai = xong
+        ? `${label}: ${n}/${xong} đơn đã có kết quả (giao xong hoặc hoàn).`
+            + (t.dang_di ? ` ${t.dang_di} đơn còn đang đi / chưa gửi chưa tính.` : "")
+            + (t.huy ? ` ${t.huy} đơn huỷ không tính.` : "")
+        : "Chưa có đơn nào giao xong hoặc hoàn.";
+    return (
+        // Màn 1280px chia 7 ô thì mỗi ô chỉ ~130px: số đơn tự xuống dòng thay vì tràn ra ngoài ô.
+        <div title={giai} className="min-w-0 rounded-xl border border-dashed border-border bg-card px-2.5 py-2">
+            <div className="flex flex-wrap items-baseline gap-x-1.5">
+                <span className={cn("text-xl font-bold tabular-nums leading-tight md:text-2xl", xong ? mau : "text-muted-foreground")}>{pt}</span>
+                {xong > 0 && <span className="text-[11px] tabular-nums text-muted-foreground">{formatNumber(n)}/{formatNumber(xong)} đơn</span>}
+            </div>
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <span className={cn("h-2 w-2 flex-none rounded-full", cham)} />
+                <span className="truncate">{label}</span>
+            </div>
         </div>
     );
 }

@@ -43,6 +43,8 @@ export const PIN_TINT: Record<Light, string> = {
 /** Trạng thái giao hàng tô theo NHÓM ý nghĩa, không phải mỗi trạng thái một
  *  màu — mười hai màu thì mắt không nhớ nổi cái nào là cái nào. */
 const STATUS_STYLE: { m: RegExp; c: string }[] = [
+    // "Giao hàng không thành công" (chữ thô đối tác Sing/Nhật) chứa "thành công" — phải bắt trước.
+    { m: /không thành công/i, c: "bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300" },
     { m: /thành công/i, c: "bg-emerald-100 text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-300" },
     { m: /hoàn|huỷ|hủy/i, c: "bg-slate-200 text-slate-700 dark:bg-slate-600/30 dark:text-slate-300" },
     { m: /đợi khách|chờ/i, c: "bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300" },
@@ -51,6 +53,33 @@ const STATUS_STYLE: { m: RegExp; c: string }[] = [
 ];
 export const statusCls = (s?: string | null) =>
     STATUS_STYLE.find((x) => x.m.test(String(s || "")))?.c || "bg-muted text-muted-foreground";
+
+/** Kết quả cuối của một đơn cho tỉ lệ giao thành công / hoàn (Sỹ Anh yêu cầu 22/10/2026).
+ *  Mã trạng thái chuẩn đi trước; chữ trạng thái bắt thêm đơn ĐANG hoàn — Đài ghi "Đang hoàn về
+ *  kho" thành DeliveryFailure, Sing/Nhật "Đang hoàn" thành Exception. Hàng đang quay về là tiền
+ *  đã mất, cùng luật tỷ lệ hoàn khi nạp bảng đối tác. null = còn đang đi / chưa gửi. */
+export function ketQuaGiao(status?: string | null, chu?: string | null): "giao" | "hoan" | "huy" | null {
+    if (status === "Returned" || status === "Destroyed") return "hoan";
+    if (/hoàn|tiêu hu/i.test(String(chu || ""))) return "hoan";
+    if (status === "Cancelled") return "huy";
+    if (status === "Delivered") return "giao";
+    // Dòng đối tác chưa có mã chuẩn (chữ chưa khai status_map) thì đọc theo chữ.
+    if (!status && /thành công/i.test(String(chu || "")) && !/không thành công/i.test(String(chu || ""))) return "giao";
+    return null;
+}
+
+export type TyLeGiao = { giao: number; hoan: number; huy: number; dang_di: number };
+
+/** Đếm cho hai ô tỉ lệ. Mẫu số là đơn ĐÃ CÓ KẾT QUẢ (giao + hoàn): đơn còn đang đi chưa biết
+ *  giao được hay không, chia trên tổng thì hai tỉ lệ cộng lại không ra 100%. Huỷ không tính. */
+export function demTyLeGiao<T>(rows: T[], doc: (r: T) => [string | null | undefined, string | null | undefined]): TyLeGiao {
+    const t: TyLeGiao = { giao: 0, hoan: 0, huy: 0, dang_di: 0 };
+    for (const r of rows) {
+        const k = ketQuaGiao(...doc(r));
+        if (k === "giao") t.giao++; else if (k === "hoan") t.hoan++; else if (k === "huy") t.huy++; else t.dang_di++;
+    }
+    return t;
+}
 
 /** Mỗi marketer một màu CỐ ĐỊNH, suy từ chính tên — lướt mắt xuống cột là nhận
  *  ra người, khỏi đọc chữ. */

@@ -6,7 +6,7 @@ import { Check, ChevronDown, Copy, HandCoins } from "lucide-react";
 import TabSkeleton, { ErrorState } from "@/components/ui/tab-skeleton";
 import { formatNumber, cn } from "../utils";
 import {
-    TWD, VND, RMB, d6, STRIPE, PIN_TINT, rowCls, statusCls, mkCls, tinDoiTien,
+    TWD, VND, RMB, d6, STRIPE, PIN_TINT, rowCls, statusCls, mkCls, tinDoiTien, demTyLeGiao,
     type Light, type LedgerRowUI, type DonChoTien,
 } from "./ledger-shared";
 import ThanhNhapBangDon, { bangDaCu, nhanNapGon, type NhapBangDon } from "@/components/talpha/nhap-bang-don";
@@ -185,6 +185,7 @@ function SoDonDai({ dateRange, nutNuoc }: Props & { nutNuoc?: ReactNode }) {
                     { id: "xam", label: "Không đòi", n: count("xam") },
                 ]}
                 tong={rows.length} chon={filter} onChon={setFilter}
+                tyLe={demTyLeGiao(rows, (r) => [r.status, r.status_raw])}
             />
 
             <KhoiDoiNaza ds={choTien.filter((p) => p.qua_han)} canNhan={!!viecDoi} chiTiet={viecDoi?.chi_tiet || ""} onXong={load} />
