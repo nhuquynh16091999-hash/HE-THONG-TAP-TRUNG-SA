@@ -621,12 +621,14 @@
       ]
     },
     "_sheet_note": "Tên sheet mỗi file mỗi khác ('汇总 TỔNG', 'TỔNG', '汇总', ' ĐỐI SOÁT COD' có dấu cách đầu). Phải dò bằng token, và dò sheet phí TRƯỚC sheet COD vì tên sheet COD ngắn hơn.",
+    "_tracking_anchor_note": "Sheet COD kỳ 05/10, 12/10, 16/10/2026 ghi cột mã vận đơn là '运单号 Mã tracking' (không phải 转单号) → bộ đọc chỉ nhận 转单号 bỏ trống mã vận đơn của 98 dòng, 78 đơn NAZA đã trả bị tính 'còn phải gửi' (Sỹ Anh phát hiện 26/10/2026). Kỳ 23/10 lại dùng 转单号. Thêm tên mới vào đây, đừng xoá tên cũ.",
     "header_anchors": {
       "order_id": [
         "原单号"
       ],
       "tracking": [
-        "转单号"
+        "转单号",
+        "运单号"
       ],
       "cod_amount": [
         "COD金额",

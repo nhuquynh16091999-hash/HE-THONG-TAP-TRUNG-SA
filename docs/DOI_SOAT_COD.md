@@ -68,6 +68,16 @@ Mỗi file `.xlsx` có **đúng ba sheet**, và cả ba đều cần:
 `操作费` = phí thao tác. Bộ đọc (`cotPhi` trong `naza-statement.ts`) ưu tiên
 `操作费` nếu có — đọc theo tên cũ thì kỳ 11/09 ra 0 dòng phí.
 
+⚠️ **Tên cột mã vận đơn ở sheet COD cũng đổi.** Kỳ 05/10, 12/10, 16/10/2026 NAZA ghi
+`运单号 Mã tracking` thay `转单号` (kỳ 23/10 quay lại `转单号`), còn `原单号` thành mã POS kiểu
+`20261015-1862725244-875` — mã T nằm ở cột `单号` / `客户单号`. Bộ đọc chỉ biết `转单号` nên 98
+dòng mất mã vận đơn, không ghép được đơn: ô "Còn phải gửi · đơn đã giao" hiện **100 đơn ·
+104.992 NT$ (≈79 tr)** trong khi thật là **22 đơn · 22.078 NT$ (≈16 tr)**, khung "Đòi tiền NAZA"
+báo ~86 đơn thay vì 9 (Sỹ Anh hỏi 26/10/2026). Đã sửa hai lớp: `运单号` thêm vào
+`cod_settlement.header_anchors.tracking`; dòng COD nào vẫn trống mã thì lấy theo `原单号` ở
+sheet PHÍ (`dienMaVanDonTuPhi` — lúc đọc file và lúc đọc kho, tra phí của MỌI kỳ, nên kho đã lưu
+tự lành, không phải tải lại file).
+
 ⚠️ **Sheet COD và sheet PHÍ là hai tập đơn khác nhau**, không phải hai cột của
 cùng một bảng. Đơn xuất kho tuần này thường tuần sau mới thu được tiền. Chính
 chỗ lệch giữa hai tập đó là tiền đang treo.

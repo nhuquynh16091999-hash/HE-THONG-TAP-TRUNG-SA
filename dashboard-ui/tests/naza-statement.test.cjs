@@ -451,6 +451,76 @@ const FEE_OK = [
         assert.strictEqual(st.summary.fees_combined, false);
         assert.strictEqual(st.checks.math_ok, true, st.checks.math_note);
     });
+    await t("tiêu đề dồn trái một cột: cột '运单号Mã tracking' vẫn ra mã vận đơn", async () => {
+        const st = await fileLech();
+        assert.strictEqual(st.cod_lines[0].tracking, "1871270402");
+        assert.strictEqual(st.cod_lines[1].tracking, "18072790");
+    });
+
+    console.log("── Cột mã vận đơn sheet COD đổi tên ──");
+    // Kỳ 05/10, 12/10, 16/10/2026 sheet COD ghi '运单号Mã tracking' thay '转单号': mã vận đơn
+    // bị bỏ trống, 原单号 là mã POS Sheet đơn không có → 78 đơn NAZA đã trả bị tính "còn phải
+    // gửi" (Sỹ Anh phát hiện 26/10/2026).
+    const fileCod = async (cotMa) => {
+        const wb = new ExcelJS.Workbook();
+        const s = wb.addWorksheet("汇总");
+        SUM_OK.forEach((r) => s.addRow(r));
+        const c = wb.addWorksheet("COD账单");
+        c.addRow(["COD结算清单"]);
+        c.addRow(["收货日期 Ngày xuất kho", "原单号 Mã đơn hệ thống", "单号Mã đơn", "客户名称", cotMa, "运输方式", "国家 quốc gia", "COD金额"]);
+        c.addRow(["2026-09-30 10:00:00", "20260923-627552420-1087", "T1749", "ANH THAI", "18066218", "STWCOD专线-711", "中国台湾", 6000]);
+        c.addRow(["2026-09-29 10:00:00", "18003463-Z", "18003463-Z", "ANH THAI", "", "STWCOD专线-711(转寄)", "中国台湾", 4000]);
+        const f = wb.addWorksheet("速递运费RMB");
+        f.addRow(["序号", "出货日期", "原单号", "单号", "客户名称", "转单号 Mã tracking", "运输方式", "计费重", "速递运费", "操作费"]);
+        f.addRow([1, "2026-09-30", "20260923-627552420-1087", "T1749", "ANH THAI", "18066218", "STWCOD专线-711", 0.2, 27, 3]);
+        f.addRow([2, "2026-09-29", "18003463-Z", "18003463-Z", "ANH THAI", "18077221", "STWCOD专线-711(转寄)", 0.1, 27, 3]);
+        return N.parseNazaStatement(Buffer.from(await wb.xlsx.writeBuffer()), "TAIWAN 20261012.xlsx");
+    };
+    await t("sheet COD ghi '运单号Mã tracking': đọc được mã vận đơn", async () => {
+        const st = await fileCod("运单号Mã tracking");
+        assert.strictEqual(st.cod_lines[0].tracking, "18066218");
+        assert.strictEqual(st.cod_lines[0].order_id, "20260923-627552420-1087");
+    });
+    await t("ô mã vận đơn trống ở sheet COD: lấy theo 原单号 ở sheet PHÍ cùng file", async () => {
+        const st = await fileCod("运单号Mã tracking");
+        assert.strictEqual(st.cod_lines[1].tracking, "18077221");
+    });
+    await t("cột mã vận đơn mang tên lạ hẳn: cả sheet vẫn lấy được mã từ sheet PHÍ", async () => {
+        const st = await fileCod("快递号 lạ");
+        assert.deepStrictEqual(st.cod_lines.map((l) => l.tracking), ["18066218", "18077221"]);
+    });
+    await t("kho đã lưu: dòng COD kỳ sau tra mã trên phí của kỳ TRƯỚC", () => {
+        const kho = N.dienMaVanDonKho([
+            { filename: "ky1", rows: [], naza: { fee_lines: [{ order_id: "20261008-843327461-717", tracking: "18095240" }] } },
+            { filename: "ky2", rows: [{ order_id: "20261008-843327461-717", tracking: "", amount: 1049 }], naza: { fee_lines: [] } },
+        ]);
+        assert.strictEqual(kho[1].rows[0].tracking, "18095240");
+        assert.strictEqual(kho[1].rows[0].amount, 1049);
+        assert.strictEqual(kho[1].filename, "ky2");
+    });
+    await t("BẪY: mã đơn mang HAI mã vận đơn ở sheet PHÍ thì không đoán", () => {
+        const [d] = N.dienMaVanDonTuPhi([{ order_id: "T1586", tracking: "" }], [
+            { order_id: "T1586", tracking: "18028219" }, { order_id: "T1586", tracking: "18073983" },
+        ]);
+        assert.strictEqual(d.tracking, "");
+    });
+    await t("BẪY: '17990334-Z' (giao lại) không ăn mã của đơn gốc '17990334'", () => {
+        const [d] = N.dienMaVanDonTuPhi([{ order_id: "17990334-Z", tracking: "" }],
+            [{ order_id: "17990334", tracking: "17990334" }]);
+        assert.strictEqual(d.tracking, "");
+    });
+    await t("dòng ĐÃ có mã vận đơn thì giữ nguyên, không bị sheet PHÍ đè", () => {
+        const [d] = N.dienMaVanDonTuPhi([{ order_id: "T1586", tracking: "18073983" }],
+            [{ order_id: "T1586", tracking: "18028219" }]);
+        assert.strictEqual(d.tracking, "18073983");
+    });
+    await t("mã '06722488751' và '6722488751' ở sheet PHÍ là MỘT mã — vẫn điền", () => {
+        const [d] = N.dienMaVanDonTuPhi([{ order_id: "18009019-Z", tracking: "" }], [
+            { order_id: "18009019-Z", tracking: "06722488751" }, { order_id: "18009019-Z", tracking: "6722488751" },
+        ]);
+        assert.strictEqual(N.normTracking(d.tracking), "6722488751");
+    });
+
     await t("file đúng mẫu KHÔNG bị dịch cột", async () => {
         const st = await N.parseNazaStatement(await makeBook({
             sheetNames: ["汇总", "COD账单", "速递运费RMB"], summaryRows: SUM_OK, codRows: COD_OK, feeRows: FEE_OK,

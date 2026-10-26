@@ -7,7 +7,7 @@ import {
 } from "@/lib/talpha/order-ledger";
 import type { StatementRow } from "@/lib/talpha/cod-recon";
 import {
-    canhBaoGopSing, expectedShipFee, matchChannel, OP_FEE_PER_PARCEL, type NazaStatement,
+    canhBaoGopSing, dienMaVanDonKho, expectedShipFee, matchChannel, OP_FEE_PER_PARCEL, type NazaStatement,
 } from "@/lib/talpha/naza-statement";
 import {
     docTienHang, ghepDotVaoKy, ngaySaoKe, type DotTienHang,
@@ -156,7 +156,10 @@ export async function GET(req: NextRequest) {
 
     try {
         const track = await readStoreFresh<TrackingStore>("tracking", { statuses: {}, partner: {} });
-        const stm = await readStoreFresh<{ statements: Statement[] }>("cod_statements", { statements: [] });
+        // Kỳ 05/10–16/10/2026 sheet COD bị đọc mất mã vận đơn (cột tên 运单号): điền lại từ
+        // sheet PHÍ lúc đọc, không phải tải lại file. Xem dienMaVanDonTuPhi.
+        const kho = await readStoreFresh<{ statements: Statement[] }>("cod_statements", { statements: [] });
+        const stm = { ...kho, statements: dienMaVanDonKho(kho.statements) };
         // Việc do NGƯỜI ghi — tiền về tài khoản, đã đòi, đã bỏ qua. Kho riêng
         // với kho sao kê: nạp lại file thì số máy đọc phải tính lại, còn việc
         // người đã làm thì không được mất.

@@ -9,7 +9,7 @@ import {
     MATCH_KEY, type PosOrder, type StatementRow,
 } from "@/lib/talpha/cod-recon";
 import {
-    canhBaoGopSing, laFileSing, parseNazaStatement, type NazaStatement,
+    canhBaoGopSing, dienMaVanDonKho, laFileSing, parseNazaStatement, type NazaStatement,
 } from "@/lib/talpha/naza-statement";
 import { ngaySaoKe } from "@/lib/talpha/purchase-sheet";
 import { readStoreFresh, updateStore } from "@/lib/talpha/store";
@@ -292,7 +292,8 @@ export async function GET(req: NextRequest) {
         //
         // Nên khớp với HỢP của mọi bản sao kê đã tải. Bản đang chọn chỉ quyết
         // định xem phần quyết toán và soát phí của kỳ nào.
-        const allRows = store.statements.flatMap((s) => s.rows);
+        // Dòng COD mất mã vận đơn (kỳ 05/10–16/10/2026, cột tên 运单号) lấy lại từ sheet PHÍ.
+        const allRows = dienMaVanDonKho(store.statements).flatMap((s) => s.rows);
         const result = reconcile(orders, allRows, { asOf: to });
         const notes = chosen
             ? warnings(chosen)

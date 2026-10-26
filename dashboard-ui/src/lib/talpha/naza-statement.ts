@@ -507,6 +507,50 @@ function readSummary(grid: Grid): NazaSummary {
     };
 }
 
+/**
+ * MÃ VẬN ĐƠN TRỐNG Ở SHEET COD → LẤY TỪ SHEET PHÍ.
+ *
+ * Kỳ 05/10, 12/10, 16/10/2026 NAZA ghi cột mã vận đơn ở sheet COD là '运单号' thay vì
+ * '转单号'. Bộ đọc chỉ nhận 转单号 nên 98 dòng mất mã vận đơn, mà 原单号 lúc đó lại là mã
+ * POS ('20261015-1862725244-875') Sheet đơn không có → 78 đơn NAZA ĐÃ TRẢ bị tính "còn
+ * phải gửi": màn hiện 100 đơn · 104.992 NT$, thật là 22 đơn · 22.078 NT$ (26/10/2026).
+ * Đã thêm 运单号 vào header_anchors; hàm này là lưới đỡ cho lần NAZA đổi tên cột tiếp
+ * theo, và cho kho đã lưu tự lành mà không phải tải lại file.
+ *
+ * Sheet PHÍ ghi cả 原单号 lẫn 转单号, và đơn thường bị tính phí ở kỳ TRƯỚC kỳ trả tiền
+ * — nên ở cấp kho phải tra trên phí của mọi kỳ (dienMaVanDonKho). Khớp nguyên chuỗi
+ * 原单号, không cắt -Z / -1: '17990334-Z' là lần giao lại, khác đơn '17990334'. Một mã đơn
+ * mang nhiều mã vận đơn thì không đoán — để trống, đơn vẫn khớp được bằng mã đơn.
+ */
+export function dienMaVanDonTuPhi<T extends { tracking: string; order_id: string }>(
+    dong: T[], phi: { tracking: string; order_id: string }[],
+): T[] {
+    const theoMaDon = new Map<string, Map<string, string>>();
+    for (const f of phi) {
+        const ma = String(f.order_id ?? "").trim();
+        const trk = String(f.tracking ?? "").trim();
+        if (!ma || !trk) continue;
+        const cac = theoMaDon.get(ma) ?? new Map<string, string>();
+        cac.set(normTracking(trk), trk);
+        theoMaDon.set(ma, cac);
+    }
+    return dong.map((d) => {
+        if (String(d.tracking ?? "").trim()) return d;
+        const cac = theoMaDon.get(String(d.order_id ?? "").trim());
+        return cac && cac.size === 1 ? { ...d, tracking: [...cac.values()][0] } : d;
+    });
+}
+
+type DongMaDon = { tracking: string; order_id: string };
+
+/** dienMaVanDonTuPhi cho cả kho sao kê Đài: dòng COD của mọi kỳ tra trên phí của MỌI kỳ. */
+export function dienMaVanDonKho<S extends { rows: DongMaDon[]; naza?: { fee_lines?: DongMaDon[] } | null }>(
+    ds: S[],
+): S[] {
+    const phi = ds.flatMap((s) => s.naza?.fee_lines || []);
+    return ds.map((s) => ({ ...s, rows: dienMaVanDonTuPhi(s.rows, phi) }));
+}
+
 export async function parseNazaStatement(buf: Buffer, fileName = ""): Promise<NazaStatement> {
     const book = await toGrids(buf);
     const { summary: sSum, cod: sCod, fee: sFee } = pickSheets(book);
@@ -590,6 +634,9 @@ export async function parseNazaStatement(buf: Buffer, fileName = ""): Promise<Na
             }
         }
     }
+
+    // Cột mã vận đơn sheet COD mang tên bộ đọc chưa biết → lấy từ sheet PHÍ cùng file.
+    cod_lines.splice(0, cod_lines.length, ...dienMaVanDonTuPhi(cod_lines, fee_lines));
 
     // ── Kiểm chéo nội bộ file ────────────────────────────────────────────
     const codDetail = cod_lines.reduce((s, l) => s + l.cod_twd, 0);
