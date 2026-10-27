@@ -4,6 +4,7 @@ import { MARKETS_PUBLIC, PHONE_RULES } from "@/lib/talpha/rules";
 import { buildAlerts, trackMarket, TRACK_MARKETS } from "@/lib/talpha/tracking";
 import { loadMarketShipments, nhanNguonDoiTac } from "@/lib/talpha/tracking-market";
 import { buildMarketLedger, type ProductInfo } from "@/lib/talpha/market-ledger";
+import { homNayVN, locTheoNgayLenDon } from "@/lib/talpha/order-ledger";
 
 export const dynamic = "force-dynamic";
 
@@ -15,6 +16,9 @@ const BQ_DATASET = process.env.DATASET || "TALPHA_Dataset";
 //
 //   GET ?market=SG|AE — mọi đơn của nước đó: khách, hàng, trạng thái giao, đèn việc phải làm,
 //                       link WhatsApp của khách.
+//       &from&to=YYYY-MM-DD — chỉ đơn LÊN ĐƠN trong khoảng (27/10/2026, locTheoNgayLenDon).
+//                       Cảnh báo vẫn tính trên mọi đơn rồi mới lọc — đèn của một đơn không
+//                       đổi theo khoảng ngày đang xem.
 //
 // Đơn và trạng thái đọc CHUNG hàm với Theo dõi vận đơn và Đối soát COD (loadMarketShipments):
 //   • Singapore: bảng đối tác (BigQuery partner_orders) + 17TRACK;
@@ -81,7 +85,9 @@ export async function GET(req: NextRequest) {
         const { shipments, store, lastImport } = await loadMarketShipments(tm, (): Empty => ({ registered: {}, statuses: {} }));
         const alerts = buildAlerts(shipments, new Date(), { staleDays: tm.stale_days });
         const hang = await docHang(code, tm.source === "partner" ? tm.partner_market : null);
-        const rows = buildMarketLedger(shipments, hang.map, alerts, {
+        const sp = req.nextUrl.searchParams;
+        const trongKhoang = locTheoNgayLenDon(shipments, sp.get("from"), sp.get("to"), homNayVN());
+        const rows = buildMarketLedger(trongKhoang, hang.map, alerts, {
             rateVnd: m.rate_vnd,
             phone: PHONE_RULES[code] ?? null,
             carrier: tm.provider === "weship" ? "WeShip" : undefined,

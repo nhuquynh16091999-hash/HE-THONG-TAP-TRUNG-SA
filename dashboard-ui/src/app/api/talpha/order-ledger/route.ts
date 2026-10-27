@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { readStoreFresh } from "@/lib/talpha/store";
 import {
-    buildLedger, summarise, saoKeTreHan, CHU_KY_SAO_KE_NGAY,
+    buildLedger, summarise, saoKeTreHan, locTheoNgayLenDon, homNayVN, CHU_KY_SAO_KE_NGAY,
     maGocGiaoLai, maGocNaza, orderKey, trackKey,
     type OrderSource, type PaidLine, type FeeLine,
 } from "@/lib/talpha/order-ledger";
@@ -858,6 +858,12 @@ export async function GET(req: NextRequest) {
             });
         }
 
+        // Sổ đơn gửi kèm `from` (27/10/2026): danh sách chỉ còn đơn lên trong khoảng from → to.
+        // Tiền COD về gọi không có `from` — màn đó tính theo kỳ sao kê, cần mọi đơn. Kỳ sao kê,
+        // khung Đòi tiền NAZA và cảnh báo ở trên vẫn tính trên MỌI đơn: tiền còn nợ của đơn
+        // tháng trước không được biến mất chỉ vì đang xem tháng này.
+        const soDon = q.get("from") ? locTheoNgayLenDon(rows, q.get("from"), asOf, homNayVN()) : rows;
+
         return NextResponse.json({
             as_of: asOf,
             // Bảng đơn đối tác nạp lúc nào — màn hình PHẢI nói ra. Kho này chỉ đổi khi
@@ -870,7 +876,7 @@ export async function GET(req: NextRequest) {
                 // Hiện ở cả màn Tiền COD về (Kế toán) — màn đó không có danh sách cảnh báo.
                 ma_trung: dups.length,
             },
-            rows,
+            rows: soDon,
             summary,
             extra,
             status_vi: PARTNER_STATUS_VI,

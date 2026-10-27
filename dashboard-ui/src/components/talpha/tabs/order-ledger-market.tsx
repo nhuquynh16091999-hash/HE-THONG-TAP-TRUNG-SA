@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { format } from "date-fns";
 import TabSkeleton, { ErrorState } from "@/components/ui/tab-skeleton";
 import WaLink from "@/components/talpha/wa-link";
 import { formatNumber, cn } from "../utils";
@@ -46,25 +47,29 @@ const gioNgan = (iso?: string | null) => {
     return `${p(d.getHours())}:${p(d.getMinutes())} ${p(d.getDate())}/${p(d.getMonth() + 1)}`;
 };
 
-export default function SoDonNuoc({ code, nutNuoc }: { code: string; nutNuoc?: ReactNode }) {
+export default function SoDonNuoc({ code, nutNuoc, dateRange }: { code: string; nutNuoc?: ReactNode; dateRange?: { from: Date; to: Date } }) {
     const [d, setD] = useState<Data | null>(null);
     const [err, setErr] = useState("");
     const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState<Light | "all">("all");
     const [q, setQ] = useState("");
     const hep = useManHep();
+    // Chỉ đơn LÊN ĐƠN trong khoảng đang chọn ở thanh trên (27/10/2026) — máy chủ lọc, nên ô đếm,
+    // tỉ lệ giao/hoàn và CSV cùng một tập đơn.
+    const from = dateRange?.from ? format(dateRange.from, "yyyy-MM-dd") : "";
+    const to = dateRange?.to ? format(dateRange.to, "yyyy-MM-dd") : "";
 
     const load = useCallback(async () => {
         setLoading(true); setErr("");
         try {
-            const res = await fetch(`/api/talpha/order-ledger/market?market=${code}`);
+            const res = await fetch(`/api/talpha/order-ledger/market?market=${code}${from ? `&from=${from}` : ""}${to ? `&to=${to}` : ""}`);
             const j = await res.json();
             if (!res.ok) throw new Error(j.error || "Không dựng được sổ");
             setD(j);
         } catch (e) {
             setErr(e instanceof Error ? e.message : "Lỗi không rõ");
         } finally { setLoading(false); }
-    }, [code]);
+    }, [code, from, to]);
     useEffect(() => { load(); }, [load]);
 
     const rows = useMemo(() => d?.rows ?? [], [d]);
@@ -99,7 +104,7 @@ export default function SoDonNuoc({ code, nutNuoc }: { code: string; nutNuoc?: R
             r.cod_local, r.cod_vnd ?? "", r.note, r.light_note].map(esc).join(","));
         const blob = new Blob(["﻿" + [head.map(esc).join(","), ...body].join("\n")], { type: "text/csv;charset=utf-8" });
         const a = document.createElement("a");
-        a.href = URL.createObjectURL(blob); a.download = `so-don-hang_${m.code}.csv`; a.click();
+        a.href = URL.createObjectURL(blob); a.download = `so-don-hang_${m.code}${from ? `_${from}` : ""}${to ? `_${to}` : ""}.csv`; a.click();
         URL.revokeObjectURL(a.href);
     };
 

@@ -90,6 +90,30 @@ export function saoKeTreHan(
     const treNgay = cachNgay(homNay, duKien);
     return { tre: treNgay > an, tre_ngay: Math.max(treNgay, 0), ky_gan_nhat: ganNhat, du_kien: duKien };
 }
+
+/**
+ * Sổ đơn chỉ giữ đơn LÊN ĐƠN trong khoảng ngày đang chọn ở thanh trên (Sỹ Anh yêu cầu
+ * 27/10/2026 — trước đó sổ mọi nước hiện hết đơn: chọn 01/10–27/10 vẫn thấy đơn tháng 9, ô đếm
+ * và tỉ lệ giao/hoàn tính cả đơn cũ). Dùng chung sổ Đài và sổ Singapore / UAE / Nhật.
+ *
+ * Ngày của đơn = ngày lên đơn; thiếu thì ngày gửi hàng; thiếu cả hai (dòng đối tác mới thêm,
+ * chưa ghi ngày) thì coi như lên đơn `homNay` — đơn mới nhất, không được rơi khỏi khoảng có hôm nay.
+ * `tu` / `den` rỗng hoặc sai dạng = không chặn phía đó.
+ */
+export function locTheoNgayLenDon<T extends { order_date?: string | null; ship_date?: string | null }>(
+    rows: T[], tu: string | null | undefined, den: string | null | undefined, homNay: string,
+): T[] {
+    const a = LA_NGAY(tu) ? tu : null;
+    const b = LA_NGAY(den) ? den : null;
+    if (!a && !b) return rows;
+    return rows.filter((r) => {
+        const d = String(r.order_date || r.ship_date || homNay).slice(0, 10);
+        return (!a || d >= a) && (!b || d <= b);
+    });
+}
+
+/** Ngày hôm nay theo giờ Việt Nam (YYYY-MM-DD) — máy chủ chạy UTC, 0h–7h sáng VN còn là hôm qua. */
+export const homNayVN = (now: Date = new Date()) => now.toLocaleDateString("en-CA", { timeZone: "Asia/Ho_Chi_Minh" });
 /** Tỷ giá dự phòng khi bản sao kê không nói tỷ giá của kỳ đó. */
 export const FALLBACK_TWD_VND = Number(TW.rate_vnd ?? 800);
 /** Tỷ giá RMB→VND dự phòng, chỉ dùng khi bản sao kê không nói tỷ giá kỳ đó — talpha_rules.json → cost_rate_rmb_vnd. */

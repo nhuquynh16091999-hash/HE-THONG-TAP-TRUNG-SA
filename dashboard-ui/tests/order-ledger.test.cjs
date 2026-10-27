@@ -347,4 +347,45 @@ t("đổi nhịp gửi thì đổi luôn ngày dự kiến", () => {
     assert.strictEqual(r.tre_ngay, 5);
 });
 
+// ── Lọc sổ theo khoảng ngày lên đơn (Sỹ Anh 27/10/2026: chọn 01/10–27/10 sổ UAE vẫn hiện đơn tháng 9) ──
+const donNgay = [
+    { id: "thang9", order_date: "2026-09-28", ship_date: "2026-09-29" },
+    { id: "dau10", order_date: "2026-10-01", ship_date: "2026-10-02" },
+    { id: "cuoi10", order_date: "2026-10-27", ship_date: null },
+    { id: "sau", order_date: "2026-10-28", ship_date: null },
+    { id: "chiGui", order_date: null, ship_date: "2026-09-30" },
+    { id: "chuaNgay", order_date: "", ship_date: "" },
+];
+const ids = (ds) => ds.map((r) => r.id);
+
+t("khoảng 01/10–27/10 bỏ đơn tháng 9, giữ cả hai đầu mút", () => {
+    assert.deepStrictEqual(ids(L.locTheoNgayLenDon(donNgay, "2026-10-01", "2026-10-27", "2026-10-27")),
+        ["dau10", "cuoi10", "chuaNgay"]);
+});
+
+t("thiếu ngày lên đơn thì xét ngày gửi hàng", () => {
+    assert.deepStrictEqual(ids(L.locTheoNgayLenDon(donNgay, "2026-09-01", "2026-09-30", "2026-10-27")),
+        ["thang9", "chiGui"]);
+});
+
+t("dòng chưa ghi ngày nào coi như lên đơn hôm nay — chỉ hiện khi khoảng có hôm nay", () => {
+    assert.ok(ids(L.locTheoNgayLenDon(donNgay, "2026-10-20", "2026-10-27", "2026-10-27")).includes("chuaNgay"));
+    assert.ok(!ids(L.locTheoNgayLenDon(donNgay, "2026-10-01", "2026-10-15", "2026-10-27")).includes("chuaNgay"));
+});
+
+t("không chọn khoảng (hoặc sai dạng) thì giữ nguyên mọi đơn — đường của Tiền COD về", () => {
+    assert.strictEqual(L.locTheoNgayLenDon(donNgay, null, null, "2026-10-27").length, donNgay.length);
+    assert.strictEqual(L.locTheoNgayLenDon(donNgay, "", "abc", "2026-10-27").length, donNgay.length);
+});
+
+t("ngày có giờ (ISO) vẫn so theo ngày", () => {
+    const r = L.locTheoNgayLenDon([{ order_date: "2026-10-27T15:00:00Z" }], "2026-10-27", "2026-10-27", "2026-10-27");
+    assert.strictEqual(r.length, 1);
+});
+
+t("hôm nay theo giờ Việt Nam: 23:30 UTC ngày 26 là sáng 27/10 ở VN", () => {
+    assert.strictEqual(L.homNayVN(new Date("2026-10-26T23:30:00Z")), "2026-10-27");
+    assert.strictEqual(L.homNayVN(new Date("2026-10-27T16:59:00Z")), "2026-10-27");
+});
+
 console.log(`\n${pass} phép thử — tất cả đạt.`);

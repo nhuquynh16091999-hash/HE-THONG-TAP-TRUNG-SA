@@ -94,7 +94,7 @@ export default function TALPHAOrderLedgerTab(props: Props) {
     ) : null;
     return nuoc === "TW"
         ? <SoDonDai {...props} nutNuoc={nutNuoc} />
-        : <SoDonNuoc key={nuoc} code={nuoc} nutNuoc={nutNuoc} />;
+        : <SoDonNuoc key={nuoc} code={nuoc} nutNuoc={nutNuoc} dateRange={props.dateRange} />;
 }
 
 function SoDonDai({ dateRange, nutNuoc }: Props & { nutNuoc?: ReactNode }) {
@@ -109,12 +109,15 @@ function SoDonDai({ dateRange, nutNuoc }: Props & { nutNuoc?: ReactNode }) {
     const hep = useManHep();
     const [q, setQ] = useState("");
 
+    // Sổ chỉ giữ đơn LÊN ĐƠN trong khoảng đang chọn (27/10/2026). Không có `from` thì máy chủ
+    // trả mọi đơn — đường của màn Tiền COD về.
+    const from = dateRange?.from ? format(dateRange.from, "yyyy-MM-dd") : "";
     const to = dateRange?.to ? format(dateRange.to, "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd");
 
     const load = useCallback(async () => {
         setLoading(true); setError("");
         try {
-            const res = await fetch(`/api/talpha/order-ledger?to=${to}`);
+            const res = await fetch(`/api/talpha/order-ledger?${from ? `from=${from}&` : ""}to=${to}`);
             const d = await res.json();
             if (!res.ok) throw new Error(d.error || "Không dựng được sổ");
             setRows(d.rows || []);
@@ -125,7 +128,7 @@ function SoDonDai({ dateRange, nutNuoc }: Props & { nutNuoc?: ReactNode }) {
         } catch (e) {
             setError(e instanceof Error ? e.message : "Lỗi không rõ");
         } finally { setLoading(false); }
-    }, [to]);
+    }, [from, to]);
 
     useEffect(() => { load(); }, [load]);
 
@@ -153,7 +156,7 @@ function SoDonDai({ dateRange, nutNuoc }: Props & { nutNuoc?: ReactNode }) {
         const blob = new Blob(["﻿" + [head.map(esc).join(","), ...body].join("\n")],
             { type: "text/csv;charset=utf-8" });
         const a = document.createElement("a");
-        a.href = URL.createObjectURL(blob); a.download = `so-don-hang_${to}.csv`; a.click();
+        a.href = URL.createObjectURL(blob); a.download = `so-don-hang_TW_${from ? `${from}_` : ""}${to}.csv`; a.click();
         URL.revokeObjectURL(a.href);
     };
 
