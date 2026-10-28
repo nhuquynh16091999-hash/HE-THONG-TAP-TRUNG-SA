@@ -1,36 +1,27 @@
 """
 TKQC fetch hỏng: cái nào BỎ QUA được mà vẫn ghi Sheet, cái nào phải CHẶN cả vòng.
 
-Sỹ Anh chốt 30/09/2026. Luật 03/09 ("sync hỏng thì không ghi Sheet") chặn vòng ghi khi chỉ
-MỘT TKQC đọc lỗi, để Sheet không ghi đè số thiếu. Đúng khi TK đó đang tiêu tiền. Nhưng
-trong tháng 9 luật này làm Sheet đứng bốn lần (12/09, 22/09, 23/09, 30/09) chỉ vì chủ TK
-gỡ quyền của những TK KHÔNG tiêu đồng nào. Lần 30/09 TK "K NEED khang ve 22" (0đ cả tháng)
-làm Sheet đứng 20 giờ và tin Zalo 13:00 in "Ads 0đ · 0 đơn".
+LUẬT 28/10/2026 (Sỹ Anh: "tkqc nào die thì kệ nó, mày vẫn cứ báo cáo các tkqc còn lại"):
+TK đọc lỗi nào cũng BỎ QUA — mất quyền, bị khoá, bị đá khỏi BM, lỗi mạng — vòng vẫn ghi Sheet
+bằng các TK còn lại. Chỉ CHẶN khi KHÔNG TK NÀO đọc được: lúc đó là token chết / app bị Meta chặn
+(02/09, 08/10), không phải một TK chết, và ghi Sheet là ghi tiền ads cũ cạnh đơn mới.
 
-Nay TK được BỎ QUA khi đủ CẢ HAI điều kiện:
-  * lỗi là MẤT QUYỀN (Meta #200 has NOT grant…), không phải lỗi mạng hay rate limit;
-  * BO_QUA_NGAY ngày gần nhất TK đó tiêu 0đ trong fb_ads_data, nên bỏ nó không thiếu số nào.
-TK bị bỏ qua vẫn được báo tên lên Zalo (nhãn TKQC_BO_QUA trong daily_guarded.sh) để người
-ta cấp lại quyền hoặc gỡ TK khỏi config/projects/talpha.yaml. TK đang tiêu tiền mà lỗi thì
-vẫn CHẶN như cũ.
+Vì sao đổi: luật 30/09 chỉ bỏ qua TK mất quyền mà 7 ngày không tiêu đồng nào; TK đang tiêu mà
+chết thì vẫn chặn → 14/10 SA ANTALO 01 bị khoá lúc đang chạy, Sheet đứng 23 giờ dù 10 TK khác
+vẫn đọc được. TK chết thì không tiêu thêm được nữa, nên bỏ qua không thiếu số.
+
+TK bị bỏ qua KHÔNG mất số: sync ghi kiểu nối-rồi-dựng-lại (append_and_rebuild_ads), dòng cũ của
+TK lỗi giữ nguyên bản đọc được gần nhất. Tên TK vẫn được báo lên Zalo (nhãn TKQC_BO_QUA trong
+daily_guarded.sh) để biết mà gỡ khỏi config/projects/talpha.yaml.
 """
 
-# Đổi số này thì sửa cả câu trong tin Zalo (ops/zalo-alerts/daily_report.js → ghiChuBoQua).
-BO_QUA_NGAY = 7
 
-
-def tach_tk_loi(failed, chi_gan_day):
+def tach_tk_loi(failed, so_tk):
     """Chia TKQC fetch hỏng thành (bo_qua, chan).
 
-    failed      — [{"name", "id", "mat_quyen"}], id dạng "act_123" hoặc "123".
-    chi_gan_day — {account_id KHÔNG có "act_": tổng spend BO_QUA_NGAY ngày gần nhất}.
-                  TK vắng mặt = chưa có dòng nào = 0đ. None = không tra được → mọi TK lỗi
-                  đều CHẶN: thà Sheet đứng còn hơn ghi số thiếu mà không biết.
+    failed — [{"name", "id", "mat_quyen"}].
+    so_tk  — số TKQC cả vòng (kể cả TK đọc được).
     """
-    if chi_gan_day is None:
+    if failed and len(failed) >= so_tk:
         return [], list(failed)
-    bo_qua, chan = [], []
-    for f in failed:
-        tien = float(chi_gan_day.get(str(f["id"]).replace("act_", ""), 0) or 0)
-        (bo_qua if f.get("mat_quyen") and tien <= 0 else chan).append(f)
-    return bo_qua, chan
+    return list(failed), []

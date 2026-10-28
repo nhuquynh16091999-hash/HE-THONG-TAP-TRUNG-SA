@@ -42,9 +42,10 @@ meta_ads:
   # chuẩn TW/SGP/JAPAN/S.ANH/… nên tự về đúng nước. Bỏ "TKQC MỒI KHÔNG CHẠY"
   # (act_1120860290875442, giờ Los Angeles, 0đ — TK mồi, không chạy).
   #
-  # TỪ 30/09/2026: TK mất quyền (#200 has NOT grant) mà 7 ngày không tiêu đồng nào thì sync
-  # TỰ BỎ QUA — vòng vẫn OK, vẫn ghi Sheet, bot Zalo nhắc tên TK (sync/core/tk_loi.py). TK ĐANG
-  # tiêu tiền mà mất quyền thì vẫn chặn vòng ghi như luật 03/09 → cấp lại quyền hoặc bỏ id dưới đây.
+  # TỪ 28/10/2026 (Sỹ Anh: "tkqc nào die thì kệ nó"): TK đọc lỗi nào — chết, mất quyền, lỗi mạng —
+  # sync cũng TỰ BỎ QUA, vẫn ghi Sheet bằng các TK còn lại, bot Zalo nhắc tên TK (sync/core/tk_loi.py).
+  # Chỉ chặn vòng ghi khi KHÔNG TK nào đọc được (token chết / app bị chặn). TK chết hẳn thì bỏ id
+  # dưới đây cho khỏi bị nhắc mỗi tin. (Luật cũ 30/09 chặn cả vòng khi TK đang tiêu tiền mà chết.)
   #
   # BỎ 15/10/2026 — bốn tài khoản dưới đây ĐÃ BỎ khỏi danh sách, đều mất quyền (#200 has NOT
   # grant ads_read) và rơi khỏi `/me/adaccounts` của token:

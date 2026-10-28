@@ -40,8 +40,8 @@ async function accountHealth() {
 
 // Tên TKQC / shop đọc lỗi trong vòng chạy — daily_guarded.sh đặt đầu `detail` theo nhãn
 // "TKQC_LOI=a; b || SHOP_LOI=… || MAT_QUYEN=… || TKQC_BO_QUA=…". Không có nhãn = vòng đó
-// không mục nào lỗi. bo_qua (30/09/2026): TK mất quyền mà 7 ngày không chi — sync bỏ qua, vòng
-// vẫn OK và vẫn ghi Sheet; chỉ trả tên ra để bot nhắc người cấp lại quyền / gỡ TK.
+// không mục nào lỗi. bo_qua (28/10/2026): TK đọc lỗi mà vẫn còn TK khác đọc được — sync bỏ qua,
+// vòng vẫn OK và vẫn ghi Sheet; chỉ trả tên ra để bot nhắc gỡ TK chết.
 function docLoiFetch(detail: unknown) {
     const s = String(detail || "");
     const lay = (nhan: string) => {

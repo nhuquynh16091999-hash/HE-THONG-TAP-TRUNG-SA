@@ -283,11 +283,11 @@ function fakeFetch({ sheet = SHEET, camps = CAMPS, realtimeStatus = 200, sheetSt
         assert.ok(!g.includes("chưa có số"), g);
     });
 
-    await t("TK mất quyền bị sync bỏ qua: nhắc tên, KHÔNG báo số chưa đủ", async () => {
+    await t("TK chết bị sync bỏ qua: nhắc tên, KHÔNG báo số chưa đủ", async () => {
         const r = await buildMarketerReports(CFG, "2026-09-15", { fetch: fakeFetch(), intraday: true,
             stale: { okAge: 10, limit: 120, lastOkTs: Date.now(), loi: { tkqc: [], shops: [], mat_quyen: ["K NEED khang ve 22"], bo_qua: ["K NEED khang ve 22"] } } });
         const g = tron(r.tinGop);
-        assert.ok(g.startsWith("ℹ️ TKQC mất quyền đọc, đã bỏ qua vì 7 ngày không tiêu đồng nào: K NEED khang ve 22."), g);
+        assert.ok(g.startsWith("ℹ️ TKQC không đọc được, đã bỏ qua: K NEED khang ve 22. Báo cáo vẫn tính các TK còn lại"), g);
         assert.ok(!g.includes("SỐ CHƯA ĐỦ"), g);
         assert.ok(g.includes("💰 Ads 3.000.000đ"), g);
         assert.strictEqual(r.chuaDu, false);

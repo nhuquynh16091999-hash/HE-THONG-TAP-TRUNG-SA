@@ -116,14 +116,14 @@ function lyDoLoi(loi) {
     return cau.length ? `${I(cau.join(" "))}\n` : "";
 }
 
-// TK mất quyền mà 7 ngày không tiêu đồng nào: sync BỎ QUA nó, vẫn ghi Sheet (Sỹ Anh chốt
-// 30/09/2026, sync/core/tk_loi.py). Số vẫn đủ nên KHÔNG phải "SỐ CHƯA ĐỦ" — chỉ nhắc tên để
-// người ta cấp lại quyền hoặc gỡ TK. "7 ngày" = BO_QUA_NGAY bên Python, đổi thì sửa cả hai.
+// TK đọc lỗi (chết, mất quyền, lỗi mạng): sync BỎ QUA nó, vẫn ghi Sheet bằng các TK còn lại
+// (Sỹ Anh chốt 28/10/2026: "tkqc nào die thì kệ nó", sync/core/tk_loi.py). Không phải "SỐ CHƯA
+// ĐỦ" — chỉ nhắc tên để gỡ TK chết khỏi danh sách sync.
 function ghiChuBoQua(stale) {
     const ten = stale && stale.loi && stale.loi.bo_qua;
     if (!ten || !ten.length) return "";
-    return `ℹ️ ${I(`TKQC mất quyền đọc, đã bỏ qua vì 7 ngày không tiêu đồng nào: ${ten.join(", ")}. `
-        + "Số vẫn đủ — cấp lại quyền trong Business Manager hoặc gỡ TK khỏi danh sách sync.")}`;
+    return `ℹ️ ${I(`TKQC không đọc được, đã bỏ qua: ${ten.join(", ")}. `
+        + "Báo cáo vẫn tính các TK còn lại (TK này giữ số đọc được lần cuối) — TK chết hẳn thì gỡ khỏi danh sách sync.")}`;
 }
 
 // Sheet tạo sẵn dòng cho MỌI ngày trong tháng, nên vòng ghi chưa chạy được lần nào từ 00:00
