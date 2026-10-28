@@ -21,7 +21,9 @@
         {
           "id": "act_620354173588998",
           "name": "ANTALO 4 - CHẠY VPCS + THUẾ ( 7890 )",
-          "status": "active"
+          "status": "died",
+          "died_at": "2026-10-28",
+          "_khong_sync": "Chi lần cuối 15/10. Meta vô hiệu hoá (account_status 2); token mới 28/10/2026 (app 'BÁO CÁO ANTALO SỸ ANH') không thấy TK này. ĐÃ BỎ khỏi config/projects/talpha.yaml ngày 28/10/2026 — chi tiêu tháng 10 trong fb_ads_data khớp Meta tới từng đồng, giữ nguyên."
         },
         {
           "id": "act_355509637365145",
@@ -119,28 +121,90 @@
         {
           "id": "act_1298353682322779",
           "name": "XT ANTALO 01",
-          "status": "active"
+          "status": "died",
+          "died_at": "2026-10-28",
+          "_khong_sync": "Chi lần cuối 12/10. Meta vô hiệu hoá (account_status 2); token mới 28/10/2026 (app 'BÁO CÁO ANTALO SỸ ANH') không thấy TK này. ĐÃ BỎ khỏi config/projects/talpha.yaml ngày 28/10/2026 — chi tiêu tháng 10 trong fb_ads_data khớp Meta tới từng đồng, giữ nguyên."
         },
         {
           "id": "act_763967898998377",
           "name": "SA ANTALO 02",
-          "status": "active"
+          "status": "died",
+          "died_at": "2026-10-28",
+          "_khong_sync": "Chi lần cuối 13/10. Meta vô hiệu hoá (account_status 2); token mới 28/10/2026 (app 'BÁO CÁO ANTALO SỸ ANH') không thấy TK này. ĐÃ BỎ khỏi config/projects/talpha.yaml ngày 28/10/2026 — chi tiêu tháng 10 trong fb_ads_data khớp Meta tới từng đồng, giữ nguyên."
         },
         {
           "id": "act_2163887820576562",
           "name": "XT ANTALO 02",
-          "status": "active"
+          "status": "died",
+          "died_at": "2026-10-28",
+          "_khong_sync": "Chi lần cuối 12/10. Meta vô hiệu hoá (account_status 2); token mới 28/10/2026 (app 'BÁO CÁO ANTALO SỸ ANH') không thấy TK này. ĐÃ BỎ khỏi config/projects/talpha.yaml ngày 28/10/2026 — chi tiêu tháng 10 trong fb_ads_data khớp Meta tới từng đồng, giữ nguyên."
         },
         {
           "id": "act_1417734220486142",
           "name": "XT ANTALO 03",
-          "status": "active"
+          "status": "died",
+          "died_at": "2026-10-28",
+          "_khong_sync": "Chi lần cuối 14/10. Meta vô hiệu hoá (account_status 2); token mới 28/10/2026 (app 'BÁO CÁO ANTALO SỸ ANH') không thấy TK này. ĐÃ BỎ khỏi config/projects/talpha.yaml ngày 28/10/2026 — chi tiêu tháng 10 trong fb_ads_data khớp Meta tới từng đồng, giữ nguyên."
         },
         {
           "id": "act_845959551784078",
           "name": "Xinh Mi Nguyen",
           "status": "died",
           "_khong_sync": "Chưa có camp; mất quyền ads_read 14/10/2026. ĐÃ BỎ khỏi config/projects/talpha.yaml ngày 15/10/2026."
+        },
+        {
+          "id": "act_1120947890391979",
+          "name": "Như Quỳnh 21",
+          "status": "active",
+          "_nguon": "BM mới — token app 'BÁO CÁO ANTALO SỸ ANH', khai 28/10/2026"
+        },
+        {
+          "id": "act_1112953081187726",
+          "name": "Như Quỳnh 22",
+          "status": "active",
+          "_nguon": "BM mới — token app 'BÁO CÁO ANTALO SỸ ANH', khai 28/10/2026"
+        },
+        {
+          "id": "act_1791188521930838",
+          "name": "Như Quỳnh 31",
+          "status": "active",
+          "_nguon": "BM mới — token app 'BÁO CÁO ANTALO SỸ ANH', khai 28/10/2026"
+        },
+        {
+          "id": "act_1633753825111746",
+          "name": "Như Quỳnh 11",
+          "status": "active",
+          "_nguon": "BM mới — token app 'BÁO CÁO ANTALO SỸ ANH', khai 28/10/2026"
+        },
+        {
+          "id": "act_3021882974877047",
+          "name": "Hữu Thắng 11",
+          "status": "active",
+          "_nguon": "BM mới — token app 'BÁO CÁO ANTALO SỸ ANH', khai 28/10/2026"
+        },
+        {
+          "id": "act_2024599088250747",
+          "name": "Hưũ Thắng 12",
+          "status": "active",
+          "_nguon": "BM mới — token app 'BÁO CÁO ANTALO SỸ ANH', khai 28/10/2026"
+        },
+        {
+          "id": "act_1505577121617403",
+          "name": "Hữu Thắng 13",
+          "status": "active",
+          "_nguon": "BM mới — token app 'BÁO CÁO ANTALO SỸ ANH', khai 28/10/2026"
+        },
+        {
+          "id": "act_2203419147237329",
+          "name": "Tiến Thế 11",
+          "status": "active",
+          "_nguon": "BM mới — token app 'BÁO CÁO ANTALO SỸ ANH', khai 28/10/2026"
+        },
+        {
+          "id": "act_4541380649341533",
+          "name": "Sỹ Anh 11",
+          "status": "active",
+          "_nguon": "BM mới — token app 'BÁO CÁO ANTALO SỸ ANH', khai 28/10/2026"
         }
       ],
       "_note": "Danh sách này lấy THẲNG từ /me/adaccounts của token System User: lần đầu 08/09/2026, thêm ba tài khoản 18/09/2026 (ATHAINX TK1 · ATHAINX TK2 · NEW - XT VIỆT); 29/09/2026 token mới: thêm K NEED khang ve 22 · 1005930495298028 · Quynh Vien, bỏ 5 tài khoản bị đá khỏi BM (status died); 07/10/2026 thêm SA ANTALO 02 · XT ANTALO 02 · XT ANTALO 03 · Xinh Mi Nguyen, khai lại SA ANTALO 01, Meta đổi tên 1005930495298028 → SL ANTALO 01, Quynh Vien → XT ANTALO 01. Mục nào có khoá _khong_sync là KHÔNG còn trong danh sách sync (xem chính khoá đó để biết vì sao) — sync đọc yaml, roster này chỉ để dashboard tra tên và đối soát chi phí. Bản cũ khai 15 tài khoản của hệ thống trước (Mỹ phẩm, Nhật Bản, Dubai, Kuwait, Saudi) — token mới KHÔNG có quyền một cái nào, nên mỗi vòng sync đốt 24 phút thử lại vô ích rồi ghi 0 dòng.",

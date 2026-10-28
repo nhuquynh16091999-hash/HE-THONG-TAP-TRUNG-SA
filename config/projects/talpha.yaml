@@ -18,13 +18,29 @@ bigquery:
 
 # ─── 3. FACEBOOK ADS — app riêng "Talpha Post" ───
 meta_ads:
-  app_id: "1010162072048699"                            # App "Dashboard Sỹ Anh Ngoài"
+  app_id: "1642103760798001"                            # App "BÁO CÁO ANTALO SỸ ANH" (từ 28/10/2026; trước là 1010162072048699 "Dashboard Sỹ Anh Ngoài")
   access_token: "${TALPHA_META_ACCESS_TOKEN}"           # Token System User, giá trị ở .env.local
   # ─── TÀI KHOẢN QUẢNG CÁO ───
   # Lấy THẲNG từ Meta API ngày 07/09/2026 bằng chính token đang dùng, không chép tay.
   # Cấu hình cũ khai 15 tài khoản GCC của hệ thống cũ — không cái nào còn đúng.
   # Thêm tài khoản mới: khai đủ ở CẢ BA mục dưới, thiếu một chỗ là spend bị đếm
   # thiếu mà không có cảnh báo nào.
+  #
+  # ĐỔI TOKEN 28/10/2026 — Sỹ Anh gửi token System User "ANTALO SỸ ANH" của app MỚI "BÁO CÁO
+  # ANTALO SỸ ANH" (1642103760798001, không hết hạn). Từ 20/10 team chạy ở BM mới (Như Quỳnh,
+  # Hữu Thắng, Tiến Thế, Sỹ Anh 11) mà danh sách vẫn là TK BM cũ → sync vẫn rc=0 mỗi giờ nhưng
+  # chi tiêu của TK mới KHÔNG vào fb_ads_data: tới trưa 28/10 thiếu 12,9 tr (21–28/10).
+  # Token cũ (System User "Dashboard") vẫn sống nhưng mọi TK nó thấy đều bị Meta vô hiệu hoá
+  # (account_status 2) trừ Sỹ Anh Taiwan 4. BỎ 5 TK cũ mà token mới KHÔNG thấy — đều status 2,
+  # chi lần cuối ≤ 15/10, số tháng 10 trong fb_ads_data khớp Meta tới từng đồng (soát 28/10):
+  #   act_620354173588998   ANTALO 4 - CHẠY VPCS + THUẾ — 3.571.589đ, chi lần cuối 15/10
+  #   act_1298353682322779  XT ANTALO 01 — 10.593.309đ, chi lần cuối 12/10
+  #   act_763967898998377   SA ANTALO 02 — 7.361.012đ, chi lần cuối 13/10
+  #   act_2163887820576562  XT ANTALO 02 — 1.970.027đ, chi lần cuối 12/10
+  #   act_1417734220486142  XT ANTALO 03 — 264.156đ, chi lần cuối 14/10
+  # THÊM 9 TK lấy THẲNG từ `/me/adaccounts` của token mới (VND, giờ VN). Camp đặt tên đúng
+  # chuẩn TW/SGP/JAPAN/S.ANH/… nên tự về đúng nước. Bỏ "TKQC MỒI KHÔNG CHẠY"
+  # (act_1120860290875442, giờ Los Angeles, 0đ — TK mồi, không chạy).
   #
   # TỪ 30/09/2026: TK mất quyền (#200 has NOT grant) mà 7 ngày không tiêu đồng nào thì sync
   # TỰ BỎ QUA — vòng vẫn OK, vẫn ghi Sheet, bot Zalo nhắc tên TK (sync/core/tk_loi.py). TK ĐANG
@@ -88,7 +104,7 @@ meta_ads:
   # mặt trong mọi báo cáo chỉ là danh sách này.
   ad_account_ids:
     - "act_256210853826298"   # Sỹ Anh Taiwan 4 — đang chạy
-    - "act_620354173588998"   # ANTALO 4 - CHẠY VPCS + THUẾ (Meta đổi tên 29/09; trước là CN1, Sỹ Anh Taiwan 6)
+    # - "act_620354173588998"   # ANTALO 4 - CHẠY VPCS + THUẾ — BỎ 28/10/2026 (Meta vô hiệu hoá, token mới không thấy)
     # - "act_355509637365145"   # Sỹ Anh Taiwan 5 — BỎ 15/10/2026 (chưa thanh toán, mất quyền)
     - "act_9429066663871702"  # TKQC Chạy Đài Loan — đã tắt
     - "act_1044243500995626"  # Sỹ Anh Taiwan 3 — đã tắt
@@ -134,7 +150,7 @@ meta_ads:
     # không mất số nào. Cấp lại quyền rồi mới bỏ dấu # dòng dưới.
     # → ĐÃ CẤP LẠI QUYỀN, khai lại 07/10/2026 (khối THÊM 07/10 ngay dưới).
     # - "act_1005930495298028"  # SL ANTALO 01 — BỎ 15/10/2026 (bị khoá, mất quyền)
-    - "act_1298353682322779"  # XT ANTALO 01 (Meta đổi tên; 29/09 là Quynh Vien)
+    # - "act_1298353682322779"  # XT ANTALO 01 — BỎ 28/10/2026 (Meta vô hiệu hoá, token mới không thấy)
     #
     # THÊM 07/10/2026 — Sỹ Anh gửi token mới để "lấy hết báo cáo về database". Soát bằng
     # `/me/adaccounts`: token mới và token đang dùng thấy CÙNG 12 tài khoản (System User
@@ -143,10 +159,21 @@ meta_ads:
     # Chi tháng 10 tới 07/10: SA ANTALO 01 ≈740k · SA ANTALO 02 ≈432k · XT ANTALO 02 ≈143k
     # (camp `TW/THƯƠNG/…` và `SGP/THÁI/…` — đúng chuẩn, tự về đúng nước + marketer).
     # - "act_2201353496727281"  # SA ANTALO 01 — BỎ 15/10/2026 (bị khoá 14/10, mất quyền)
-    - "act_763967898998377"   # SA ANTALO 02 — camp TW/THƯƠNG từ 06/10
-    - "act_2163887820576562"  # XT ANTALO 02 — camp SGP/THÁI từ 06/10
-    - "act_1417734220486142"  # XT ANTALO 03 — mở 01/10, chưa có camp
+    # - "act_763967898998377"   # SA ANTALO 02 — BỎ 28/10/2026 (Meta vô hiệu hoá, token mới không thấy)
+    # - "act_2163887820576562"  # XT ANTALO 02 — BỎ 28/10/2026 (Meta vô hiệu hoá, token mới không thấy)
+    # - "act_1417734220486142"  # XT ANTALO 03 — BỎ 28/10/2026 (Meta vô hiệu hoá, token mới không thấy)
     # - "act_845959551784078"   # Xinh Mi Nguyen — BỎ 15/10/2026 (mất quyền, chưa có camp)
+    #
+    # THÊM 28/10/2026 — BM mới, token app "BÁO CÁO ANTALO SỸ ANH" (khối ĐỔI TOKEN 28/10 ở đầu mục).
+    - "act_1120947890391979"  # Như Quỳnh 21 — chi từ 21/10 (Meta vô hiệu hoá 27/10, vẫn đọc được)
+    - "act_1112953081187726"  # Như Quỳnh 22 — chi từ 28/10
+    - "act_1791188521930838"  # Như Quỳnh 31 — chi 21–27/10 (Meta vô hiệu hoá, vẫn đọc được)
+    - "act_1633753825111746"  # Như Quỳnh 11 — chi 21–23/10, camp JAPAN (Meta vô hiệu hoá, vẫn đọc được)
+    - "act_3021882974877047"  # Hữu Thắng 11 — chi từ 23/10, camp SGP + TW
+    - "act_2024599088250747"  # Hưũ Thắng 12 — chưa chi
+    - "act_1505577121617403"  # Hữu Thắng 13 — chưa chi
+    - "act_2203419147237329"  # Tiến Thế 11 — chi từ 27/10
+    - "act_4541380649341533"  # Sỹ Anh 11 — chưa chi
   ad_account_names:
     act_2316553302504985: "TK CÁ NHÂN NEW 1"
     act_1025294735296964: "NEW3"
@@ -172,6 +199,15 @@ meta_ads:
     act_2163887820576562: "XT ANTALO 02"
     act_1417734220486142: "XT ANTALO 03"
     act_845959551784078: "Xinh Mi Nguyen"
+    act_1120947890391979: "Như Quỳnh 21"
+    act_1112953081187726: "Như Quỳnh 22"
+    act_1791188521930838: "Như Quỳnh 31"
+    act_1633753825111746: "Như Quỳnh 11"
+    act_3021882974877047: "Hữu Thắng 11"
+    act_2024599088250747: "Hưũ Thắng 12"
+    act_1505577121617403: "Hữu Thắng 13"
+    act_2203419147237329: "Tiến Thế 11"
+    act_4541380649341533: "Sỹ Anh 11"
   # Múi giờ từng tài khoản — lấy từ Meta API, KHÔNG đoán theo tên.
   # Cột `date` của spend đã theo múi giờ NÀY, nên 2 tài khoản Bangkok lệch ngày
   # so với 8 tài khoản còn lại; cả tháng mới khớp (rule #6 TALPHA_METRIC_RULES).
@@ -202,6 +238,15 @@ meta_ads:
     act_2163887820576562: "Asia/Ho_Chi_Minh"
     act_1417734220486142: "Asia/Ho_Chi_Minh"
     act_845959551784078: "Asia/Ho_Chi_Minh"
+    act_1120947890391979: "Asia/Ho_Chi_Minh"
+    act_1112953081187726: "Asia/Ho_Chi_Minh"
+    act_1791188521930838: "Asia/Ho_Chi_Minh"
+    act_1633753825111746: "Asia/Ho_Chi_Minh"
+    act_3021882974877047: "Asia/Ho_Chi_Minh"
+    act_2024599088250747: "Asia/Ho_Chi_Minh"
+    act_1505577121617403: "Asia/Ho_Chi_Minh"
+    act_2203419147237329: "Asia/Ho_Chi_Minh"
+    act_4541380649341533: "Asia/Ho_Chi_Minh"
 
 # ─── 4. POS / ORDER MANAGEMENT ───
 pos_system: poscake
