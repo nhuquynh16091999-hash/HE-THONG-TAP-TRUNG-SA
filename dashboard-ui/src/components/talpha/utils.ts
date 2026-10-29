@@ -31,33 +31,10 @@ export function marketName(code?: string): string {
     return timNuoc(code)?.display || code;
 }
 
-// ═══ Phí 3PL ═══
-// ⚠️ sale_order.shipping_fee trong BigQuery mirror cột `cod` (rác) — KHÔNG dùng.
-// Chi phí một đơn giao thành công = packing + delivery + cod_local×codPct + codFlat.
-// ⚠️ ĐÀI LOAN CHƯA KHAI: hệ cũ để trống vì Đài là market test. Giờ Đài là thị
-// trường DUY NHẤT nên bảng rỗng nghĩa là mọi con số "chi phí vận chuyển" trên
-// dashboard đang bằng 0 — thiếu, chứ không phải bằng không. Khai vào
-// config/talpha_rules.json → shipping_fees.TW rồi đồng bộ xuống đây.
-export const SHIPPING_FEES: Record<string, { packing: number; delivery: number; codPct: number; codFlat: number }> = {};
-
-/** Phí vận chuyển ước tính (VND) từ số đơn giao và doanh thu tiền địa phương. */
-function shippingVND(code: string, orders: number, revenueLocal: number): number {
-    const f = SHIPPING_FEES[code || ""];
-    if (!f || orders <= 0) return 0;
-    const local = orders * (f.packing + f.delivery + f.codFlat) + revenueLocal * f.codPct;
-    return local * rateVnd(code);
-}
-
-/** Như shippingVND nhưng nhận doanh thu đã ở VND (vw_orders_std.revenue_vnd). */
-export function shippingVNDFromRevVnd(code: string, orders: number, revenueVnd: number): number {
-    const rate = rateVnd(code);
-    return rate ? shippingVND(code, orders, revenueVnd / rate) : 0;
-}
-
-// ═══ Formatting (same style as AUUS1) ═══
-export function formatCurrency(amount: number) {
-    return formatVNDCompact(amount);
-}
+// ═══ Formatting ═══
+// Chi phí vận chuyển dùng lib/talpha/order-costs.ts (đọc từ talpha_rules.json).
+// Bản ghi SHIPPING_FEES + shippingVND + shippingVNDFromRevVnd bị gỡ 29/10/2026:
+// bảng chưa bao giờ được khai nên trả về 0 mọi lúc, và không có caller nào.
 
 export function formatVNDCompact(vnd: number) {
     const abs = Math.abs(vnd);
@@ -76,18 +53,4 @@ export function formatNumber(amount: number) {
     return new Intl.NumberFormat("vi-VN").format(amount);
 }
 
-export function formatNumberCompact(amount: number) {
-    const abs = Math.abs(amount);
-    const sign = amount < 0 ? "-" : "";
-    if (abs >= 1_000_000) return `${sign}${(abs / 1_000_000).toFixed(1)}M`;
-    if (abs >= 1_000) return `${sign}${(abs / 1_000).toFixed(1)}K`;
-    return `${sign}${Math.round(abs)}`;
-}
-
-export const COLORS = {
-    indigo: "#6E695E",
-    emerald: "#00E27A",
-    rose: "#FF3131",
-    amber: "#FF9042",
-    slate: "#B1AEA0",
-};
+// formatNumberCompact và COLORS đã gỡ 29/10/2026: không có caller nào trong repo.

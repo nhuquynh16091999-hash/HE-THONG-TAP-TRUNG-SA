@@ -14,7 +14,7 @@ const TOTAL_FILES = 56;
 // ─────────── Chạy thẳng format_all.py ───────────
 const REPO = path.join(process.cwd(), "..");
 const PY = path.join(REPO, ".venv", "bin", "python");
-const SCRIPT = "/Users/syanh/talpha_reports/format_all.py";
+const SCRIPT = path.join(REPO, "ops", "talpha_reports", "format_all.py");
 
 interface ExportState {
     running: boolean; startedAt: string | null; finishedAt: string | null;
