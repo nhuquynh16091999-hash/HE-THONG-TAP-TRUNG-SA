@@ -82,7 +82,7 @@
 
 ### C1 — POS live + fallback (P1)
 - **Việc**: parser Sheet UAE/Saudi đọc theo header thay vì chuỗi literal; UI banner "đang dùng dữ liệu dự phòng ngày X" khi rơi xuống fallback.
-- **Phạm vi**: `dashboard-ui/src/app/api/talpha/inventory/route.ts`, `dashboard-ui/src/lib/talpha-inventory.ts`, `talpha-pos-images.ts`, `components/talpha/data/inventory.ts`.
+- **Phạm vi**: `dashboard-ui/src/app/api/talpha/inventory/route.ts`, `dashboard-ui/src/lib/talpha/inventory.ts`, `talpha/pos-images.ts`, `components/talpha/data/inventory.ts`.
 - **Verify**: tab Kho hiện số POS live khớp POS thật 1-2 SKU; ngắt POS (đổi token tạm) → banner fallback hiện.
 - **Deploy**: như A1.
 

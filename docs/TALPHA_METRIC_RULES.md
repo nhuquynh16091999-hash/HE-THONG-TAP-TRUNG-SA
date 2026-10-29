@@ -32,7 +32,7 @@ status GTC · pattern campaign test · phí 3PL · giá vốn SKU · ngưỡng R
 
 | Module | Ngôn ngữ | Ai dùng |
 |---|---|---|
-| `dashboard-ui/src/lib/talpha/rules.ts` | TS | route dashboard, `talpha-inventory.ts`, prompt CEO-ask |
+| `dashboard-ui/src/lib/talpha/rules.ts` | TS | route dashboard, `talpha/inventory.ts`, prompt CEO-ask |
 | `ops/talpha_reports/talpha_rules.py` | Python | `format_all.py`, `team_report.py` |
 | `ops/whatsapp-alerts/rules.js` | JS | `daily_report.js` (bot đang tắt) |
 

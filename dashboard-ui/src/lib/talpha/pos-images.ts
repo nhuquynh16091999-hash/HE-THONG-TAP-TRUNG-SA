@@ -26,7 +26,7 @@ export function loadShops(): Shop[] {
         const cfg = yaml.load(raw) as { poscake?: { shops?: Shop[] } };
         return cfg?.poscake?.shops ?? [];
     } catch (e) {
-        console.error("talpha-pos-images: không đọc được talpha.yaml:", e);
+        console.error("pos-images: không đọc được talpha.yaml:", e);
         return [];
     }
 }

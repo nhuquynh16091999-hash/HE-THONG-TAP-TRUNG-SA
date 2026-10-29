@@ -8,7 +8,7 @@
 //   • /api/talpha/inventory       → nguồn chính của tab Sản phẩm & Kho
 //   • /api/talpha/sync-inventory  → ghi snapshot vào BigQuery làm đường dự phòng
 // ═══════════════════════════════════════════════════════════════════
-import { fetchPosInventory, loadShops, posMarketKey } from "@/lib/talpha-pos-images";
+import { fetchPosInventory, loadShops, posMarketKey } from "@/lib/talpha/pos-images";
 import { RULES } from "@/lib/talpha/rules";
 import { bigquery } from "@/lib/bigquery";
 import type { MarketOverview, StatusSummary, SkuRow } from "@/components/talpha/data/inventory";

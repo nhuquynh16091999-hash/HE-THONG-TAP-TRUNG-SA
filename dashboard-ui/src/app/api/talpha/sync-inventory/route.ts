@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { Readable } from "node:stream";
 import { bigquery } from "@/lib/bigquery";
-import { buildInventoryPayload } from "@/lib/talpha-inventory";
+import { buildInventoryPayload } from "@/lib/talpha/inventory";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { bigquery } from "@/lib/bigquery";
-import { buildInventoryPayload } from "@/lib/talpha-inventory";
+import { buildInventoryPayload } from "@/lib/talpha/inventory";
 import { getAccess } from "@/lib/talpha/access";
 import { seesAllMarkets } from "@/lib/talpha/access-rules";
 

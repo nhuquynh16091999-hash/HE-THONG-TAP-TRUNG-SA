@@ -6,10 +6,10 @@ import {
     ResponsiveContainer, Cell,
 } from "recharts";
 import {
-    Package, AlertTriangle, Boxes, TrendingDown, TrendingUp,
+    Package, AlertTriangle, TrendingDown, TrendingUp,
     Search, Lightbulb, RefreshCw,
 } from "lucide-react";
-import { KPICard } from "@/components/ui/kpi-card";
+import { KpiTile, KpiRow } from "../report";
 import { formatNumber } from "../utils";
 import {
     type SkuRow, type MarketOverview, type StatusSummary,
@@ -289,14 +289,14 @@ export default function TALPHAProductsTab(_props: Props) {
             )}
 
             {/* KPI Row — hướng hành động cho mkt */}
-            <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
-                <KPICard title="📦 Tổng SKU" value={formatNumber(SKU_MATRIX.length)} icon={Package} subValue={`${MARKET_OVERVIEW.length} kho POS`} />
-                <KPICard title="🏬 Tổng tồn (pcs)" value={formatNumber(kpi.totalStock)} icon={Boxes} subValue="toàn hệ thống" />
-                <KPICard title="⚡ Bán/ngày" value={`${kpi.perDay.toFixed(0)}`} icon={Package} status="success" subValue="đơn thật 30 ngày" tooltip="Tốc độ bán thật tính từ đơn hàng 30 ngày." />
-                <KPICard title="🔴 Sắp hết — giảm ads" value={formatNumber(kpi.soonOut)} icon={AlertTriangle} status="danger" subValue={`SKU còn <${SOON_DAYS} ngày hàng`} tooltip="SKU đang bán tốt nhưng tồn sắp hết → cân nhắc GIẢM/DỪNG ads để tránh cháy hàng + RTO." />
-                <KPICard title="🔥 Đẩy ads được" value={formatNumber(kpi.hot)} icon={TrendingUp} status="success" subValue="bán tốt · đủ hàng" tooltip="SKU bán chạy và còn ≥20 ngày hàng → an toàn đổ mạnh ads." />
-                <KPICard title="🐌 Tồn đọng — cần xả" value={`${kpi.deadPct}%`} icon={TrendingDown} status="warning" subValue={`${formatNumber(kpi.deadCount)} SKU · ${formatNumber(kpi.deadPcs)} pcs`} tooltip="Tồn nhiều nhưng 30 ngày không bán → nên chạy ads/khuyến mãi để xả." />
-            </div>
+            <KpiRow>
+                <KpiTile emoji="📦" label="Tổng SKU" value={formatNumber(SKU_MATRIX.length)} sub={`${MARKET_OVERVIEW.length} kho POS`} />
+                <KpiTile emoji="🏬" label="Tổng tồn (pcs)" value={formatNumber(kpi.totalStock)} sub="toàn hệ thống" />
+                <KpiTile emoji="⚡" label="Bán/ngày" value={`${kpi.perDay.toFixed(0)}`} tone="good" sub="đơn thật 30 ngày" tooltip="Tốc độ bán thật tính từ đơn hàng 30 ngày." />
+                <KpiTile emoji="🔴" label="Sắp hết — giảm ads" value={formatNumber(kpi.soonOut)} tone="bad" sub={`SKU còn <${SOON_DAYS} ngày hàng`} tooltip="SKU đang bán tốt nhưng tồn sắp hết → cân nhắc GIẢM/DỪNG ads để tránh cháy hàng + RTO." />
+                <KpiTile emoji="🔥" label="Đẩy ads được" value={formatNumber(kpi.hot)} tone="good" sub="bán tốt · đủ hàng" tooltip="SKU bán chạy và còn ≥20 ngày hàng → an toàn đổ mạnh ads." />
+                <KpiTile emoji="🐌" label="Tồn đọng — cần xả" value={`${kpi.deadPct}%`} tone="warn" sub={`${formatNumber(kpi.deadCount)} SKU · ${formatNumber(kpi.deadPcs)} pcs`} tooltip="Tồn nhiều nhưng 30 ngày không bán → nên chạy ads/khuyến mãi để xả." />
+            </KpiRow>
 
             {/* Tổng quan theo kho */}
             <div className="rounded-lg border border-border bg-card p-4">
