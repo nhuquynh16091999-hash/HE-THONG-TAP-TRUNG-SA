@@ -1206,15 +1206,10 @@
   "targets": {
     "_note": "KPI đo trên DOANH SỐ BÁN ĐƯỢC = doanh số đơn đã chốt (trừ huỷ, nháp, đơn trống), quy VND — đúng cột doanh số của file TỔNG TEAM mà thanh KPI so vào. Sỹ Anh chốt 30/10/2026. Tháng không khai = không hiện thanh KPI, không suy từ tháng khác.",
     "monthly_revenue_vnd": {
-      "2026-07": 4700000000,
-      "2026-08": 5250000000,
-      "2026-09": 6100000000,
-      "2026-10": 7050000000,
-      "2026-11": 8950000000,
-      "2026-12": 10100000000
-    },
-    "marketer_monthly_vnd": {
-      "_note": "KPI tháng của TỪNG NGƯỜI, khoá = key marketer (Loc, SAnh, Thai, Thuong, Quynh, Thang), giá trị {\"YYYY-MM\": VND}. Cùng thước đo với monthly_revenue_vnd. Bỏ hai bảng cũ 30/10/2026: KPI theo doanh số ship (T7–T8) và theo doanh số giao thành công (T9) — tháng đã qua, không màn nào hiện nữa, còn trong lịch sử git."
+      "_note": "KPI cả team ANTALO, Sỹ Anh chốt 30/10/2026. Bỏ số T7–T12 của đội cũ (4,7–10,1 tỷ).",
+      "2026-10": 600000000,
+      "2026-11": 900000000,
+      "2026-12": 1200000000
     }
   },
   "thresholds": {
@@ -1824,7 +1819,6 @@
     "Tên đầy đủ của giám đốc (director.full).",
     "Tên bạn sale thứ hai (sales.Sale2) khi có người.",
     "Quy tắc gán sale (sale_assignment) — hiện mọi đơn rơi vào \"(chưa gán sale)\".",
-    "KPI tháng cho đội mới (targets) — số đang là của đội cũ.",
     "Hỏi NAZA khoản 'phí thao tác' 3 RMB/đơn: bảng giá ghi miễn phí, thực tế thu đều. Đã trả 1.389 RMB qua 7 kỳ.",
     "Sửa 6 mã vận đơn đang bị gán cho hai đơn khác nhau trong file đơn tổng (xem cảnh báo ở tab Đối soát).",
     "Điền mã vận đơn cho 39 dòng đang để trống trong file đơn tổng."

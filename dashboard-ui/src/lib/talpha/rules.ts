@@ -36,8 +36,7 @@ type Rules = {
     page_id_pattern: string;
     products?: Record<string, ProductCost | string>;
     targets?: {
-        monthly_revenue_vnd?: Record<string, number>;
-        marketer_monthly_vnd?: Record<string, Record<string, number> | string>;
+        monthly_revenue_vnd?: Record<string, number | string>;
     };
     report_start_date?: string;
     report_sheets?: { grand_by_month?: Record<string, string> };
@@ -137,8 +136,9 @@ export const PHONE_RULES: Record<string, { cc: string; national_len: number; tru
 // KH_Q3Q4_2026_Team_Ads.xlsx, CEO chốt). Tháng không khai = không có KPI, phía
 // dashboard phải ẩn thanh tiến độ chứ KHÔNG được suy ra từ tháng khác.
 // Đo trên doanh số bán được (đơn đã chốt) — cùng cột doanh số của file TỔNG TEAM.
-export const MONTHLY_REVENUE_TARGETS: Record<string, number> =
-    RULES.targets?.monthly_revenue_vnd ?? {};
+export const MONTHLY_REVENUE_TARGETS: Record<string, number> = Object.fromEntries(
+    Object.entries(RULES.targets?.monthly_revenue_vnd ?? {})
+        .filter((e): e is [string, number] => /^\d{4}-\d{2}$/.test(e[0]) && typeof e[1] === "number" && e[1] > 0));
 
 // ── Mốc gốc của báo cáo số ──
 // "YYYY-MM-DD" — ngày trước mốc chưa đủ dữ liệu, các tab báo cáo không tính (xem
@@ -149,16 +149,6 @@ export const REPORT_START_DATE: string | null =
 // ID file "TỔNG TEAM THÁNG n" theo tháng "YYYY-MM" — bot Zalo và tab Tổng quan đọc số từ đây.
 export const GRAND_SHEET_BY_MONTH: Record<string, string> = Object.fromEntries(
     Object.entries(RULES.report_sheets?.grand_by_month ?? {}).filter(([k]) => !k.startsWith("_")));
-
-// KPI tháng của TỪNG NGƯỜI (doanh số bán được), key = TÊN HIỂN THỊ ("Lộc", "Chu Thuý"…) để
-// client so thẳng với cột marketer của /api/talpha/marketer-perf. Người không có
-// trong bảng KPI (S.Anh) không có khoá — tab phải ẩn thanh, không suy diễn.
-export const MARKETER_MONTHLY_TARGETS: Record<string, Record<string, number>> =
-    Object.fromEntries(
-        Object.entries(RULES.targets?.marketer_monthly_vnd ?? {})
-            .filter(([k, v]) => !k.startsWith("_") && typeof v === "object")
-            .map(([k, v]) => [DISPLAY[k] ?? k, v as Record<string, number>]),
-    );
 
 // ── Gán marketer: 3 hàm chuẩn (≡ Python talpha_rules) ──
 const CAMP_TOKENS = Object.fromEntries(

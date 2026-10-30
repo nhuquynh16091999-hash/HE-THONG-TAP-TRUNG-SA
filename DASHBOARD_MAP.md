@@ -357,6 +357,10 @@ nước ở `talpha_rules.json → markets.*.phone.whatsapp` (Đài, Singapore: 
 `lib/talpha/whatsapp.ts` (mã nước, độ dài số trong nước, số 0 đầu); số không khớp luật thì
 không có nút, để khỏi nhắn nhầm người.
 
+**KPI** (30/10/2026) chỉ có KPI cả team, đo trên doanh số bán được (đơn đã chốt):
+`talpha_rules.json → targets.monthly_revenue_vnd` — T10 600tr · T11 900tr · T12 1,2 tỷ. Thanh
+tiến độ ở hero tab Báo cáo; tháng không khai thì không có thanh.
+
 **Sale** (30/10/2026) lấy theo người bán gán trên POS (`sale_order.seller_name`), qua `resolveSale()`
 trong `lib/talpha/rules.ts`: gán tay → người bán POS → page → tag. Tên POS khác tên trong
 `talpha_rules.json → sales` thì thêm vào `aliases`.
@@ -366,8 +370,6 @@ trong `lib/talpha/rules.ts`: gán tay → người bán POS → page → tag. T�
 * **Phí thao tác NAZA 3 RMB/đơn** — bảng giá ghi miễn phí, thực tế thu đều trên 463 đơn
   (1.389 RMB qua 7 kỳ). Chưa hỏi được NAZA khoản này là gì.
 * **Tên đầy đủ của giám đốc và bạn sale thứ hai** chưa có.
-* **KPI tháng chưa có số mới** (`targets`): đo trên doanh số bán được (đơn đã chốt) — Sỹ Anh chốt
-  30/10/2026; KPI từng người (`marketer_monthly_vnd`) đang trống, KPI cả team vẫn là số của đội cũ.
 * **6 mã vận đơn bị gán cho hai đơn khác nhau** và **39 dòng trống mã vận đơn** trong
   file đơn tổng — tab Đối soát đang cảnh báo.
 * Giá vốn 3 mã nhiều biến thể (004, 012, 017) đang lấy giá cao nhất; 12 sản phẩm trong

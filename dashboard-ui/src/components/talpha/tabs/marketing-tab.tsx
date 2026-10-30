@@ -27,8 +27,6 @@ export default function TALPHAMarketingTab({ dateRange }: Props) {
     const [theoTeam, setTheoTeam] = useState(false);
     const [accounts, setAccounts] = useState<any[]>([]);
     const [summary, setSummary] = useState({ spend: 0, messages: 0, impressions: 0, cpm: 0 });
-    // KPI tháng đang chạy: {display name → VND target} + doanh số GTC tháng này của từng người
-    const [kpiRows, setKpiRows] = useState<{ name: string; target: number; actual: number }[]>([]);
 
     useEffect(() => {
         async function fetchData() {
@@ -38,7 +36,7 @@ export default function TALPHAMarketingTab({ dateRange }: Props) {
                 const to = dateRange?.to ? format(dateRange.to, "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd");
 
                 // A1: query qua view chuẩn — vw_fb_ads_std (spend VND) cho phần số Meta.
-                // Bảng từng người + KPI đọc file TỔNG TEAM (Sỹ Anh chốt 28/09/2026) — trước đó đọc
+                // Bảng từng người đọc file TỔNG TEAM (Sỹ Anh chốt 28/09/2026) — trước đó đọc
                 // /api/talpha/marketer-perf: doanh thu chỉ đơn ĐÃ GIAO XONG, gán người theo ad_id,
                 // nên số từng người lệch Sheet và tab Tổng quan.
                 const queries = [
@@ -63,11 +61,6 @@ export default function TALPHAMarketingTab({ dateRange }: Props) {
                     WHERE date BETWEEN '${from}' AND '${to}' AND spend > 0`,
                 ];
 
-                const now = new Date();
-                const monthKey = format(now, "yyyy-MM");
-                const monthStart = `${monthKey}-01`;
-                const today = format(now, "yyyy-MM-dd");
-
                 const docSheet = (f: string, t: string) =>
                     fetch(`/api/talpha/sheet-report?from=${f}&to=${t}`)
                         .then(async r => {
@@ -75,7 +68,7 @@ export default function TALPHAMarketingTab({ dateRange }: Props) {
                             if (!r.ok || d.error) throw new Error(d.error || `HTTP ${r.status}`);
                             return d;
                         });
-                const [results, perf, targetsRes, monthPerf] = await Promise.all([
+                const [results, perf] = await Promise.all([
                     Promise.all(
                         queries.map(q =>
                             fetch("/api/query", {
@@ -85,25 +78,7 @@ export default function TALPHAMarketingTab({ dateRange }: Props) {
                         )
                     ),
                     docSheet(from, to).catch((e: Error) => ({ error: e.message })),
-                    fetch("/api/talpha/targets").then(r => r.json()).catch(() => ({})),
-                    // Doanh số tháng này tới hôm nay (từ mốc gốc nếu mốc rơi vào tháng này) — tử số thanh KPI.
-                    docSheet(monthStart, today).catch(() => ({ marketers: [] })),
                 ]);
-
-                // Ghép KPI tháng: chỉ người CÓ khoá KPI tháng này mới có thanh
-                const perTargets: Record<string, Record<string, number>> =
-                    targetsRes?.marketer_monthly_vnd || {};
-                const monthActual = new Map<string, number>(
-                    (monthPerf.marketers || []).map((r: Nguoi) => [r.display, r.doanh_so || 0]));
-                setKpiRows(
-                    Object.entries(perTargets)
-                        .filter(([, months]) => months[monthKey] > 0)
-                        .map(([name, months]) => ({
-                            name, target: months[monthKey],
-                            actual: monthActual.get(name) || 0,
-                        }))
-                        .sort((a, b) => b.target - a.target),
-                );
 
                 // Bảng từng người = các tab người của file TỔNG TEAM.
                 setLoiSheet(perf.error || null);
@@ -172,37 +147,6 @@ export default function TALPHAMarketingTab({ dateRange }: Props) {
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <div className="bg-card border border-border rounded-xl p-4 shadow-sm">
-                    {kpiRows.length > 0 && (
-                        <div className="mb-5">
-                            <h3 className="text-sm font-semibold text-foreground">
-                                🎯 KPI tháng {format(new Date(), "M/yyyy")} — từng người
-                            </h3>
-                            <p className="mb-3 mt-0.5 text-[11px] leading-snug text-muted-foreground">
-                                KPI và thanh tiến độ cùng đo <strong>doanh số bán được</strong> — đơn đã chốt trong file TỔNG TEAM
-                                (tính từ mốc gốc báo cáo). Người chưa khai KPI tháng này thì không có thanh.
-                            </p>
-                            <div className="space-y-2">
-                                {kpiRows.map(r => {
-                                    const pct = Math.min(100, Math.round((r.actual / r.target) * 100));
-                                    return (
-                                        <div key={r.name}>
-                                            <div className="mb-0.5 flex items-baseline justify-between text-xs">
-                                                <span className="font-medium text-foreground">{r.name}</span>
-                                                <span className="tabular-nums text-muted-foreground">
-                                                    {formatVNDCompact(r.actual)} / {formatVNDCompact(r.target)}
-                                                    <span className="ml-1.5 font-semibold text-amber-600 dark:text-amber-400">{pct}%</span>
-                                                </span>
-                                            </div>
-                                            <div className="h-1.5 overflow-hidden rounded-full bg-muted">
-                                                <div className="h-full rounded-full bg-gradient-to-r from-orange-400 to-amber-500"
-                                                    style={{ width: `${pct}%` }} />
-                                            </div>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        </div>
-                    )}
                     <h3 className="text-sm font-semibold text-foreground">👤 Hiệu suất Marketer</h3>
                     <p className="mb-3 mt-0.5 text-[11px] leading-snug text-muted-foreground">
                         {theoTeam
