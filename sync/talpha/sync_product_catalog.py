@@ -18,10 +18,8 @@ from dotenv import load_dotenv
 from google.oauth2.service_account import Credentials
 from google.cloud import bigquery
 
-# load_dotenv() không tham số dò .env từ vị trí FILE script, không phải cwd. Bản
-# deploy nằm ở ~/talpha_reports/ còn .env ở ~/talpha_reports/runtime/ ⇒ dò trượt,
-# không có key POS nào → fetch rỗng. Nạp thêm .env theo cwd (catalog_cron.sh đã cd
-# vào runtime). Đã xảy ra thật 04/08: bảng bị ghi đè còn 0 dòng.
+# Trên máy chủ khoá POS do systemd nạp (talpha-catalog.service đọc dashboard-ui/.env.local).
+# Chạy tay ở máy dev thì đọc .env cạnh script hoặc theo cwd.
 load_dotenv()
 load_dotenv(os.path.join(os.getcwd(), ".env"))
 
@@ -30,8 +28,7 @@ BQ_PROJECT = os.environ.get("BQ_PROJECT_ID", "cty-507710")
 BQ_DATASET = os.environ.get("BQ_DATASET", "TALPHA_Dataset")
 TABLE = f"{BQ_PROJECT}.{BQ_DATASET}.product_catalog"
 
-# Bản chạy trong runtime (~/talpha_reports, launchd không đọc được Desktop) không có
-# cây config/ của repo → catalog_cron.sh trỏ TALPHA_CONFIG_YAML vào bản đã deploy.
+# Mặc định đọc config/projects/talpha.yaml của repo; TALPHA_CONFIG_YAML để trỏ chỗ khác.
 CONFIG_YAML = os.environ.get("TALPHA_CONFIG_YAML") or os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
     "config", "projects", "talpha.yaml",
@@ -244,17 +241,20 @@ def main():
     WITH item_rev AS (
       -- Doanh thu đơn phân bổ cho từng item theo quantity.
       SELECT
+        i.shop_id,
         i.order_id,
         i.variation_id,
         i.quantity,
         v.shop_label,
         v.order_date,
         v.revenue_vnd * SAFE_DIVIDE(
-          i.quantity, SUM(i.quantity) OVER (PARTITION BY i.order_id)
+          i.quantity, SUM(i.quantity) OVER (PARTITION BY i.shop_id, i.order_id)
         ) AS revenue_vnd
       FROM `{BQ_PROJECT}.{BQ_DATASET}.order_items` i
+      -- Khoá (shop_id, order_id): mỗi shop POS đánh số đơn riêng, nối mỗi order_id là
+      -- cộng doanh thu đơn 18 của Đài với đơn 18 của Sing.
       JOIN `{BQ_PROJECT}.{BQ_DATASET}.vw_orders_std` v
-        ON i.order_id = CAST(v.order_id AS STRING)
+        ON i.shop_id = v.shop_id AND i.order_id = CAST(v.order_id AS STRING)
       WHERE v.is_confirmed
     )
     SELECT
@@ -262,7 +262,7 @@ def main():
       c.sku_code,
       ANY_VALUE(c.product_name)     AS product_name,
       ir.shop_label,
-      COUNT(DISTINCT ir.order_id)   AS orders,
+      COUNT(DISTINCT CONCAT(CAST(ir.shop_id AS STRING), '-', ir.order_id)) AS orders,
       SUM(ir.quantity)              AS units,
       ROUND(SUM(ir.revenue_vnd), 0) AS revenue_vnd
     FROM item_rev ir

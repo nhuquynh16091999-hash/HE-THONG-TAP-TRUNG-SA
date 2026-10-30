@@ -271,6 +271,45 @@ systemctl enable --now talpha-snapshot.timer >/dev/null 2>&1 \
     && echo "   đã bật — nhật ký: /root/talpha_reports/snapshot_\$(date +%Y%m%d).log" \
     || warn "không bật được talpha-snapshot.timer"
 
+# ─────────────────────────────────────────────────────────────────────────
+# Danh mục sản phẩm — product_catalog nối variation_id của POS với mã SKU; view đơn hàng
+# tra giá vốn qua nó. Chưa từng có lịch chạy trên VPS nên bảng trống, giá vốn BQ = 0.
+say "Danh mục sản phẩm · timer mỗi ngày 05:10"
+cat > /etc/systemd/system/talpha-catalog.service <<EOF
+[Unit]
+Description=TALPHA — làm tươi product_catalog từ POS vào BigQuery
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+Environment=HOME=/root
+Environment=TALPHA_APP_DIR=$APP_DIR
+EnvironmentFile=$APP_DIR/dashboard-ui/.env.local
+ExecStart=/bin/bash $APP_DIR/ops/talpha_reports/catalog_cron.sh
+TimeoutStartSec=900
+EOF
+cat > /etc/systemd/system/talpha-catalog.timer <<'EOF'
+[Unit]
+Description=Làm tươi danh mục sản phẩm mỗi ngày 05:10 giờ Việt Nam
+
+[Timer]
+OnCalendar=*-*-* 05:10:00 Asia/Ho_Chi_Minh
+RandomizedDelaySec=120
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+EOF
+systemctl daemon-reload
+if systemctl enable --now talpha-catalog.timer >/dev/null 2>&1; then
+    echo "   đã bật — nhật ký: /root/talpha_reports/catalog_\$(date +%Y%m%d).log"
+    # Bảng đang trống: chạy một lượt ngay, không đợi tới 05:10. Không chặn deploy.
+    systemctl start --no-block talpha-catalog.service || true
+else
+    warn "không bật được talpha-catalog.timer"
+fi
+
 say "XONG"
 echo "   Kiểm tra:  curl -I http://127.0.0.1:$PORT/login"
 echo "   Nhật ký :  pm2 logs talpha-dashboard"

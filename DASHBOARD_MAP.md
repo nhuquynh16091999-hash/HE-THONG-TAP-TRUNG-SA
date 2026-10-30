@@ -300,19 +300,14 @@ talpha-sync: mã vận đơn, ngày xuất kho, trạng thái giao, COD đối t
 | Kéo số vào BigQuery | VPS, mỗi giờ phút :00 | systemd `talpha-sync.timer` → `sync/talpha/talpha_sync.py` |
 | Ghi Google Sheets | VPS, mỗi giờ phút :20 | systemd `talpha-report.timer` → `/root/talpha_reports/daily_guarded.sh` |
 | Snapshot tồn kho (dự phòng tab Sản phẩm) | VPS, mỗi giờ phút :40 (30/10/2026) | systemd `talpha-snapshot.timer` → `ops/talpha_reports/snapshot_cron.sh inventory`, do `vps-setup.sh` dựng mỗi lần deploy. Log `/root/talpha_reports/snapshot_<ngày>.log` |
+| Danh mục sản phẩm `product_catalog` | VPS, mỗi ngày 05:10 (30/10/2026) | systemd `talpha-catalog.timer` → `ops/talpha_reports/catalog_cron.sh` → `sync/talpha/sync_product_catalog.py`, khoá POS lấy từ `dashboard-ui/.env.local`. Bảng này nối mã biến thể POS → mã SKU: thiếu nó thì `vw_orders_std.cogs_vnd` = 0. Script tự dừng nếu đọc được 0 dòng hoặc hụt >30%. Log `/root/talpha_reports/catalog_<ngày>.log` |
 | Nạp bảng đơn đối tác | VPS, 6h sáng mỗi ngày | systemd `talpha-tracking.timer` → `ops/deploy/tracking-import.sh` (gọi route `tracking/import`) |
 | Bot Zalo ads + vận đơn | VPS — MỖI NƯỚC MỘT NHÓM "ADS + VẬN ĐƠN TAIWAN · SGP · UAE · JAPAN" (08/10/2026; bỏ nhóm BÁO CÁO ADS gộp + 3 nhóm VẬN ĐƠN cũ): ads 08:30 · 13:00 · 18:00 · 22:00, vận đơn 08:30 · 22:00, lệnh `/baocao` `/canhbao` `/vandon` trả số đúng nước của nhóm. Số theo nước × người đọc `data/bao_cao_nuoc/<tháng>.json` do `format_all.py` ghi cùng lúc file TỔNG TEAM | pm2 `talpha-zalo-alerts` — nick Zalo phụ ghép 15/09/2026; bot tự nhận nhóm theo tên; ghép lại, đổi nhóm: `ops/zalo-alerts/README.md` |
 | Bot cảnh báo WhatsApp | — | **Tắt**. Code ở `ops/whatsapp-alerts/`, cách bật trong `ops/pm2/README.md` |
 | Máy Mac | Máy dev | `cd dashboard-ui && npm run dev`. Không job nền nào. |
 
-**Việc nền đang hỏng hoặc chưa có lịch chạy** — soát 13/09/2026; snapshot tồn kho và nút
-"Xuất Sheet" đã sửa 30/10/2026, còn lại:
-
-| Thứ | Tình trạng thật |
-|:--|:--|
-| `ops/talpha_reports/catalog_cron.sh` | `product_catalog` **0 dòng từ ngày dựng dự án** → giá vốn trong `vw_orders_std` luôn 0 (tab P&L và P&L theo SP không còn dựa vào nó từ 25–28/09/2026 — giá vốn tính ở `lib/talpha/order-costs.ts`). Script ghi cứng Python ở `runtime/.venv`, trên VPS là `/opt/talpha/.venv` nên chết ngay |
-
-Dựng timer theo mẫu `ops/deploy/vps-sync-setup.sh`.
+Việc nền hỏng hoặc chưa có lịch (soát 13/09/2026) đã xử lý hết 30/10/2026: snapshot tồn
+kho, danh mục sản phẩm, nút "Xuất Sheet".
 
 Deploy: **`bash ops/deploy/from-mac.sh`** từ máy Mac. Máy chủ không có khoá GitHub —
 nó mượn khoá của máy Mac qua `ssh -A` trong lúc chạy script. `git pull` thẳng trên

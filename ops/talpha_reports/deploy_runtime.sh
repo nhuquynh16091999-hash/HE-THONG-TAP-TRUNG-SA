@@ -18,6 +18,8 @@ STAMP="$(date +%Y%m%d-%H%M%S)"
 # bản, nằm trong repo, và `sync_month.py` import thẳng từ đó qua $TALPHA_REPO.
 # Chép engine sang runtime là tự đẻ ra bản thứ hai — đúng cái đã khiến
 # talpha-report và talpha-sync chạy hai bộ code khác nhau vào cùng một BigQuery.
+# snapshot_cron.sh, catalog_cron.sh, sync_product_catalog.py: systemd chạy thẳng bản trong
+# repo (vps-setup.sh, 30/10/2026) — không chép sang runtime nữa.
 PAIRS=(
   "ops/talpha_reports/talpha_paths.py|talpha_paths.py"
   "ops/talpha_reports/format_all.py|format_all.py"
@@ -25,9 +27,6 @@ PAIRS=(
   "config/talpha_rules.json|talpha_rules.json"
   "ops/talpha_reports/sync_month.py|sync_month.py"
   "ops/talpha_reports/daily_guarded.sh|daily_guarded.sh"
-  "ops/talpha_reports/snapshot_cron.sh|snapshot_cron.sh"
-  "ops/talpha_reports/catalog_cron.sh|catalog_cron.sh"
-  "sync/talpha/sync_product_catalog.py|sync_product_catalog.py"
   "config/projects/talpha.yaml|runtime/config/talpha.yaml"
   "ops/talpha_reports/report_health.py|report_health.py"
   "ops/talpha_reports/report_account_health.py|report_account_health.py"

@@ -1,34 +1,32 @@
 #!/bin/bash
 # ═══════════════════════════════════════════════════════════════════
-# TALPHA E2 — làm tươi product_catalog.
+# TALPHA — làm tươi product_catalog (variation_id → mã SKU, tên SP).
 #
-# ⚠️ HIỆN KHÔNG CÓ AI GỌI ĐỊNH KỲ (job launchd cũ ở máy Mac đã bỏ, chưa có timer
-# thay thế trên VPS). Chạy tay khi thêm sản phẩm mới, hoặc dựng systemd timer.
+# vw_product_catalog_std đọc bảng này để vw_orders_std tra giá vốn theo mã SKU
+# (cogs_vnd) và vw_product_pnl gom doanh thu theo SP. Bảng trống là giá vốn trong
+# BigQuery bằng 0 toàn bộ.
 #
-# product_catalog là bảng dimension variation_id → sku/tên SP; MỌI báo cáo theo
-# sản phẩm (tab "P&L theo SP", view vw_product_pnl, cột cogs_vnd của vw_orders_std)
-# đều JOIN qua nó. Trước E2 script chỉ chạy tay: lần ghi cuối ~giữa 06/2026, đến
-# 04/08 bảng đã cũ ~1,5 tháng ⇒ 38,7% dòng order_items không khớp catalog
-# (419,2tr doanh thu không phân tích được theo SP) và SP mới lên sàn thì vô hình.
+# Gọi định kỳ bởi systemd `talpha-catalog.timer` (mỗi ngày 05:10 giờ VN), do
+# ops/deploy/vps-setup.sh dựng ở mỗi lần deploy. Chạy tay trên máy chủ:
+#     systemctl start talpha-catalog
+# (đừng gọi trần script: khoá POS TALPHA_POSCAKE_*_KEY do systemd nạp từ
+# dashboard-ui/.env.local, giống talpha-sync.service).
 #
-# Chạy từ RUNTIME /root/talpha_reports trên VPS.
-# Sửa ở repo (sync/talpha/sync_product_catalog.py + ops/talpha_reports/) rồi
-# `./deploy_runtime.sh --yes`.
-#
-# Ghi BQ bằng LOAD JOB WRITE_TRUNCATE (atomic, hợp free tier — không streaming/DML).
+# Ghi BQ bằng LOAD JOB WRITE_TRUNCATE (atomic). sync_product_catalog.py tự dừng,
+# giữ nguyên bảng cũ, khi: không có khoá shop nào · đọc được 0 dòng · hụt >30%.
 # ═══════════════════════════════════════════════════════════════════
 set -uo pipefail
 
+APP="${TALPHA_APP_DIR:-/opt/talpha}"
+PY="$APP/.venv/bin/python"
 DIR="$HOME/talpha_reports"
-RT="$DIR/runtime"
-PY="$RT/.venv/bin/python"
 LOG="$DIR/catalog_$(date +%Y%m%d).log"
 LOCK="$DIR/.lock_catalog"
+mkdir -p "$DIR"
 
 log() { echo "$(date '+%F %T') [catalog] $*" >> "$LOG"; }
 
-# Lock riêng — KHÔNG dùng $DIR/.lock (lock của vòng sync mỗi giờ), tránh làm
-# daily_guarded.sh/deploy nghẽn vì một lượt fetch catalog vài chục giây.
+# Lock riêng — KHÔNG dùng $DIR/.lock (lock của vòng ghi Sheet mỗi giờ).
 # Chủ lock ghi PID; PID chết là dọn ngay (bài học lock kẹt 4 ngày 08/07).
 if ! mkdir "$LOCK" 2>/dev/null; then
     OWNER="$(cat "$LOCK/pid" 2>/dev/null || echo '')"
@@ -41,21 +39,18 @@ fi
 echo $$ > "$LOCK/pid"
 trap 'rm -rf "$LOCK"' EXIT
 
-[ -x "$PY" ] || { log "thiếu python runtime: $PY"; exit 1; }
-
-# cd vào runtime: script dùng load_dotenv() và "bigquery_key.json" theo ĐƯỜNG DẪN
-# TƯƠNG ĐỐI cwd — chạy từ chỗ khác là mất key POS lẫn credentials BQ.
-cd "$RT" || { log "không vào được $RT"; exit 1; }
-
-# Danh sách 7 shop đọc từ bản talpha.yaml đã deploy (repo config/ không có ở runtime).
-export TALPHA_CONFIG_YAML="$RT/config/talpha.yaml"
+[ -x "$PY" ] || { log "thiếu python: $PY"; exit 1; }
+# cd vào gốc repo: script mở "bigquery_key.json" theo đường dẫn tương đối cwd.
+cd "$APP" || { log "không vào được $APP"; exit 1; }
+[ -f bigquery_key.json ] || { log "thiếu $APP/bigquery_key.json"; exit 1; }
 
 log "bắt đầu"
-"$PY" "$DIR/sync_product_catalog.py" >> "$LOG" 2>&1
+"$PY" "$APP/sync/talpha/sync_product_catalog.py" >> "$LOG" 2>&1
 RC=$?
 if [ $RC -eq 0 ]; then
     log "xong"
 else
     log "LỖI rc=$RC — bảng cũ VẪN CÒN NGUYÊN (WRITE_TRUNCATE chỉ thay khi load thành công)"
 fi
+find "$DIR" -maxdepth 1 -name 'catalog_*.log' -mtime +30 -delete 2>/dev/null
 exit $RC
