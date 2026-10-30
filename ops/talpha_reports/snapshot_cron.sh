@@ -2,9 +2,8 @@
 # ═══════════════════════════════════════════════════════════════════
 # TALPHA C2 — làm tươi hai bảng snapshot bằng cách gọi route của dashboard.
 #
-# ⚠️ HIỆN KHÔNG CÓ AI GỌI ĐỊNH KỲ. Trước đây hai job launchd trên máy Mac gọi nó;
-# hạ tầng đã chuyển sang VPS mà chưa dựng timer thay thế. Muốn bật: viết một
-# systemd timer trên VPS theo mẫu ops/deploy/vps-sync-setup.sh.
+# Gọi định kỳ bởi systemd `talpha-snapshot.timer` (mỗi giờ phút :40), do
+# ops/deploy/vps-setup.sh dựng ở mỗi lần deploy — chạy thẳng bản trong repo.
 #
 #   inventory → /api/talpha/sync-inventory → BQ inventory_snapshot
 #               Đây là ĐƯỜNG DỰ PHÒNG của tab Kho: POS Poscake chết thì
@@ -12,8 +11,7 @@
 #               → 03/08 snapshot mới nhất là 10/07, tức dự phòng lệch 24 ngày.
 #
 # Dùng: snapshot_cron.sh inventory
-# Chạy từ RUNTIME /root/talpha_reports trên VPS.
-# Sửa ở repo ops/talpha_reports/ rồi `./deploy_runtime.sh --yes`.
+# Log và khoá nằm ở /root/talpha_reports; sửa ở repo là có hiệu lực sau lần deploy tới.
 # ═══════════════════════════════════════════════════════════════════
 set -uo pipefail
 

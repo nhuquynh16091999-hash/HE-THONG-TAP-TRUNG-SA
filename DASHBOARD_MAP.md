@@ -251,8 +251,8 @@ Meta theo nước ở tên campaign); bảng gộp mọi nước (`vw_attributio
 | `cod-actions` | Đánh dấu đã đòi / đã nhận tiền | Giao diện |
 | `ad-spend` · `marketer-perf` · `product-costs` · `targets` | Số phụ trợ cho tab | Giao diện |
 | `ceo-ask` | Hỏi đáp bằng LLM → sinh SQL | Giao diện |
-| `export-report` | Nút "Xuất Sheet" → chạy thẳng `format_all.py` (**đang hỏng**, xem mục 7) | Giao diện |
-| `sync-inventory` | Ghi snapshot tồn kho làm dự phòng cho tab Kho | `snapshot_cron.sh` (chưa hẹn giờ) |
+| `export-report` | Nút "Xuất Sheet" → chạy đúng `format_all.py` của vòng ghi Sheet mỗi giờ (cùng python, cùng khoá `/root/talpha_reports/.lock`; vòng :20 đang chạy thì trả 409). Sửa 30/10/2026 | Giao diện |
+| `sync-inventory` | Ghi snapshot tồn kho làm dự phòng cho tab Kho | `talpha-snapshot.timer` mỗi giờ :40 → `snapshot_cron.sh` |
 | `ads-alerts` · `sync-health` | Cảnh báo spend, sức khoẻ sync | Bot Zalo · bot WA (đang tắt) |
 | `sheet-report` | Số từ file TỔNG TEAM — `?date=` một ngày, `?from&to=` cộng cả khoảng | Bot Zalo · tab Tổng quan |
 | `report-config` | Mốc gốc báo cáo cho bộ chọn ngày | Giao diện |
@@ -299,19 +299,18 @@ talpha-sync: mã vận đơn, ngày xuất kho, trạng thái giao, COD đối t
 | HTTPS + app cài được (PWA) | `https://139.180.131.21` (06/10/2026) — nginx 443 → `127.0.0.1:3000` | `ops/deploy/nginx-talpha-https.conf`, `vps-setup.sh` tự chép mỗi lần deploy. Dùng chung chứng chỉ Let's Encrypt **cho IP** (hạn 6 ngày, `certbot-renew.timer` của AI Sale gia hạn). App: `src/app/manifest.ts`, `public/sw.js` (KHÔNG lưu số liệu — chỉ trang mất mạng), nút "Cài app" `components/talpha/cai-app.tsx`. Điện thoại chỉ cài được qua HTTPS |
 | Kéo số vào BigQuery | VPS, mỗi giờ phút :00 | systemd `talpha-sync.timer` → `sync/talpha/talpha_sync.py` |
 | Ghi Google Sheets | VPS, mỗi giờ phút :20 | systemd `talpha-report.timer` → `/root/talpha_reports/daily_guarded.sh` |
+| Snapshot tồn kho (dự phòng tab Sản phẩm) | VPS, mỗi giờ phút :40 (30/10/2026) | systemd `talpha-snapshot.timer` → `ops/talpha_reports/snapshot_cron.sh inventory`, do `vps-setup.sh` dựng mỗi lần deploy. Log `/root/talpha_reports/snapshot_<ngày>.log` |
 | Nạp bảng đơn đối tác | VPS, 6h sáng mỗi ngày | systemd `talpha-tracking.timer` → `ops/deploy/tracking-import.sh` (gọi route `tracking/import`) |
 | Bot Zalo ads + vận đơn | VPS — MỖI NƯỚC MỘT NHÓM "ADS + VẬN ĐƠN TAIWAN · SGP · UAE · JAPAN" (08/10/2026; bỏ nhóm BÁO CÁO ADS gộp + 3 nhóm VẬN ĐƠN cũ): ads 08:30 · 13:00 · 18:00 · 22:00, vận đơn 08:30 · 22:00, lệnh `/baocao` `/canhbao` `/vandon` trả số đúng nước của nhóm. Số theo nước × người đọc `data/bao_cao_nuoc/<tháng>.json` do `format_all.py` ghi cùng lúc file TỔNG TEAM | pm2 `talpha-zalo-alerts` — nick Zalo phụ ghép 15/09/2026; bot tự nhận nhóm theo tên; ghép lại, đổi nhóm: `ops/zalo-alerts/README.md` |
 | Bot cảnh báo WhatsApp | — | **Tắt**. Code ở `ops/whatsapp-alerts/`, cách bật trong `ops/pm2/README.md` |
 | Máy Mac | Máy dev | `cd dashboard-ui && npm run dev`. Không job nền nào. |
 
-**Việc nền đang hỏng hoặc chưa có lịch chạy** — soát 13/09/2026, để lại xử lý sau.
-Chúng chưa từng chạy lần nào trong dự án mới:
+**Việc nền đang hỏng hoặc chưa có lịch chạy** — soát 13/09/2026; snapshot tồn kho và nút
+"Xuất Sheet" đã sửa 30/10/2026, còn lại:
 
 | Thứ | Tình trạng thật |
 |:--|:--|
-| `ops/talpha_reports/snapshot_cron.sh` | `inventory_snapshot` không được làm tươi — đó là đường dự phòng của tab Kho khi POS chết |
 | `ops/talpha_reports/catalog_cron.sh` | `product_catalog` **0 dòng từ ngày dựng dự án** → giá vốn trong `vw_orders_std` luôn 0 (tab P&L và P&L theo SP không còn dựa vào nó từ 25–28/09/2026 — giá vốn tính ở `lib/talpha/order-costs.ts`). Script ghi cứng Python ở `runtime/.venv`, trên VPS là `/opt/talpha/.venv` nên chết ngay |
-| Nút "Xuất Sheet" (`api/talpha/export-report`) | Đường dẫn script ghi cứng `/Users/syanh/talpha_reports/format_all.py` — máy Mac của chủ cũ, bấm trên máy chủ là báo "Không thấy script". Và format_all.py không tự giữ khoá |
 
 Dựng timer theo mẫu `ops/deploy/vps-sync-setup.sh`.
 

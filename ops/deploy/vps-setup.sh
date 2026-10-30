@@ -234,6 +234,43 @@ else
     warn "bỏ qua HTTPS — thiếu nginx hoặc chứng chỉ $CERT"
 fi
 
+# ─────────────────────────────────────────────────────────────────────────
+# Snapshot tồn kho — đường dự phòng của tab Sản phẩm khi POS chết. Từ lúc rời máy Mac
+# (07/2026) chưa có gì gọi định kỳ nên snapshot mới nhất cũ hàng tháng. Ghi lại mỗi lần
+# deploy cho chắc cấu hình khớp repo; enable --now lặp lại vô hại.
+say "Snapshot tồn kho · timer mỗi giờ phút :40"
+mkdir -p /root/talpha_reports
+cat > /etc/systemd/system/talpha-snapshot.service <<EOF
+[Unit]
+Description=TALPHA — ghi snapshot tồn kho POS vào BigQuery (dự phòng tab Sản phẩm)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+Environment=HOME=/root
+Environment=TALPHA_APP_DIR=$APP_DIR
+Environment=TALPHA_DASH_URL=http://127.0.0.1:$PORT
+ExecStart=/bin/bash $APP_DIR/ops/talpha_reports/snapshot_cron.sh inventory
+TimeoutStartSec=180
+EOF
+cat > /etc/systemd/system/talpha-snapshot.timer <<'EOF'
+[Unit]
+Description=Snapshot tồn kho mỗi giờ phút :40 (né sync :00 và ghi Sheet :20)
+
+[Timer]
+OnCalendar=*-*-* *:40:00
+RandomizedDelaySec=60
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+EOF
+systemctl daemon-reload
+systemctl enable --now talpha-snapshot.timer >/dev/null 2>&1 \
+    && echo "   đã bật — nhật ký: /root/talpha_reports/snapshot_\$(date +%Y%m%d).log" \
+    || warn "không bật được talpha-snapshot.timer"
+
 say "XONG"
 echo "   Kiểm tra:  curl -I http://127.0.0.1:$PORT/login"
 echo "   Nhật ký :  pm2 logs talpha-dashboard"
