@@ -23,7 +23,7 @@ Nhật (mở 08/10/2026, shop POS nối 09/10/2026): tin ads đủ đơn / DS nh
 | Có người gõ lệnh trong nhóm | Xem bảng lệnh dưới |
 
 Không tự gửi từ 23h đến 7h (lệnh gõ tay thì trả lời bất cứ lúc nào). Không có tồn kho,
-thẻ/TKQC như bot WhatsApp cũ (`ops/whatsapp-alerts/`, đang tắt).
+thẻ/TKQC như bot WhatsApp cũ (đã xoá 30/10/2026).
 
 ## Bản tin sáng 08:30 · tối 22:00 (Sỹ Anh duyệt mẫu 26/09/2026)
 

@@ -95,40 +95,5 @@ module.exports = {
             error_file: '/var/log/talpha/zalo-alerts-error.log',
             env: { NODE_ENV: 'production' },
         },
-
-        // ─────────────────────────────────────────────────────────────
-        // Bot cảnh báo WhatsApp — HIỆN ĐANG TẮT, không nằm trong `pm2 save`.
-        //
-        // Chưa từng chạy trên máy chủ này: không có node_modules, chưa quét QR
-        // (phiên WhatsApp nằm ở ops/whatsapp-alerts/.wwebjs_auth). Trước đây nó
-        // chạy ở máy chủ cũ 169.58.33.8.
-        //
-        // Bật lại:
-        //     cd /opt/talpha/ops/whatsapp-alerts && npm ci
-        //     node pair.js                    # quét QR một lần
-        //     pm2 start /opt/talpha/ops/pm2/ecosystem.vps.config.js --only talpha-wa-alerts
-        //     pm2 save
-        // ─────────────────────────────────────────────────────────────
-        {
-            name: 'talpha-wa-alerts',
-            namespace: 'talpha',
-            cwd: path.join(REPO, 'ops', 'whatsapp-alerts'),
-            script: 'bot.js',
-            interpreter: 'node',
-            exec_mode: 'fork',
-            instances: 1,
-
-            // Bot giữ phiên WhatsApp trong .wwebjs_auth cùng thư mục — restart được,
-            // nhưng xoá thư mục đó là phải quét lại QR.
-            autorestart: true,
-            max_restarts: 20,
-            min_uptime: '30s',
-            restart_delay: 5000,
-            max_memory_restart: '700M',
-
-            merge_logs: true,
-            out_file: '/var/log/talpha/wa-alerts-out.log',
-            error_file: '/var/log/talpha/wa-alerts-error.log',
-        },
     ],
 };

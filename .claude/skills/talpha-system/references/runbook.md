@@ -49,7 +49,6 @@ cd ~/talpha_reports && GOOGLE_APPLICATION_CREDENTIALS=runtime/bigquery_key.json 
   `origin/main` cũ nên trông như đã mới nhất. Đã dính 11/09: VPS kẹt một commit suốt 17 giờ.
 - Dashboard: `/opt/talpha/dashboard-ui`, pm2 `talpha-dashboard` port **3000**.
   Login lỗi → kiểm `AUTH_URL` trong `.env.local` phải trỏ đúng cổng.
-- Bot WA: `/opt/talpha/ops/whatsapp-alerts`, **đang tắt** (chưa cài, chưa quét QR).
   Cách bật: `ops/pm2/README.md`.
 - pm2: app TALPHA nằm namespace `talpha` → `pm2 restart talpha`. Config DUY NHẤT:
   `ops/pm2/ecosystem.vps.config.js`.
@@ -69,16 +68,10 @@ cd ~/talpha_reports && GOOGLE_APPLICATION_CREDENTIALS=runtime/bigquery_key.json 
 - Dashboard: `/var/log/talpha/dashboard-{out,error}.log`, hoặc `pm2 logs talpha-dashboard`
 - Lịch chạy: `systemctl list-timers 'talpha-*'`
 
-## 8. Billing TKQC (thêm 30/07)
+## 8. Billing TKQC
 
-- Route `/api/talpha/billing`: trạng thái + số nợ chờ quét (balance) + thẻ đuôi số +
-  spend hôm nay/hôm qua của 14 TKQC. Bot WA: digest 8h + cảnh báo 3h (UNSETTLED /
-  khoá khi đang chạy / nợ ≥80% ngưỡng).
-- **Ngưỡng quét Meta không còn trên API** → khai tay `bill_threshold_vnd` cho từng
-  account trong `ops/talpha_reports/ad_accounts.json` (xem ngưỡng trong Trình quản lý
-  TKQC → Cài đặt thanh toán). Chưa khai = chỉ có digest + cảnh báo fail, không có
-  cảnh báo "sắp quét".
-- UNSETTLED = thanh toán thất bại: nạp tiền thẻ → Trình quản lý TKQC → thanh toán lại.
+Route `/api/talpha/billing` và bot WhatsApp dùng nó đã xoá 30/10/2026 (bot chưa từng chạy
+trên VPS). Cần lại cảnh báo hạn mức thì làm trong bot Zalo.
 
 ## 9. Meta token chết
 

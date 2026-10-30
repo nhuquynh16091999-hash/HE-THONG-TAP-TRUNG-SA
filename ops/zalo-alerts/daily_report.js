@@ -3,7 +3,7 @@
 // (số HÔM NAY đang chạy). Khác nhau đúng ở phần chữ: truyền opts.intraday để tin nói rõ
 // số chưa chốt — cùng một con số mà không ghi rõ mốc thì người đọc tưởng ngày tụt doanh thu.
 //
-// Chép từ ops/whatsapp-alerts/daily_report.js (bot WhatsApp đang tắt), sửa bốn chỗ:
+// Gốc chép từ daily_report.js của bot WhatsApp cũ (đã xoá 30/10/2026), sửa bốn chỗ:
 //   1. chữ đậm/nghiêng đi bằng B()/I() (zalo_text.js) — Zalo không đọc *…* và _…_;
 //   2. thứ tự tin riêng theo khối marketers trong talpha_rules.json, không gõ tay tên;
 //   3. tên sản phẩm theo chuẩn tên campaign mới, có cờ nước cho Singapore, UAE; chủ

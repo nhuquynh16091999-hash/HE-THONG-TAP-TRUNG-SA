@@ -34,7 +34,6 @@ status GTC · pattern campaign test · phí 3PL · giá vốn SKU · ngưỡng R
 |---|---|---|
 | `dashboard-ui/src/lib/talpha/rules.ts` | TS | route dashboard, `talpha/inventory.ts`, prompt CEO-ask |
 | `ops/talpha_reports/talpha_rules.py` | Python | `format_all.py`, `team_report.py` |
-| `ops/whatsapp-alerts/rules.js` | JS | `daily_report.js` (bot đang tắt) |
 
 Cả ba cùng expose `attribute_order`/`attributeOrder` (rule CEO ba bậc), `parse_campaign`,
 `build_adid_owner`, `shipping_vnd`. Đối chứng 03/08 trên data thật: Python ≡ TS ≡ JS.

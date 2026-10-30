@@ -253,12 +253,11 @@ Meta theo nước ở tên campaign); bảng gộp mọi nước (`vw_attributio
 | `ceo-ask` | Hỏi đáp bằng LLM → sinh SQL | Giao diện |
 | `export-report` | Nút "Xuất Sheet" → chạy đúng `format_all.py` của vòng ghi Sheet mỗi giờ (cùng python, cùng khoá `/root/talpha_reports/.lock`; vòng :20 đang chạy thì trả 409). Sửa 30/10/2026 | Giao diện |
 | `sync-inventory` | Ghi snapshot tồn kho làm dự phòng cho tab Kho | `talpha-snapshot.timer` mỗi giờ :40 → `snapshot_cron.sh` |
-| `ads-alerts` · `sync-health` | Cảnh báo spend, sức khoẻ sync | Bot Zalo · bot WA (đang tắt) |
+| `ads-alerts` · `sync-health` | Cảnh báo spend, sức khoẻ sync | Bot Zalo |
 | `sheet-report` | Số từ file TỔNG TEAM — `?date=` một ngày, `?from&to=` cộng cả khoảng | Bot Zalo · tab Tổng quan |
 | `report-config` | Mốc gốc báo cáo cho bộ chọn ngày | Giao diện |
 | `pnl-costs` | Giá vốn + phí ship ước tính của đơn đã chốt, theo ngày và nước; liệt kê mã chưa có giá | Tab P&L · Tổng quan |
 | `product-pnl` | P&L từng sản phẩm: doanh số chia theo số lượng, ads theo mã SP trong tên campaign | Tab P&L theo SP |
-| `billing` | Hạn mức, số dư TKQC | Bot WA (đang tắt) |
 
 Hạ tầng: `auth/[...nextauth]`, `auth/validate`, `users`, `ad-accounts`.
 
@@ -303,7 +302,6 @@ talpha-sync: mã vận đơn, ngày xuất kho, trạng thái giao, COD đối t
 | Danh mục sản phẩm `product_catalog` | VPS, mỗi ngày 05:10 (30/10/2026) | systemd `talpha-catalog.timer` → `ops/talpha_reports/catalog_cron.sh` → `sync/talpha/sync_product_catalog.py`, khoá POS lấy từ `dashboard-ui/.env.local`. Bảng này nối mã biến thể POS → mã SKU: thiếu nó thì `vw_orders_std.cogs_vnd` = 0. Script tự dừng nếu đọc được 0 dòng hoặc hụt >30%. Log `/root/talpha_reports/catalog_<ngày>.log` |
 | Nạp bảng đơn đối tác | VPS, 6h sáng mỗi ngày | systemd `talpha-tracking.timer` → `ops/deploy/tracking-import.sh` (gọi route `tracking/import`) |
 | Bot Zalo ads + vận đơn | VPS — MỖI NƯỚC MỘT NHÓM "ADS + VẬN ĐƠN TAIWAN · SGP · UAE · JAPAN" (08/10/2026; bỏ nhóm BÁO CÁO ADS gộp + 3 nhóm VẬN ĐƠN cũ): ads 08:30 · 13:00 · 18:00 · 22:00, vận đơn 08:30 · 22:00, lệnh `/baocao` `/canhbao` `/vandon` trả số đúng nước của nhóm. Số theo nước × người đọc `data/bao_cao_nuoc/<tháng>.json` do `format_all.py` ghi cùng lúc file TỔNG TEAM | pm2 `talpha-zalo-alerts` — nick Zalo phụ ghép 15/09/2026; bot tự nhận nhóm theo tên; ghép lại, đổi nhóm: `ops/zalo-alerts/README.md` |
-| Bot cảnh báo WhatsApp | — | **Tắt**. Code ở `ops/whatsapp-alerts/`, cách bật trong `ops/pm2/README.md` |
 | Máy Mac | Máy dev | `cd dashboard-ui && npm run dev`. Không job nền nào. |
 
 Việc nền hỏng hoặc chưa có lịch (soát 13/09/2026) đã xử lý hết 30/10/2026: snapshot tồn
@@ -333,7 +331,6 @@ ops/deploy/              5 script dựng và cập nhật máy chủ
 ops/pm2/                 ecosystem.vps.config.js — file pm2 DUY NHẤT
 ops/talpha_reports/      đường ống báo cáo Google Sheets
 ops/zalo-alerts/         bot báo cáo ads vào nhóm Zalo
-ops/whatsapp-alerts/     bot cảnh báo (đang tắt)
 sql/talpha/views/        12 định nghĩa view BigQuery
 docs/                    TALPHA_METRIC_RULES.md là source of truth về chỉ số
 ```

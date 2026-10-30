@@ -191,7 +191,6 @@ export const API_RULES: Record<string, ApiRule> = {
     // Chỉ bot gọi (cảnh báo spend cả công ty, chưa tách nước) — không tab nào dùng.
     "/api/talpha/ads-alerts": { full: true },
     "/api/talpha/ads-recon": { full: true },
-    "/api/talpha/billing": { full: true },
     "/api/talpha/ceo-ask": { full: true },
     "/api/talpha/export-report": { full: true },
     "/api/talpha/sync-inventory": { full: true },

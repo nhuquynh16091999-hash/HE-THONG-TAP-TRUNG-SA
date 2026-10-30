@@ -29,7 +29,7 @@ File tải lên   ────────► /api/talpha/{cod-recon, ads-recon,
 | Dashboard | VPS `139.180.131.21:3000`, `/opt/talpha`, pm2 `talpha-dashboard` |
 | Sync vào BigQuery | VPS, systemd `talpha-sync.timer` → `/opt/talpha/sync/talpha/talpha_sync.py` |
 | Ghi Google Sheets | VPS, systemd `talpha-report.timer` → `/root/talpha_reports/daily_guarded.sh` |
-| Bot WhatsApp | **Tắt** — code ở `ops/whatsapp-alerts/`, cách bật ở `ops/pm2/README.md` |
+| Bot WhatsApp | **Đã xoá 30/10/2026** (tắt từ lúc lên VPS, chưa từng chạy). Cảnh báo đi qua bot Zalo |
 | Máy Mac | Chỉ là máy dev. Không pm2, không launchd, không cron. |
 
 **Deploy = `bash ops/deploy/from-mac.sh` TỪ MÁY MAC.** `git pull` trên VPS không chạy

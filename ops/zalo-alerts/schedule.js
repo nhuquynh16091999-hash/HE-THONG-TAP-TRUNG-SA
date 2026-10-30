@@ -1,7 +1,7 @@
 // Quyết định "mốc báo cáo giữa ngày này có phải gửi bây giờ không".
 // Tách khỏi bot.js để TEST được: require("./bot") là đăng nhập luôn Zalo nên không đưa
 // vào test được, mà đây lại đúng chỗ từng sinh bug giờ giấc (báo cáo 8h bắn lúc 0h05).
-// Chép nguyên từ ops/whatsapp-alerts/schedule.js (bot WhatsApp đang tắt).
+// Gốc chép từ bot WhatsApp cũ (đã xoá 30/10/2026).
 const toMin = (hhmm) => {
     const m = /^(\d{1,2}):(\d{2})$/.exec(String(hhmm).trim());
     return m ? Number(m[1]) * 60 + Number(m[2]) : NaN;

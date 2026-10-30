@@ -126,8 +126,8 @@ t("Lộc mở được của UAE", () => {
 t("route một nước không ghi nước → từ chối người xem một phần", () => {
     assert.ok(!A.checkApi(loc, "/api/talpha/order-ledger/market", q("")).ok);
 });
-t("route chỉ giám đốc: ads-recon, billing, ceo-ask, export, users, ad-accounts, ads-alerts", () => {
-    for (const p of ["/api/talpha/ads-recon", "/api/talpha/billing", "/api/talpha/ceo-ask", "/api/talpha/export-report",
+t("route chỉ giám đốc: ads-recon, ceo-ask, export, users, ad-accounts, ads-alerts", () => {
+    for (const p of ["/api/talpha/ads-recon", "/api/talpha/ceo-ask", "/api/talpha/export-report",
         "/api/users", "/api/ad-accounts", "/api/talpha/sync-inventory", "/api/talpha/ads-alerts"]) {
         assert.ok(!A.checkApi(thuong, p, q("")).ok, p);
         assert.ok(A.checkApi(sanh, p, q("")).ok, p);

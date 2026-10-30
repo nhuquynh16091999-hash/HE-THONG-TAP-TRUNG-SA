@@ -88,7 +88,6 @@ sync/                engine sync POS + Meta → BigQuery (bản duy nhất)
 ops/deploy/          script dựng và cập nhật máy chủ
 ops/pm2/             ecosystem.vps.config.js — file pm2 duy nhất
 ops/talpha_reports/  đường ống báo cáo Google Sheets, chạy theo giờ
-ops/whatsapp-alerts/ bot cảnh báo (đang tắt)
 sql/talpha/          định nghĩa view BigQuery
 docs/                TALPHA_METRIC_RULES.md là source of truth về chỉ số
 ```
