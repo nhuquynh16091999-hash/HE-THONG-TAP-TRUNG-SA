@@ -196,7 +196,7 @@ async function loadShipments(mk: TrackMarket, from: string, to: string): Promise
                 SELECT
                     v.order_uid, v.order_id, v.order_date, v.pos_money_divisor,
                     v.marketer_name, v.resolved_ad_id,
-                    o.cod, o.tracking_link, o.page_id, o.tags,
+                    o.cod, o.tracking_link, o.page_id, o.tags, o.seller_name,
                     o.bill_full_name, o.bill_phone_number
                 FROM \`${BQ_PROJECT}.${BQ_DATASET}.vw_orders_std\` v
                 LEFT JOIN \`${BQ_PROJECT}.${BQ_DATASET}.sale_order\` o
@@ -219,6 +219,7 @@ async function loadShipments(mk: TrackMarket, from: string, to: string): Promise
                 r.marketer_name as string | null, r.resolved_ad_id as string | null, adidOwner);
             const saleKey = resolveSale({
                 order_uid: r.order_uid as string,
+                seller_name: r.seller_name as string | null,
                 page_id: r.page_id as string | null,
                 tags: r.tags as string | null,
             });

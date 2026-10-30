@@ -37,7 +37,7 @@ type Rules = {
     products?: Record<string, ProductCost | string>;
     targets?: {
         monthly_revenue_vnd?: Record<string, number>;
-        marketer_monthly_ship_vnd?: Record<string, Record<string, number> | string>;
+        marketer_monthly_vnd?: Record<string, Record<string, number> | string>;
     };
     report_start_date?: string;
     report_sheets?: { grand_by_month?: Record<string, string> };
@@ -136,7 +136,7 @@ export const PHONE_RULES: Record<string, { cc: string; national_len: number; tru
 // Khoá "YYYY-MM" → VND. Nguồn: khối `targets` trong talpha_rules.json (chép từ
 // KH_Q3Q4_2026_Team_Ads.xlsx, CEO chốt). Tháng không khai = không có KPI, phía
 // dashboard phải ẩn thanh tiến độ chứ KHÔNG được suy ra từ tháng khác.
-// ⚠ KPI đo trên DOANH SỐ SHIP, dashboard đo DS GIAO THÀNH CÔNG — xem _targets_note.
+// Đo trên doanh số bán được (đơn đã chốt) — cùng cột doanh số của file TỔNG TEAM.
 export const MONTHLY_REVENUE_TARGETS: Record<string, number> =
     RULES.targets?.monthly_revenue_vnd ?? {};
 
@@ -150,12 +150,12 @@ export const REPORT_START_DATE: string | null =
 export const GRAND_SHEET_BY_MONTH: Record<string, string> = Object.fromEntries(
     Object.entries(RULES.report_sheets?.grand_by_month ?? {}).filter(([k]) => !k.startsWith("_")));
 
-// KPI ship theo tháng của TỪNG NGƯỜI, key = TÊN HIỂN THỊ ("Lộc", "Chu Thuý"…) để
+// KPI tháng của TỪNG NGƯỜI (doanh số bán được), key = TÊN HIỂN THỊ ("Lộc", "Chu Thuý"…) để
 // client so thẳng với cột marketer của /api/talpha/marketer-perf. Người không có
 // trong bảng KPI (S.Anh) không có khoá — tab phải ẩn thanh, không suy diễn.
 export const MARKETER_MONTHLY_TARGETS: Record<string, Record<string, number>> =
     Object.fromEntries(
-        Object.entries(RULES.targets?.marketer_monthly_ship_vnd ?? {})
+        Object.entries(RULES.targets?.marketer_monthly_vnd ?? {})
             .filter(([k, v]) => !k.startsWith("_") && typeof v === "object")
             .map(([k, v]) => [DISPLAY[k] ?? k, v as Record<string, number>]),
     );
@@ -179,11 +179,14 @@ export function normPosMarketer(name?: string | null): string | null {
     return null;
 }
 
-// ═══ SALE — hệ thống mới, POS KHÔNG có trường này ═══
-// Đơn được gán cho sale theo 3 bậc, khai trong talpha_rules.json → sale_assignment:
-//   (1) bảng gán tay `manual`, khoá là order_uid ('TW-<id>')
-//   (2) page_id của đơn → `by_page`
-//   (3) từ khoá trong ô tags của đơn → `by_tag`
+// ═══ SALE ═══
+// Nguồn chính là người bán gán trên POS (assigning_seller → sale_order.seller_name), Sỹ Anh
+// chốt 30/10/2026. Thứ tự, khai trong talpha_rules.json → sale_assignment:
+//   (1) bảng gán tay `manual`, khoá là order_uid ('TW-<id>') — để sửa đơn POS gán sai
+//   (2) người bán trên POS → khớp tên/biệt danh trong `sales`; không khớp ai thì giữ nguyên
+//       tên POS (hiện đúng người, chỉ là chưa khai vào `sales`)
+//   (3) page_id của đơn → `by_page`
+//   (4) từ khoá trong ô tags của đơn → `by_tag`
 // Trượt hết ⇒ SALE_UNASSIGNED. KHÔNG bỏ đơn lặng lẽ, giống rule marketer.
 type SaleAssignment = {
     by_tag?: Record<string, string>;
@@ -194,16 +197,34 @@ type SaleAssignment = {
 const SA: SaleAssignment =
     (RULES as unknown as { sale_assignment?: SaleAssignment }).sale_assignment || {};
 
-export const SALES: Record<string, { display: string; full: string }> =
-    (RULES as unknown as { sales?: Record<string, { display: string; full: string }> }).sales || {};
+export const SALES: Record<string, { display: string; full: string; aliases?: string[] }> =
+    (RULES as unknown as { sales?: Record<string, { display: string; full: string; aliases?: string[] }> }).sales || {};
 export const SALE_DISPLAY: Record<string, string> = Object.fromEntries(
     Object.entries(SALES).map(([k, v]) => [k, v.display || k]));
 export const SALE_UNASSIGNED = SA.unassigned_label || "(chưa gán sale)";
 
-/** Đơn → key sale. Trả null khi không gán được (caller dùng SALE_UNASSIGNED). */
-export function resolveSale(o: { order_uid?: string | null; page_id?: string | null; tags?: string | null }): string | null {
+const boDau = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/gi, "d").toUpperCase().trim();
+
+/** Tên người bán trên POS → key trong `sales`; không khớp ai thì trả nguyên tên POS. */
+export function saleFromSeller(seller?: string | null): string | null {
+    const ten = String(seller || "").trim();
+    if (!ten) return null;
+    const u = boDau(ten);
+    for (const [key, v] of Object.entries(SALES)) {
+        if (key.startsWith("_")) continue;
+        const ten_goi = [key, v.display, v.full, ...(v.aliases || [])].filter((x) => x && boDau(x).length >= 3);
+        if (ten_goi.some((x) => u === boDau(x) || u.includes(boDau(x)))) return key;
+    }
+    return ten;
+}
+
+/** Đơn → key sale (hoặc nguyên tên người bán POS). Trả null khi không gán được (caller dùng SALE_UNASSIGNED). */
+export function resolveSale(o: { order_uid?: string | null; seller_name?: string | null; page_id?: string | null; tags?: string | null }): string | null {
     const manual = SA.manual || {};
     if (o.order_uid && manual[o.order_uid]) return manual[o.order_uid];
+
+    const tuPos = saleFromSeller(o.seller_name);
+    if (tuPos) return tuPos;
 
     const byPage = SA.by_page || {};
     if (o.page_id && byPage[String(o.page_id)]) return byPage[String(o.page_id)];

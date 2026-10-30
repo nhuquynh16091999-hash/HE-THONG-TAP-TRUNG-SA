@@ -170,7 +170,7 @@ export default function TALPHACeoOverviewTab({ dateRange }: Props) {
             >
                 {monthProgress && (
                     <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground/80">
-                        KPI lấy từ bảng &ldquo;KPI Q3-Q4&rdquo; CEO chốt, tính trên doanh số ship. Thanh này đo doanh số đơn đã chốt
+                        KPI và thanh này cùng đo doanh số bán được (đơn đã chốt)
                         {data.start_date && data.start_date.slice(0, 7) === runningMonth && <> từ {ngayVN(data.start_date)}</>}.
                     </p>
                 )}

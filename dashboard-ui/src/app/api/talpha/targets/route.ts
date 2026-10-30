@@ -14,12 +14,12 @@ export const dynamic = "force-dynamic";
 export async function GET(req: Request) {
     const a = await getAccess(req);
     if (!a || !seesAllMarkets(a)) {
-        return NextResponse.json({ monthly_revenue_vnd: {}, marketer_monthly_ship_vnd: {}, months: 0 });
+        return NextResponse.json({ monthly_revenue_vnd: {}, marketer_monthly_vnd: {}, months: 0 });
     }
     return NextResponse.json({
         monthly_revenue_vnd: MONTHLY_REVENUE_TARGETS,
         // key = tên hiển thị marketer, khớp cột marketer của /api/talpha/marketer-perf
-        marketer_monthly_ship_vnd: MARKETER_MONTHLY_TARGETS,
+        marketer_monthly_vnd: MARKETER_MONTHLY_TARGETS,
         months: Object.keys(MONTHLY_REVENUE_TARGETS).length,
     });
 }

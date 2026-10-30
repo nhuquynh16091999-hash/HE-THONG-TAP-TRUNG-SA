@@ -137,11 +137,21 @@ console.log("── Gán sale ──");
 t("chưa khai luật nào thì trả null, KHÔNG đoán bừa", () => {
     assert.strictEqual(R.resolveSale({ order_uid: "TW-1", page_id: "999", tags: "Thương" }), null);
 });
-t("gán tay theo order_uid được ưu tiên cao nhất", () => {
+t("gán tay theo order_uid được ưu tiên cao nhất, kể cả hơn người bán POS", () => {
     const sa = R.RULES.sale_assignment;
     sa.manual["TW-42"] = "Thuong";
-    assert.strictEqual(R.resolveSale({ order_uid: "TW-42" }), "Thuong");
+    assert.strictEqual(R.resolveSale({ order_uid: "TW-42", seller_name: "Ai Đó" }), "Thuong");
     delete sa.manual["TW-42"];
+});
+t("người bán trên POS khớp tên trong `sales`, không phân biệt dấu/hoa thường", () => {
+    assert.strictEqual(R.resolveSale({ order_uid: "TW-7", seller_name: "Thương" }), "Thuong");
+    assert.strictEqual(R.resolveSale({ order_uid: "TW-7", seller_name: "thuong" }), "Thuong");
+});
+t("người bán POS chưa khai trong `sales` thì giữ nguyên tên POS", () => {
+    assert.strictEqual(R.resolveSale({ order_uid: "TW-8", seller_name: "  Minh Anh " }), "Minh Anh");
+});
+t("đơn POS chưa gán người bán thì vẫn trả null", () => {
+    assert.strictEqual(R.resolveSale({ order_uid: "TW-9", seller_name: "" }), null);
 });
 
 console.log("── Tên gọi khác ──");

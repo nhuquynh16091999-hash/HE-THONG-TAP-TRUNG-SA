@@ -451,7 +451,7 @@
     "THAINX": "Thai"
   },
   "unassigned_label": "(không gán)",
-  "_sale_note": "POS CÓ trường người bán `assigning_seller` — từ 17/09/2026 đồng bộ vào sale_order.seller_name; dashboard CHƯA dùng nó để gán sale (vẫn theo 3 bậc dưới). Trước đó ghi chú này viết 'POS KHÔNG có trường sale' — sai. Đơn gán cho sale theo 3 bậc: (1) bảng gán tay `manual`, khoá là order_uid dạng 'TW-<id>'; (2) page_id → `by_page`; (3) từ khoá trong ô tags → `by_tag`. Trượt hết ⇒ '(chưa gán sale)'. CỐ Ý để trống cả ba: Thương vừa chạy ads vừa chốt đơn, nên KHÔNG thể suy 'đơn do Thương chạy ads = Thương chốt' — làm vậy là gán bừa. Chốt được quy tắc thật (theo page, theo tag, hay gán tay) thì khai vào đây.",
+  "_sale_note": "Sale lấy theo NGƯỜI BÁN gán trên POS (assigning_seller → sale_order.seller_name), Sỹ Anh chốt 30/10/2026. Thứ tự: (1) gán tay `manual`, khoá order_uid dạng 'TW-<id>' — để sửa đơn POS gán sai; (2) người bán POS khớp key/display/full/aliases trong `sales` (không phân biệt dấu, hoa thường) — không khớp ai thì hiện nguyên tên POS; (3) page_id → `by_page`; (4) từ khoá trong tags → `by_tag`. Trượt hết ⇒ '(chưa gán sale)'. Người bán trên POS viết tên khác tên ở `sales` thì thêm vào `aliases` của người đó.",
   "sale_assignment": {
     "by_tag": {},
     "by_page": {},
@@ -1204,6 +1204,7 @@
     "_note": "campaign chứa từ 'test' đứng riêng = test sản phẩm → tách khỏi báo cáo doanh số. Cả ba nước đều MIỄN: Đài vì cả nước đang thử, Singapore và UAE vì mới mở (Sỹ Anh chốt 15/09/2026). Nhật mở 08/10/2026 — miễn theo cùng lý do."
   },
   "targets": {
+    "_note": "KPI đo trên DOANH SỐ BÁN ĐƯỢC = doanh số đơn đã chốt (trừ huỷ, nháp, đơn trống), quy VND — đúng cột doanh số của file TỔNG TEAM mà thanh KPI so vào. Sỹ Anh chốt 30/10/2026. Tháng không khai = không hiện thanh KPI, không suy từ tháng khác.",
     "monthly_revenue_vnd": {
       "2026-07": 4700000000,
       "2026-08": 5250000000,
@@ -1212,23 +1213,8 @@
       "2026-11": 8950000000,
       "2026-12": 10100000000
     },
-    "marketer_monthly_ship_vnd": {
-      "_note": "LỊCH SỬ — KPI theo DOANH SỐ SHIP, dùng cho tháng 7 và 8. Từ tháng 9 CEO đổi thước đo sang DOANH SỐ GIAO THÀNH CÔNG, xem marketer_monthly_delivered_vnd. Đã bỏ mốc T9–T12 ở đây để không tồn tại hai con số KPI khác nhau cho cùng một tháng.",
-      "Loc": {
-        "2026-07": 1200000000,
-        "2026-08": 1250000000
-      }
-    },
-    "delivery_rate_for_pace": 0.632,
-    "_note_delivery_rate": "Tỷ lệ giao thành công dùng để quy KPI tháng ra mốc doanh số SHIP mỗi ngày: mốc ngày = KPI ÷ tỷ lệ này ÷ số ngày trong tháng. 0,632 đo trên tháng 7/2026 — tháng gần nhất đã chốt xong hoàn toàn (ship 6.210tr, giao 3.922tr). Đo lại sau mỗi tháng chốt xong. KHÔNG dùng tỷ lệ riêng từng người cho tới khi mỗi người có đủ một tháng đã chốt.",
-    "marketer_monthly_delivered_vnd": {
-      "_note": "KPI THÁNG của từng người, đo bằng DOANH SỐ GIAO THÀNH CÔNG (tiền của đơn đã tới tay khách), CEO chốt 01/09/2026. Khác thước đo với marketer_monthly_ship_vnd của T7–T8. Tổng team T9 = 3,85 tỷ. S.Anh (leader) lần đầu có KPI.",
-      "Loc": {
-        "2026-09": 1100000000
-      },
-      "SAnh": {
-        "2026-09": 300000000
-      }
+    "marketer_monthly_vnd": {
+      "_note": "KPI tháng của TỪNG NGƯỜI, khoá = key marketer (Loc, SAnh, Thai, Thuong, Quynh, Thang), giá trị {\"YYYY-MM\": VND}. Cùng thước đo với monthly_revenue_vnd. Bỏ hai bảng cũ 30/10/2026: KPI theo doanh số ship (T7–T8) và theo doanh số giao thành công (T9) — tháng đã qua, không màn nào hiện nữa, còn trong lịch sử git."
     }
   },
   "thresholds": {

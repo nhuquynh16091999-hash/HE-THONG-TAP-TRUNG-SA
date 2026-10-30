@@ -92,7 +92,7 @@ export default function TALPHAMarketingTab({ dateRange }: Props) {
 
                 // Ghép KPI tháng: chỉ người CÓ khoá KPI tháng này mới có thanh
                 const perTargets: Record<string, Record<string, number>> =
-                    targetsRes?.marketer_monthly_ship_vnd || {};
+                    targetsRes?.marketer_monthly_vnd || {};
                 const monthActual = new Map<string, number>(
                     (monthPerf.marketers || []).map((r: Nguoi) => [r.display, r.doanh_so || 0]));
                 setKpiRows(
@@ -178,9 +178,8 @@ export default function TALPHAMarketingTab({ dateRange }: Props) {
                                 🎯 KPI tháng {format(new Date(), "M/yyyy")} — từng người
                             </h3>
                             <p className="mb-3 mt-0.5 text-[11px] leading-snug text-muted-foreground">
-                                KPI từ bảng &ldquo;KPI Q3-Q4&rdquo; CEO chốt, đo trên <strong>doanh số ship</strong>;
-                                thanh dưới đo <strong>doanh số đơn đã chốt</strong> trong file TỔNG TEAM (tính từ mốc gốc báo cáo).
-                                S.Anh không có KPI trong bảng.
+                                KPI và thanh tiến độ cùng đo <strong>doanh số bán được</strong> — đơn đã chốt trong file TỔNG TEAM
+                                (tính từ mốc gốc báo cáo). Người chưa khai KPI tháng này thì không có thanh.
                             </p>
                             <div className="space-y-2">
                                 {kpiRows.map(r => {
