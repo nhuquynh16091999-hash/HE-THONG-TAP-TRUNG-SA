@@ -41,6 +41,10 @@ cai_goi() {
 dung_ban_moi() {
     BAN_MOI=$(slot_ranh)
     echo "   bản đang chạy ở $(slot_dang_chay) — dựng bản mới vào $BAN_MOI"
+    # <thư mục build>/types chỉ để kiểm TypeScript lúc build, bản đang chạy không đọc. tsconfig
+    # gom types của CẢ .next-a lẫn .next-b, nên validator.ts cũ còn import route đã xoá làm build
+    # hỏng (02/11/2026: xoá route billing → "Cannot find module …/billing/route.js"). Dọn trước.
+    rm -rf .next/types .next/dev/types .next-a/types .next-a/dev/types .next-b/types .next-b/dev/types
     # Chặn trần bộ nhớ của Node dưới mức RAM+swap để build không bị giết đột ngột.
     NEXT_DIST_DIR="$BAN_MOI" NODE_OPTIONS="--max-old-space-size=1536" npm run build
 }
