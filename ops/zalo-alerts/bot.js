@@ -111,7 +111,9 @@ async function fetchStale() {
         const okAge = j.last_ok_age_minutes == null ? null : Number(j.last_ok_age_minutes);
         if (!Number.isFinite(okAge)) return null;
         // loi = tên TKQC/shop đọc lỗi trong vòng sync gần nhất → tin "SỐ CHƯA ĐỦ" nói đích danh.
-        return { okAge, limit: Number(DR.staleWarnMinutes || 120), lastOkTs: Date.now() - okAge * 60000, loi: j.fetch_errors || null };
+        // hanBang = bảng/view BigQuery còn dưới 5 ngày là sandbox tự xoá (sync tự gia hạn đã hỏng).
+        return { okAge, limit: Number(DR.staleWarnMinutes || 120), lastOkTs: Date.now() - okAge * 60000, loi: j.fetch_errors || null,
+            hanBang: j.bang_sap_het_han || null };
     } catch (e) { log("Đọc tuổi sync lỗi:", e.message); return null; }
 }
 

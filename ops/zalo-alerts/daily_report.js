@@ -126,6 +126,17 @@ function ghiChuBoQua(stale) {
         + "Báo cáo vẫn tính các TK còn lại (TK này giữ số đọc được lần cuối) — TK chết hẳn thì gỡ khỏi danh sách sync.")}`;
 }
 
+// BigQuery chưa bật billing (sandbox) nên bảng/view tự xoá 60 ngày sau lúc tạo. Sync tự làm mới
+// khi còn dưới 10 ngày (sync/core/gia_han_bq.py) — tới đây còn dưới 5 ngày nghĩa là bước đó hỏng
+// nhiều vòng liền, phải có người xem trước khi bảng mất thật (03/11/2026).
+function ghiChuHanBang(stale) {
+    const ds = stale && stale.hanBang;
+    if (!ds || !ds.length) return "";
+    const ten = ds.slice(0, 5).map((x) => `${x.ten} (còn ${x.con_ngay} ngày)`).join(", ")
+        + (ds.length > 5 ? ` và ${ds.length - 5} bảng khác` : "");
+    return `⚠️ ${I(`BigQuery sắp tự xoá: ${ten}. Sync tự gia hạn không chạy được — cần mở log talpha-sync xem lỗi.`)}`;
+}
+
 // Sheet tạo sẵn dòng cho MỌI ngày trong tháng, nên vòng ghi chưa chạy được lần nào từ 00:00
 // thì dòng hôm nay toàn số 0. In "Ads 0đ · 0 đơn" là nói sai: 30/09/2026 tin 13:00 in đúng như
 // vậy trong khi Meta đã tiêu 1,3tr. Chỉ kết luận "chưa có số" khi BIẾT vòng ghi OK gần nhất
@@ -300,6 +311,8 @@ function buildTinAds({ dateStr, sheet, sheetTruoc, camps, cfg, canhBaoCamp, opts
     if (cb) dong.push(cb.replace(/\n+$/, ""), "");
     const bq = ghiChuBoQua(opts.stale);
     if (bq) dong.push(bq, "");
+    const hb = ghiChuHanBang(opts.stale);
+    if (hb) dong.push(hb, "");
     dong.push(B(opts.tieuDe || `📊 ADS ${opts.label || ddmm(dateStr)}`));
     if (opts.nguon) dong.push(I(opts.nguon));
     dong.push("");
@@ -523,6 +536,8 @@ function buildTinNuoc({ n, dateStr, so, rows, truoc, camps, cfg, canhBaoCamp, op
     if (opts.canhBao) dong.push(opts.canhBao.replace(/\n+$/, ""), "");
     const bq = ghiChuBoQua(opts.stale);
     if (bq) dong.push(bq, "");
+    const hb = ghiChuHanBang(opts.stale);
+    if (hb) dong.push(hb, "");
     dong.push(B(opts.tieuDe || `📊 ADS ${n.flag} ${n.ten.toUpperCase()} · ${opts.label || ddmm(dateStr)}`));
     if (opts.nguon) dong.push(I(opts.nguon));
     dong.push("");

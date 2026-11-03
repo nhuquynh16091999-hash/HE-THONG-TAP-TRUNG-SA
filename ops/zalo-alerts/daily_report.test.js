@@ -293,6 +293,23 @@ function fakeFetch({ sheet = SHEET, camps = CAMPS, realtimeStatus = 200, sheetSt
         assert.strictEqual(r.chuaDu, false);
     });
 
+    await t("bảng BigQuery sắp tự xoá: cảnh báo tên + số ngày, không phải số chưa đủ", async () => {
+        const r = await buildMarketerReports(CFG, "2026-09-15", { fetch: fakeFetch(), intraday: true,
+            stale: { okAge: 10, limit: 120, lastOkTs: Date.now(), loi: null,
+                hanBang: [{ ten: "TALPHA_Dataset.fb_ads_data", con_ngay: 3 }] } });
+        const g = tron(r.tinGop);
+        assert.ok(g.startsWith("⚠️ BigQuery sắp tự xoá: TALPHA_Dataset.fb_ads_data (còn 3 ngày)."), g);
+        assert.ok(!g.includes("SỐ CHƯA ĐỦ"), g);
+        assert.ok(g.includes("💰 Ads 3.000.000đ"), g);
+        assert.strictEqual(r.chuaDu, false);
+    });
+
+    await t("không bảng nào sắp hết hạn thì không thêm dòng", async () => {
+        const r = await buildMarketerReports(CFG, "2026-09-15", { fetch: fakeFetch(), intraday: true,
+            stale: { okAge: 10, limit: 120, lastOkTs: Date.now(), loi: null, hanBang: [] } });
+        assert.ok(!tron(r.tinGop).includes("BigQuery"));
+    });
+
     await t("realtime lỗi vẫn gửi đủ tin, chỉ thiếu phần campaign", async () => {
         const nhat = [];
         const r = await buildMarketerReports(CFG, "2026-09-14", { fetch: fakeFetch({ realtimeStatus: 502 }), log: (x) => nhat.push(x) });

@@ -38,6 +38,29 @@ async function accountHealth() {
     }
 }
 
+// BigQuery sandbox (chưa bật billing) tự xoá bảng/view 60 ngày sau lúc tạo — 03/11/2026 suýt mất
+// fb_ads_data. Sync tự làm mới khi còn dưới 10 ngày (sync/core/gia_han_bq.py); còn dưới `ngay`
+// ngày nghĩa là bước đó đã hỏng nhiều vòng liền → trả tên để bot Zalo cảnh báo trước khi mất thật.
+// Bỏ bảng cũ đã thay (…__cu_<ngày>, cố ý để tự hết hạn) và bảng tạm (…__moi).
+async function bangSapHetHan(ngay = 5) {
+    const han = Date.now() + ngay * 86400000;
+    const out: { ten: string; con_ngay: number }[] = [];
+    for (const ds of [BQ_DATASET, "TALPHA_SaoLuu"]) {
+        try {
+            const [tables] = await bigquery.dataset(ds).getTables();
+            for (const t of tables) {
+                const id = String(t.id || "");
+                const het = Number(t.metadata?.expirationTime);
+                if (!het || het > han || id.includes("__cu_") || id.endsWith("__moi")) continue;
+                out.push({ ten: `${ds}.${id}`, con_ngay: Math.max(0, Math.floor((het - Date.now()) / 86400000)) });
+            }
+        } catch {
+            // Không đọc được dataset thì bỏ — cảnh báo phụ, không được làm hỏng route gốc.
+        }
+    }
+    return out;
+}
+
 // Tên TKQC / shop đọc lỗi trong vòng chạy — daily_guarded.sh đặt đầu `detail` theo nhãn
 // "TKQC_LOI=a; b || SHOP_LOI=… || MAT_QUYEN=… || TKQC_BO_QUA=…". Không có nhãn = vòng đó
 // không mục nào lỗi. bo_qua (28/10/2026): TK đọc lỗi mà vẫn còn TK khác đọc được — sync bỏ qua,
@@ -55,7 +78,7 @@ function docLoiFetch(detail: unknown) {
 // để cảnh báo khi sync FAIL hoặc IM LẶNG quá lâu (chống sự cố "chết câm" 22-29/6).
 export async function GET() {
     try {
-        const accounts = await accountHealth();
+        const [accounts, bang_sap_het_han] = await Promise.all([accountHealth(), bangSapHetHan()]);
         const [rows] = await bigquery.query({
             query: `
                 SELECT ts, host, ok, sync_rc, format_rc, detail,
@@ -88,6 +111,7 @@ export async function GET() {
             status: last.ok ? "ok" : "fail",
             accounts: accountsOut,
             fetch_errors,
+            bang_sap_het_han,
             last_run_ts: last.ts?.value || last.ts,
             age_minutes: Number(last.age_min),
             last_ok_age_minutes: lastOk ? Number(lastOk.age_min) : null,

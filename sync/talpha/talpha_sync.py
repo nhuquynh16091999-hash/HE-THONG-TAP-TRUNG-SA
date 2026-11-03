@@ -36,6 +36,7 @@ from sync.core.pos_client import PoscakeClient, PosFetchError
 from sync.core.partner_sheet import chuan_dong, doc_sheet
 from sync.core.meta_client import MetaAdsClient, TALPHA_AD_ACCOUNTS, MetaFetchError
 from sync.core.tk_loi import tach_tk_loi
+from sync.core.gia_han_bq import lam_moi_han
 from sync.config_loader import get_active_accounts
 
 # ── Config ───────────────────────────────────────────────────────
@@ -883,6 +884,18 @@ def main():
             results['ad_dic'] = sync_ad_dictionary()
         except Exception as e:
             log.error(f"  ad_dictionary failed: {e}")
+
+    # BigQuery sandbox tự xoá bảng 60 ngày sau lúc tạo (sync/core/gia_han_bq.py). Chạy sau mọi lần
+    # ghi của vòng; lỗi chỉ log — vòng sau thử lại, bot Zalo cảnh báo khi còn dưới 5 ngày.
+    if run_all and not args.shadow:
+        try:
+            da_lam, loi = lam_moi_han(client, P)
+            if da_lam:
+                log.info(f"  GIA HẠN BQ: {da_lam}")
+            if loi:
+                log.error(f"  GIA HẠN BQ LỖI: {loi}")
+        except Exception as e:
+            log.error(f"  GIA HẠN BQ LỖI: {e}")
 
     elapsed = (datetime.now() - start).total_seconds()
     log.info(f"\nDONE {elapsed:.0f}s — {results}")
