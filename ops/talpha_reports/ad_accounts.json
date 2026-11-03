@@ -160,8 +160,10 @@
         {
           "id": "act_1120947890391979",
           "name": "Như Quỳnh 21",
-          "status": "active",
-          "_nguon": "BM mới — token app 'BÁO CÁO ANTALO SỸ ANH', khai 28/10/2026"
+          "status": "died",
+          "_nguon": "BM mới — token app 'BÁO CÁO ANTALO SỸ ANH', khai 28/10/2026",
+          "died_at": "2026-11-03",
+          "_khong_sync": "Meta vô hiệu hoá (account_status 2). ĐÃ BỎ khỏi config/projects/talpha.yaml ngày 03/11/2026 để Sỹ Anh xoá khỏi BM. fb_ads_data giữ 8.228.888đ = Meta trọn đời. Camp/adset/ad + nội dung QC chụp ở TALPHA_SaoLuu.meta_*__20261103."
         },
         {
           "id": "act_1112953081187726",
@@ -172,38 +174,50 @@
         {
           "id": "act_1791188521930838",
           "name": "Như Quỳnh 31",
-          "status": "active",
-          "_nguon": "BM mới — token app 'BÁO CÁO ANTALO SỸ ANH', khai 28/10/2026"
+          "status": "died",
+          "_nguon": "BM mới — token app 'BÁO CÁO ANTALO SỸ ANH', khai 28/10/2026",
+          "died_at": "2026-11-03",
+          "_khong_sync": "Meta vô hiệu hoá (account_status 2). ĐÃ BỎ khỏi config/projects/talpha.yaml ngày 03/11/2026 để Sỹ Anh xoá khỏi BM. fb_ads_data giữ 1.600.786đ = Meta trọn đời. Camp/adset/ad + nội dung QC chụp ở TALPHA_SaoLuu.meta_*__20261103."
         },
         {
           "id": "act_1633753825111746",
           "name": "Như Quỳnh 11",
-          "status": "active",
-          "_nguon": "BM mới — token app 'BÁO CÁO ANTALO SỸ ANH', khai 28/10/2026"
+          "status": "died",
+          "_nguon": "BM mới — token app 'BÁO CÁO ANTALO SỸ ANH', khai 28/10/2026",
+          "died_at": "2026-11-03",
+          "_khong_sync": "Meta vô hiệu hoá (account_status 2). ĐÃ BỎ khỏi config/projects/talpha.yaml ngày 03/11/2026 để Sỹ Anh xoá khỏi BM. fb_ads_data giữ 893.776đ = Meta trọn đời. Camp/adset/ad + nội dung QC chụp ở TALPHA_SaoLuu.meta_*__20261103."
         },
         {
           "id": "act_3021882974877047",
           "name": "Hữu Thắng 11",
-          "status": "active",
-          "_nguon": "BM mới — token app 'BÁO CÁO ANTALO SỸ ANH', khai 28/10/2026"
+          "status": "died",
+          "_nguon": "BM mới — token app 'BÁO CÁO ANTALO SỸ ANH', khai 28/10/2026",
+          "died_at": "2026-11-03",
+          "_khong_sync": "Meta vô hiệu hoá (account_status 2). ĐÃ BỎ khỏi config/projects/talpha.yaml ngày 03/11/2026 để Sỹ Anh xoá khỏi BM. fb_ads_data giữ 1.578.819đ = Meta trọn đời. Camp/adset/ad + nội dung QC chụp ở TALPHA_SaoLuu.meta_*__20261103."
         },
         {
           "id": "act_2024599088250747",
           "name": "Hưũ Thắng 12",
-          "status": "active",
-          "_nguon": "BM mới — token app 'BÁO CÁO ANTALO SỸ ANH', khai 28/10/2026"
+          "status": "died",
+          "_nguon": "BM mới — token app 'BÁO CÁO ANTALO SỸ ANH', khai 28/10/2026",
+          "died_at": "2026-11-03",
+          "_khong_sync": "Meta vô hiệu hoá (account_status 2). ĐÃ BỎ khỏi config/projects/talpha.yaml ngày 03/11/2026 để Sỹ Anh xoá khỏi BM. Chưa chi đồng nào. Camp/adset/ad + nội dung QC chụp ở TALPHA_SaoLuu.meta_*__20261103."
         },
         {
           "id": "act_1505577121617403",
           "name": "Hữu Thắng 13",
-          "status": "active",
-          "_nguon": "BM mới — token app 'BÁO CÁO ANTALO SỸ ANH', khai 28/10/2026"
+          "status": "died",
+          "_nguon": "BM mới — token app 'BÁO CÁO ANTALO SỸ ANH', khai 28/10/2026",
+          "died_at": "2026-11-03",
+          "_khong_sync": "Meta vô hiệu hoá (account_status 2). ĐÃ BỎ khỏi config/projects/talpha.yaml ngày 03/11/2026 để Sỹ Anh xoá khỏi BM. Chưa chi đồng nào. Camp/adset/ad + nội dung QC chụp ở TALPHA_SaoLuu.meta_*__20261103."
         },
         {
           "id": "act_2203419147237329",
           "name": "Tiến Thế 11",
-          "status": "active",
-          "_nguon": "BM mới — token app 'BÁO CÁO ANTALO SỸ ANH', khai 28/10/2026"
+          "status": "died",
+          "_nguon": "BM mới — token app 'BÁO CÁO ANTALO SỸ ANH', khai 28/10/2026",
+          "died_at": "2026-11-03",
+          "_khong_sync": "Meta vô hiệu hoá (account_status 2). ĐÃ BỎ khỏi config/projects/talpha.yaml ngày 03/11/2026 để Sỹ Anh xoá khỏi BM. fb_ads_data giữ 2.291.353đ = Meta trọn đời. Camp/adset/ad + nội dung QC chụp ở TALPHA_SaoLuu.meta_*__20261103."
         },
         {
           "id": "act_4541380649341533",
@@ -216,8 +230,10 @@
         {
           "id": "act_984740494689004",
           "name": "Sỹ Anh 21",
-          "status": "active",
-          "_nguon": "BM mới — token app 'BÁO CÁO ANTALO SỸ ANH', khai 03/11/2026 (chưa chi)"
+          "status": "died",
+          "_nguon": "BM mới — token app 'BÁO CÁO ANTALO SỸ ANH', khai 03/11/2026 (chưa chi)",
+          "died_at": "2026-11-03",
+          "_khong_sync": "Meta vô hiệu hoá (account_status 2). ĐÃ BỎ khỏi config/projects/talpha.yaml ngày 03/11/2026 để Sỹ Anh xoá khỏi BM. fb_ads_data giữ 51.740đ (1 camp TW/072, chết ngay trong ngày) = Meta trọn đời. Camp/adset/ad + nội dung QC chụp ở TALPHA_SaoLuu.meta_*__20261103."
         },
         {
           "id": "act_1308765708025034",

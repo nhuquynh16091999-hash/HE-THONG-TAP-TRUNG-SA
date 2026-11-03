@@ -166,14 +166,14 @@ meta_ads:
     # - "act_845959551784078"   # Xinh Mi Nguyen — BỎ 15/10/2026 (mất quyền, chưa có camp)
     #
     # THÊM 28/10/2026 — BM mới, token app "BÁO CÁO ANTALO SỸ ANH" (khối ĐỔI TOKEN 28/10 ở đầu mục).
-    - "act_1120947890391979"  # Như Quỳnh 21 — chi từ 21/10 (Meta vô hiệu hoá 27/10, vẫn đọc được)
+    # - "act_1120947890391979"  # Như Quỳnh 21 — BỎ 03/11/2026 (Meta vô hiệu hoá; BQ 8.228.888đ = Meta trọn đời)
     - "act_1112953081187726"  # Như Quỳnh 22 — chi từ 28/10
-    - "act_1791188521930838"  # Như Quỳnh 31 — chi 21–27/10 (Meta vô hiệu hoá, vẫn đọc được)
-    - "act_1633753825111746"  # Như Quỳnh 11 — chi 21–23/10, camp JAPAN (Meta vô hiệu hoá, vẫn đọc được)
-    - "act_3021882974877047"  # Hữu Thắng 11 — chi từ 23/10, camp SGP + TW
-    - "act_2024599088250747"  # Hưũ Thắng 12 — chưa chi
-    - "act_1505577121617403"  # Hữu Thắng 13 — chưa chi
-    - "act_2203419147237329"  # Tiến Thế 11 — chi 27–31/10 (Meta vô hiệu hoá, vẫn đọc được)
+    # - "act_1791188521930838"  # Như Quỳnh 31 — BỎ 03/11/2026 (Meta vô hiệu hoá; BQ 1.600.786đ = Meta trọn đời)
+    # - "act_1633753825111746"  # Như Quỳnh 11 — BỎ 03/11/2026 (Meta vô hiệu hoá; BQ 893.776đ = Meta trọn đời)
+    # - "act_3021882974877047"  # Hữu Thắng 11 — BỎ 03/11/2026 (Meta vô hiệu hoá; BQ 1.578.819đ = Meta trọn đời)
+    # - "act_2024599088250747"  # Hưũ Thắng 12 — BỎ 03/11/2026 (Meta vô hiệu hoá, chưa chi đồng nào)
+    # - "act_1505577121617403"  # Hữu Thắng 13 — BỎ 03/11/2026 (Meta vô hiệu hoá, chưa chi đồng nào)
+    # - "act_2203419147237329"  # Tiến Thế 11 — BỎ 03/11/2026 (Meta vô hiệu hoá; BQ 2.291.353đ = Meta trọn đời)
     # - "act_4541380649341533"  # Sỹ Anh 11 — BỎ 03/11/2026 (mất quyền #200, rơi khỏi /me/adaccounts; BQ giữ 373.904đ 28–29/10)
     #
     # 03/11/2026 — app "BÁO CÁO ANTALO SỸ ANH" bị Meta chặn ("API access blocked") từ 22:21 29/10
@@ -182,8 +182,16 @@ meta_ads:
     # không thấy — lịch sử của chúng đã kéo đủ bằng token "Dashboard" (khớp amount_spent trọn đời).
     # THÊM 03/11/2026 — 5 TK mới lấy THẲNG từ `/me/adaccounts` của token (VND, giờ VN, chưa chi
     # đồng nào). Khai trước để khi team chạy thì tiền vào ngay, không thiếu âm thầm như 21–28/10.
-    - "act_984740494689004"   # Sỹ Anh 21 — chưa chi
+    # - "act_984740494689004"   # Sỹ Anh 21 — BỎ 03/11/2026 (chạy 1 camp TW/072 rồi Meta vô hiệu hoá ngay trong ngày)
     - "act_1308765708025034"  # Sỹ Anh 41 — chưa chi
+    #
+    # BỎ 03/11/2026 chiều — Sỹ Anh gửi token mới (cùng System User "ANTALO SỸ ANH") và bảo lấy hết
+    # dữ liệu vào database để xoá các TK die khỏi BM. 8 TK trên đều account_status 2. Chi tiêu
+    # trong fb_ads_data khớp Meta trọn đời từng TK. Camp/adset/ad kèm nội dung QC (chữ, bài viết,
+    # video, target) chụp vào TALPHA_SaoLuu.meta_*__20261103 + data/sao_luu_tkqc/meta_20261103/.
+    # Tên + múi giờ vẫn giữ ở hai mục dưới để số cũ còn nhãn.
+    # KHÔNG khai "Thai BM XUAN THAI 02 01 (việt)" act_2332183394212686: camp VN/THÁI/… bán hạt
+    # giống trong nước — không thuộc nước nào của dashboard, khai vào là tiền dồn về Đài Loan.
     - "act_4019152358239307"  # Hồ Lý 11 — chưa chi
     - "act_4780611448824838"  # Hồ Lý 21 — chưa chi
     - "act_1751226855950890"  # Hồ Lý 31 — chưa chi
