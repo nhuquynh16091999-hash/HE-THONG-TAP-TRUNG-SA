@@ -216,12 +216,13 @@ for r in DON:
     c=(cell_test if t else cell)[(nv,mkt,prod,str(r.d))]; c["orders"]+=1; c["cod"]+=r.cod or 0; c["cod_gtc"]+=r.cod_gtc or 0
 # ── LẤN NƯỚC → NGƯỜI CẦM NƯỚC (Sỹ Anh chốt 10/10/2026) ── tiền ads, tin nhắn, đơn, doanh số của
 # một người ở nước thuộc team khác (camp cũ chưa đổi tên) chuyển cho người cầm nước đó: Đài →
-# Thương, Singapore → Thái, UAE → Lộc (talpha_rules.nguoi_tinh_so). Làm SAU khi gom đủ ads + đơn,
+# Sỹ Anh (từ 03/11/2026, trước là Thương), Singapore → Thái, UAE → Lộc (talpha_rules.nguoi_tinh_so).
+# Số của người đã ngừng chạy (Thương từ 01/10/2026) cũng chuyển theo ngày. Làm SAU khi gom đủ ads + đơn,
 # TRƯỚC khi ghi file — Sheet, file riêng và số cho bot Zalo cùng một cách tính.
 def _gom_lan_nuoc(cells):
     moi=collections.defaultdict(lambda:{"spend":0.0,"msg":0,"pur":0,"orders":0,"cod":0.0,"cod_gtc":0.0}); lan=collections.defaultdict(lambda:[0.0,0])
     for (nv,mkt,tab,d),c in cells.items():
-        nv2=nguoi_tinh_so(nv,mkt)
+        nv2=nguoi_tinh_so(nv,mkt,d)
         if nv2!=nv: lan[(nv,nv2,mkt)][0]+=c["spend"]; lan[(nv,nv2,mkt)][1]+=c["orders"]
         x=moi[(nv2,mkt,tab,d)]
         for kk in x: x[kk]+=c.get(kk,0)

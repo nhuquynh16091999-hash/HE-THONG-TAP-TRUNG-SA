@@ -40,10 +40,18 @@ for _t in (RULES.get("access", {}).get("teams") or {}).values():
         for _nv in _t.get("members") or []:
             NUOC_CUA_NGUOI.setdefault(_nv, set()).update(_t.get("markets") or [])
 NGUOI_CAM = {m: v["nguoi_cam"] for m, v in _MK.items() if v.get("nguoi_cam")}
+# Người ĐÃ NGỪNG CHẠY (marketers.*.ngung_chay_tu, Sỹ Anh chốt 03/11/2026 — Thương từ 01/10/2026):
+# từ ngày đó mọi số mang tên họ (tag POS khi họ tạo đơn với vai sale, camp cũ) về người cầm nước.
+NGUNG_CHAY = {k: v["ngung_chay_tu"] for k, v in RULES["marketers"].items()
+              if isinstance(v, dict) and v.get("ngung_chay_tu")}
 
 
-def nguoi_tinh_so(nv, mkt):
-    """Người được tính số của ô (nv, nước): chạy lấn nước của team khác → người cầm nước đó."""
+def nguoi_tinh_so(nv, mkt, ngay=None):
+    """Người được tính số của ô (nv, nước, ngày 'YYYY-MM-DD'): chạy lấn nước của team khác, hoặc
+    đã ngừng chạy tính tới ngày đó → người cầm nước đó. Không truyền ngày = số hiện tại."""
+    tu = NGUNG_CHAY.get(nv)
+    if tu and (ngay is None or str(ngay)[:10] >= tu):
+        return NGUOI_CAM.get(mkt) or nv
     nuoc = NUOC_CUA_NGUOI.get(nv)
     if nuoc is None or mkt in nuoc:
         return nv

@@ -11,7 +11,8 @@
   "markets": {
     "Taiwan": {
       "shop_label": "TW",
-      "nguoi_cam": "Thuong",
+      "nguoi_cam": "SAnh",
+      "_nguoi_cam_note": "Sỹ Anh cầm Đài từ tháng 10/2026 (Sỹ Anh chốt 03/11/2026) — trước là Thương. Đổi người cầm là số lấn nước Đài + số của người đã ngừng chạy (marketers.*.ngung_chay_tu) về file người mới ngay vòng ghi Sheet kế tiếp.",
       "shop_id": "1022091930",
       "currency": "TWD",
       "currency_symbol": "NT$",
@@ -204,7 +205,9 @@
     "Thuong": {
       "display": "Thương",
       "full": "Thương",
-      "also_sale": true
+      "also_sale": true,
+      "ngung_chay_tu": "2026-10-01",
+      "_ngung_chay_note": "Sỹ Anh chốt 03/11/2026: từ tháng 10 Thương KHÔNG chạy quảng cáo nữa (chỉ làm sale + vận đơn). Từ ngày ngung_chay_tu, MỌI số mang tên người này — đơn POS gắn tag 'Thương Thương' (Thương tạo đơn với vai sale: 16 đơn Đài 01–03/11), camp cũ TW/THƯƠNG… (chạy tới 14/10) — tính cho NGƯỜI CẦM nước đó (markets.*.nguoi_cam): Đài/Nhật → Sỹ Anh, Singapore → Thái, UAE → Lộc. Số trước ngày đó giữ tên Thương. Áp ở talpha_rules.nguoi_tinh_so (Sheet) và rules.nguoiTinhSo (bot Zalo)."
     },
     "Quynh": {
       "display": "Quỳnh",
@@ -238,7 +241,7 @@
   "_access_note": "PHÂN QUYỀN DASHBOARD (Sỹ Anh chốt 05/10/2026). Ba thị trường tách thành ba TEAM riêng, không liên quan nhau: Trung Đông (UAE — leader Lộc), Đông Nam Á (Singapore — leader Thái), Đông Á (Đài Loan — tạm thời Sỹ Anh). Thương làm vận đơn + sale cho cả ba team. Sỹ Anh là giám đốc: thấy hết, quản lý người dùng. Mỗi tài khoản (config/users.json, sửa ở trang /admin → Quản lý User) mang `role` + `teams`: role quyết định THẤY TAB NÀO (access.roles.*.tabs), teams quyết định THẤY NƯỚC NÀO (access.teams.*.markets, khoá = tên ở mục markets). teams [\"*\"] = mọi team. Mở thêm nước cho một team = thêm khoá vào markets của team đó, leader tự thấy, không sửa tài khoản. Chặn ở MÁY CHỦ (dashboard-ui/src/proxy.ts + từng route API), không chỉ ẩn nút: gõ thẳng địa chỉ API nước khác cũng bị từ chối. Đối soát chi phí QC, trợ lý CEO, xuất Sheet, quản lý người dùng/TKQC: chỉ giám đốc. 07/10/2026 (Sỹ Anh chốt): mục KẾ TOÁN = Tiền COD về (cod-recon) + Thanh toán quảng cáo (ads-recon). Tiền COD về do LEADER nước đó và giám đốc kiểm soát chung — leader xem, tải sao kê NAZA, nhập tiền về ngân hàng; không có vai trò kế toán riêng; sale (Thương) KHÔNG vào. Việc đòi NAZA tiền đơn quá hạn nằm ở Sổ đơn hàng, sale vẫn làm được. Thanh toán quảng cáo vẫn chỉ giám đốc. 08/10/2026 (Sỹ Anh chốt): mở NHẬT BẢN thành team riêng `nhat_ban` (leader tạm thời Sỹ Anh) — không gộp vào Đông Á. 10/10/2026 (Sỹ Anh chốt lại): GỘP Nhật vào Đông Á (Đông Á = Đài Loan + Nhật Bản), giữ khoá nhat_ban cho tài khoản cũ.",
   "access": {
     "teams": {
-      "_members_note": "members = marketer của team (khoá trong `marketers`). Sỹ Anh chốt 10/10/2026: số một người chạy LẤN sang nước của team khác (camp cũ chưa đổi tên) tính cho NGƯỜI CẦM nước đó (markets.<nước>.nguoi_cam) — Đài → Thương, Singapore → Thái, UAE → Lộc. Người không có trong members nào thì giữ nguyên số.",
+      "_members_note": "members = marketer của team (khoá trong `marketers`). Sỹ Anh chốt 10/10/2026: số một người chạy LẤN sang nước của team khác (camp cũ chưa đổi tên) tính cho NGƯỜI CẦM nước đó (markets.<nước>.nguoi_cam) — Đài → Sỹ Anh (từ 03/11/2026; trước là Thương), Singapore → Thái, UAE → Lộc, Nhật → Sỹ Anh. Người không có trong members nào thì giữ nguyên số.",
       "trung_dong": { "name": "Trung Đông", "markets": ["UAE"], "leader": "Lộc", "members": ["Loc"] },
       "dong_nam_a": { "name": "Đông Nam Á", "markets": ["Singapore"], "leader": "Thái", "members": ["Thai"] },
       "dong_a": { "name": "Đông Á", "markets": ["Taiwan", "Japan"], "leader": "Sỹ Anh (tạm thời)", "members": ["SAnh", "Quynh", "Thuong", "Thang"] },

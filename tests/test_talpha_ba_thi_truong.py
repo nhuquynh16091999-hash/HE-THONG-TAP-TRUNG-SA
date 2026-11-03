@@ -42,13 +42,26 @@ class TestGanNuocTheoTenCampaign:
 
     def test_lan_nuoc_tinh_cho_nguoi_cam_nuoc(self):
         # Sỹ Anh chốt 10/10/2026: camp cũ chưa đổi tên chạy lấn nước của team khác → người cầm nước đó.
-        assert NGUOI_CAM == {"Taiwan": "Thuong", "Singapore": "Thai", "UAE": "Loc", "Japan": "SAnh"}
-        assert nguoi_tinh_so("Loc", "Taiwan") == "Thuong" and nguoi_tinh_so("Loc", "Singapore") == "Thai"
-        assert nguoi_tinh_so("Thai", "Taiwan") == "Thuong" and nguoi_tinh_so("Thuong", "Singapore") == "Thai"
+        # 03/11/2026: Sỹ Anh cầm Đài từ tháng 10 (trước là Thương).
+        assert NGUOI_CAM == {"Taiwan": "SAnh", "Singapore": "Thai", "UAE": "Loc", "Japan": "SAnh"}
+        assert nguoi_tinh_so("Loc", "Taiwan") == "SAnh" and nguoi_tinh_so("Loc", "Singapore") == "Thai"
+        assert nguoi_tinh_so("Thai", "Taiwan") == "SAnh" and nguoi_tinh_so("Thuong", "Singapore") == "Thai"
         # Đúng nước của team mình thì giữ nguyên — Đông Á gồm Đài + Nhật.
-        assert nguoi_tinh_so("Loc", "UAE") == "Loc" and nguoi_tinh_so("Thuong", "Japan") == "Thuong"
+        assert nguoi_tinh_so("Loc", "UAE") == "Loc" and nguoi_tinh_so("Thang", "Japan") == "Thang"
         assert nguoi_tinh_so("Quynh", "Taiwan") == "Quynh" and nguoi_tinh_so("SAnh", "Japan") == "SAnh"
         assert nguoi_tinh_so("(không gán)", "Taiwan") == "(không gán)"
+
+    def test_nguoi_ngung_chay_tinh_cho_nguoi_cam_tu_ngay_ngung(self):
+        # Sỹ Anh chốt 03/11/2026: Thương không chạy từ tháng 10 — tag POS "Thương Thương" (Thương tạo
+        # đơn với vai sale) và camp cũ TW/THƯƠNG… từ 01/10 về người cầm nước; tháng 9 giữ tên Thương.
+        assert nguoi_tinh_so("Thuong", "Taiwan", "2026-09-30") == "Thuong"
+        assert nguoi_tinh_so("Thuong", "Japan", "2026-09-30") == "Thuong"
+        assert nguoi_tinh_so("Thuong", "Singapore", "2026-09-30") == "Thai"   # lấn nước vẫn như cũ
+        assert nguoi_tinh_so("Thuong", "Taiwan", "2026-10-01") == "SAnh"
+        assert nguoi_tinh_so("Thuong", "Japan", "2026-10-08") == "SAnh"
+        assert nguoi_tinh_so("Thuong", "UAE", "2026-11-03") == "Loc"
+        assert nguoi_tinh_so("Thuong", "Taiwan") == "SAnh"                   # không ngày = số hiện tại
+        assert nguoi_tinh_so("Quynh", "Taiwan", "2026-11-03") == "Quynh"
 
     def test_cac_cach_viet_nuoc(self):
         for ten, nuoc in (("SINGAPORE/LOC/x", "Singapore"), ("sing/LOC/x", "Singapore"),

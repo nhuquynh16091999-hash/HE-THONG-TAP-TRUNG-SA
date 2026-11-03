@@ -149,9 +149,12 @@ const khongGoiMang = async (url) => { throw new Error(`không được gọi m�
 
     await t("/baocao <tên> trong nhóm nước: chỉ camp của người đó ở nước đó", async () => {
         const r = await buildBaoCaoNuoc(CFG, NGAY, { nuoc: "JP", docBan: () => BAN, layRealtime: rt, fetch: khongGoiMang });
-        const c = tron(r.tinNguoi("Thương"));
-        assert.ok(c.includes("Thương") && c.includes("JP/THƯƠNG/PHI/011/Lucky Silver JP/08-10"));
-        assert.ok(!c.includes("JP/THANG") && !c.includes("TW/THƯƠNG"), c);
+        const c = tron(r.tinNguoi("Thắng"));
+        assert.ok(c.includes("Thắng") && c.includes("JP/THANG/PHI/002-ATTL/Lucky Charm JP/08-10"));
+        assert.ok(!c.includes("JP/THƯƠNG") && !c.includes("TW/THƯƠNG"), c);
+        // 03/11/2026: Thương ngừng chạy từ 01/10 — camp cũ JP/THƯƠNG… tính cho người cầm Nhật (Sỹ Anh).
+        const sa = tron(r.tinNguoi("Sỹ Anh"));
+        assert.ok(sa.includes("JP/THƯƠNG/PHI/011/Lucky Silver JP/08-10") && !sa.includes("JP/THANG"), sa);
         assert.ok(tron(r.tinNguoi("Lộc")).includes("Lộc chưa có số ở 🇯🇵 Nhật Bản"));
         assert.ok(!tron(r.teamMessage).includes("CHI TIẾT CAMP"), "/baocao team không kèm camp");
     });

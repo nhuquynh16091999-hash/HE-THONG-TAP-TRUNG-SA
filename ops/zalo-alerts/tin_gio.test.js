@@ -120,13 +120,22 @@ const CAMPS = [
         assert.ok(c3.includes("chia mess theo tiền"), c3);
     });
 
-    await t("camp lấn nước tính cho người cầm nước (10/10/2026): Lộc chạy Đài → Thương", () => {
+    await t("camp lấn nước tính cho người cầm nước (10/10/2026): Lộc chạy Đài → Sỹ Anh (cầm Đài từ 03/11/2026)", () => {
         const { chuTinhSo } = require("./rules");
-        assert.strictEqual(chuTinhSo("TW/LỘC/PHI/042/Japan Prime Leather/26-9"), "Thuong");
+        assert.strictEqual(chuTinhSo("TW/LỘC/PHI/042/Japan Prime Leather/26-9"), "SAnh");
         assert.strictEqual(chuTinhSo("SGP/LỘC/PHI/011/Lucky Silver Philippines/28-9"), "Thai");
         assert.strictEqual(chuTinhSo("SGP/THƯƠNG/PHI/071/Biyaya/30-9"), "Thai");
-        assert.strictEqual(chuTinhSo("JP/THƯƠNG/PHI/011/Lucky Silver JP/08-10"), "Thuong");
         assert.strictEqual(chuTinhSo("AE/LOC/PHI/040/x/1509"), "Loc");
+    });
+
+    await t("người ngừng chạy (03/11/2026): Thương từ 01/10 → người cầm nước, trước đó giữ tên", () => {
+        const { chuTinhSo, nguoiTinhSo } = require("./rules");
+        assert.strictEqual(chuTinhSo("JP/THƯƠNG/PHI/011/Lucky Silver JP/08-10"), "SAnh");
+        assert.strictEqual(chuTinhSo("TW/THƯƠNG/PHI/042/Japan Prime Leather/6-10"), "SAnh");
+        assert.strictEqual(nguoiTinhSo("Thuong", "Taiwan", "2026-09-30"), "Thuong");
+        assert.strictEqual(nguoiTinhSo("Thuong", "Taiwan", "2026-10-01"), "SAnh");
+        assert.strictEqual(nguoiTinhSo("Thuong", "Singapore", "2026-09-30"), "Thai");
+        assert.strictEqual(nguoiTinhSo("Quynh", "Taiwan"), "Quynh");
     });
 
     console.log(`tin_gio.test.js: ${ok}/${ok} PASS`);

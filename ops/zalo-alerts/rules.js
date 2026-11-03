@@ -176,7 +176,12 @@ for (const t of Object.values(khongGhiChu((RULES.access || {}).teams))) {
     for (const nv of t.members || []) for (const m of t.markets || []) (NUOC_CUA_NGUOI[nv] = NUOC_CUA_NGUOI[nv] || new Set()).add(m);
 }
 const NGUOI_CAM = Object.fromEntries(Object.entries(khongGhiChu(RULES.markets)).filter(([, v]) => v && v.nguoi_cam).map(([k, v]) => [k, v.nguoi_cam]));
-function nguoiTinhSo(key, marketKey) {
+// Người đã ngừng chạy (marketers.*.ngung_chay_tu — Thương từ 01/10/2026, Sỹ Anh chốt 03/11/2026):
+// từ ngày đó số mang tên họ tính cho người cầm nước. Không truyền ngày = số hiện tại.
+const NGUNG_CHAY = Object.fromEntries(Object.entries(MARKETERS).filter(([, v]) => v && v.ngung_chay_tu).map(([k, v]) => [k, v.ngung_chay_tu]));
+function nguoiTinhSo(key, marketKey, ngay) {
+    const tu = NGUNG_CHAY[key];
+    if (tu && (!ngay || String(ngay).slice(0, 10) >= tu)) return NGUOI_CAM[marketKey] || key;
     const nuoc = NUOC_CUA_NGUOI[key];
     if (!nuoc || nuoc.has(marketKey)) return key;
     return NGUOI_CAM[marketKey] || key;

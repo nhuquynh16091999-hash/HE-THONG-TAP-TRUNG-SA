@@ -28,8 +28,11 @@ rồi chuyển về theo kỳ. Singapore: bảng giá 3PL khai ở `shipping_fee
 
 Thành viên: Trung Đông — Lộc · Đông Nam Á — Thái · Đông Á — Sỹ Anh, Quỳnh, Thương, Thắng
 (`access.teams.*.members`). **Chạy lấn nước** của team khác (camp cũ chưa đổi tên) thì tiền ads,
-tin nhắn, đơn, doanh số tính cho **người cầm nước** đó (`markets.*.nguoi_cam`): Đài → Thương,
-Singapore → Thái, UAE → Lộc, Nhật → Sỹ Anh (Sỹ Anh chốt 10/10/2026). Áp ở `format_all.py`
+tin nhắn, đơn, doanh số tính cho **người cầm nước** đó (`markets.*.nguoi_cam`): Đài → Sỹ Anh
+(từ 03/11/2026, trước là Thương), Singapore → Thái, UAE → Lộc, Nhật → Sỹ Anh (Sỹ Anh chốt
+10/10/2026). **Người đã ngừng chạy** (`marketers.*.ngung_chay_tu` — Thương từ 01/10/2026): từ
+ngày đó mọi số mang tên họ (tag POS khi họ tạo đơn với vai sale, camp cũ) cũng về người cầm
+nước. Áp ở `format_all.py`
 (Sheet, file riêng, số cho bot) và bot Zalo (`rules.chuTinhSo`); các tab dashboard tự tính từ
 BigQuery vẫn theo tên camp gốc. Thư mục Drive tháng: `Tháng N / TEAM … / <NGƯỜI> / <NƯỚC> T<n>` —
 người nhận theo thư mục gần file nhất, nước theo tên file.
