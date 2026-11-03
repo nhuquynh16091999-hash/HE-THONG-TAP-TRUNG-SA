@@ -104,11 +104,11 @@ meta_ads:
   # đều múi giờ Bangkok. Token CŨ cũng đọc được cả ba, nên thứ từng làm chúng vắng
   # mặt trong mọi báo cáo chỉ là danh sách này.
   ad_account_ids:
-    - "act_256210853826298"   # Sỹ Anh Taiwan 4 — đang chạy
+    # - "act_256210853826298"   # Sỹ Anh Taiwan 4 — BỎ 03/11/2026 (token app mới không thấy; chi lần cuối 22/10)
     # - "act_620354173588998"   # ANTALO 4 - CHẠY VPCS + THUẾ — BỎ 28/10/2026 (Meta vô hiệu hoá, token mới không thấy)
     # - "act_355509637365145"   # Sỹ Anh Taiwan 5 — BỎ 15/10/2026 (chưa thanh toán, mất quyền)
-    - "act_9429066663871702"  # TKQC Chạy Đài Loan — đã tắt
-    - "act_1044243500995626"  # Sỹ Anh Taiwan 3 — đã tắt
+    # - "act_9429066663871702"  # TKQC Chạy Đài Loan — BỎ 03/11/2026 (Meta vô hiệu hoá, token app mới không thấy)
+    # - "act_1044243500995626"  # Sỹ Anh Taiwan 3 — BỎ 03/11/2026 (Meta vô hiệu hoá, token app mới không thấy)
     # TẮT 23/09/2026 — BM Thuyên gỡ quyền ads_read của token từ 10:22 sáng; hai tài
     # khoản đã tiêu 0đ từ 21/09. Để trong danh sách thì mỗi vòng sync báo hỏng và Sheet
     # đứng ở số 09:24. Dùng lại: cấp quyền trước, rồi mới bỏ dấu # hai dòng dưới.
@@ -173,8 +173,20 @@ meta_ads:
     - "act_3021882974877047"  # Hữu Thắng 11 — chi từ 23/10, camp SGP + TW
     - "act_2024599088250747"  # Hưũ Thắng 12 — chưa chi
     - "act_1505577121617403"  # Hữu Thắng 13 — chưa chi
-    - "act_2203419147237329"  # Tiến Thế 11 — chi từ 27/10
-    - "act_4541380649341533"  # Sỹ Anh 11 — chưa chi
+    - "act_2203419147237329"  # Tiến Thế 11 — chi 27–31/10 (Meta vô hiệu hoá, vẫn đọc được)
+    # - "act_4541380649341533"  # Sỹ Anh 11 — BỎ 03/11/2026 (mất quyền #200, rơi khỏi /me/adaccounts; BQ giữ 373.904đ 28–29/10)
+    #
+    # 03/11/2026 — app "BÁO CÁO ANTALO SỸ ANH" bị Meta chặn ("API access blocked") từ 22:21 29/10
+    # tới ~10:05 03/11. Vòng thường chỉ kéo 1 ngày nên đã kéo bù tay 21/10→03/11: 6 TK có chi khớp
+    # Meta từng ngày (18.966.026đ). Ba TK BM cũ (Taiwan 4, Chạy Đài Loan, Taiwan 3) token app mới
+    # không thấy — lịch sử của chúng đã kéo đủ bằng token "Dashboard" (khớp amount_spent trọn đời).
+    # THÊM 03/11/2026 — 5 TK mới lấy THẲNG từ `/me/adaccounts` của token (VND, giờ VN, chưa chi
+    # đồng nào). Khai trước để khi team chạy thì tiền vào ngay, không thiếu âm thầm như 21–28/10.
+    - "act_984740494689004"   # Sỹ Anh 21 — chưa chi
+    - "act_1308765708025034"  # Sỹ Anh 41 — chưa chi
+    - "act_4019152358239307"  # Hồ Lý 11 — chưa chi
+    - "act_4780611448824838"  # Hồ Lý 21 — chưa chi
+    - "act_1751226855950890"  # Hồ Lý 31 — chưa chi
   ad_account_names:
     act_2316553302504985: "TK CÁ NHÂN NEW 1"
     act_1025294735296964: "NEW3"
@@ -209,6 +221,11 @@ meta_ads:
     act_1505577121617403: "Hữu Thắng 13"
     act_2203419147237329: "Tiến Thế 11"
     act_4541380649341533: "Sỹ Anh 11"
+    act_984740494689004: "Sỹ Anh 21"
+    act_1308765708025034: "Sỹ Anh 41"
+    act_4019152358239307: "Hồ Lý 11"
+    act_4780611448824838: "Hồ Lý 21"
+    act_1751226855950890: "Hồ Lý 31"
   # Múi giờ từng tài khoản — lấy từ Meta API, KHÔNG đoán theo tên.
   # Cột `date` của spend đã theo múi giờ NÀY, nên 2 tài khoản Bangkok lệch ngày
   # so với 8 tài khoản còn lại; cả tháng mới khớp (rule #6 TALPHA_METRIC_RULES).
@@ -248,6 +265,11 @@ meta_ads:
     act_1505577121617403: "Asia/Ho_Chi_Minh"
     act_2203419147237329: "Asia/Ho_Chi_Minh"
     act_4541380649341533: "Asia/Ho_Chi_Minh"
+    act_984740494689004: "Asia/Ho_Chi_Minh"
+    act_1308765708025034: "Asia/Ho_Chi_Minh"
+    act_4019152358239307: "Asia/Ho_Chi_Minh"
+    act_4780611448824838: "Asia/Ho_Chi_Minh"
+    act_1751226855950890: "Asia/Ho_Chi_Minh"
 
 # ─── 4. POS / ORDER MANAGEMENT ───
 pos_system: poscake

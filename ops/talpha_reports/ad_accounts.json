@@ -16,7 +16,8 @@
         {
           "id": "act_256210853826298",
           "name": "Sỹ Anh Taiwan 4",
-          "status": "active"
+          "status": "disabled",
+          "_khong_sync": "Chi lần cuối 22/10/2026. Token app 'BÁO CÁO ANTALO SỸ ANH' không thấy TK này (chỉ token cũ 'Dashboard' thấy). ĐÃ BỎ khỏi config/projects/talpha.yaml ngày 03/11/2026 — lịch sử từ 11/2024 đã kéo đủ bằng token 'Dashboard', khớp amount_spent trọn đời."
         },
         {
           "id": "act_620354173588998",
@@ -34,12 +35,16 @@
         {
           "id": "act_9429066663871702",
           "name": "TKQC Chạy Đài Loan",
-          "status": "disabled"
+          "status": "died",
+          "died_at": "2026-11-03",
+          "_khong_sync": "Meta vô hiệu hoá (account_status 2), chi lần cuối 09/2026. Token app mới không thấy. ĐÃ BỎ khỏi config/projects/talpha.yaml ngày 03/11/2026 — lịch sử từ 05/2025 đã kéo đủ bằng token 'Dashboard', khớp amount_spent trọn đời."
         },
         {
           "id": "act_1044243500995626",
           "name": "Sỹ Anh Taiwan 3",
-          "status": "disabled"
+          "status": "died",
+          "died_at": "2026-11-03",
+          "_khong_sync": "Meta vô hiệu hoá (account_status 2), chi duy nhất 22/08/2026 (23.653đ). Token app mới không thấy. ĐÃ BỎ khỏi config/projects/talpha.yaml ngày 03/11/2026."
         },
         {
           "id": "act_1623263399046753",
@@ -203,8 +208,40 @@
         {
           "id": "act_4541380649341533",
           "name": "Sỹ Anh 11",
+          "status": "died",
+          "_nguon": "BM mới — token app 'BÁO CÁO ANTALO SỸ ANH', khai 28/10/2026",
+          "died_at": "2026-11-03",
+          "_khong_sync": "03/11/2026 mất quyền (#200 has NOT grant ads_read) và rơi khỏi /me/adaccounts. ĐÃ BỎ khỏi config/projects/talpha.yaml ngày 03/11/2026 — fb_ads_data giữ 373.904đ (28–29/10)."
+        },
+        {
+          "id": "act_984740494689004",
+          "name": "Sỹ Anh 21",
           "status": "active",
-          "_nguon": "BM mới — token app 'BÁO CÁO ANTALO SỸ ANH', khai 28/10/2026"
+          "_nguon": "BM mới — token app 'BÁO CÁO ANTALO SỸ ANH', khai 03/11/2026 (chưa chi)"
+        },
+        {
+          "id": "act_1308765708025034",
+          "name": "Sỹ Anh 41",
+          "status": "active",
+          "_nguon": "BM mới — token app 'BÁO CÁO ANTALO SỸ ANH', khai 03/11/2026 (chưa chi)"
+        },
+        {
+          "id": "act_4019152358239307",
+          "name": "Hồ Lý 11",
+          "status": "active",
+          "_nguon": "BM mới — token app 'BÁO CÁO ANTALO SỸ ANH', khai 03/11/2026 (chưa chi)"
+        },
+        {
+          "id": "act_4780611448824838",
+          "name": "Hồ Lý 21",
+          "status": "active",
+          "_nguon": "BM mới — token app 'BÁO CÁO ANTALO SỸ ANH', khai 03/11/2026 (chưa chi)"
+        },
+        {
+          "id": "act_1751226855950890",
+          "name": "Hồ Lý 31",
+          "status": "active",
+          "_nguon": "BM mới — token app 'BÁO CÁO ANTALO SỸ ANH', khai 03/11/2026 (chưa chi)"
         }
       ],
       "_note": "Danh sách này lấy THẲNG từ /me/adaccounts của token System User: lần đầu 08/09/2026, thêm ba tài khoản 18/09/2026 (ATHAINX TK1 · ATHAINX TK2 · NEW - XT VIỆT); 29/09/2026 token mới: thêm K NEED khang ve 22 · 1005930495298028 · Quynh Vien, bỏ 5 tài khoản bị đá khỏi BM (status died); 07/10/2026 thêm SA ANTALO 02 · XT ANTALO 02 · XT ANTALO 03 · Xinh Mi Nguyen, khai lại SA ANTALO 01, Meta đổi tên 1005930495298028 → SL ANTALO 01, Quynh Vien → XT ANTALO 01. Mục nào có khoá _khong_sync là KHÔNG còn trong danh sách sync (xem chính khoá đó để biết vì sao) — sync đọc yaml, roster này chỉ để dashboard tra tên và đối soát chi phí. Bản cũ khai 15 tài khoản của hệ thống trước (Mỹ phẩm, Nhật Bản, Dubai, Kuwait, Saudi) — token mới KHÔNG có quyền một cái nào, nên mỗi vòng sync đốt 24 phút thử lại vô ích rồi ghi 0 dòng.",
