@@ -261,18 +261,18 @@
       },
       "leader": {
         "label": "Leader thị trường",
-        "desc": "Mọi số của team mình: báo cáo, P&L, đơn, vận đơn, kế toán (tiền COD về), quảng cáo, kho, khách",
-        "tabs": ["overview", "pnl", "product-pnl", "order-ledger", "cod-recon", "tracking", "products", "marketing", "ad-spend", "ads-command", "ad-health", "customers", "market-intel"]
+        "desc": "Mọi số của team mình: báo cáo, P&L, đơn, vận đơn, kế toán (lãi lỗ, tiền COD về), quảng cáo, kho, khách",
+        "tabs": ["overview", "pnl", "product-pnl", "order-ledger", "lai-lo", "cod-recon", "tracking", "products", "marketing", "ad-spend", "ads-command", "ad-health", "customers", "market-intel"]
       },
       "marketer": {
         "label": "Marketer",
         "desc": "Quảng cáo của team mình",
-        "tabs": ["marketing", "ad-spend", "ads-command", "ad-health", "products"]
+        "tabs": ["lai-lo", "marketing", "ad-spend", "ads-command", "ad-health", "products"]
       },
       "sale": {
         "label": "Sale · vận đơn",
         "desc": "Sổ đơn (kể cả đòi NAZA tiền đơn quá hạn), theo dõi vận đơn, kho, khách — của các team được giao",
-        "tabs": ["order-ledger", "tracking", "products", "customers"]
+        "tabs": ["order-ledger", "lai-lo", "tracking", "products", "customers"]
       }
     }
   },
@@ -460,6 +460,17 @@
     "by_page": {},
     "manual": {},
     "unassigned_label": "(chưa gán sale)"
+  },
+  "_ket_qua_kd_note": "Tab Kế toán → Lãi lỗ (04/11/2026, lib/talpha/lai-lo.ts). Doanh thu = tiền COD kiện giao thành công; kiện đang đi ước theo tỉ lệ giao thật của nước (tính trên kiện lên đơn trong cua_so_ngay ngày, bỏ bo_gan_ngay ngày gần nhất vì kiện mới giao xong trước, hoàn về sau). Mẫu dưới mau_toi_thieu kiện thì lấy mọi kiện xong và ghi 'tạm'. cho_len_3pl_ngay: số ngày cuối kỳ mà phần doanh số chưa thành kiện 3PL được ước như kiện đang đi (sale lên đơn trễ). hang_hoan: hàng hoàn của nước trong quay_lai_kho_ban_tiep không mất giá vốn (UAE — kho D&T); nước khác mất nếu không gửi lại; còn hạn = trong luu_kho_ngay ngày kể từ lúc về kho (ước = ngày gửi + ve_kho_sau_gui_ngay).",
+  "ket_qua_kd": {
+    "ty_le_giao": { "cua_so_ngay": 90, "bo_gan_ngay": 21, "mau_toi_thieu": 20 },
+    "cho_len_3pl_ngay": 3,
+    "hang_hoan": {
+      "quay_lai_kho_ban_tiep": ["AE"],
+      "luu_kho_ngay": 30,
+      "ve_kho_sau_gui_ngay": 14
+    },
+    "nhom_van_hanh": ["Lương", "Mặt bằng", "Phần mềm & công cụ", "Điện thoại & sim", "Khác"]
   },
   "_shipping_note": "Bảng giá 3PL Đài Loan — NAZA供应链. Nguồn: '18.10 COD TỪ TQ ĐI 8 NƯỚC.xlsx' sheet 'ĐÀI LOAN'. Phí ghi bằng RMB, sao kê cũng tính bằng RMB rồi mới quy ra VND. Đã soát ngược 463 dòng phí thật của 7 kỳ: khớp bảng giá 100%, lệch 0 RMB.",
   "shipping_fees": {

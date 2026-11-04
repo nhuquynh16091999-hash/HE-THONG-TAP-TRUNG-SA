@@ -79,8 +79,9 @@ t("leader thấy Chi phí quảng cáo + Ads Command Center (route đã tự l�
     assert.ok(A.checkApi(thai, "/api/talpha/ad-spend", q("from=2026-10-01&to=2026-10-05")).ok);
     assert.ok(A.checkApi(thai, "/api/talpha/realtime", q("")).ok);
 });
-t("Thương chỉ thấy đơn, vận đơn, kho, khách — không báo cáo, không quảng cáo, không Kế toán", () => {
-    assert.deepStrictEqual([...thuong.tabs].sort(), ["customers", "order-ledger", "products", "tracking"]);
+// 04/11/2026 Sỹ Anh chốt tab Lãi lỗ (Kế toán) "tất cả" cùng xem — sale vẫn không vào Tiền COD về.
+t("Thương thấy đơn, vận đơn, kho, khách + Lãi lỗ — không báo cáo, không quảng cáo, không Tiền COD về", () => {
+    assert.deepStrictEqual([...thuong.tabs].sort(), ["customers", "lai-lo", "order-ledger", "products", "tracking"]);
 });
 // Mục Kế toán (Sỹ Anh chốt 07/10/2026): Tiền COD về do leader nước đó + giám đốc kiểm soát chung.
 t("Kế toán: leader thấy Tiền COD về của nước mình, không thấy Thanh toán quảng cáo", () => {
@@ -223,4 +224,16 @@ t("biểu thức nước theo tên campaign khớp luật campaignMarket (ô đ�
     assert.ok(/ORDER BY vi_tri LIMIT 1\s*\), 'Taiwan'\)$/.test(e.trim()), e);
 });
 
+t("Lãi lỗ (Kế toán, 04/11/2026): mọi vai có tab, gọi được route — route tự cắt nước", () => {
+    for (const u of [loc, thai, thuong]) {
+        assert.ok(u.tabs.includes("lai-lo"), u.name);
+        assert.ok(A.checkApi(u, "/api/talpha/lai-lo", q("from=2026-10-01&to=2026-10-31")).ok, u.name);
+        // Nhánh ghi chi phí vận hành: cửa mở, route tự chặn người không xem hết.
+        assert.ok(A.checkApi(u, "/api/talpha/lai-lo/van-hanh", q("")).ok, u.name);
+        assert.ok(!u.full, u.name);
+    }
+    const mk = A.accessForUser({ id: "6", name: "MK", role: "marketer", teams: ["dong_nam_a"] });
+    assert.ok(mk.tabs.includes("lai-lo"));
+    assert.ok(A.ALL_TABS.includes("lai-lo"));
+});
 console.log(`\n${pass} phép thử phân quyền qua.`);

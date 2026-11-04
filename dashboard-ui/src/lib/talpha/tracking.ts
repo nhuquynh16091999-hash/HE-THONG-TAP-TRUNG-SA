@@ -201,6 +201,9 @@ export type Shipment = {
     fail_count?: number | null;
     /** Link WhatsApp của khách (lib/talpha/whatsapp.ts); null = số không chắc hoặc nước không bật. */
     wa?: string | null;
+    /** Cột SKU + số lượng của bảng đối tác (Singapore, Nhật) — chỉ nguồn "partner" có. */
+    sku?: string | null;
+    quantity?: number | null;
     /** Địa chỉ giao đầy đủ (UAE, từ POS) — để tin xác nhận đơn nhắc khách soát địa chỉ. */
     address?: string | null;
 };
@@ -651,6 +654,8 @@ export type PartnerOrderRow = {
     order_no?: string | null; tracking?: string | null; status?: string | null; note?: string | null;
     order_date?: string | null; ship_date?: string | null; contact_name?: string | null; phone?: string | null;
     cod?: number | null; marketer?: string | null; ship_method?: string | null; city?: string | null;
+    /** Mã hàng + số lượng (cột SKU bảng đối tác) — tab Lãi lỗ tra giá vốn theo đó. */
+    sku?: string | null; quantity?: string | number | null;
 };
 
 /** Trạng thái 17TRACK đã lưu trong sổ của thị trường. */

@@ -49,6 +49,9 @@ ssh root@139.180.131.21 'bash /opt/talpha/ops/talpha_reports/deploy_runtime.sh -
   qua `/api/talpha/sheet-report?from&to` — cùng số với Sheet và bot Zalo. Giá vốn + phí ship
   ước tính ở `lib/talpha/order-costs.ts` (dùng chung P&L và P&L theo SP). Các tab báo cáo
   không tính trước `report_start_date` (15/09/2026).
+* **Lãi lỗ đủ mọi khoản** (Kế toán → Lãi lỗ, 04/11/2026): `lib/talpha/lai-lo.ts` (hàm thuần, có
+  test) + `lai-lo-nguon.ts` (kiện thật từng nước) → `/api/talpha/lai-lo`. Đây là nơi trả lời
+  "lãi thật bao nhiêu"; tab P&L của mục Báo cáo chỉ là số tạm tính.
 * **Sync**: `sync/talpha/talpha_sync.py` + `sync/core/`, chạy bằng systemd trên VPS.
 * **Đăng nhập + phân quyền theo team** (05/10/2026): NextAuth v5 (`lib/auth.ts`); người dùng
   qua `lib/users.ts` (`config/users.json`, mỗi người `role` + `teams`). Luật ở

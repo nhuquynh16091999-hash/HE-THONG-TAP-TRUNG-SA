@@ -13,7 +13,7 @@ import { RULES, PRIMARY_MARKET, CAMP_MARKETS } from "./rules";
 /** Mọi tab của dashboard-shell.tsx. Thêm tab mới thì thêm ở đây và ở access.roles. */
 export const ALL_TABS = [
     "overview", "pnl", "product-pnl",
-    "order-ledger", "cod-recon", "tracking",
+    "order-ledger", "lai-lo", "cod-recon", "tracking",
     "products", "marketing",
     "ad-spend", "ads-command", "ad-health",
     "ads-recon",
@@ -165,6 +165,9 @@ export const API_RULES: Record<string, ApiRule> = {
 
     "/api/talpha/sheet-report": { tabs: ["overview", "pnl", "marketing"] },
     "/api/talpha/pnl-costs": { tabs: ["overview", "pnl"] },
+    // Lãi lỗ (Kế toán, 04/11/2026) — mọi vai có tab; route tự cắt theo nước của team, ghi chi phí
+    // vận hành (nhánh /van-hanh) route tự chặn chỉ giám đốc.
+    "/api/talpha/lai-lo": { tabs: ["lai-lo"] },
     "/api/talpha/targets": { tabs: ["overview", "marketing"] },
     "/api/talpha/product-pnl": { tabs: ["product-pnl"] },
     "/api/talpha/product-costs": { tabs: ["product-pnl"] },

@@ -143,6 +143,8 @@ export default function TALPHAPnLTab({ dateRange }: Props) {
                         Giá vốn tính theo mã sản phẩm trên đơn POS × bảng &ldquo;Giá tới Taiwan&rdquo;; phí ship ước tính — Đài theo
                         trung bình các kỳ sao kê NAZA, Singapore theo bảng giá 3PL
                         {sheet.start_date && <> · tính từ <strong>{ngayVN(sheet.start_date)}</strong></>}.
+                        {" "}Đây là số <strong>tạm tính nhanh</strong> (coi mọi đơn giao hết) — lợi nhuận đủ mọi khoản (hoàn, phí 3PL thật,
+                        chi phí vận hành) xem ở <strong>Kế toán → Lãi lỗ</strong>.
                     </>
                 }
             />

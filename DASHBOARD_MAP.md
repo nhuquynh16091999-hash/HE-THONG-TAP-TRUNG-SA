@@ -60,9 +60,9 @@ Nước dùng luật này khai `markets.<nước>.mess_source = "pancake"` (`MES
 | Vai (`role`) | Người | Thấy gì |
 |:--|:--|:--|
 | Giám đốc (`director`) | Sỹ Anh | Cả ba team, mọi tab, Quản trị (người dùng, TKQC) |
-| Leader (`leader`) | Lộc · Thái | Mọi tab của team mình (báo cáo, P&L, đơn, vận đơn, Kế toán → Tiền COD về, quảng cáo, kho, khách) — chỉ nước của team |
-| Sale · vận đơn (`sale`) | Thương (cả ba team) | Sổ đơn (kể cả đòi NAZA tiền đơn quá hạn), Theo dõi vận đơn, Kho, Khách hàng — **không** vào Kế toán |
-| Marketer (`marketer`) | — (khai khi cần) | Marketing, quảng cáo, kho của team |
+| Leader (`leader`) | Lộc · Thái | Mọi tab của team mình (báo cáo, P&L, đơn, vận đơn, Kế toán → Lãi lỗ + Tiền COD về, quảng cáo, kho, khách) — chỉ nước của team |
+| Sale · vận đơn (`sale`) | Thương (cả ba team) | Sổ đơn (kể cả đòi NAZA tiền đơn quá hạn), Theo dõi vận đơn, Kho, Khách hàng, Kế toán → Lãi lỗ (04/11/2026) — **không** vào Tiền COD về |
+| Marketer (`marketer`) | — (khai khi cần) | Marketing, quảng cáo, kho, Kế toán → Lãi lỗ của team |
 
 **Phân quyền chặn ở máy chủ, không chỉ ẩn nút.** Luật ở `talpha_rules.json → access` (team →
 nước, vai → tab); mỗi tài khoản trong `config/users.json` mang `role` + `teams` (sửa ở `/admin` →
@@ -124,6 +124,7 @@ Ba câu hỏi tiền, ba màn hình khác nhau — **đừng trộn**:
 | Lãi gộp tạm tính? | P&L | Sheet TỔNG TEAM + giá vốn (mã SP trên đơn POS × bảng Giá tới Taiwan) + phí ship ước tính (trung bình sao kê NAZA) |
 | Đang tiêu bao nhiêu, ngay lúc này? | Ads Command Center | Meta + POS **gọi thẳng**, đơn **ĐÃ ĐẶT** |
 | Tiền có về đủ không? | Kế toán: Tiền COD về · Thanh toán quảng cáo | File sao kê người dùng tải lên |
+| **Lãi thật sau mọi khoản?** | **Kế toán: Lãi lỗ** | TỔNG TEAM (doanh số, ads) + kiện 3PL thật (giao/hoàn/đang đi) + phí trong sao kê + chi phí vận hành nhập tay |
 
 > **Hai định nghĩa doanh thu.** Tab BigQuery đếm đơn đã giao xong; Ads Command Center
 > đếm đơn vừa đặt. ROAS hai nơi **không so trực tiếp được**. Đây là thiết kế, không
@@ -170,6 +171,7 @@ Ba màn hình **không đụng BigQuery lẫn POS**, chạy được cả khi ha
 | Tiền COD về | Sao kê NAZA (xlsx) + Google Sheet tiền hàng (chỉ đọc) | `data/cod_statements.json` |
 | Thanh toán quảng cáo | Chi phí TKQC + sao kê thẻ | `data/ads_recon.json`, `data/ads_recon_kho.json` |
 | Theo dõi vận đơn · Sổ đơn hàng | Bảng đơn của đối tác (Google Sheet) — **tự nạp 6h sáng**, hoặc bấm “Đọc bảng đối tác” | `data/tracking.json` |
+| Lãi lỗ → Chi phí vận hành | Giám đốc gõ tay từng khoản theo tháng (lương, mặt bằng, phần mềm…) | `data/chi_phi_van_hanh.json` |
 
 `data/` nằm **ngoài git** (có số tiền thật). `ops/deploy/from-mac.sh` chép nó lên
 máy chủ, và **dừng lại báo lỗi** nếu chép trượt.
@@ -188,7 +190,8 @@ chỉ hiện tab tài khoản được xem — `/api/talpha/me`).
 | | P&L theo SP | `tabs/product-pnl-tab.tsx` | `/api/talpha/product-pnl` (đơn đã chốt × giá vốn × ads theo mã SP trong tên camp) |
 | 🧾 Đơn hàng | Sổ đơn hàng (+ khung Đòi tiền NAZA) | `tabs/order-ledger-tab.tsx` · `tabs/order-ledger-market.tsx` | `/api/talpha/order-ledger` + `cod-actions` (Đài) · `order-ledger/market` (Singapore, UAE) |
 | | Theo dõi vận đơn | `tabs/tracking-tab.tsx` | `/api/talpha/tracking` |
-| 💼 Kế toán | Tiền COD về | `tabs/cod-recon-tab.tsx` | `/api/talpha/order-ledger` + `cod-recon` + `cod-actions` (Đài) · `cod-recon/market` (Singapore, UAE) |
+| 💼 Kế toán | Lãi lỗ (04/11/2026, mọi vai) | `tabs/lai-lo-tab.tsx` | `/api/talpha/lai-lo` (TỔNG TEAM + kiện 3PL + sao kê + `data/chi_phi_van_hanh.json`) |
+| | Tiền COD về | `tabs/cod-recon-tab.tsx` | `/api/talpha/order-ledger` + `cod-recon` + `cod-actions` (Đài) · `cod-recon/market` (Singapore, UAE) |
 | | Thanh toán quảng cáo (chỉ giám đốc) | `tabs/ads-recon-tab.tsx` | `/api/talpha/ads-recon` |
 | 📦 Sản phẩm | Sản phẩm & Kho | `tabs/products-tab.tsx` | `/api/talpha/inventory` |
 | 👤 Marketer | Marketing & Ads | `tabs/marketing-tab.tsx` | `/api/query` (số Meta) + `sheet-report?from&to` (từng người, KPI) |
@@ -213,7 +216,7 @@ Ba tab **bỏ qua bộ chọn ngày** (`IGNORES_DATE_RANGE`): Ads Command Center
 quảng cáo có cửa sổ thời gian cố định trong view; Thanh toán quảng cáo lấy kỳ từ chính
 file sao kê.
 
-**Mục Kế toán (Sỹ Anh chốt 07/10/2026)** = Tiền COD về (tên cũ "Đối soát COD") + Thanh toán
+**Mục Kế toán (Sỹ Anh chốt 07/10/2026, thêm Lãi lỗ 04/11/2026)** = Lãi lỗ + Tiền COD về (tên cũ "Đối soát COD") + Thanh toán
 quảng cáo (tên cũ "Đối soát chi phí QC"). Hai màn cùng trả lời *tiền thật có khớp không*, cùng
 cách làm (tải sao kê → máy soát → gõ số ngân hàng), cùng tính theo kỳ.
 
@@ -223,6 +226,16 @@ cách làm (tải sao kê → máy soát → gõ số ngân hàng), cùng tính 
 * Đòi NAZA tiền đơn quá hạn **ở lại Sổ đơn hàng** (khung "Đòi tiền NAZA"): việc theo từng đơn,
   cần tên khách + số điện thoại ngay cạnh, và sale cũng phải làm được. Lần đầu tách Đơn hàng /
   Đối soát đã phải gộp lại vì người dùng nhảy qua nhảy lại giữa hai màn cho cùng một đơn.
+* **Lãi lỗ** (Sỹ Anh chốt 04/11/2026) đứng đầu mục — một góc nhìn đủ về kết quả kinh doanh:
+  Doanh số (TỔNG TEAM) → Doanh thu (tiền COD kiện giao thành công; kiện đang đi × tỉ lệ giao thật
+  của nước, đo trên kiện lên đơn 90 → 21 ngày trước) → − Giá vốn → − Chi phí 3PL (vận chuyển +
+  thao tác · thu hộ COD · phí hàng hoàn · chênh tỷ giá 3PL quy đổi; phí thật từ sao kê, thiếu thì
+  ước) → − Chi phí khai thác (= tiền ads + chi phí vận hành nhập tay) → Lợi nhuận sau cùng. Luôn
+  hai mức: dự kiến và tối thiểu (coi mọi kiện đang đi là hoàn). Đơn hoàn theo cơ chế từng 3PL
+  (`shipping_fees`): Đài/Sing/Nhật mất giá vốn nếu không gửi lại (hàng hoàn còn hạn lưu kho được
+  liệt kê riêng), UAE hàng về kho D&T nên không mất. Luật số ở `talpha_rules.json → ket_qua_kd`.
+  Mọi vai xem nước của team mình; từng khoản vận hành (lương từng người) chỉ giám đốc thấy và ghi.
+  Tab P&L (mục Báo cáo) giữ nguyên làm số tạm tính nhanh (coi mọi đơn giao hết).
 * Thanh toán quảng cáo vẫn chỉ giám đốc: thẻ và TKQC chạy chung cả công ty, không chia theo team.
   Không đặt tên "Chi phí quảng cáo" — trùng tab trong mục Quảng cáo (*tiêu bao nhiêu, ROAS*),
   trùng tên là sớm muộn có người đem số đối soát đi tính ROAS.
@@ -260,6 +273,8 @@ Meta theo nước ở tên campaign); bảng gộp mọi nước (`vw_attributio
 | `sheet-report` | Số từ file TỔNG TEAM — `?date=` một ngày, `?from&to=` cộng cả khoảng | Bot Zalo · tab Tổng quan |
 | `report-config` | Mốc gốc báo cáo cho bộ chọn ngày | Giao diện |
 | `pnl-costs` | Giá vốn + phí ship ước tính của đơn đã chốt, theo ngày và nước; liệt kê mã chưa có giá | Tab P&L · Tổng quan |
+| `lai-lo` | Lãi lỗ đủ mọi khoản theo nước (`lib/talpha/lai-lo.ts` hàm thuần + test, nạp kiện ở `lai-lo-nguon.ts`). Doanh số + ads đọc TỔNG TEAM qua `lib/talpha/sheet-tong-team.ts` (chung với `sheet-report`); kiện Đài qua `lib/talpha/so-don-dai.ts` (chung với `order-ledger`). Route tự cắt nước theo team; chi phí chung chia theo doanh số MỌI nước | Tab Lãi lỗ |
+| `lai-lo/van-hanh` | POST thêm/sửa · DELETE xoá một khoản chi phí vận hành — chỉ người xem hết (giám đốc) | Tab Lãi lỗ |
 | `product-pnl` | P&L từng sản phẩm: doanh số chia theo số lượng, ads theo mã SP trong tên campaign | Tab P&L theo SP |
 
 Hạ tầng: `auth/[...nextauth]`, `auth/validate`, `users`, `ad-accounts`.

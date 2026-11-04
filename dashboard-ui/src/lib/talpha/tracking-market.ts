@@ -42,7 +42,7 @@ export async function loadPartnerMarketShipments<S extends MarketStoreBase>(
     const store = await readStoreFresh<S>(mk.store, emptyStore());
     const regNumbers = new Set(Object.entries(store.registered).map(([k, r]) => r.number || clean(k)));
     const [rows] = await bigquery.query({
-        query: `SELECT order_no, tracking, status, note, ship_method, city, contact_name, phone, cod, marketer,
+        query: `SELECT order_no, tracking, status, note, ship_method, city, contact_name, phone, cod, marketer, sku, quantity,
                        FORMAT_DATE('%Y-%m-%d', order_date) AS order_date,
                        FORMAT_DATE('%Y-%m-%d', ship_date) AS ship_date,
                        FORMAT_TIMESTAMP('%Y-%m-%dT%H:%M:%SZ', synced_at) AS synced_at
@@ -61,7 +61,11 @@ export async function loadPartnerMarketShipments<S extends MarketStoreBase>(
         const key = byKey.has(key0) ? `${key0}#${r.order_no || byKey.size}` : key0;
         const s = partnerOrderShipment(mk, r, store.statuses[key0] as SavedTrack | undefined,
             !!store.registered[key0] || (!!t && regNumbers.has(t)));
-        byKey.set(key, { ...s, tracking: key });
+        byKey.set(key, {
+            ...s, tracking: key,
+            sku: r.sku ? String(r.sku) : null,
+            quantity: Math.max(1, Number(String(r.quantity ?? "").replace(/[^\d.]/g, "")) || 1),
+        });
     }
     return { shipments: [...byKey.values()], store, lastImport };
 }

@@ -26,6 +26,7 @@ import { MarketsProvider, useMarkets } from "./markets-context";
 import TALPHAOrderLedgerTab from "./tabs/order-ledger-tab";
 import TALPHATrackingTab from "./tabs/tracking-tab";
 import TALPHAAdsReconTab from "./tabs/ads-recon-tab";
+import TALPHALaiLoTab from "./tabs/lai-lo-tab";
 
 /**
  * Điều hướng gom về 5 mục theo đúng cấu trúc AUUS1 (Báo cáo · Sản phẩm ·
@@ -74,9 +75,13 @@ const NAV_GROUPS: NavGroup[] = [
     //     TKQC chạy chung cả công ty, không chia được theo team → chỉ giám đốc (CHI_GIAM_DOC).
     // Không gọi là "Chi phí quảng cáo": trùng tên tab trong mục Quảng cáo (tiêu bao nhiêu,
     // ROAS) — trùng tên là sớm muộn có người đem số đối soát đi tính ROAS.
+    //   • Lãi lỗ (04/11/2026) đứng ĐẦU mục: kết quả kinh doanh đủ mọi khoản — doanh số → doanh
+    //     thu (kiện giao thật, kiện đang đi theo tỉ lệ giao) → giá vốn → chi phí 3PL → chi phí
+    //     khai thác (ads + vận hành) → lợi nhuận sau cùng. Mọi vai xem, chỉ nước của team mình.
     {
         id: "ke-toan", emoji: "💼", label: "Kế toán",
         tabs: [
+            { id: "lai-lo", label: "Lãi lỗ" },
             { id: "cod-recon", label: "Tiền COD về" },
             { id: "ads-recon", label: "Thanh toán quảng cáo" },
         ],
@@ -108,7 +113,7 @@ const IGNORES_DATE_RANGE = new Set(["ads-command", "ad-health", "ads-recon"]);
  * Sỹ Anh chốt 25/09/2026: trước 15/09 dữ liệu chưa đủ). Tab vận hành (Sổ đơn, Tiền COD về,
  * Vận đơn, Kho, Khách hàng) KHÔNG chặn: đơn tháng trước vẫn còn đang chờ thu tiền.
  */
-const FLOOR_TABS = new Set(["overview", "pnl", "product-pnl", "marketing", "ad-spend"]);
+const FLOOR_TABS = new Set(["overview", "pnl", "product-pnl", "lai-lo", "marketing", "ad-spend"]);
 
 /** Các mục menu còn lại sau khi bỏ tab người này không được xem (phân quyền theo team). */
 function nhomDuocXem(me: Me): NavGroup[] {
@@ -374,6 +379,7 @@ export default function TALPHADashboardShell() {
                     {duocXem("product-pnl") && <TALPHAProductPnLTab dateRange={tabRange} projectId="TALPHA" />}
                     {duocXem("tracking") && <TALPHATrackingTab dateRange={dateRange} projectId="TALPHA" />}
                     {duocXem("order-ledger") && <TALPHAOrderLedgerTab dateRange={dateRange} projectId="TALPHA" />}
+                    {duocXem("lai-lo") && <TALPHALaiLoTab dateRange={tabRange} />}
                     {duocXem("cod-recon") && <TALPHACodReconTab dateRange={dateRange} projectId="TALPHA" />}
                     {duocXem("products") && <TALPHAProductsTab dateRange={dateRange} projectId="TALPHA" />}
                     {duocXem("marketing") && <TALPHAMarketingTab dateRange={tabRange} projectId="TALPHA" />}
