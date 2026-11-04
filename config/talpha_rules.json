@@ -56,17 +56,20 @@
       "pos_money_divisor_confirmed": true,
       "product_code_in_name": false,
       "product_costs_vnd": {
-        "_note": "Giá vốn sản phẩm shop UAE theo ĐÚNG tên trên POS (so chữ HOA), tính bằng ĐỒNG — Sỹ Anh gửi 25/09/2026. 'hang' = tiền hàng, 'hop' = hộp trang sức gửi kèm (15.000đ, chỉ món trang sức). Giá vốn một cái = hang + hop.",
+        "_note": "Giá vốn sản phẩm shop UAE, tính bằng ĐỒNG — Sỹ Anh gửi 25/09/2026. 'hang' = tiền hàng, 'hop' = hộp trang sức gửi kèm (15.000đ, chỉ món trang sức). Giá vốn một cái = hang + hop. Tra theo MÃ VẠCH POS ('barcode') trước, rồi mới theo tên (so chữ HOA): 07/10/2026 shop đổi tên cả ba món (cùng product_id, cùng mã vạch) — Oralhoe Dental 002 → 'Health Product - 01', Lucky Bracelet 003 → 'Jewelry - 01', Gold Bracelet 001 → 'Jewelry - 02' (đối chiếu 04/11/2026). CHƯA có giá: mã vạch 4-1 'Jewelry - 03', 5-1 'Jewelry - 04', 6-1 'Jewelry - 05', 7-1 'Jewelry - 06', 8-1 'Health Product - 02', 9-1 'Health Product - 03'.",
         "ORALHOE DENTAL 002": {
-          "hang": 21400
+          "hang": 21400,
+          "barcode": "2-1"
         },
         "GOLD BRACELET 001": {
           "hang": 23400,
-          "hop": 15000
+          "hop": 15000,
+          "barcode": "1-1"
         },
         "LUCKY BRACELET 003": {
           "hang": 36600,
-          "hop": 15000
+          "hop": 15000,
+          "barcode": "3-1"
         }
       },
       "_product_code_note": "Shop UAE đánh số sản phẩm RIÊNG ('Oralhoe Dental 002', 'Gold Bracelet 001') — số cuối tên KHÔNG phải mã 3 số của bảng giá (002 là vòng phong thuỷ). Giá vốn đơn UAE chỉ tra qua product_name_aliases; tên chưa khai thì hiện ở khung 'Còn thiếu' của tab P&L, không lấy nhầm giá.",
@@ -573,7 +576,9 @@
       "return_ship_fee": 0,
       "cod_fee_pct": 0.02,
       "_ship_note": "Vận chuyển đơn thành công 17 AED, đồng giá cho đơn dưới 1 kg; đơn hoàn miễn phí vận chuyển. Thu hộ COD 2% doanh thu đơn.",
-      "warehouse": "Miễn phí lưu kho nếu mỗi ngày xuất dưới 10% tổng tồn kho; vượt thì tính phí lưu kho (bảng giá không ghi mức)."
+      "warehouse": "Miễn phí lưu kho cho mọi khách; NHƯNG ngày nào số hàng xuất kho dưới 10% tổng số hàng tồn thì tính phí lưu kho 75 AED/CBM/tháng (Sỹ Anh gửi lại bảng giá 04/11/2026 — ghi chú trước đó ghi ngược điều kiện). Tab Lãi lỗ CHƯA trừ khoản này: chưa có số CBM hàng tồn ở kho D&T.",
+      "storage_fee_aed_per_cbm_month": 75,
+      "storage_free_if_daily_out_pct_of_stock": 0.1
     },
     "JP": {
       "partner": "NAZA",

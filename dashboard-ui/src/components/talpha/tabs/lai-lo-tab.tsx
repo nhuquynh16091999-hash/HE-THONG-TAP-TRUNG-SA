@@ -270,7 +270,7 @@ export default function TALPHALaiLoTab({ dateRange }: Props) {
                         {thieuGia > 0 && (
                             <li><strong>{formatNumber(thieuGia)} kiện thiếu giá vốn</strong> ({okNuoc.filter((n) => n.tk?.thieu_gia_von).map((n) => `${n.ten} ${formatNumber(n.tk!.thieu_gia_von)}/${formatNumber(n.tk!.kien.tong.n - n.tk!.kien.huy.n)}`).join(" · ")})
                                 {" "}— phần thiếu đang tính 0 nên <strong>lãi đang cao hơn thật</strong>. Mã 3 số chưa có giá tệ thì khai ở <code className="rounded bg-muted px-1">talpha_rules.json → products</code>;
-                                UAE tra theo tên hàng trên POS (<code className="rounded bg-muted px-1">markets.UAE.product_costs_vnd</code>). Danh sách tên/mã thiếu ở tab P&L (mục Báo cáo).</li>
+                                UAE tra theo mã vạch / tên hàng trên POS (<code className="rounded bg-muted px-1">markets.UAE.product_costs_vnd</code>). Danh sách tên/mã thiếu ở tab P&L (mục Báo cáo).</li>
                         )}
                         {tamNuoc.map((n) => (
                             <li key={n.code}><strong>Tỉ lệ giao {n.ten} còn tạm</strong> — {n.ty_le?.r == null ? "chưa có kiện nào giao xong hay hoàn để đo" : `mới đo trên ${formatNumber((n.ty_le?.giao || 0) + (n.ty_le?.hoan || 0))} kiện (cần ${data.cfg.ty_le.mau_toi_thieu} kiện lên đơn từ ${data.cfg.ty_le.bo_gan_ngay} ngày trước)`}; doanh thu dự kiến nước này còn trôi.</li>

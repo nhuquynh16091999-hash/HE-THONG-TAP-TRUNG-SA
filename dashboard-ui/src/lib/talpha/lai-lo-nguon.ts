@@ -307,8 +307,9 @@ async function kienUae(from: string, to: string, asOf: string): Promise<NguonNuo
         co_so: [
             `Phí 3PL: bảng giá D&T Fulfillment (chưa có sao kê) — fulfillment ${fulfill} AED/đơn (${(donKy / soNgayKy).toFixed(1)} đơn/ngày, đơn hoàn cũng mất) `
             + `+ vận chuyển đơn thành công ${f.delivered_ship_fee} AED + thu hộ ${(Number(f.cod_fee_pct || 0) * 100).toFixed(0)}% tiền đơn; đơn hoàn miễn phí vận chuyển.`,
-            "Hàng hoàn về kho D&T bán tiếp được → đơn hoàn không mất giá vốn.",
-            "Giá vốn: tên hàng trên POS × markets.UAE.product_costs_vnd (tiền hàng + hộp).",
+            "Hàng hoàn về kho D&T bán tiếp được → đơn hoàn không mất giá vốn. Chưa trừ phí lưu kho "
+            + `${f.storage_fee_aed_per_cbm_month ?? 75} AED/CBM/tháng (D&T thu khi hàng xuất mỗi ngày dưới 10% tồn kho) — chưa có số CBM hàng tồn.`,
+            "Giá vốn: mã vạch hàng trên POS (đổi tên vẫn ra đúng món), không có thì tên hàng × markets.UAE.product_costs_vnd (tiền hàng + hộp).",
         ],
     };
 }

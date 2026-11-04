@@ -84,17 +84,27 @@ const MA_3_SO_THEO_SHOP: Record<string, boolean> = Object.fromEntries(
 
 // Giá vốn theo TÊN sản phẩm, bằng ĐỒNG, riêng từng shop (markets.*.product_costs_vnd) — shop UAE
 // đặt tên riêng và Sỹ Anh báo giá bằng đồng (25/09/2026). Một cái = tiền hàng + hộp trang sức.
+//
+// Tra MÃ VẠCH POS trước (04/11/2026): ngày 07/10 shop UAE đổi tên cả ba món ("Oralhoe Dental 002"
+// → "Health Product - 01"…) — cùng product_id, cùng mã vạch — và tra theo tên là 178/230 đơn tháng
+// 10 mất giá vốn. Mục nào khai `barcode` thì đổi tên bao nhiêu lần vẫn ra đúng giá; khoá gom ở tab
+// P&L theo SP lấy tên khai trong bảng nên tên cũ và tên mới gộp làm một dòng.
+type GiaShop = { gia: number; ten: string };
 const GIA_THEO_TEN: Record<string, Record<string, number>> = {};
+const GIA_THEO_MA: Record<string, Record<string, GiaShop>> = {};
 for (const m of Object.values(RULES.markets as Record<string, {
-    shop_label?: string; product_costs_vnd?: Record<string, { hang?: number; hop?: number } | string>;
+    shop_label?: string; product_costs_vnd?: Record<string, { hang?: number; hop?: number; barcode?: string | string[] } | string>;
 }>)) {
     if (!m || typeof m !== "object" || !m.shop_label || !m.product_costs_vnd) continue;
-    const bang: Record<string, number> = {};
+    const bang: Record<string, number> = {}, theoMa: Record<string, GiaShop> = {};
     for (const [ten, v] of Object.entries(m.product_costs_vnd)) {
         if (ten.startsWith("_") || typeof v !== "object" || !(Number(v.hang) > 0)) continue;
-        bang[khoaTen(ten)] = Number(v.hang) + Number(v.hop || 0);
+        const gia = Number(v.hang) + Number(v.hop || 0);
+        bang[khoaTen(ten)] = gia;
+        for (const ma of [v.barcode || []].flat()) if (String(ma).trim()) theoMa[String(ma).trim()] = { gia, ten: khoaTen(ten) };
     }
     GIA_THEO_TEN[String(m.shop_label).toUpperCase()] = bang;
+    GIA_THEO_MA[String(m.shop_label).toUpperCase()] = theoMa;
 }
 
 /** Đọc kho sao kê NAZA (Đài): phí trung bình một kiện + cân tính phí trung bình. */
@@ -181,7 +191,7 @@ export async function tinhChiPhiDon(from: string, to: string, chiShop?: (shop: s
                            AND IFNULL(total_price, 0) = 0 AND IFNULL(cod, 0) = 0)
             )
             SELECT don.id, don.shop, CAST(don.d AS STRING) AS d, don.cod, don.total_price,
-                   i.product_name, i.variation_name, IFNULL(i.quantity, 0) AS qty
+                   i.product_name, i.variation_name, i.barcode, IFNULL(i.quantity, 0) AS qty
             FROM don
             LEFT JOIN \`${BQ_PROJECT}.${BQ_DATASET}.order_items\` i
                    ON CAST(i.order_id AS STRING) = don.id AND i.shop_id = don.shop_id`,
@@ -211,7 +221,13 @@ export async function tinhChiPhiDon(from: string, to: string, chiShop?: (shop: s
         // Tên khai tay ở product_name_aliases thắng; sau đó giá theo tên của shop (UAE); cuối cùng
         // mới đọc mã 3 số trong tên (chỉ ở shop đặt tên theo mã của bảng giá).
         const biDanh = ALIASES[khoaTen(ten)];
+        const theoMa = r.barcode ? GIA_THEO_MA[r.shop]?.[String(r.barcode).trim()] : undefined;
         const giaTen = GIA_THEO_TEN[r.shop]?.[khoaTen(ten)];
+        if (!biDanh && theoMa) {
+            o.cogs += theoMa.gia * qty;
+            o.dong.push({ sp: `${r.shop}:${theoMa.ten}`, ten, qty, gia_vnd: theoMa.gia });
+            continue;
+        }
         if (!biDanh && giaTen !== undefined) {
             o.cogs += giaTen * qty;
             o.dong.push({ sp: `${r.shop}:${khoaTen(ten)}`, ten, qty, gia_vnd: giaTen });
