@@ -23,6 +23,8 @@
 //     trung bình/ngày + vận chuyển đơn thành công (đồng giá dưới 1 kg) + thu hộ COD % tiền đơn.
 //   • Nhật (JP, 13/10/2026): bảng giá NAZA shipping_fees.JP (lib/talpha/phi-ship-nhat.ts) — cước
 //     theo bậc 0,5 kg (cân lấy từ kiện NAZA Đài như Singapore) + thu hộ theo bậc tiền COD (yên).
+//   • Việt Nam (VN, 12/11/2026): phí J&T cố định một đơn (shipping_fees.VN: packing + delivery),
+//     giá vốn cố định một đơn (markets.Vietnam.cogs_per_order_vnd) — Sỹ Anh chốt 1.000đ + 13.000đ.
 //   • Nước khác: không đoán — null để giao diện ghi "thiếu".
 // ═══════════════════════════════════════════════════════════════════
 import { bigquery } from "@/lib/bigquery";
@@ -105,6 +107,22 @@ for (const m of Object.values(RULES.markets as Record<string, {
     }
     GIA_THEO_TEN[String(m.shop_label).toUpperCase()] = bang;
     GIA_THEO_MA[String(m.shop_label).toUpperCase()] = theoMa;
+}
+
+// Giá vốn CỐ ĐỊNH MỘT ĐƠN (markets.*.cogs_per_order_vnd) — shop bán nhiều loại hàng rẻ đồng giá
+// (hạt giống VN: 1.000đ/đơn, Sỹ Anh chốt 12/11/2026). Khai thì thắng mọi cách tra theo tên/mã.
+const GIA_THEO_DON: Record<string, number> = {};
+for (const m of Object.values(RULES.markets as Record<string, { shop_label?: string; cogs_per_order_vnd?: number }>)) {
+    if (m && typeof m === "object" && m.shop_label && Number(m.cogs_per_order_vnd) > 0) {
+        GIA_THEO_DON[String(m.shop_label).toUpperCase()] = Number(m.cogs_per_order_vnd);
+    }
+}
+// Phí ship CỐ ĐỊNH MỘT ĐƠN (shipping_fees.<shop> có packing/delivery là số) — J&T Việt Nam.
+type PhiPhang = { partner?: string; packing?: number; delivery?: number; cod_flat?: number; cod_pct?: number };
+function phiPhangLocal(shop: string, local: number): number | null {
+    const f = FEES[shop] as PhiPhang | undefined;
+    if (!f || typeof f.packing !== "number" || typeof f.delivery !== "number") return null;
+    return f.packing + f.delivery + (f.cod_flat || 0) + (f.cod_pct || 0) * local;
 }
 
 /** Đọc kho sao kê NAZA (Đài): phí trung bình một kiện + cân tính phí trung bình. */
@@ -212,6 +230,10 @@ export async function tinhChiPhiDon(from: string, to: string, chiShop?: (shop: s
         if (r.product_name == null && r.variation_name == null) { o.du = false; continue; }  // đơn không có dòng hàng
         const ten = `${r.product_name || ""} ${r.variation_name || ""}`.trim();
         const qty = Number(r.qty || 0);
+        if (GIA_THEO_DON[r.shop] !== undefined) {   // giá theo đơn — chia đều cho từng cái ở vòng sau
+            o.dong.push({ sp: `${r.shop}:${khoaTen(ten) || "(KHÔNG TÊN)"}`, ten, qty, gia_vnd: null });
+            continue;
+        }
         const ghiThieu = (ma: string) => {
             const t = thieu.get(ma) || { ma, ten, qty: 0, don: new Set<string>() };
             t.qty += qty; t.don.add(key); thieu.set(ma, t);
@@ -243,6 +265,14 @@ export async function tinhChiPhiDon(from: string, to: string, chiShop?: (shop: s
         }
     }
 
+    for (const o of donMap.values()) {
+        const gia = GIA_THEO_DON[o.shop];
+        if (gia === undefined) continue;
+        o.cogs = gia; o.du = true;
+        const tongCai = o.dong.reduce((s, x) => s + (x.qty || 0), 0);
+        for (const x of o.dong) x.gia_vnd = tongCai > 0 ? gia / tongCai : 0;
+    }
+
     const naza = await docSaoKeNaza();
     // UAE: bậc phí fulfillment theo số đơn TRUNG BÌNH/NGÀY của khoảng đang xem.
     const soNgay = Math.max(1, Math.round((Date.parse(to) - Date.parse(from)) / 86_400_000) + 1);
@@ -260,6 +290,10 @@ export async function tinhChiPhiDon(from: string, to: string, chiShop?: (shop: s
                 : (fulfillAe + AE_FEES.delivered_ship_fee + (AE_FEES.cod_fee_pct || 0) * (o.vnd / tyGiaAe)) * tyGiaAe;
         } else if (o.shop === "JP") {
             o.ship = tyGiaJp ? phiShipNhatVnd(o.vnd / tyGiaJp, naza.can ? naza.can.bac_500g_tb : null, tyGiaJp, COST_RATE_RMB_VND) : null;
+        } else {
+            const tg = EXCHANGE_RATES[SHOP2MKT[o.shop]] || 0;
+            const local = tg ? phiPhangLocal(o.shop, o.vnd / tg) : null;
+            o.ship = local === null ? null : local * tg;
         }
     }
 
@@ -296,6 +330,12 @@ export async function tinhChiPhiDon(from: string, to: string, chiShop?: (shop: s
             + `${fmt(naza.can.kien)} kiện NAZA Đài → ${(cuocNhatRmb(bac) || 0).toFixed(1)} tệ) + phí thu hộ theo bậc tiền COD `
             + `(${(BANG_GIA_NHAT.cod_fee_jpy_tiers || []).map((x) => `≤${fmt(x.max_cod_jpy)}¥: ${x.fee}¥`).join(" · ")}), `
             + `quy ${fmt(COST_RATE_RMB_VND)}đ/tệ, ${fmt(tyGiaJp)}đ/yên. Chưa gồm phụ thu vùng xa 1.600¥, phí từ chối / hoàn 800¥.`;
+    }
+    for (const shop of Object.keys(GIA_THEO_DON).concat(Object.keys(FEES))) {
+        const f = FEES[shop] as PhiPhang | undefined;
+        if (ship_basis[shop] || !f || typeof f.packing !== "number" || ["TW", "SG", "AE", "JP"].includes(shop)) continue;
+        const tb = tbShip(shop);
+        if (tb !== null) ship_basis[shop] = `${fmt(tb)}đ/đơn = phí ${f.partner || "vận chuyển"} cố định một đơn (talpha_rules.json → shipping_fees.${shop}).`;
     }
     if (chiShop) for (const k of Object.keys(ship_basis)) if (!chiShop(k)) delete ship_basis[k];
 

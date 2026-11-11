@@ -113,8 +113,10 @@
       "pos_money_divisor_confirmed": true,
       "product_code_in_name": false,
       "product_costs_vnd": {
-        "_note": "Giá vốn hạt giống tính bằng ĐỒNG theo TÊN sản phẩm POS (chữ HOA) — CHƯA CÓ: Sỹ Anh gửi sau (chốt 11/11/2026). Chưa khai thì tab P&L liệt kê ở khung 'Còn thiếu', không coi là 0."
+        "_note": "VN tính giá vốn THEO ĐƠN (cogs_per_order_vnd bên dưới), không tra theo tên sản phẩm."
       },
+      "cogs_per_order_vnd": 1000,
+      "_cogs_note": "Sỹ Anh chốt 12/11/2026: giá vốn hạt giống 1.000đ/đơn (mọi đơn, mọi loại hạt, bao nhiêu gói cũng vậy).",
       "display": "Việt Nam",
       "flag": "🇻🇳",
       "phone": {
@@ -128,7 +130,7 @@
       "_note": "Mở 11/11/2026 (Sỹ Anh gửi key shop POS 'VIỆT NAM' 1329125435 — chính là shop Hạt Giống cũ đổi tên; page Kho Hạt Giống Việt · Tổng Kho Hạt Giống Nông Nghiệp · Hạt Giống Nông Nghiệp F1). Bán hạt giống hoa/rau trong nước, COD, giao J&T Việt Nam (POS nối thẳng J&T, mã vận đơn ở partner.extend_code). Đơn chủ yếu đổ từ landing Webcake (utm_campaign = ID quảng cáo). Team riêng 'Việt Nam' (access.teams.viet_nam), leader Sỹ Anh chỉ định sau. Camp đặt 'VN/<MARKETER>/…'. Key ở TALPHA_POSCAKE_VN_KEY.",
       "_divisor_note": "ĐO 11/11/2026 trên đơn thật: cod 99000 = 99.000đ (combo 8 gói vạn thọ 99k) → POS lưu nguyên đồng, chia 1. Tỷ giá 1 vì đã là VND.",
       "_orders_from_note": "Sỹ Anh chốt 11/11/2026 tính từ 01/11/2026. Đơn POS cũ nhất còn trên shop tạo 02/11.",
-      "_todo": "Chưa có: giá vốn từng loại hạt (product_costs_vnd), bảng phí ship J&T (shipping_fees.VN) — POS ghi phí J&T = 0."
+      "_cost_note": "Giá vốn 1.000đ/đơn (cogs_per_order_vnd) + phí J&T 13.000đ/đơn (shipping_fees.VN) — Sỹ Anh chốt 12/11/2026. POS ghi phí J&T = 0 nên không đọc từ POS."
     }
   },
   "market_aliases": {
@@ -654,7 +656,17 @@
       "limits": "Tổng ba cạnh ≤ 180 cm, nặng ≤ 15 kg. Cấm: hàng tươi sống, thực phẩm, dược phẩm, chất dễ cháy nổ, ăn mòn, chất lỏng, bột, vũ khí, ma tuý; hàng giả / nhái thương hiệu phạt 2.000 CNY/đơn; gửi sai tuyến phạt 2.000 CNY/đơn.",
       "_estimate_note": "Chưa có sao kê Nhật nên chưa biết cân từng kiện: P&L lấy cân tính phí của các kiện NAZA Đài (cùng loại hàng), làm tròn lên bậc 0,5 kg từng kiện rồi lấy trung bình. Có sao kê Nhật đầu tiên thì thay bằng số thật."
     },
-    "_todo_other_markets": "Đài Loan (TW), Singapore (SG), UAE (AE), Nhật Bản (JP) đã khai."
+    "VN": {
+      "partner": "J&T",
+      "currency": "VND",
+      "declared": true,
+      "packing": 0,
+      "delivery": 13000,
+      "cod_pct": 0,
+      "cod_flat": 0,
+      "_note": "Sỹ Anh chốt 12/11/2026: phí J&T 13.000đ/đơn đã gửi đi — giao hay hoàn đều tính một lần (chưa có phí hoàn riêng). POS ghi phí J&T = 0 nên không đọc từ POS."
+    },
+    "_todo_other_markets": "Đài Loan (TW), Singapore (SG), UAE (AE), Nhật Bản (JP), Việt Nam (VN) đã khai."
   },
   "cod_settlement": {
     "_note": "Công thức quyết toán của NAZA, đã kiểm đúng trên cả 7 kỳ (lệch 0).",

@@ -336,6 +336,9 @@ async function kienVn(from: string, to: string, asOf: string): Promise<NguonNuoc
     ]);
     const gv = new Map(chiPhi.don.map((d) => [d.key.replace(/^VN-/, ""), d]));
     const r = rate("VN") || 1;
+    // Phí J&T cố định một đơn (shipping_fees.VN, Sỹ Anh chốt 13.000đ 12/11/2026) — giao hay hoàn đều mất.
+    const fVn = FEES.VN || {};
+    const phiVn = typeof fVn.packing === "number" ? (fVn.packing + (fVn.delivery || 0) + (fVn.cod_flat || 0)) * r : null;
     const kien: Kien[] = (rows as any[]).map((x) => {
         const st = POS_SANG_CHUAN[String(x.status_category || "").toUpperCase()] || null;
         const daGui = !!x.time_send_partner || st === "InTransit";
@@ -346,7 +349,7 @@ async function kienVn(from: string, to: string, asOf: string): Promise<NguonNuoc
             trang_thai: x.status_name || x.status_category || "",
             cod_vnd: (Number(x.cod) || 0) * r, cod_that_vnd: null,
             gia_von_vnd: d ? (d.du ? d.cogs : null) : null,
-            phi_di_vnd: 0, phi_giao_vnd: 0, phi_hoan_vnd: 0, phi_that: false,
+            phi_di_vnd: phiVn ?? 0, phi_giao_vnd: 0, phi_hoan_vnd: 0, phi_that: false,
             hang_ve_kho: VE_KHO.has("VN"),
         };
     });
@@ -355,7 +358,9 @@ async function kienVn(from: string, to: string, asOf: string): Promise<NguonNuoc
         nguon: "Đơn POS Việt Nam (trạng thái J&T trong POS)",
         co_so: [
             "Trạng thái giao/hoàn: POS shop VIỆT NAM nối thẳng J&T, cập nhật mỗi lượt sync.",
-            "CHƯA có bảng phí J&T (POS ghi phí = 0) và giá vốn hạt giống — hai khoản đang thiếu, Sỹ Anh gửi sau (11/11/2026).",
+            phiVn === null ? "CHƯA khai phí J&T (shipping_fees.VN) — POS ghi phí = 0."
+                : `Phí J&T ${Math.round(phiVn).toLocaleString("vi-VN")}đ/đơn đã gửi, giao hay hoàn đều tính (shipping_fees.VN).`,
+            `Giá vốn ${Math.round(Number((RULES.markets as any).Vietnam?.cogs_per_order_vnd) || 0).toLocaleString("vi-VN")}đ/đơn (markets.Vietnam.cogs_per_order_vnd) — Sỹ Anh chốt 12/11/2026.`,
         ],
     };
 }
