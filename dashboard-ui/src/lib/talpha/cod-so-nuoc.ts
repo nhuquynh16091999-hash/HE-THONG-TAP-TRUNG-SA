@@ -37,7 +37,8 @@ const gon = (s: string) => s.replace(/\s+/g, "");
 // ③ Luồng tiền một kỳ
 // ─────────────────────────────────────────────────────────────────────────
 
-export type DongTru = { nhan: string; so: number; ghi?: string };
+/** `ky_truoc` = khoản âm của kỳ trước NAZA trừ vào kỳ này — không phải tiền hàng. */
+export type DongTru = { nhan: string; so: number; ghi?: string; loai?: "ky_truoc" };
 export type LuongNuoc = {
     so_don: number;
     cod_local: number;
@@ -56,15 +57,24 @@ export type LuongNuoc = {
     phai_nhan_vnd: number | null;
 };
 
-/** Nhãn tiếng Việt của dòng sheet TỔNG, bỏ đuôi "(RMB)"/"(VND)" — không có thì nhãn Trung. */
+/** Nhãn tiếng Việt của dòng sheet TỔNG, bỏ đuôi "(RMB)"/"(VND)"/"(JPY)" — không có thì nhãn Trung. */
 const tenDong = (x: { zh: string; vi: string }) =>
-    x.vi.replace(/\(\s*(RMB|VND)\s*\)/gi, "").replace(/\s+/g, " ").trim() || x.zh;
+    x.vi.replace(/\(\s*(RMB|VND|JPY)\s*\)/gi, "").replace(/\s+/g, " ").trim() || x.zh;
+
+/**
+ * Dòng tiền ròng sau khi trừ: mẫu Sing ghi '本期应退金额RMB', mẫu Nhật ghi '应退金额（RMB）' (không có
+ * 本期). Dòng ròng bằng yên '应退日币' không chứa '应退金额' nên không lọt vào đây.
+ */
+const laNet = (zh: string) => gon(zh).includes("应退金额");
+
+/** Phí trong sheet TỔNG — mẫu Sing gộp hết vào dòng 速递运费, mẫu Nhật tách 操作费 ra dòng riêng. */
+export const laDongPhi = (zh: string) => /速递运费|快递运费|操作费|打包费|头程运费/.test(gon(zh)) && !/JPY|日币/i.test(zh);
 
 export function luongKy(s: SaoKeNuoc): LuongNuoc | null {
     const n = s.naza;
     if (!n || !n.tong_dong || !n.tong_dong.length) return null;
     const d = n.tong_dong;
-    const laNet = (zh: string) => gon(zh).includes("本期应退金额");
+    const tyRmb = n.ty_gia_rmb ?? null;
     const tru_rmb: DongTru[] = [];
     const thuHo = n.quy_te_rmb != null && n.ve_rmb != null ? n.quy_te_rmb - n.ve_rmb : 0;
     if (thuHo > 0.005) {
@@ -73,6 +83,14 @@ export function luongKy(s: SaoKeNuoc): LuongNuoc | null {
             ghi: n.quy_te_rmb ? `${(thuHo / n.quy_te_rmb * 100).toFixed(1).replace(".", ",")}% tiền COD` : undefined,
         });
     }
+    // Mẫu Nhật: NAZA trừ phí bằng YÊN (thu hộ, hàng bị từ chối, chuyển tiếp…) TRƯỚC khi đổi ra tệ.
+    // Đổi từng dòng ra tệ theo tỷ giá kỳ để luồng tiền đi một mạch: COD × tỷ giá − phí = còn lại.
+    if (tyRmb != null) {
+        for (const x of d) {
+            if (!/JPY/i.test(x.zh) || x.so >= 0 || gon(x.zh).includes("回款")) continue;
+            tru_rmb.push({ nhan: tenDong(x), so: tron(-x.so * tyRmb), ghi: `${(-x.so).toLocaleString("vi-VN")} yên × ${tyRmb}` });
+        }
+    }
     for (const x of d) {
         if (!/RMB/i.test(x.zh) || x.so >= 0 || laNet(x.zh)) continue;
         tru_rmb.push({ nhan: tenDong(x), so: tron(-x.so) });
@@ -80,15 +98,23 @@ export function luongKy(s: SaoKeNuoc): LuongNuoc | null {
     const rmbRong = d.find((x) => laNet(x.zh) && /RMB/i.test(x.zh))?.so ?? null;
     const tyVnd = n.ty_gia_vnd ?? null;
     const quyVnd = rmbRong != null && tyVnd != null ? rmbRong * tyVnd : null;
-    const tru_vnd = d.filter((x) => gon(x.zh).includes("采购费") && x.so !== 0)
+    const tru_vnd: DongTru[] = d.filter((x) => gon(x.zh).includes("采购费") && x.so !== 0)
         .map((x) => ({ nhan: tenDong(x), so: x.so }));
+    // Mẫu Nhật 06/11/2026: kỳ 23/10 âm 14.027.698đ → NAZA ghi dòng '10月23号的回款金额(VND)' (số
+    // DƯƠNG) rồi trừ vào kỳ này. Không tách dòng này ra là phép tính tiền Việt lệch đúng bằng nó.
+    for (const x of d) {
+        if (!/VND/i.test(x.zh) || !gon(x.zh).includes("回款金额") || laNet(x.zh) || x.so === 0) continue;
+        tru_vnd.push({ nhan: tenDong(x), so: Math.abs(x.so), ghi: "kỳ trước âm — NAZA trừ vào kỳ này", loai: "ky_truoc" });
+    }
     const phai = n.phai_nhan_vnd ?? null;
     const chenh = phai != null && quyVnd != null ? phai - (quyVnd - tru_vnd.reduce((t, x) => t + x.so, 0)) : 0;
+    const codLocal = tron(s.rows.reduce((t, r) => t + (Number(r.amount) || 0), 0));
     return {
         so_don: s.rows.length,
-        cod_local: tron(s.rows.reduce((t, r) => t + (Number(r.amount) || 0), 0)),
-        ty_gia_rmb: n.ty_gia_rmb ?? null,
-        rmb: n.quy_te_rmb ?? null,
+        cod_local: codLocal,
+        ty_gia_rmb: tyRmb,
+        // Mẫu Nhật không ghi tỷ giá trên từng đơn nên quy_te_rmb trống → quy bằng tỷ giá kỳ.
+        rmb: n.quy_te_rmb ?? (tyRmb != null ? tron(codLocal * tyRmb) : null),
         tru_rmb,
         rmb_rong: rmbRong,
         ty_gia_vnd: tyVnd,
@@ -341,13 +367,16 @@ export function soCodNuoc(o: {
             checks.push({
                 nhom: "A", ten: "Phép tính trong file", ok: g1 == null || g2 == null ? null : ok1 && ok2,
                 chi_tiet: g1 == null || g2 == null ? "Thiếu số ở sheet TỔNG, không kiểm được phép quyết toán."
-                    : ok1 && ok2 ? `Quy ra tệ ${so2(goc)}¥ − trừ ${so2(truRmb)}¥ = ${so2(l.rmb_rong!)}¥; × ${vnd(l.ty_gia_vnd!)} − tiền hàng = phải nhận ${vnd(l.phai_nhan_vnd!)}đ — tự khớp.`
+                    : ok1 && ok2 ? `Quy ra tệ ${so2(goc)}¥ − trừ ${so2(truRmb)}¥ = ${so2(l.rmb_rong!)}¥; × ${vnd(l.ty_gia_vnd!)} − tiền hàng` +
+                        (l.tru_vnd.some((x) => x.loai === "ky_truoc") ? " − khoản âm kỳ trước" : "") + ` = phải nhận ${vnd(l.phai_nhan_vnd!)}đ — tự khớp.`
                     : !ok1 ? `Phần tệ không khớp: ${so2(goc)}¥ − ${so2(truRmb)}¥ ra ${so2(goc - truRmb)}¥, file ghi ${so2(l.rmb_rong!)}¥.`
                         : `Phần tiền Việt không khớp: tính ra ${vnd(l.vnd! - l.tru_vnd.reduce((t, x) => t + x.so, 0))}đ, file ghi ${vnd(l.phai_nhan_vnd!)}đ.`,
             });
             const veTong = sm.naza?.tong_dong?.find((x) => gon(x.zh).includes("本期回款金额"))?.so;
             const phiCt = (sm.naza?.phi_dong || []).reduce((t, d) => t + d.ship + d.first_leg + d.op, 0);
-            const phiTong = Math.abs(sm.naza?.tong_dong?.find((x) => gon(x.zh).includes("速递运费"))?.so ?? 0);
+            // Cộng MỌI dòng phí của sheet TỔNG: mẫu Nhật tách 操作费 ra dòng riêng — chỉ lấy dòng
+            // 速递运费 là báo lệch giả đúng bằng phí thao tác (kỳ 06/11/2026: 912¥ vs 855¥, lệch 57¥).
+            const phiTong = (sm.naza?.tong_dong || []).filter((x) => laDongPhi(x.zh)).reduce((t, x) => t + Math.abs(x.so), 0);
             const gVe = veTong != null && sm.naza?.ve_rmb != null ? sm.naza.ve_rmb - veTong : null;
             const okVe = gVe == null || Math.abs(gVe) < 0.5, okPhi = Math.abs(phiCt - phiTong) < 0.5;
             checks.push({

@@ -317,4 +317,91 @@ t("quá 7 ngày + 1 ngày ân hạn không có kỳ mới → nhắc tải sao k
     assert.ok(!so(undefined, "2026-10-13").viec.some((v) => v.id === "thieu-sao-ke"));
 });
 
+console.log("── Mẫu sao kê NHẬT (số thật kỳ 23/10 + 06/11/2026) ──");
+// Mẫu Nhật khác Sing ba chỗ: phí trừ bằng YÊN trước khi đổi tệ; 操作费 nằm dòng riêng (không gộp
+// vào 速递运费); tiền ròng tệ ghi '应退金额（RMB）' không có 本期. Kỳ 06/11 còn trừ khoản âm kỳ 23/10.
+const jp06 = {
+    id: "jp06", filename: "A.SỸ ANH  - ĐỐI SOÁT COD NHẬT 2026-11-6(1).xlsx", uploaded_at: "2026-11-11T05:57:26Z", kieu: "naza", ngay: "2026-11-06", canh_bao: [],
+    rows: [{ tracking: "256500706475", order_id: "J1", amount: 335967, fee: 0, paid_date: "2026-10-16", status: "paid" }],
+    naza: {
+        cod_local: 335967, ty_gia_rmb: 0.042011, ty_gia_vnd: 3825, phi_rmb: 912, don_phi: 19, tien_hang_vnd: 0, phai_nhan_vnd: 32926269.187025,
+        sheets: {}, quy_te_rmb: null, ve_rmb: 335967, thu_ho: [],
+        tong_dong: [
+            { zh: "回款金额（JPY）", vi: "Số tiền thu về (JPY)", so: 335967 },
+            { zh: "代引手续费JPY", vi: "Phí dịch vụ thu hộ COD (JPY)", so: -9300 },
+            { zh: "退款手续费JPY", vi: "Phí xử lý hoàn tiền (JPY)", so: 0 },
+            { zh: "拒签退件费JPY", vi: "Phí trả hàng do người nhận từ chối nhận (JPY)", so: -9600 },
+            { zh: "转寄运费JPY", vi: "Phí vận chuyển đơn chuyển tiếp (JPY)", so: -3160 },
+            { zh: "偏远费JPY", vi: "Phí vùng xa (JPY)", so: 0 },
+            { zh: "应退日币", vi: "Số tiền Yên Nhật cần hoàn trả", so: 313907 },
+            { zh: "汇率", vi: "Tỷ giá", so: 0.042011 },
+            { zh: "日本折合人民币", vi: "Số tiền quy đổi từ Yên Nhật sang Nhân dân tệ", so: 13187.546977 },
+            { zh: "速递运费RMB", vi: "Phí vận chuyển (RMB)", so: -855 },
+            { zh: "操作费 RMB", vi: "Phí thao tác (RMB)", so: -57 },
+            { zh: "应退金额（RMB）", vi: "Số tiền cần hoàn trả (RMB)", so: 12275.546977 },
+            { zh: "10月23号的回款金额(VND)", vi: "Đối soát COD 23.10 (VND)", so: 14027698 },
+            { zh: "汇率", vi: "Tỷ giá", so: 3825 },
+            { zh: "日本本期采购费 VND", vi: "Phí mua hàng Nhật  (VND)", so: 0 },
+            { zh: "本期应退金额 VND", vi: "COD cần hoàn trả kỳ này (VND)", so: 32926269.187025 },
+        ],
+        phi_dong: Array.from({ length: 19 }, (_, i) => ({ tracking: "JPF" + i, order_id: "JF" + i, kg: 0.5, ship: 45, first_leg: 0, op: 3 })),
+        trung_phi: [],
+    },
+};
+const jp23 = {
+    id: "jp23", filename: "A.SỸ ANH ĐỐI SOÁT COD NHẬT 2026-10-23.xlsx", uploaded_at: "2026-10-26T08:27:45Z", kieu: "naza", ngay: "2026-10-23", canh_bao: [], rows: [],
+    naza: {
+        cod_local: 0, ty_gia_rmb: 0.042298, ty_gia_vnd: 3870, phi_rmb: 2496, don_phi: 52, tien_hang_vnd: 194000, phai_nhan_vnd: -14027698.13,
+        sheets: {}, quy_te_rmb: 0, ve_rmb: 0, thu_ho: [],
+        tong_dong: [
+            { zh: "回款金额（JPY）", vi: "Tổng COD thu về kì này (JPY)", so: 0 },
+            { zh: "代引手续费JPY", vi: "Phí thu hộ COD (JPY)", so: -25500 },
+            { zh: "应退日币", vi: "COD hoàn trả (JPY)", so: -25500 },
+            { zh: "汇率", vi: "Tỷ giá", so: 0.042298 },
+            { zh: "日本折合人民币", vi: "Số tiền quy đổi từ JPY sang RMB", so: -1078.599 },
+            { zh: "速递运费RMB", vi: "Phí vận chuyển (RMB)", so: -2340 },
+            { zh: "操作费 RMB", vi: "Phí thao tác  (RMB)", so: -156 },
+            { zh: "应退金额（RMB）", vi: "COD hoàn trả kì này (RMB)", so: -3574.599 },
+            { zh: "汇率", vi: "Tỷ giá", so: 3870 },
+            { zh: "日本本期采购费 VND", vi: "Phí mua hàng Nhật  (VND)", so: 194000 },
+            { zh: "本期应退金额 VND", vi: "COD cần hoàn trả kỳ này (VND)", so: -14027698.13 },
+        ],
+        phi_dong: Array.from({ length: 52 }, (_, i) => ({ tracking: "JPG" + i, order_id: "JG" + i, kg: 0.5, ship: 45, first_leg: 0, op: 3 })),
+        trung_phi: [],
+    },
+};
+t("Nhật 06/11: phí yên đổi ra tệ, 操作费 dòng riêng, tiền ròng '应退金额（RMB）' — luồng tệ tự khớp", () => {
+    const l = N.luongKy(jp06);
+    assert.strictEqual(l.rmb, 14114.31);
+    assert.deepStrictEqual(l.tru_rmb.map((x) => [x.nhan, x.so]), [
+        ["Phí dịch vụ thu hộ COD", 390.7], ["Phí trả hàng do người nhận từ chối nhận", 403.31],
+        ["Phí vận chuyển đơn chuyển tiếp", 132.75], ["Phí vận chuyển", 855], ["Phí thao tác", 57],
+    ]);
+    assert.strictEqual(l.rmb_rong, 12275.546977);
+    assert.ok(Math.abs(l.rmb - l.tru_rmb.reduce((t, x) => t + x.so, 0) - l.rmb_rong) < 0.01);
+});
+t("Nhật 06/11: khoản âm kỳ 23/10 là khoản trừ tiền Việt (không phải tiền hàng), không còn điều chỉnh", () => {
+    const l = N.luongKy(jp06);
+    assert.deepStrictEqual(l.tru_vnd.map((x) => [x.so, x.loai]), [[14027698, "ky_truoc"]]);
+    assert.strictEqual(l.chenh_vnd, 0);
+});
+t("Nhật 23/10 (chỉ có phí): '应退金额（RMB）' là tiền ròng, không bị đếm như một khoản trừ", () => {
+    const l = N.luongKy(jp23);
+    assert.deepStrictEqual(l.tru_rmb.map((x) => x.so), [1078.6, 2340, 156]);
+    assert.strictEqual(l.rmb_rong, -3574.599);
+    assert.strictEqual(l.chenh_vnd, 0);
+});
+t("Nhật: máy soát kỳ mới nhất — phép tính tự khớp, phí 855 + 57 = 912¥ khớp sheet TỔNG (trước báo lệch 57¥)", () => {
+    const k = S2.khopSaoKeNuoc([], [jp06, jp23], 160, []);
+    const x = N.soCodNuoc({ code: "JP", currency: "JPY", symbol: "¥", rateVnd: 160, don: [], kho: [jp06, jp23], k,
+        actions: { bank: {}, done: {} }, asOf: "2026-11-11" });
+    const c = Object.fromEntries(x.checks.map((y) => [y.ten, y]));
+    assert.strictEqual(c["Phép tính trong file"].ok, true, c["Phép tính trong file"].chi_tiet);
+    assert.strictEqual(c["Chi tiết cộng ra đúng số tổng"].ok, true, c["Chi tiết cộng ra đúng số tổng"].chi_tiet);
+    assert.ok(/912/.test(c["Chi tiết cộng ra đúng số tổng"].chi_tiet));
+});
+t("Sing vẫn so phí với MỘT dòng 速递运费 gộp (ship + chặng đầu + thao tác)", () => {
+    assert.ok(N.laDongPhi("速递运费  RMB") && N.laDongPhi("操作费 RMB") && !N.laDongPhi("转寄运费JPY") && !N.laDongPhi("本期应退金额RMB"));
+});
+
 console.log(`\n${pass} phép thử đạt`);

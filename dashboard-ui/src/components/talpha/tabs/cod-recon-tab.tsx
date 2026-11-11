@@ -215,7 +215,7 @@ type DonNuoc = {
     da_tra?: { ky: string; so_tien: number };
 };
 type CotDoc = Partial<Record<"tracking" | "order_id" | "amount" | "fee" | "paid_date" | "status", string>>;
-type DongTruN = { nhan: string; so: number; ghi?: string };
+type DongTruN = { nhan: string; so: number; ghi?: string; loai?: "ky_truoc" };
 /** Luồng tiền một kỳ, đi đúng thứ tự sheet TỔNG của NAZA (lib/talpha/cod-so-nuoc.ts). */
 type LuongN = {
     so_don: number; cod_local: number; ty_gia_rmb: number | null; rmb: number | null; tru_rmb: DongTruN[];
@@ -672,6 +672,8 @@ function CodNuocKhac({ code, nutNuoc, dateRange }: { code: string; nutNuoc?: Rea
                     {period.luong ? (() => {
                         const l = period.luong;
                         const phi = l.tru_rmb.reduce((a, x) => a + x.so, 0);
+                        // Khoản âm kỳ trước NAZA trừ vào kỳ này (mẫu Nhật) không phải tiền hàng.
+                        const hang = l.tru_vnd.filter((x) => x.loai !== "ky_truoc");
                         const am = (l.phai_nhan_vnd ?? 0) < 0;
                         return (
                             <>
@@ -680,8 +682,8 @@ function CodNuocKhac({ code, nutNuoc, dateRange }: { code: string; nutNuoc?: Rea
                                         sub={l.so_don ? `${period.khop + period.lech} đơn khớp sổ đơn` : `chưa thu COD · phí ${period.don_phi ?? 0} đơn`} />
                                     <Kpi label="Tiền COD" value={tien(l.cod_local)} sub={`${ben} thu trong kỳ`} tone="twd" />
                                     <Kpi label={`Phí ${ben} trừ`} value={RMB2(phi)} sub={l.tru_rmb.map((x) => x.nhan.toLowerCase()).join(" · ") || "không có"} tone="rmb" />
-                                    <Kpi label="Tiền hàng" value={l.tru_vnd.length ? VND(l.tru_vnd.reduce((a, x) => a + x.so, 0)) : "—"}
-                                        sub={l.tru_vnd.length ? "NAZA trừ vào COD" : "kỳ này không trừ"} tone="hang" />
+                                    <Kpi label="Tiền hàng" value={hang.length ? VND(hang.reduce((a, x) => a + x.so, 0)) : "—"}
+                                        sub={hang.length ? "NAZA trừ vào COD" : "kỳ này không trừ"} tone="hang" />
                                     {am
                                         ? <Kpi label="Phải nhận" value={`âm ${VND(-(l.phai_nhan_vnd ?? 0))}`} tone="red" className="col-span-2 xl:col-span-1"
                                             sub={period.tru_vao_dai ? `đã trừ vào kỳ Đài ${dmy(period.tru_vao_dai).slice(0, 5)}` : "NAZA trừ vào kỳ sau"} />
@@ -882,7 +884,7 @@ function LuongTienNuoc({ l, ky, m, tien }: { l: LuongN; ky: KyN; m: NuocData["ma
                 <MuiTen chu={`× ${l.ty_gia_vnd != null ? l.ty_gia_vnd.toLocaleString("vi-VN") : "—"}`} />
                 <ChangTien te="vnd" ten="Việt Nam" mo="về tài khoản">
                     <DongTien nhan="Quy ra tiền Việt" so={l.vnd != null ? VND(l.vnd) : "—"} />
-                    {l.tru_vnd.map((x) => <DongTien key={x.nhan} nhan={`− ${x.nhan}`} so={VND(-x.so)} tru ghi="theo sao kê NAZA" />)}
+                    {l.tru_vnd.map((x) => <DongTien key={x.nhan} nhan={`− ${x.nhan}`} so={VND(-x.so)} tru ghi={x.ghi ?? "theo sao kê NAZA"} />)}
                     {l.chenh_vnd !== 0 && <DongTien nhan="± Điều chỉnh" so={VND(l.chenh_vnd)} tru={l.chenh_vnd < 0} ghi="NAZA ghi thêm, sheet TỔNG không tách dòng" />}
                     <DongTien nhan="= Phải nhận" tong lon
                         so={l.phai_nhan_vnd == null ? "—" : am ? `âm ${VND(-l.phai_nhan_vnd)}` : VND(l.phai_nhan_vnd)}
