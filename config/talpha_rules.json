@@ -1842,6 +1842,11 @@
       "cost_price_rmb": 23.8,
       "_ghi_chu": "300G — giá ghi theo BỘ — thêm 13/10/2026 từ file 'BẢN SAO BÁO GÍA TIỀN HÀNG' (1z3si2P_…), dòng 122 (Sỹ Anh: 'giá vốn lấy từ file báo giá')"
     },
+    "093": {
+      "name": "093 - SET 27",
+      "cost_price_rmb": 6.5,
+      "_ghi_chu": "Dây two-tone, page Gintong Ganda Jewelry + Manila Luxe Jewelry (Đài). Giá 6,5 tệ / 1 sp — Sỹ Anh gửi trong chat 12/11/2026 (bảng báo giá chưa có dòng SET 27)."
+    },
     "_note_ten": "Giá lấy từ bảng 'Giá tới Taiwan' của Sỹ Anh (10/09/2026). Bảng đó không có cột tên sản phẩm, chỉ có nhãn kiểu '053 - SET10', nên tên tiếng Anh cũ được giữ lại để màn hình còn đọc được; nhãn gốc trong bảng lưu ở _nhan_bang_gia. Tên là tên, giá là giá — KHÔNG lấy giá cũ của hệ thống GCC."
   },
   "product_name_aliases": {
