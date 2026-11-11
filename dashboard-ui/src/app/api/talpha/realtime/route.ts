@@ -15,7 +15,7 @@ const YAML_PATH = TALPHA_YAML();
 // ═══ RULE CHUNG: import từ src/lib/talpha/rules.ts (data = config/talpha_rules.json).
 // Golden-test 29/07 = 100% khớp bản inline cũ. Sửa rule → sửa JSON, KHÔNG thêm map ở đây.
 import {
-    EXCHANGE_RATES, posMoneyDivisor, MARKET_CANON, CAMP_MARKETS, PAGE_ID_RE,
+    EXCHANGE_RATES, posMoneyDivisor, MARKET_CANON, CAMP_MARKETS, viTriNuoc, PAGE_ID_RE,
     normCampMarketer, normPosMarketer, isDelivered, campaignMarket, MESS_PANCAKE, MARKETS_PUBLIC,
 } from "@/lib/talpha/rules";
 import { messPancakeChoCamp } from "@/lib/talpha/pancake-api";
@@ -33,7 +33,7 @@ function parseCampaign(campaignName?: string | null): { mkt: string | null; nv: 
     const parts = String(campaignName || "").split("/").map((x) => x.trim());
     let mkt: string | null = null;
     let nv: string | null = null;
-    const mi = parts.findIndex((s) => CAMP_MARKETS[s.toUpperCase()]);
+    const mi = viTriNuoc(parts);
     if (mi >= 0) {
         mkt = CAMP_MARKETS[parts[mi].toUpperCase()];
         nv = mi + 1 < parts.length ? normCampMarketer(parts[mi + 1]) : null;

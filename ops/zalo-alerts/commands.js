@@ -53,6 +53,7 @@ function docLenh(text, { today, nguoi = [] }) {
         if (["tw", "dai", "dailoan", "taiwan"].includes(nuoc)) return { lenh, nuoc: "TW" };
         if (["ae", "uae", "dubai"].includes(nuoc)) return { lenh, nuoc: "AE" };
         if (["jp", "jpn", "japan", "nhat", "nhatban"].includes(nuoc)) return { lenh, nuoc: "JP" };
+        if (["vn", "vietnam", "viet", "vietnam"].includes(nuoc)) return { lenh, nuoc: "VN" };
         // Mang theo lenh "vandon" để lỗi được trả lời ở nhóm VẬN ĐƠN (lỗi trơn bị bỏ ở đó).
         return { lenh, loi: `Không hiểu "${con.join(" ")}". Gõ /vandon (vận đơn của nước của nhóm này).` };
     }

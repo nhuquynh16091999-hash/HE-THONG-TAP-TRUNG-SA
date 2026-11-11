@@ -314,10 +314,57 @@ async function kienUae(from: string, to: string, asOf: string): Promise<NguonNuo
     };
 }
 
+/**
+ * Việt Nam (11/11/2026): đơn POS shop "VIỆT NAM" giao J&T — POS nối thẳng J&T nên trạng thái POS
+ * (delivered / returned / shipped) là trạng thái thật của hãng. Chưa có bảng phí J&T và giá vốn
+ * hạt giống (Sỹ Anh gửi sau) → phí 0, giá vốn null (ghi rõ ở co_so, không coi là 0).
+ */
+async function kienVn(from: string, to: string, asOf: string): Promise<NguonNuoc> {
+    const tu = new Date(Date.parse(`${asOf}T00:00:00Z`) - (CFG_TY_LE.cua_so_ngay + 30) * 86_400_000).toISOString().slice(0, 10);
+    const batDau = from < tu ? from : tu;
+    const [[rows], chiPhi] = await Promise.all([
+        bigquery.query({
+            query: `SELECT v.order_id, CAST(v.order_date AS STRING) AS order_date, v.status_name, v.status_category,
+                           SAFE_DIVIDE(o.cod, NULLIF(v.pos_money_divisor, 0)) AS cod, o.time_send_partner
+                    FROM \`${BQ_PROJECT}.${BQ_DATASET}.vw_orders_std\` v
+                    LEFT JOIN \`${BQ_PROJECT}.${BQ_DATASET}.sale_order\` o ON v.shop_id = o.shop_id AND v.order_id = o.id
+                    WHERE v.market = 'VN' AND v.status_category NOT IN ('DON_THO')
+                      AND v.order_date BETWEEN DATE(@tu) AND DATE(@den)`,
+            params: { tu: batDau, den: to },
+        }),
+        tinhChiPhiDon(from, to, (shop) => shop === "VN"),
+    ]);
+    const gv = new Map(chiPhi.don.map((d) => [d.key.replace(/^VN-/, ""), d]));
+    const r = rate("VN") || 1;
+    const kien: Kien[] = (rows as any[]).map((x) => {
+        const st = POS_SANG_CHUAN[String(x.status_category || "").toUpperCase()] || null;
+        const daGui = !!x.time_send_partner || st === "InTransit";
+        const d = gv.get(String(x.order_id));
+        return {
+            nuoc: "VN", ma: String(x.order_id), ngay: String(x.order_date || ""), ngay_gui: null,
+            nhom: nhomKien(st, null, x.status_name || null, daGui),
+            trang_thai: x.status_name || x.status_category || "",
+            cod_vnd: (Number(x.cod) || 0) * r, cod_that_vnd: null,
+            gia_von_vnd: d ? (d.du ? d.cogs : null) : null,
+            phi_di_vnd: 0, phi_giao_vnd: 0, phi_hoan_vnd: 0, phi_that: false,
+            hang_ve_kho: VE_KHO.has("VN"),
+        };
+    });
+    return {
+        kien,
+        nguon: "Đơn POS Việt Nam (trạng thái J&T trong POS)",
+        co_so: [
+            "Trạng thái giao/hoàn: POS shop VIỆT NAM nối thẳng J&T, cập nhật mỗi lượt sync.",
+            "CHƯA có bảng phí J&T (POS ghi phí = 0) và giá vốn hạt giống — hai khoản đang thiếu, Sỹ Anh gửi sau (11/11/2026).",
+        ],
+    };
+}
+
 /** Mọi kiện của một nước (cả kiện cũ ngoài kỳ — để đo tỉ lệ giao). */
 export function napKienNuoc(code: string, from: string, to: string, asOf: string): Promise<NguonNuoc> {
     if (code === "TW") return kienDai(asOf);
     if (code === "SG" || code === "JP") return kienDoiTac(code, asOf);
     if (code === "AE") return kienUae(from, to, asOf);
+    if (code === "VN") return kienVn(from, to, asOf);
     return Promise.reject(new Error(`chưa có nguồn kiện cho ${code}`));
 }

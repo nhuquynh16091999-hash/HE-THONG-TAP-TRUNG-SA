@@ -71,6 +71,14 @@ ALLM     = list(_MK.keys())
 # vẫn tính Đài, nhưng báo cáo liệt kê ra để sửa — xem campaign_market().
 PRIMARY_MARKET = RULES.get("primary_market") or (ALLM[0] if ALLM else None)
 MARKETS  = {tok: RULES["market_aliases"][tok] for tok in RULES["camp_market_tokens"]}
+# Mã nước CHỈ nhận ở ô ĐẦU tên camp (11/11/2026, mở Việt Nam): "VN" còn là tệp khách người Việt
+# ở Đài, camp kiểu cũ "THUONG/VN/…" không được tính về Việt Nam. ≡ laMaNuoc bên rules.ts / rules.js.
+O_DAU = {t.upper() for t in RULES.get("camp_market_tokens_o_dau", [])}
+
+def la_ma_nuoc(s, i):
+    """Ô thứ i của tên camp có phải mã nước không (mã chỉ-ô-đầu chỉ nhận ở i == 0)."""
+    u = (s or "").strip().upper()
+    return u in MARKETS and (i == 0 or u not in O_DAU)
 SHOP2MKT = {v["shop_label"]: m for m, v in _MK.items()}
 
 def campaign_market(cn):
@@ -79,7 +87,7 @@ def campaign_market(cn):
     PRIMARY_MARKET). Cùng luật với parseCampaign/campaignMarketSource bên rules.ts."""
     p = [x.strip() for x in (cn or "").split("/")]
     for i, s in enumerate(p):
-        m = MARKETS.get(s.upper())
+        m = MARKETS.get(s.upper()) if la_ma_nuoc(s, i) else None
         if m:
             return m, ("o_dau" if i == 0 else "o_khac")
     return PRIMARY_MARKET, "mac_dinh"
@@ -141,7 +149,7 @@ def norm_pos_external(name):
 def parse_campaign_any(cn):
     """(thị trường, key, la_ngoai_team) — như parse_campaign nhưng nhận cả người ngoài team."""
     p = [x.strip() for x in (cn or "").split("/")]
-    mi = next((i for i, s in enumerate(p) if s.upper() in MARKETS), None)
+    mi = next((i for i, s in enumerate(p) if la_ma_nuoc(s, i)), None)
     if mi is None:
         return None, None, False
     mkt = MARKETS[p[mi].upper()]
@@ -231,7 +239,7 @@ def parse_campaign(cn):
     """campaign_name → (thị trường, key marketer). Quy ước tên: '… / <Thị trường> / <Marketer> / …'
     — tìm ô ĐẦU TIÊN là tên thị trường (bỏ qua tiền tố Tặng//LADI/), marketer là ô ngay SAU."""
     p = [x.strip() for x in (cn or "").split("/")]
-    mi = next((i for i, s in enumerate(p) if s.upper() in MARKETS), None)
+    mi = next((i for i, s in enumerate(p) if la_ma_nuoc(s, i)), None)
     if mi is None:
         return None, None
     return MARKETS[p[mi].upper()], (norm_nv(p[mi + 1]) if mi + 1 < len(p) else None)
@@ -278,7 +286,7 @@ def attribute_order(pos_marketer=None, ad_id=None, adid_owner=None):
 def camp_san_pham(cn):
     """Tên campaign → (sản phẩm, tên trang, page_id). Không nhận ra marketer → (None, None, None)."""
     p = [x.strip() for x in (cn or "").split("/")]
-    mi = next((i for i, s in enumerate(p) if s.upper() in MARKETS), None)
+    mi = next((i for i, s in enumerate(p) if la_ma_nuoc(s, i)), None)
     if mi is not None:
         k = mi + 1
     else:
@@ -393,7 +401,7 @@ def o_trang_cua_camp(cn):
     — tên page bị viết vào ô sản phẩm, kiểu TW/THAI/PHI/Jewelry GJ International - TW - 05/09,
     hoặc kiểu GCC số page đứng trước tên — thì lấy ô sản phẩm. Không nhận ra marketer → (None, [])."""
     p = [x.strip() for x in (cn or "").split("/")]
-    mi = next((i for i, s in enumerate(p) if s.upper() in MARKETS), None)
+    mi = next((i for i, s in enumerate(p) if la_ma_nuoc(s, i)), None)
     k = mi + 1 if mi is not None else next((i for i, s in enumerate(p[:2]) if norm_nv(s)), None)
     if k is None:
         return None, []

@@ -13,7 +13,7 @@
 //     tiền quy bằng posMoneyDivisor + tỷ giá của nước.
 import { NextRequest, NextResponse } from "next/server";
 import { bigquery } from "@/lib/bigquery";
-import { MARKETS_PUBLIC, EXCHANGE_RATES, posMoneyDivisor, campaignMarket, DISPLAY, normCampMarketer, CAMP_MARKETS } from "@/lib/talpha/rules";
+import { MARKETS_PUBLIC, EXCHANGE_RATES, posMoneyDivisor, campaignMarket, DISPLAY, normCampMarketer, CAMP_MARKETS, viTriNuoc } from "@/lib/talpha/rules";
 import { chuanTenPage, trangCuaCamp, demTrongNgay, laTrangCuaNuoc } from "@/lib/talpha/pancake";
 import { cacPage, hoiThoaiTu, sleep, GIAN_MS, tokenPancake } from "@/lib/talpha/pancake-api";
 
@@ -52,7 +52,7 @@ export async function GET(req: NextRequest) {
         if (!t) return;
         const k = chuanTenPage(t);
         const p = cn.split("/").map((x) => x.trim());
-        const mi = p.findIndex((s) => s.toUpperCase() in CAMP_MARKETS);
+        const mi = viTriNuoc(p);
         const key = mi >= 0 && mi + 1 < p.length ? normCampMarketer(p[mi + 1]) : null;
         const cu = chuTrang.get(k);
         if (!cu) chuTrang.set(k, { ten: t, nv: key ? DISPLAY[key] || key : null, camps: new Set([cn]), ngayCuoi: d });

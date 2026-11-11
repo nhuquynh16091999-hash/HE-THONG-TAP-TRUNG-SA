@@ -26,7 +26,12 @@ t("ba team: Đông Á = Đài + Nhật (gộp 10/10/2026); khoá nhat_ban giữ 
     assert.deepStrictEqual(A.TEAMS.dong_nam_a.markets, ["Singapore"]);
     assert.deepStrictEqual(A.TEAMS.dong_a.markets, ["Taiwan", "Japan"]);
     assert.deepStrictEqual(A.TEAMS.nhat_ban.markets, ["Japan"]);
-    assert.deepStrictEqual([...A.ALL_MARKET_KEYS].sort(), ["Japan", "Singapore", "Taiwan", "UAE"]);
+    assert.deepStrictEqual(A.TEAMS.viet_nam.markets, ["Vietnam"]);
+    assert.deepStrictEqual([...A.ALL_MARKET_KEYS].sort(), ["Japan", "Singapore", "Taiwan", "UAE", "Vietnam"]);
+});
+t("SQL gán nước theo tên camp: VN chỉ nhận ở ô đầu (≡ campaignMarket)", () => {
+    const sql = A.sqlCampaignMarketKey("c");
+    assert.ok(sql.includes("vi_tri = 0 OR UPPER(TRIM(seg)) NOT IN ('VN'"), sql);
 });
 t("mọi tab khai trong access.roles đều là tab có thật của shell", () => {
     for (const [k, r] of Object.entries(A.ROLES)) {
@@ -46,7 +51,7 @@ t("Thái chỉ thấy Singapore", () => {
     assert.ok(!A.canMarket(thai, "AE") && !A.canMarket(thai, "TW"));
 });
 t("Thương (sale, mọi team) thấy mọi nước (cả Nhật từ 08/10/2026) nhưng không phải giám đốc", () => {
-    assert.deepStrictEqual([...thuong.codes].sort(), ["AE", "JP", "SG", "TW"]);
+    assert.deepStrictEqual([...thuong.codes].sort(), ["AE", "JP", "SG", "TW", "VN"]);
     assert.strictEqual(thuong.full, false);
     assert.ok(A.seesAllMarkets(thuong));
 });

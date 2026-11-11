@@ -18,7 +18,7 @@
 //   • Gọi dồn là 429 Too Many Requests → giãn lượt, gặp 429 thì chờ rồi thử lại.
 // Hàm ở đây là hàm THUẦN (không mạng) để test được; route /api/talpha/pancake-nuoc gọi mạng.
 // ═══════════════════════════════════════════════════════════════════
-import { CAMP_MARKETS, normCampMarketer } from "./rules";
+import { CAMP_MARKETS, viTriNuoc, normCampMarketer } from "./rules";
 
 export const PANCAKE_API = "https://pages.fm/api/v1";
 
@@ -39,7 +39,7 @@ export function chuanTenPage(s?: string | null): string {
  *  Không có ô nước (tên cũ) thì đếm từ ô marketer như camp_san_pham. Không thấy → null. */
 export function trangCuaCamp(cn?: string | null): string | null {
     const p = String(cn || "").split("/").map((x) => x.trim());
-    const mi = p.findIndex((s) => s.toUpperCase() in CAMP_MARKETS);
+    const mi = viTriNuoc(p);
     const k = mi >= 0 ? mi + 1 : p.slice(0, 2).findIndex((s) => normCampMarketer(s));
     if (k < 0) return null;
     const t = p[k + 3];

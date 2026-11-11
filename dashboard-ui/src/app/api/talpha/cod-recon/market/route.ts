@@ -77,7 +77,9 @@ async function layDon(code: string): Promise<{ don: DonCod[]; nguon: Nguon }> {
                 cod_local: Number(s.cod_local) || 0, khach: s.customer || "",
             };
         });
-        nguon = laPos
+        nguon = laPos && tm.provider === "pos"
+            ? { loai: "pos", nhan: "Đơn POS + trạng thái J&T trong POS", cap_nhat: null }
+            : laPos
             ? { loai: "weship", nhan: "Đơn POS + trạng thái tra ở WeShip", cap_nhat: store.last_sync?.ok ? store.last_sync.at : null }
             : { loai: "doi_tac", nhan: nhanNguonDoiTac(shipments, store as { last_sync?: { register_rejected?: number } }), cap_nhat: lastImport };
     } else {

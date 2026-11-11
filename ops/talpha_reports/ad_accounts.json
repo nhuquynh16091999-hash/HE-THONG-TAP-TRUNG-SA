@@ -258,6 +258,12 @@
           "name": "Hồ Lý 31",
           "status": "active",
           "_nguon": "BM mới — token app 'BÁO CÁO ANTALO SỸ ANH', khai 03/11/2026 (chưa chi)"
+        },
+        {
+          "id": "act_2332183394212686",
+          "name": "Thai BM XUAN THAI 02 01 (việt)",
+          "status": "active",
+          "_nguon": "Token app 'BÁO CÁO ANTALO SỸ ANH' thấy TK này. Khai 11/11/2026 khi mở thị trường Việt Nam (camp VN/THÁI/… bán hạt giống). Meta khoá (account_status 2, disable_reason 1) từ ~06/11 — vẫn đọc được số; chi 1.420.457đ 02–06/11/2026."
         }
       ],
       "_note": "Danh sách này lấy THẲNG từ /me/adaccounts của token System User: lần đầu 08/09/2026, thêm ba tài khoản 18/09/2026 (ATHAINX TK1 · ATHAINX TK2 · NEW - XT VIỆT); 29/09/2026 token mới: thêm K NEED khang ve 22 · 1005930495298028 · Quynh Vien, bỏ 5 tài khoản bị đá khỏi BM (status died); 07/10/2026 thêm SA ANTALO 02 · XT ANTALO 02 · XT ANTALO 03 · Xinh Mi Nguyen, khai lại SA ANTALO 01, Meta đổi tên 1005930495298028 → SL ANTALO 01, Quynh Vien → XT ANTALO 01. Mục nào có khoá _khong_sync là KHÔNG còn trong danh sách sync (xem chính khoá đó để biết vì sao) — sync đọc yaml, roster này chỉ để dashboard tra tên và đối soát chi phí. Bản cũ khai 15 tài khoản của hệ thống trước (Mỹ phẩm, Nhật Bản, Dubai, Kuwait, Saudi) — token mới KHÔNG có quyền một cái nào, nên mỗi vòng sync đốt 24 phút thử lại vô ích rồi ghi 0 dòng.",

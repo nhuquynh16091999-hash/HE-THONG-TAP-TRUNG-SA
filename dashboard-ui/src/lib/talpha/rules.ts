@@ -77,6 +77,18 @@ export function posMoneyDivisor(marketOrShopLabel?: string | null): number {
 }
 export const CAMP_MARKETS: Record<string, string> = Object.fromEntries(
     RULES.camp_market_tokens.map((t) => [t, RULES.market_aliases[t]]));
+/** Mã nước CHỈ nhận ở ô ĐẦU tên camp (11/11/2026, mở Việt Nam): "VN" còn là tệp khách người Việt
+ *  ở Đài — camp kiểu cũ "THUONG/VN/…" không được tính về Việt Nam. ≡ la_ma_nuoc bên talpha_rules.py. */
+export const CAMP_MARKETS_O_DAU: string[] = ((RULES as unknown as { camp_market_tokens_o_dau?: string[] }).camp_market_tokens_o_dau || [])
+    .map((t) => String(t).toUpperCase());
+const O_DAU = new Set(CAMP_MARKETS_O_DAU);
+/** Ô thứ i của tên camp có phải mã nước không. */
+export function laMaNuoc(s: string | null | undefined, i: number): boolean {
+    const u = String(s || "").trim().toUpperCase();
+    return u in CAMP_MARKETS && (i === 0 || !O_DAU.has(u));
+}
+/** Vị trí ô nước trong tên camp đã tách theo "/" (-1 = không có). */
+export const viTriNuoc = (p: string[]) => p.findIndex((s, i) => laMaNuoc(s, i));
 export const MARKET_CANON: Record<string, string> = Object.fromEntries(
     Object.entries(RULES.market_aliases).filter(([k]) => !k.startsWith("_")));
 export const DISPLAY: Record<string, string> = Object.fromEntries(
@@ -94,7 +106,7 @@ export type MarketSource = "o_dau" | "o_khac" | "mac_dinh";
 export function campaignMarket(cn?: string | null): { market: string | null; source: MarketSource } {
     const p = String(cn || "").split("/").map((x) => x.trim());
     for (let i = 0; i < p.length; i++) {
-        const m = CAMP_MARKETS[p[i].toUpperCase()];
+        const m = laMaNuoc(p[i], i) ? CAMP_MARKETS[p[i].toUpperCase()] : null;
         if (m) return { market: m, source: i === 0 ? "o_dau" : "o_khac" };
     }
     return { market: PRIMARY_MARKET, source: "mac_dinh" };
@@ -346,7 +358,7 @@ export function parseAudience(cn?: string | null): string | null {
     // Với tên kiểu "TW/LOC/PHI/..." mà quét từ trái sang thì ô đầu khớp ngay TW,
     // và MỌI campaign đều bị gán tệp "người Đài" — kể cả những cái ghi rõ PHI hay
     // INDO. Không lỗi, không cảnh báo, chỉ có toàn bộ bảng tệp khách sai.
-    const marketIdx = p.findIndex((s) => s.toUpperCase() in CAMP_MARKETS);
+    const marketIdx = viTriNuoc(p);
     const marketerIdx = p.findIndex((s) => normCampMarketer(s) !== null);
 
     for (let i = 0; i < p.length; i++) {
@@ -412,7 +424,7 @@ export function isUnknownProduct(code?: string | null): boolean {
 /** campaign_name → [thị trường, key marketer]; quy ước '… / <Thị trường> / <Marketer> / …'. */
 export function parseCampaign(cn?: string | null): [string | null, string | null] {
     const p = String(cn || "").split("/").map((x) => x.trim());
-    const mi = p.findIndex((s) => s.toUpperCase() in CAMP_MARKETS);
+    const mi = viTriNuoc(p);
     // Không thấy mã nước nào thì tính về PRIMARY_MARKET (tên cũ, Sỹ Anh chốt 15/09/2026).
     // Có Singapore, UAE rồi thì campaign mới BẮT BUỘC ghi nước ở ô đầu — campaignMarket()
     // trả nguồn 'mac_dinh' để nơi hiển thị liệt kê những tên cần sửa.

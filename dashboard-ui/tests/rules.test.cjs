@@ -102,12 +102,22 @@ t("campaign lạc quy ước → không đoán MARKETER, nhưng thị trường 
 });
 
 console.log("── Thị trường ──");
-t("bốn nước đang bán — Nhật mở 08/10/2026, nối shop POS 09/10/2026", () => {
-    assert.deepStrictEqual(Object.keys(R.RULES.markets), ["Taiwan", "Singapore", "UAE", "Japan"]);
+t("năm nước đang bán — Nhật mở 08/10/2026, Việt Nam nối shop 11/11/2026", () => {
+    assert.deepStrictEqual(Object.keys(R.RULES.markets), ["Taiwan", "Singapore", "UAE", "Japan", "Vietnam"]);
     const dangBan = Object.entries(R.RULES.markets).filter(([, v]) => v.status === "dang_ban").map(([k]) => k);
-    assert.deepStrictEqual(dangBan, ["Taiwan", "Singapore", "UAE", "Japan"]);
+    assert.deepStrictEqual(dangBan, ["Taiwan", "Singapore", "UAE", "Japan", "Vietnam"]);
+    assert.strictEqual(R.RULES.markets.Vietnam.shop_id, "1329125435");
+    assert.strictEqual(R.posMoneyDivisor("VN"), 1);
+    assert.strictEqual(R.EXCHANGE_RATES.Vietnam, 1);
     assert.strictEqual(R.RULES.markets.Japan.shop_id, "1022115860");
     assert.strictEqual(R.posMoneyDivisor("JP"), 1);
+});
+t("VN chỉ là nước khi ở Ô ĐẦU — ô khác là tệp khách người Việt ở Đài (11/11/2026)", () => {
+    assert.deepStrictEqual(R.campaignMarket("VN/THÁI/VN/VẠN THỌ / Hạt Giống Nông Nghiệp F1/10-11"), { market: "Vietnam", source: "o_dau" });
+    assert.deepStrictEqual(R.parseCampaign("VN/THÁI/HOA VẠN THỌ/Kho Hạt Giống Việt/04-11"), ["Vietnam", "Thai"]);
+    assert.strictEqual(R.campaignMarket("TW/THUONG/VN/TEST/Trang Sức Vàng Thái/14-09").market, "Taiwan");
+    assert.deepStrictEqual(R.campaignMarket("THUONG/VN/042/Trang/1-9"), { market: "Taiwan", source: "mac_dinh" });
+    assert.strictEqual(R.parseAudience("TW/THUONG/VN/042/Trang/1-9"), "VN");
 });
 t("camp JP/… tính về Nhật, không rơi về Đài", () => {
     assert.deepStrictEqual(R.campaignMarket("JP/THANG/PHI/002-ATTL/Lucky Charm JP/08-10"), { market: "Japan", source: "o_dau" });
@@ -350,7 +360,8 @@ t("tỷ giá và số chia: Singapore 20.000 ÷100, UAE 7.000 ÷100", () => {
 });
 t("thông tin nước cho giao diện: mã, ký hiệu tiền, trạng thái, mã trong tên campaign", () => {
     const m = Object.fromEntries(R.MARKETS_PUBLIC.markets.map((x) => [x.code, x]));
-    assert.deepStrictEqual(Object.keys(m).sort(), ["AE", "JP", "SG", "TW"]);
+    assert.deepStrictEqual(Object.keys(m).sort(), ["AE", "JP", "SG", "TW", "VN"]);
+    assert.strictEqual(m.VN.symbol, "đ");
     assert.strictEqual(m.TW.symbol, "NT$");
     assert.strictEqual(m.JP.symbol, "¥");
     assert.strictEqual(m.JP.status, "dang_ban");

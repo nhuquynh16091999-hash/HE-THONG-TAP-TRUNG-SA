@@ -90,7 +90,7 @@ export async function GET(req: NextRequest) {
         const rows = buildMarketLedger(trongKhoang, hang.map, alerts, {
             rateVnd: m.rate_vnd,
             phone: PHONE_RULES[code] ?? null,
-            carrier: tm.provider === "weship" ? "WeShip" : undefined,
+            carrier: tm.provider === "weship" ? "WeShip" : tm.provider === "pos" ? "J&T" : undefined,
             currency: m.currency,
         });
         const laPos = tm.source === "pos";

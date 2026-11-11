@@ -35,7 +35,7 @@ PROJECT='cty-507710'; DS='TALPHA_Dataset'
 FROM=_T.replace(day=1).isoformat(); TO=_T.isoformat()  # đầu tháng -> hôm nay (tháng cũ: -> cuối tháng)
 # ── RULE CHUNG: đọc từ talpha_rules.json qua loader (golden-test 29/07 = 100% khớp bản cũ).
 # Sửa rule (marketer/tỷ giá/thị trường/test) → sửa talpha_rules.json, KHÔNG sửa tại đây.
-from talpha_rules import (RATE, LOCALCUR, MONEY_DIV, ALLM, MARKETS, SHOP2MKT, GTC_CAT, POS_TZ,
+from talpha_rules import (RATE, LOCALCUR, MONEY_DIV, ALLM, MARKETS, la_ma_nuoc, SHOP2MKT, GTC_CAT, POS_TZ,
                           NUMID, norm_nv, norm_pos_nv, is_test, PRIMARY_MARKET,
                           DISPLAY, EXTERNAL_DISPLAY, norm_pos_external, norm_nv_external,
                           UNASSIGN, bucket_nv, campaign_market,
@@ -47,7 +47,7 @@ def parse_camp(cn):
     if not p: return None,None,None
     # Tìm ô đầu tiên là tên thị trường (bất kể tiền tố như "Tặng/", "LADI/"...);
     # marketer là ô ngay SAU thị trường.
-    mi=next((i for i,s in enumerate(p) if s.upper() in MARKETS), None)
+    mi=next((i for i,s in enumerate(p) if la_ma_nuoc(s, i)), None)
     if mi is not None:
         # CHUẨN: NƯỚC/MARKETER/TỆPKHÁCH/MÃSANPHAM/TENTRANG/NGAY — marketer là ô ngay SAU nước.
         mkt=MARKETS[p[mi].upper()]
@@ -116,7 +116,7 @@ for r in bq.query(f"SELECT date, campaign_name, SUM(spend) spend, SUM(messaging_
     mkt,nv,prod=parse_camp(r.campaign_name)
     if not mkt or not nv:
         _p=[x.strip() for x in (r.campaign_name or '').split('/')]
-        _mi=next((i for i,s in enumerate(_p) if s.upper() in MARKETS), None)
+        _mi=next((i for i,s in enumerate(_p) if la_ma_nuoc(s, i)), None)
         _slot=_p[_mi+1] if (_mi is not None and _mi+1<len(_p)) else ''
         if not norm_nv_external(_slot):   # người ngoài team là CỐ Ý loại, không cảnh báo
             DROPPED[r.campaign_name or '(tên rỗng)']+=r.spend or 0

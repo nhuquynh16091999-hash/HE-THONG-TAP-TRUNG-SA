@@ -29,13 +29,15 @@ class TestBaThiTruong:
 
     def test_khai_du_ba_nuoc(self):
         # 08/10/2026: thêm Nhật (JP) — chưa có shop POS, chỉ có số ads.
-        assert set(MARKET_NAMES) == {"TW", "SG", "AE", "JP"}
+        # 11/11/2026: thêm Việt Nam (VN) — shop hạt giống, VND.
+        assert set(MARKET_NAMES) == {"TW", "SG", "AE", "JP", "VN"}
 
     def test_chi_nuoc_da_co_so_moi_co_ty_gia_va_so_chia(self):
         # Nước chưa có tỷ giá thì không được có dòng — nhân với số đoán là sai tiền.
         # Nhật: 1 JPY = 160đ (Sỹ Anh chốt 08/10/2026), số chia TẠM 1 — chưa có đơn để đo.
-        assert FX_RATES_TO_VND == {"TW": 800, "SG": 20000, "AE": 7000, "JP": 160, "USD": 25700}
-        assert POS_MONEY_DIVISOR == {"TW": 1, "SG": 100, "AE": 100, "JP": 1}
+        # Việt Nam: đã là đồng → tỷ giá 1, POS lưu nguyên đồng (đo 11/11/2026: cod 99000 = 99.000đ).
+        assert FX_RATES_TO_VND == {"TW": 800, "SG": 20000, "AE": 7000, "JP": 160, "VN": 1, "USD": 25700}
+        assert POS_MONEY_DIVISOR == {"TW": 1, "SG": 100, "AE": 100, "JP": 1, "VN": 1}
 
     def test_singapore_49_sgd_luu_4900(self):
         # Poscake lưu SGD theo đơn vị nhỏ: cod 4900 = 49 SGD = 980.000đ.

@@ -8,7 +8,7 @@
 // người dùng — để test được (tests/access.test.cjs) và để proxy.ts lẫn từng route
 // dùng chung MỘT cách hiểu. Hai nơi tự hiểu luật là sớm muộn một nơi hở.
 // ═══════════════════════════════════════════════════════════════════
-import { RULES, PRIMARY_MARKET, CAMP_MARKETS } from "./rules";
+import { RULES, PRIMARY_MARKET, CAMP_MARKETS, CAMP_MARKETS_O_DAU } from "./rules";
 
 /** Mọi tab của dashboard-shell.tsx. Thêm tab mới thì thêm ở đây và ở access.roles. */
 export const ALL_TABS = [
@@ -261,7 +261,8 @@ export function sqlCampaignMarketKey(col = "campaign_name"): string {
     return `COALESCE((
         SELECT CASE UPPER(TRIM(seg)) ${pairs.map(([t, m]) => `WHEN ${sqlStr(t.toUpperCase())} THEN ${sqlStr(m)}`).join(" ")} END
         FROM UNNEST(SPLIT(IFNULL(${col}, ''), '/')) AS seg WITH OFFSET AS vi_tri
-        WHERE UPPER(TRIM(seg)) IN (${pairs.map(([t]) => sqlStr(t.toUpperCase())).join(", ")})
+        WHERE UPPER(TRIM(seg)) IN (${pairs.map(([t]) => sqlStr(t.toUpperCase())).join(", ")})${CAMP_MARKETS_O_DAU.length
+            ? `\n          AND (vi_tri = 0 OR UPPER(TRIM(seg)) NOT IN (${CAMP_MARKETS_O_DAU.map(sqlStr).join(", ")}))` : ""}
         ORDER BY vi_tri LIMIT 1
     ), ${mac})`;
 }

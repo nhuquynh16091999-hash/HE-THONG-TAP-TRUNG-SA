@@ -33,7 +33,7 @@ function ngayVN(iso) {
 }
 const cat = (s, n) => { const x = String(s || "").replace(/\s+/g, " ").trim(); return x.length > n ? x.slice(0, n - 1) + "…" : x; };
 /** Tên nguồn trạng thái của nước này — "WeShip" (UAE) hay "17TRACK". */
-const tenNguon = (d) => (d && d.provider === "weship" ? "WeShip" : "17TRACK");
+const tenNguon = (d) => (d && d.provider === "weship" ? "WeShip" : d && d.provider === "pos" ? "POS (J&T)" : "17TRACK");
 
 async function fetchVanDon(cfg, today, f = fetch, market = "") {
     if (!cfg || !cfg.url) throw new Error("thiếu vanDon.url trong config");
@@ -62,6 +62,9 @@ function dongNguon(d, nowTs, { quotaWarn = 200, staleHours = 26 } = {}) {
     const ra = [];
     const ls = d.last_sync;
     const ten = tenNguon(d);
+    // Việt Nam (11/11/2026): trạng thái J&T nằm sẵn trong đơn POS, talpha-sync nạp mỗi giờ —
+    // không có lượt tra riêng, không quota. Sync đứng thì tin "sync-health" của bot đã kêu.
+    if (d.provider === "pos") return "";
     if (d.has_api_key && !ls) {
         ra.push(d.provider === "weship"
             ? `⚠️ ${B("WeShip chưa tra lần nào")} — chưa biết đơn nào giao hỏng`
@@ -104,6 +107,8 @@ function lyDo(s) {
     if (/Returning/.test(sub) || (s.source !== "17track" && /hoàn/i.test(raw))) return "dang_hoan";
     if (/Returned/.test(sub)) return "da_hoan";
     if (s.source !== "17track" && /hẹn/i.test(raw)) return "khách hẹn giao lại";
+    // J&T Việt Nam (qua POS, 11/11/2026): "Không liên lạc được Khách hàng/khóa máy".
+    if (s.source === "pos" && /liên lạc|khóa máy|khoá máy|thuê bao|không nghe/i.test(raw)) return "không nghe máy";
     if (/Rejected/.test(sub) || /từ chối/i.test(raw)) return "khách từ chối";
     // Hai lý do riêng của WeShip (UAE).
     if (/NoResponse/.test(sub)) return "không nghe máy";
@@ -231,7 +236,7 @@ function ghiSoNhac(soNhac, trackings, today) {
 }
 
 // Hãng giao tận nhà của nước đọc bảng đối tác + 17TRACK — tên hãng nói với khách.
-const HANG_NHA = { SG: "J&T", JP: "Japan Post" };
+const HANG_NHA = { SG: "J&T", JP: "Japan Post", VN: "J&T" };
 
 // ─── Singapore giao tận nhà (J&T) — Sỹ Anh chốt 01/10/2026 ───────────────────
 // Tiếng Anh gửi khách + bản dịch tiếng Việt cho anh em, như Đài.
@@ -317,6 +322,7 @@ function mocSapGiao(s, today, nuoc) {
 
 /** TH1 — câu báo trước. Sing nói "J&T", Nhật nói "Japan Post", UAE nói "the courier" và "order (parcel …)". */
 function tinSapGiao(s, moc, nuoc, lang = "en") {
+    if (nuoc === "VN") return lang === "vi" ? null : tinSapGiaoVn(s, moc);
     const vi = lang === "vi";
     const ten = s.customer || (vi ? "bạn" : "there");
     const ma = s.track17_code || s.tracking;
@@ -380,10 +386,40 @@ function tinKhachUae(s, { nhacLai = false, lan = null } = {}, lang = "en") {
         ? `Chào ${ten}, đơn của bạn (mã ${ma}) đã được hẹn giao lại. Bạn kiểm tra điện thoại xem có cuộc gọi nhỡ hoặc tin nhắn của tài xế không, rồi liên hệ lại để chốt giờ giao, hoặc nhắn shop giờ nhận hàng tiện cho bạn nhé. Nhớ mở máy giúp shop. Cảm ơn bạn!`
         : `Hi ${ten}, the delivery of your order (parcel ${ma}) has been rescheduled. Please check your phone for missed calls or messages from the delivery driver and contact them to confirm a delivery time, or reply to us with a good time. Please keep your phone on. Thank you!`;
 }
+// ─── Việt Nam giao tận nhà qua J&T (mở 11/11/2026) ──────────────────────────
+// Khách là người Việt (hạt giống, phần đông trung niên ở huyện) → câu TIẾNG VIỆT, xưng
+// "em" – "anh/chị". Không có bản dịch: lang "en" (câu gửi khách) trả tiếng Việt, "vi" trả null.
+function tinKhachVn(s, { nhacLai = false, lan = null } = {}, lang = "en") {
+    if (lang === "vi") return null;
+    const ten = s.customer ? `anh/chị ${s.customer}` : "anh/chị";
+    const ma = s.track17_code || s.tracking;
+    const ly = lyDo(s);
+    if (ly === "khách từ chối") {
+        return nhacLai
+            ? `Dạ em chào ${ten}, em chưa thấy anh/chị phản hồi về đơn hàng (mã ${ma}) bị từ chối nhận hôm trước. Anh/chị còn muốn nhận hàng không ạ? Anh/chị nhắn em trong hôm nay giúp em nhé, không thì đơn sẽ bị hoàn về. Em cảm ơn ạ!`
+            : `Dạ em chào ${ten}, bên J&T báo đơn hàng (mã ${ma}) bị từ chối nhận. Đơn hàng có vấn đề gì không ạ? Nếu anh/chị vẫn muốn nhận, nhắn em ngày giờ tiện để em báo J&T giao lại nhé. Em cảm ơn ạ!`;
+    }
+    if (nhacLai) {
+        const lau = lan >= 2 ? `J&T đã giao đơn hàng (mã ${ma}) ${lan} lần mà vẫn chưa gặp được anh/chị` : `J&T vẫn chưa giao được đơn hàng (mã ${ma}) cho anh/chị`;
+        return `Dạ em chào ${ten}, em nhắc anh/chị lần nữa: ${lau}. Anh/chị gọi lại cho shipper J&T hoặc nhắn em ngày giờ nhận hàng ngay trong hôm nay giúp em nhé — để lâu hàng sẽ bị hoàn về ạ. Em cảm ơn ạ!`;
+    }
+    if (ly === "khách hẹn giao lại") {
+        return `Dạ em chào ${ten}, bên J&T báo anh/chị hẹn lại ngày nhận đơn hàng (mã ${ma}). Anh/chị nhắn em ngày giờ tiện nhận để em báo shipper, và để ý điện thoại hôm đó giúp em nhé. Em cảm ơn ạ!`;
+    }
+    return `Dạ em chào ${ten}, shipper J&T đã đi giao đơn hàng (mã ${ma}) nhưng chưa liên lạc được với anh/chị. Anh/chị xem điện thoại có cuộc gọi nhỡ của shipper không rồi gọi lại giúp em để hẹn giờ giao nhé, hoặc nhắn em ngày giờ tiện nhận hàng. Em cảm ơn ạ!`;
+}
+/** TH1 Việt Nam — chỉ khi J&T đang đi giao (OutForDelivery). Tiếng Việt, không dịch. */
+function tinSapGiaoVn(s, moc) {
+    const ten = s.customer ? `anh/chị ${s.customer}` : "anh/chị";
+    const ma = s.track17_code || s.tracking;
+    const luc = moc === "HomNay" ? `hôm nay shipper J&T sẽ giao đơn hàng (mã ${ma}) tới anh/chị` : `đơn hàng (mã ${ma}) đang được shipper J&T đi giao`;
+    return `Dạ em chào ${ten}, ${luc}. Anh/chị để ý điện thoại để nhận hàng giúp em nhé. Em cảm ơn ạ!`;
+}
 const tinKhachNha = (s, ma, han, lang) => (ma === "AE" ? tinKhachUae(s, han, lang)
-    : ma === "JP" ? tinKhachNhat(s, han, lang) : tinKhachSing(s, han, lang));
-/** Hai dòng: câu tiếng Anh gửi khách + bản dịch tiếng Việt cho anh em. */
-const haiDong = (f) => { const en = f("en"); return en ? [`💬 ${en}`, `🇻🇳 Dịch: ${f("vi")}`] : []; };
+    : ma === "JP" ? tinKhachNhat(s, han, lang) : ma === "VN" ? tinKhachVn(s, han, lang) : tinKhachSing(s, han, lang));
+/** Hai dòng: câu tiếng Anh gửi khách + bản dịch tiếng Việt cho anh em. Việt Nam: câu gửi khách
+ *  đã là tiếng Việt → một dòng. */
+const haiDong = (f) => { const en = f("en"); if (!en) return []; const vi = f("vi"); return vi ? [`💬 ${en}`, `🇻🇳 Dịch: ${vi}`] : [`💬 ${en}`]; };
 
 const hanChu = (a) => a.days_left == null ? "" : a.days_left <= 0 ? "HẾT HẠN HÔM NAY" : `còn ${a.days_left} ngày`;
 
@@ -404,7 +440,7 @@ function khoiGoi(a, i, tien, giaoTanNha, ma = "") {
     if (khach) dong.push(`👤 ${khach}`);
     if (!giaoTanNha && s.store_name) dong.push(`🏪 ${s.store_name}${maLayHang(s) ? ` · mã lấy hàng ${maLayHang(s)}` : ""}`);
     // UAE không có bảng đối tác — ghi chú là của đơn POS (thường là địa chỉ, hẹn ngày giao).
-    if (s.note) dong.push(`📝 ${ma === "AE" ? "Ghi chú đơn" : "Đối tác ghi"}: "${cat(s.note, 80)}"`);
+    if (s.note) dong.push(`📝 ${ma === "AE" || ma === "VN" ? "Ghi chú đơn" : "Đối tác ghi"}: "${cat(s.note, 80)}"`);
     if (giaoTanNha) {
         dong.push(...haiDong((lang) => tinKhachNha(s, ma, { nhacLai: !!a.nhac, lan: Number(s.fail_count) || null }, lang)));
     } else {
@@ -429,6 +465,7 @@ function khoiSapGiao(x, tien, nuoc) {
 
 /** Bản dịch câu báo trước — một dòng cho mỗi loại có mặt trong mục. */
 function dichSapGiao(xs, nuoc) {
+    if (nuoc === "VN") return [];   // câu gửi khách Việt Nam đã là tiếng Việt
     const ten = { HomNay: "giao hôm nay", NgayMai: "hẹn giao ngày mai", SapGiao: "sắp giao" };
     return ["HomNay", "NgayMai", "SapGiao"].filter((m) => xs.some((x) => x.moc === m)).map((m) => {
         const mau = { customer: "{tên}", track17_code: "{mã}", status: (xs.find((x) => x.moc === m).shipment || {}).status };

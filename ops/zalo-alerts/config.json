@@ -31,12 +31,13 @@
     "recGoodAdsPct": 20
   },
   "nhomNuoc": {
-    "_note": "Mỗi nước một nhóm 'ADS + VẬN ĐƠN <nước>' (Sỹ Anh chốt 08/10/2026). Nhóm nhận ở zalo_group_nuoc_<mã>.json — bot tự nhận theo tên lúc khởi động, hoặc node pair.js --tu-nhan.",
+    "_note": "Mỗi nước một nhóm 'ADS + VẬN ĐƠN <nước>' (Sỹ Anh chốt 08/10/2026; Việt Nam thêm 11/11/2026 — nhóm 'ADS + VẬN ĐƠN VIETNAM'). Nhóm nhận ở zalo_group_nuoc_<mã>.json — bot tự nhận theo tên lúc khởi động, hoặc node pair.js --tu-nhan.",
     "markets": [
       "TW",
       "SG",
       "AE",
-      "JP"
+      "JP",
+      "VN"
     ],
     "_messPancake_note": "Nước Meta không báo số tin nhắn (Nhật — luật bảo vệ thông tin liên lạc): bản tin ads lấy số mess từ Pancake (/api/talpha/pancake-nuoc). Sỹ Anh yêu cầu 09/10/2026.",
     "messPancake": [
@@ -66,7 +67,8 @@
       "TW",
       "SG",
       "AE",
-      "JP"
+      "JP",
+      "VN"
     ],
     "toiAt": "22:00",
     "toiCatchUpMinutes": 60,

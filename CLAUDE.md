@@ -2,7 +2,9 @@
 
 Dashboard vận hành cho đội ANTALO (Tiểu Alpha): bán trang sức và mỹ phẩm qua Facebook Ads +
 chat-sale + COD ở **ba nước — Đài Loan, Singapore, UAE** (từ 15/09/2026), thêm **Nhật Bản**
-(mở 08/10/2026, shop POS nối 09/10/2026; vận đơn Japan Post qua 17TRACK từ 21/10/2026). Mỗi nước một shop
+(mở 08/10/2026, shop POS nối 09/10/2026; vận đơn Japan Post qua 17TRACK từ 21/10/2026), và **Việt Nam** (mở 11/11/2026: shop POS "VIỆT NAM" 1329125435 bán hạt giống trong
+nước, VND, giao J&T — trạng thái J&T đọc thẳng từ đơn POS, `lib/talpha/pos-jt.ts`; mã `VN` chỉ
+nhận ở Ô ĐẦU tên camp vì `VN` còn là tệp khách người Việt ở Đài — `camp_market_tokens_o_dau`). Mỗi nước một shop
 POS Poscake (`config/talpha_rules.json → markets`); tài khoản quảng cáo Meta khai ở
 `config/projects/talpha.yaml`, chạy chung cho mọi nước.
 

@@ -254,7 +254,7 @@ const loadMarket = (mk: TrackMarket) => loadMarketShipments<Store>(mk, emptyStor
 function chuaKhai(shipments: Shipment[]): { value: string; count: number }[] {
     const dem = new Map<string, number>();
     for (const s of shipments) {
-        if ((s.source !== "doi_tac" && s.source !== "weship") || s.status || !s.raw_status) continue;
+        if ((s.source !== "doi_tac" && s.source !== "weship" && s.source !== "pos") || s.status || !s.raw_status) continue;
         dem.set(s.raw_status, (dem.get(s.raw_status) || 0) + 1);
     }
     return [...dem].map(([value, count]) => ({ value, count })).sort((a, b) => b.count - a.count);
@@ -295,7 +295,7 @@ export async function GET(req: NextRequest) {
             // Tên nguồn trạng thái cho màn hình và bot Zalo ("17TRACK" / "WeShip").
             provider: mk.provider,
             // WeShip không cần khoá — "có khoá" = tra được.
-            has_api_key: mk.provider === "weship" ? true : hasApiKey(),
+            has_api_key: mk.provider === "weship" || mk.provider === "pos" ? true : hasApiKey(),
             last_sync: store.last_sync ?? null,
             last_import: lastImport,
             config: {
@@ -314,7 +314,7 @@ export async function GET(req: NextRequest) {
                 registered: shipments.filter((s) => s.registered).length,
                 // Chỉ đếm mã SẼ được đăng ký (đơn chưa kết thúc, còn mới) — đếm cả đơn đã
                 // giao xong thì con số này không bao giờ về 0 và chẳng nói lên gì.
-                pending_register: mk.provider === "weship"
+                pending_register: mk.provider === "pos" ? 0 : mk.provider === "weship"
                     // WeShip không đăng ký — "chưa theo dõi" = có mã AWB mà chưa tra lần nào.
                     ? shipments.filter((s) => s.track17_code && !s.registered).length
                     : planRegister(shipments, new Date(), { staleDays: mk.stale_days }).eligible,
@@ -334,6 +334,10 @@ export async function POST(req: NextRequest) {
     if (!ok) return NextResponse.json({ error: "from/to phải dạng YYYY-MM-DD" }, { status: 400 });
     const mk = trackMarket(req.nextUrl.searchParams.get("market"));
     if (mk.provider === "weship") return syncWeship(mk, from, to);
+    // Việt Nam: trạng thái J&T về cùng đơn POS mỗi lượt talpha-sync — không có gì để tra thêm.
+    if (mk.provider === "pos") {
+        return NextResponse.json({ ok: true, provider: "pos", registered: 0, message: "Trạng thái J&T lấy thẳng từ POS — cập nhật mỗi giờ theo lượt đồng bộ." });
+    }
     const STORE = mk.store;
     const keys = apiKeys();
     if (!keys.length) {

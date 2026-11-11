@@ -190,8 +190,11 @@ meta_ads:
     # trong fb_ads_data khớp Meta trọn đời từng TK. Camp/adset/ad kèm nội dung QC (chữ, bài viết,
     # video, target) chụp vào TALPHA_SaoLuu.meta_*__20261103 + data/sao_luu_tkqc/meta_20261103/.
     # Tên + múi giờ vẫn giữ ở hai mục dưới để số cũ còn nhãn.
-    # KHÔNG khai "Thai BM XUAN THAI 02 01 (việt)" act_2332183394212686: camp VN/THÁI/… bán hạt
-    # giống trong nước — không thuộc nước nào của dashboard, khai vào là tiền dồn về Đài Loan.
+    # 11/11/2026 MỞ THỊ TRƯỜNG VIỆT NAM (Sỹ Anh gửi shop POS "VIỆT NAM" 1329125435): camp VN/THÁI/…
+    # bán hạt giống giờ là nước "Vietnam" (mã VN ở ô đầu, talpha_rules.camp_market_tokens_o_dau)
+    # nên KHAI VÀO. TK này Meta khoá (account_status 2) từ ~06/11, chi 1,42tr (02–06/11) — khai để
+    # có số đầu tháng; TK lỗi bị bỏ qua, không chặn vòng ghi (7eb409b).
+    - "act_2332183394212686"  # Thai BM XUAN THAI 02 01 (việt) — Việt Nam, Meta khoá ~06/11
     - "act_4019152358239307"  # Hồ Lý 11 — chưa chi
     - "act_4780611448824838"  # Hồ Lý 21 — chưa chi
     - "act_1751226855950890"  # Hồ Lý 31 — chưa chi
@@ -234,6 +237,7 @@ meta_ads:
     act_4019152358239307: "Hồ Lý 11"
     act_4780611448824838: "Hồ Lý 21"
     act_1751226855950890: "Hồ Lý 31"
+    act_2332183394212686: "Thai BM XUAN THAI 02 01 (việt)"
   # Múi giờ từng tài khoản — lấy từ Meta API, KHÔNG đoán theo tên.
   # Cột `date` của spend đã theo múi giờ NÀY, nên 2 tài khoản Bangkok lệch ngày
   # so với 8 tài khoản còn lại; cả tháng mới khớp (rule #6 TALPHA_METRIC_RULES).
@@ -278,6 +282,7 @@ meta_ads:
     act_4019152358239307: "Asia/Ho_Chi_Minh"
     act_4780611448824838: "Asia/Ho_Chi_Minh"
     act_1751226855950890: "Asia/Ho_Chi_Minh"
+    act_2332183394212686: "Asia/Ho_Chi_Minh"
 
 # ─── 4. POS / ORDER MANAGEMENT ───
 pos_system: poscake
@@ -306,6 +311,10 @@ poscake:
       api_url: "https://pos.pages.fm/api/v1"
       api_key: "${TALPHA_POSCAKE_JP_KEY}"               # ⚠️ Giá trị thật nằm trong .env.local
       shop_id: "1022115860"  # "JAPAN" (JPY) — nối 09/10/2026; 160đ/¥, POS lưu nguyên yên (chia 1)
+    - name: "Vietnam"
+      api_url: "https://pos.pages.fm/api/v1"
+      api_key: "${TALPHA_POSCAKE_VN_KEY}"               # ⚠️ Giá trị thật nằm trong .env.local
+      shop_id: "1329125435"  # "VIỆT NAM" (VND, hạt giống) — nối 11/11/2026; POS lưu nguyên đồng (chia 1)
 
 # ─── 5. PANCAKE CRM ───
 pancake:

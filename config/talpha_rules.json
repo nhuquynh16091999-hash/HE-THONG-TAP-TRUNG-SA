@@ -102,6 +102,33 @@
       "_orders_from_note": "Shop chỉ có 1 đơn khi nối (tạo 23:28 ngày 08/10/2026 giờ VN, page Lucky Charm JP) — mốc 08/10 là ngày mở thị trường, không có đơn nào trước đó bị bỏ.",
       "_divisor_note": "ĐÃ ĐO 09/10/2026 trên đơn thật đầu tiên: cod = 8999, total_price = 8999, order_currency JPY, 1 vòng phong thuỷ 002-ATTL → 8.999¥ (≈1,44 triệu đồng), cùng tầm giá đơn Đài/Singapore/UAE. Chia 100 thì đơn còn 90¥ ≈ 14.400đ — vô lý. Yên không có đơn vị lẻ, POS lưu nguyên yên → chia 1.",
       "_todo": "Chưa có: hãng giao + tra vận đơn (tracking.markets), bảng phí ship 3PL (shipping_fees.JP), giá vốn theo tên sản phẩm shop Nhật."
+    },
+    "Vietnam": {
+      "shop_label": "VN",
+      "shop_id": "1329125435",
+      "currency": "VND",
+      "currency_symbol": "đ",
+      "rate_vnd": 1,
+      "pos_money_divisor": 1,
+      "pos_money_divisor_confirmed": true,
+      "product_code_in_name": false,
+      "product_costs_vnd": {
+        "_note": "Giá vốn hạt giống tính bằng ĐỒNG theo TÊN sản phẩm POS (chữ HOA) — CHƯA CÓ: Sỹ Anh gửi sau (chốt 11/11/2026). Chưa khai thì tab P&L liệt kê ở khung 'Còn thiếu', không coi là 0."
+      },
+      "display": "Việt Nam",
+      "flag": "🇻🇳",
+      "phone": {
+        "cc": "84",
+        "national_len": 10,
+        "trunk": "0",
+        "whatsapp": false
+      },
+      "status": "dang_ban",
+      "orders_from": "2026-11-01",
+      "_note": "Mở 11/11/2026 (Sỹ Anh gửi key shop POS 'VIỆT NAM' 1329125435 — chính là shop Hạt Giống cũ đổi tên; page Kho Hạt Giống Việt · Tổng Kho Hạt Giống Nông Nghiệp · Hạt Giống Nông Nghiệp F1). Bán hạt giống hoa/rau trong nước, COD, giao J&T Việt Nam (POS nối thẳng J&T, mã vận đơn ở partner.extend_code). Đơn chủ yếu đổ từ landing Webcake (utm_campaign = ID quảng cáo). Team riêng 'Việt Nam' (access.teams.viet_nam), leader Sỹ Anh chỉ định sau. Camp đặt 'VN/<MARKETER>/…'. Key ở TALPHA_POSCAKE_VN_KEY.",
+      "_divisor_note": "ĐO 11/11/2026 trên đơn thật: cod 99000 = 99.000đ (combo 8 gói vạn thọ 99k) → POS lưu nguyên đồng, chia 1. Tỷ giá 1 vì đã là VND.",
+      "_orders_from_note": "Sỹ Anh chốt 11/11/2026 tính từ 01/11/2026. Đơn POS cũ nhất còn trên shop tạo 02/11.",
+      "_todo": "Chưa có: giá vốn từng loại hạt (product_costs_vnd), bảng phí ship J&T (shipping_fees.VN) — POS ghi phí J&T = 0."
     }
   },
   "market_aliases": {
@@ -122,7 +149,12 @@
     "JPN": "Japan",
     "JAPAN": "Japan",
     "NHẬT": "Japan",
-    "NHAT": "Japan"
+    "NHAT": "Japan",
+    "VN": "Vietnam",
+    "VIETNAM": "Vietnam",
+    "VIỆT NAM": "Vietnam",
+    "VIET NAM": "Vietnam",
+    "VIỆTNAM": "Vietnam"
   },
   "camp_market_tokens": [
     "TW",
@@ -141,7 +173,18 @@
     "JPN",
     "JAPAN",
     "NHẬT",
-    "NHAT"
+    "NHAT",
+    "VN",
+    "VIETNAM",
+    "VIỆT NAM",
+    "VIET NAM"
+  ],
+  "_camp_market_o_dau_note": "Mã nước trong camp_market_tokens_o_dau CHỈ nhận ở Ô ĐẦU tên campaign (11/11/2026, mở Việt Nam): 'VN' / 'VIETNAM' cũng là TỆP KHÁCH (người Việt ở Đài — audiences.VN), nên camp kiểu cũ 'THUONG/VN/…' KHÔNG được tính về Việt Nam. Chỉ 'VN/THAI/…' (ô đầu) mới là thị trường Việt Nam.",
+  "camp_market_tokens_o_dau": [
+    "VN",
+    "VIETNAM",
+    "VIỆT NAM",
+    "VIET NAM"
   ],
   "_audience_note": "TỆP KHÁCH: cộng đồng đang SỐNG Ở NƯỚC BÁN mà quảng cáo nhắm tới — lao động Philippines, Indonesia, Việt Nam, và người bản địa. ĐÂY KHÔNG PHẢI THỊ TRƯỜNG: campaign TW/…/PHI giao ở Đài, thu TWD; SG/…/PHI giao ở Singapore, thu SGD. Ô thứ hai của tên campaign là tệp khách chứ không phải nước giao hàng — đọc nhầm chỗ này là tưởng công ty đang bán ở bốn nước khác nhau.",
   "audiences": {
@@ -248,6 +291,8 @@
       "trung_dong": { "name": "Trung Đông", "markets": ["UAE"], "leader": "Lộc", "members": ["Loc"] },
       "dong_nam_a": { "name": "Đông Nam Á", "markets": ["Singapore"], "leader": "Thái", "members": ["Thai"] },
       "dong_a": { "name": "Đông Á", "markets": ["Taiwan", "Japan"], "leader": "Sỹ Anh (tạm thời)", "members": ["SAnh", "Quynh", "Thuong", "Thang"] },
+      "viet_nam": { "name": "Việt Nam", "markets": ["Vietnam"], "leader": "(chưa chỉ định)", "members": [],
+        "_note": "Sỹ Anh chốt 11/11/2026: team riêng cho thị trường Việt Nam (hạt giống), leader chỉ định sau. members trống: người team khác chạy camp VN/… giữ nguyên số của họ (chưa có người cầm nước)." },
       "nhat_ban": { "name": "Nhật Bản (cũ — đã gộp vào Đông Á)", "markets": ["Japan"], "leader": "Sỹ Anh (tạm thời)",
         "_note": "Sỹ Anh chốt 10/10/2026 gộp Nhật vào Đông Á (thư mục Drive TEAM ĐÔNG Á có cả TAIWAN + JAPAN). GIỮ khoá này vì tài khoản leader 'Nhật Bản' trên máy chủ còn gắn team nhat_ban — xoá là tài khoản đó mất quyền. Muốn bỏ hẳn: đổi tài khoản đó sang dong_a ở /admin rồi xoá khoá." }
     },
@@ -1077,6 +1122,86 @@
           "Huỷ đơn": "Cancelled"
         },
         "_status_note": "Cột 'Trạng Thái' của bảng 'BS UP DATA JAPAN' — cùng bộ chữ với bảng Singapore (cùng đối tác lên đơn). Đã gặp 13/10/2026: Đã lên đơn, Chưa lên đơn. Chữ lạ hiện nguyên văn ở màn Theo dõi vận đơn để khai thêm."
+      },
+      "VN": {
+        "label": "Việt Nam",
+        "store": "tracking_vn",
+        "source": "pos",
+        "pos_market": "VN",
+        "provider": "pos",
+        "currency": "VND",
+        "carrier": null,
+        "_source_note": "Mở 11/11/2026: shop POS 'VIỆT NAM' (1329125435) nối THẲNG J&T Express Việt Nam — mã vận đơn ở partner.extend_code, nhật ký trạng thái J&T ở partner.extend_update (status + note lý do). talpha-sync nạp sale_order mỗi giờ nên không cần 17TRACK (quota hết) hay tra trang hãng. Code: dashboard-ui/src/lib/talpha/pos-jt.ts.",
+        "stale_days": 5,
+        "_stale_note": "Giao trong nước 2–4 ngày; 5 ngày không có cập nhật J&T là đơn kẹt.",
+        "status_rules": [
+          {
+            "match": "chuyển hoàn thành công",
+            "status": "Returned",
+            "vi": "Đã hoàn về"
+          },
+          {
+            "match": "chuyển hoàn",
+            "status": "Exception",
+            "sub_status": "Exception_Returning",
+            "vi": "Đang hoàn"
+          },
+          {
+            "match": "giao (kiện|hàng) thành công",
+            "status": "Delivered",
+            "vi": "Đã giao"
+          },
+          {
+            "match": "không thành công.*(từ chối|không (đặt|nhận))",
+            "status": "DeliveryFailure",
+            "sub_status": "DeliveryFailure_Rejected",
+            "vi": "Khách từ chối nhận"
+          },
+          {
+            "match": "không thành công.*(hẹn|dời|đổi ngày)",
+            "status": "DeliveryFailure",
+            "sub_status": "DeliveryFailure_Rescheduled",
+            "vi": "Khách hẹn giao lại"
+          },
+          {
+            "match": "không thành công.*(liên lạc|khóa máy|khoá máy|thuê bao|không nghe)",
+            "status": "DeliveryFailure",
+            "sub_status": "DeliveryFailure_NoResponse",
+            "vi": "Không liên lạc được khách"
+          },
+          {
+            "match": "không thành công.*(địa chỉ)",
+            "status": "DeliveryFailure",
+            "sub_status": "DeliveryFailure_InvalidAddress",
+            "vi": "Sai địa chỉ"
+          },
+          {
+            "match": "không thành công",
+            "status": "DeliveryFailure",
+            "vi": "Giao không thành công"
+          },
+          {
+            "match": "đang giao",
+            "status": "OutForDelivery",
+            "vi": "Đang đi giao"
+          },
+          {
+            "match": "đã lấy hàng|trung chuyển|bưu cục|xuất kho|nhập kho|đến kho",
+            "status": "InTransit",
+            "vi": "Đang vận chuyển"
+          },
+          {
+            "match": "chờ (vận chuyển|lấy hàng)|chờ lấy",
+            "status": "InfoReceived",
+            "vi": "Chờ J&T lấy hàng"
+          },
+          {
+            "match": "hủy|huỷ",
+            "status": "Cancelled",
+            "vi": "Đã huỷ"
+          }
+        ],
+        "_status_rules_note": "Áp lên '<trạng thái J&T> — <ghi chú>' của sự kiện mới nhất, luật trên thắng. Chữ thật đo 11/11/2026 trên 159 đơn: Chờ vận chuyển lấy hàng · Đã lấy hàng thành công · Kiện hàng đến kho trung chuyển · Xuất kho trung chuyển · Đang giao hàng · Giao kiện thành công | Ký nhận · Giao hàng không thành công (+ note: Không liên lạc được Khách hàng/khóa máy · Người mua hẹn lại ngày nhận · Từ chối-Không đặt hàng) · Chuyển hoàn · Chuyển hoàn không thành công/ Lý do · Chuyển hoàn thành công | Ký nhận · Đơn đã hủy. Chữ lạ hiện nguyên văn ở mục 'trạng thái chưa khai'."
       }
     },
     "code_fixes": [
@@ -1218,9 +1343,10 @@
       "Taiwan",
       "Singapore",
       "UAE",
-      "Japan"
+      "Japan",
+      "Vietnam"
     ],
-    "_note": "campaign chứa từ 'test' đứng riêng = test sản phẩm → tách khỏi báo cáo doanh số. Cả ba nước đều MIỄN: Đài vì cả nước đang thử, Singapore và UAE vì mới mở (Sỹ Anh chốt 15/09/2026). Nhật mở 08/10/2026 — miễn theo cùng lý do."
+    "_note": "campaign chứa từ 'test' đứng riêng = test sản phẩm → tách khỏi báo cáo doanh số. Cả ba nước đều MIỄN: Đài vì cả nước đang thử, Singapore và UAE vì mới mở (Sỹ Anh chốt 15/09/2026). Nhật mở 08/10/2026, Việt Nam mở 11/11/2026 — miễn theo cùng lý do."
   },
   "targets": {
     "_note": "KPI đo trên DOANH SỐ BÁN ĐƯỢC = doanh số đơn đã chốt (trừ huỷ, nháp, đơn trống), quy VND — đúng cột doanh số của file TỔNG TEAM mà thanh KPI so vào. Sỹ Anh chốt 30/10/2026. Tháng không khai = không hiện thanh KPI, không suy từ tháng khác.",
