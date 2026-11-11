@@ -22,10 +22,72 @@ function iso(s: unknown): string | null {
     return Number.isFinite(ms) ? new Date(ms).toISOString() : null;
 }
 
-/** Đọc ô partner (JSON chuỗi hoặc object) → mã vận đơn + nhật ký J&T, cũ → mới. */
+/**
+ * Chữ kiểu Python repr ("{'a': 'x', 'b': None, 'c': [1, True]}") → giá trị JS. Cột
+ * sale_order.partner trong BigQuery lưu dạng này (str(dict) của talpha-sync), KHÔNG phải JSON —
+ * chuỗi có dấu ' bên trong thì Python bọc bằng " — nên phải đọc đúng cả hai kiểu nháy.
+ * Hỏng ở đâu → null (không đoán).
+ */
+export function docPythonRepr(src: string): unknown {
+    let i = 0;
+    const ws = () => { while (i < src.length && /\s/.test(src[i])) i++; };
+    const val = (): unknown => {
+        ws();
+        const c = src[i];
+        if (c === "{") {
+            i++; const o: Record<string, unknown> = {};
+            ws(); if (src[i] === "}") { i++; return o; }
+            for (;;) {
+                const k = val(); ws();
+                if (src[i++] !== ":") throw new Error("thiếu :");
+                o[String(k)] = val(); ws();
+                const d = src[i++];
+                if (d === "}") return o;
+                if (d !== ",") throw new Error("thiếu ,");
+            }
+        }
+        if (c === "[" || c === "(") {
+            const dong = c === "[" ? "]" : ")"; i++; const a: unknown[] = [];
+            ws(); if (src[i] === dong) { i++; return a; }
+            for (;;) {
+                a.push(val()); ws();
+                const d = src[i++];
+                if (d === dong) return a;
+                if (d !== ",") throw new Error("thiếu ,");
+                ws(); if (src[i] === dong) { i++; return a; }
+            }
+        }
+        if (c === "'" || c === '"') {
+            i++; let out = "";
+            while (i < src.length && src[i] !== c) {
+                if (src[i] === "\\") {
+                    const n = src[i + 1];
+                    const map: Record<string, string> = { n: "\n", t: "\t", r: "\r", "\\": "\\", "'": "'", '"': '"' };
+                    if (n === "x" || n === "u") {
+                        const len = n === "x" ? 2 : 4;
+                        out += String.fromCharCode(parseInt(src.slice(i + 2, i + 2 + len), 16)); i += 2 + len; continue;
+                    }
+                    out += map[n] ?? n; i += 2; continue;
+                }
+                out += src[i++];
+            }
+            i++; return out;
+        }
+        const m = /^(None|True|False|-?\d+(?:\.\d+)?(?:[eE][-+]?\d+)?)/.exec(src.slice(i, i + 40));
+        if (!m) throw new Error(`ký tự lạ ở ${i}`);
+        i += m[1].length;
+        return m[1] === "None" ? null : m[1] === "True" ? true : m[1] === "False" ? false : Number(m[1]);
+    };
+    try { const v = val(); return v; } catch { return null; }
+}
+
+/** Đọc ô partner (Python repr / JSON chuỗi / object) → mã vận đơn + nhật ký J&T, cũ → mới. */
 export function docPartnerJt(partner: unknown): { ma: string | null; events: JtEvent[] } {
     let p: any = partner;
-    if (typeof p === "string") { try { p = JSON.parse(p); } catch { p = null; } }
+    if (typeof p === "string") {
+        const t = p.trim();
+        try { p = JSON.parse(t); } catch { p = docPythonRepr(t); }
+    }
     if (!p || typeof p !== "object") return { ma: null, events: [] };
     const ma = String(p.extend_code || "").trim() || null;
     const events = (Array.isArray(p.extend_update) ? p.extend_update : [])

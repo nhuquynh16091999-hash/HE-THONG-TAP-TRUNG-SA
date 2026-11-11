@@ -70,4 +70,19 @@ t("chưa có mã J&T → không bịa trạng thái", () => {
     assert.strictEqual(s.tracking, "DON-7");
     assert.ok(s.last_event.includes("Chưa có mã vận đơn"));
 });
+t("ô partner trong BigQuery là Python repr (nháy đơn, None, True) — vẫn đọc được", () => {
+    const repr = "{'cod': 0, 'paid_at': None, 'system_created': True, 'extend_code': '802860297622', "
+        + "'extend_update': [{'key': 'a', 'location': \"Kiện tới kho 【Long An】 nhà O'Neil\", 'note': None, "
+        + "'status': 'Giao kiện thành công | Ký nhận', 'tracking_id': '802860297622', 'update_at': '2026-11-11T19:16:05+07:00'}, "
+        + "{'key': 'b', 'location': None, 'note': 'Người mua hẹn lại ngày nhận', 'status': 'Giao hàng không thành công', "
+        + "'update_at': '2026-11-10T15:00:00+07:00'}], 'weight': '3.0', 'x': 1.5e3}";
+    const r = J.docPartnerJt(repr);
+    assert.strictEqual(r.ma, "802860297622");
+    assert.deepStrictEqual(r.events.map((e) => e.status), ["Giao hàng không thành công", "Giao kiện thành công | Ký nhận"]);
+    assert.strictEqual(r.events[0].note, "Người mua hẹn lại ngày nhận");
+    const s = J.posJtShipment(don([], { partner: repr }), VN.status_rules);
+    assert.strictEqual(s.status, "Delivered");
+    assert.strictEqual(s.fail_count, 1);
+    assert.strictEqual(J.docPythonRepr("{'a': "), null);
+});
 console.log(`\n${pass} phép thử vận đơn Việt Nam qua.`);
