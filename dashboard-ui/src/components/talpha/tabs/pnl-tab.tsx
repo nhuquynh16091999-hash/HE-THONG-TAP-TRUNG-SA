@@ -11,6 +11,7 @@ import {
     ReportTable, FootNotes, DASH,
     type Column,
 } from "../report";
+import { duKienTheoTyLe } from "@/lib/talpha/pnl-du-kien";
 
 /*
  * P&L — cùng nền với tab Tổng quan (Sỹ Anh chốt 25/09/2026).
@@ -110,18 +111,14 @@ export default function TALPHAPnLTab({ dateRange }: Props) {
     const today = format(new Date(), "yyyy-MM-dd");
     const period = `${ngayVN(sheet.from)} → ${ngayVN(sheet.to)}`;
 
-    // ── Tỉ lệ giao thành công (11/11/2026, Sỹ Anh: "không đúng thực tế vì thiếu tỉ lệ giao") ──
-    // Doanh thu dự kiến = doanh số × tỉ lệ giao của nước. Phí ship mất cả khi hoàn nên giữ đủ.
-    // Giá vốn: nước hàng hoàn về kho bán tiếp (UAE) chỉ mất phần giao được; nước khác mất cả.
+    // ── Tỉ lệ giao thành công (11/11/2026) — cách tính ở lib/talpha/pnl-du-kien.ts (chung Tổng quan).
     const tyLe = costs?.ty_le_giao || {};
-    const veKho = new Set(costs?.hoan_ve_kho || []);
-    const rCua = (code: string | null | undefined): number | null => (code ? tyLe[code]?.r ?? null : null);
-    // Phần doanh số không thuộc nước nào (hoặc nước chưa đo được) → tỉ lệ bình quân theo doanh số.
-    const coR = sheet.markets.filter(m => rCua(m.code) != null);
-    const dsCoR = coR.reduce((s, m) => s + m.doanh_so, 0);
-    const rTB: number | null = dsCoR > 0 ? coR.reduce((s, m) => s + m.doanh_so * rCua(m.code)!, 0) / dsCoR : null;
-    const rDung = (code: string | null | undefined) => rCua(code) ?? rTB ?? 1;
-    const cogsSauHoan = (code: string, cogsVnd: number) => (veKho.has(code) ? cogsVnd * rDung(code) : cogsVnd);
+    const dk = duKienTheoTyLe({
+        markets: sheet.markets, days: sheet.days, market_days: sheet.market_days,
+        cost_days: costs?.days, cost_market_days: costs?.market_days,
+        ty_le_giao: costs?.ty_le_giao, hoan_ve_kho: costs?.hoan_ve_kho,
+    });
+    const { rTB, rDung, cogsSauHoan } = dk;
 
     // Theo nước: tab nước của Sheet + chi phí cùng mã shop.
     const costNuoc = new Map((costs?.markets || []).map(m => [m.code, m]));
@@ -144,39 +141,22 @@ export default function TALPHAPnLTab({ dateRange }: Props) {
         };
     });
 
-    // Theo ngày: ghép từng nước trong ngày (Sheet market_days × tỉ lệ nước đó); phần doanh số
-    // ngoài tab nước lấy tỉ lệ bình quân. Giá vốn UAE của ngày trừ phần hàng hoàn về kho.
+    // Theo ngày: doanh số/ads/đơn từ Sheet, ship từ pnl-costs; DT + giá vốn dự kiến từ dk.
     const costNgay = new Map((costs?.days || []).map(d => [d.date, d]));
-    const dsNuocNgay = new Map<string, { ds: number; dt: number }>();
-    for (const d of sheet.market_days || []) {
-        const x = dsNuocNgay.get(d.date) || { ds: 0, dt: 0 };
-        x.ds += d.doanh_so; x.dt += d.doanh_so * rDung(d.code);
-        dsNuocNgay.set(d.date, x);
-    }
-    const cogsGiamNgay = new Map<string, number>();
-    for (const d of costs?.market_days || []) {
-        const giam = d.cogs_vnd - cogsSauHoan(d.code, d.cogs_vnd);
-        if (giam) cogsGiamNgay.set(d.date, (cogsGiamNgay.get(d.date) || 0) + giam);
-    }
     const rowsNgay: Row[] = [...sheet.days].reverse().map(d => {
         const k = costNgay.get(d.date) ?? rongCost();
-        const x = dsNuocNgay.get(d.date) || { ds: 0, dt: 0 };
-        const dt = costs ? x.dt + Math.max(0, d.doanh_so - x.ds) * (rTB ?? 1) : d.doanh_so;
-        const cg = k.cogs_vnd - (cogsGiamNgay.get(d.date) || 0);
+        const x = dk.theoNgay.get(d.date) ?? { dt: d.doanh_so, cogs: k.cogs_vnd };
         return {
             key: d.date, label: ngayVN(d.date), don: d.don, doanh_so: d.doanh_so,
-            r: costs && d.doanh_so > 0 ? dt / d.doanh_so : null, dt, ads: d.ads,
-            ship: k.ship_vnd, cogs: cg, lai: dt - d.ads - k.ship_vnd - cg,
+            r: costs && d.doanh_so > 0 ? x.dt / d.doanh_so : null, dt: x.dt, ads: d.ads,
+            ship: k.ship_vnd, cogs: x.cogs, lai: x.dt - d.ads - k.ship_vnd - x.cogs,
         };
     });
 
-    // Tổng kỳ = cộng các ngày (đã ghép đúng tỉ lệ từng nước).
-    const dt = rowsNgay.reduce((s, r) => s + r.dt, 0);
-    const cogs = rowsNgay.reduce((s, r) => s + r.cogs, 0);
-    const rKy = t.doanh_so > 0 ? dt / t.doanh_so : null;
+    const { dt, cogs, rKy } = dk;
     const lai = dt - t.ads - ship - cogs;
     const bien = dt > 0 ? (lai / dt) * 100 : null;
-    const nuocThieuR = costs ? sheet.markets.filter(m => m.code && rCua(m.code) == null) : [];
+    const nuocThieuR = costs ? sheet.markets.filter(m => m.code && tyLe[m.code]?.r == null) : [];
 
     // Những thứ còn thiếu để P&L đủ — đọc thẳng từ số liệu, không liệt kê cứng.
     const thieuShip = (costs?.markets || []).filter(m => m.ship_per_order_vnd == null && m.orders > 0);
