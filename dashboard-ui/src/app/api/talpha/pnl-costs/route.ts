@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { COST_RATE_RMB_VND, REPORT_START_DATE } from "@/lib/talpha/rules";
+import { COST_RATE_RMB_VND, MARKETS_PUBLIC, REPORT_START_DATE } from "@/lib/talpha/rules";
+import { tyLeGiao, type TyLeGiao } from "@/lib/talpha/lai-lo";
+import { CFG_TY_LE, KQKD, napKienNuoc } from "@/lib/talpha/lai-lo-nguon";
+import { homNayVN } from "@/lib/talpha/order-ledger";
 import { tinhChiPhiDon, type DonChiPhi } from "@/lib/talpha/order-costs";
 import { getAccess } from "@/lib/talpha/access";
 import { canMarket, seesAllMarkets } from "@/lib/talpha/access-rules";
@@ -12,6 +15,10 @@ const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 // theo nước. Doanh số, tiền ads, số đơn hai tab lấy từ file TỔNG TEAM (sheet-report) — route
 // này chỉ thêm hai khoản Sheet không có. Cách tính nằm ở lib/talpha/order-costs.ts, dùng chung
 // với tab P&L theo SP (/api/talpha/product-pnl).
+//
+// ?ty_le=1 (tab P&L, 11/11/2026): thêm TỈ LỆ GIAO THÀNH CÔNG từng nước — cùng thước với
+// Kế toán → Lãi lỗ (lib/talpha/lai-lo.ts → tyLeGiao, đo theo tiền COD trên kiện đã có kết quả
+// lên đơn 90→21 ngày trước). Tab P&L nhân doanh số với tỉ lệ này ra doanh thu dự kiến.
 export async function GET(req: NextRequest) {
     const sp = req.nextUrl.searchParams;
     const fromIn = sp.get("from") || "";
@@ -39,10 +46,32 @@ export async function GET(req: NextRequest) {
         const tong = rong();
         const ngay = new Map<string, Bucket>();
         const nuoc = new Map<string, Bucket>();
+        const ngayNuoc = new Map<string, Bucket>();
         for (const o of don) {
             cong(tong, o);
             const n = ngay.get(o.d) || rong(); cong(n, o); ngay.set(o.d, n);
             const m = nuoc.get(o.shop) || rong(); cong(m, o); nuoc.set(o.shop, m);
+            const k = `${o.shop}|${o.d}`;
+            const nn = ngayNuoc.get(k) || rong(); cong(nn, o); ngayNuoc.set(k, nn);
+        }
+
+        // Tỉ lệ giao từng nước đang bán mà người xem được. Nước nào đọc kiện lỗi thì để null +
+        // ghi lỗi — giao diện báo ra, không bịa tỉ lệ.
+        let ty_le_giao: Record<string, (TyLeGiao & { loi?: string }) | { r: null; loi: string }> | undefined;
+        if (sp.get("ty_le") === "1") {
+            const homNay = homNayVN();
+            const asOf = to < homNay ? to : homNay;
+            const nuocXem = MARKETS_PUBLIC.markets
+                .filter((m) => m.status === "dang_ban" && (!hep || (!!a && canMarket(a, m.code))));
+            ty_le_giao = Object.fromEntries(await Promise.all(nuocXem.map(async (m) => {
+                try {
+                    const n = await napKienNuoc(m.code, from, to, asOf);
+                    return [m.code, tyLeGiao(n.kien, asOf, CFG_TY_LE)] as const;
+                } catch (e: any) {
+                    console.error(`pnl-costs ty_le ${m.code}:`, e?.message || e);
+                    return [m.code, { r: null, loi: e?.message || String(e) }] as const;
+                }
+            })));
         }
 
         return NextResponse.json({
@@ -53,6 +82,13 @@ export async function GET(req: NextRequest) {
                 code, ...b,
                 ship_per_order_vnd: b.orders > b.orders_no_ship ? b.ship_vnd / (b.orders - b.orders_no_ship) : null,
             })),
+            market_days: [...ngayNuoc.entries()].sort(([x], [y]) => x.localeCompare(y)).map(([k, b]) => {
+                const [code, date] = k.split("|");
+                return { code, date, ...b };
+            }),
+            ty_le_giao,
+            // Nước mà hàng hoàn quay về kho bán tiếp → đơn hoàn KHÔNG mất giá vốn (UAE — kho D&T).
+            hoan_ve_kho: (KQKD.hang_hoan?.quay_lai_kho_ban_tiep || ["AE"]).map((x) => x.toUpperCase()),
             ship_basis,
             missing_costs: thieu,
             cost_rate_rmb_vnd: COST_RATE_RMB_VND,
