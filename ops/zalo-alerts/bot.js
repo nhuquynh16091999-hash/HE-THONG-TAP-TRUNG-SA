@@ -165,11 +165,67 @@ let dichVu = false;        // chạy dịch vụ thì mỗi lần đăng nhập 
 async function ketNoi() {
     if (!zalo) zalo = require("./zalo");
     if (!api) {
-        api = await zalo.dangNhap();
-        log("Đã đăng nhập Zalo.");
-        if (dichVu) batDauNghe(api);
+        try { api = await zalo.dangNhap(); }
+        catch (e) { if (dichVu) baoMatDangNhap(e); throw e; }
+        daVao(api);
     }
     return api;
+}
+
+// ─── Trạng thái đăng nhập cho dashboard + quét QR từ dashboard (12/11/2026) ───
+// 03/11 Zalo đá phiên web của nick phụ (mã 1006 — thường là có người mở Zalo PC/Web bằng nick
+// đó), cookie chết hẳn, bot thử lại mỗi 10' suốt 9 ngày mà không ai biết: bot mất đăng nhập thì
+// không nhắn được vào Zalo. Nay bot ghi zalo_status.json → dashboard hiện băng đỏ cho giám đốc,
+// bấm "Quét QR" là dashboard ghi zalo_qr_request.json → bot tự làm mã, giám đốc quét ngay trên
+// màn hình, không cần ai vào máy chủ.
+function daVao(a) {
+    api = a;
+    log("Đã đăng nhập Zalo.");
+    if (dichVu) {
+        batDauNghe(a);
+        let ten = null;
+        try { ten = (zalo.docJson(zalo.SESSION_FILE) || {}).name || null; } catch { /* không có tên thì thôi */ }
+        zalo.ghiTrangThai({ ok: true, loi: null, matTu: null, qr: null, vaoLuc: new Date().toISOString(), nick: ten });
+    }
+}
+
+function baoMatDangNhap(e) {
+    const msg = String((e && e.message) || e);
+    const cu = zalo.docJson(zalo.STATUS_FILE) || {};
+    // "fetch failed" = rớt mạng, tự khỏi; "Đăng nhập thất bại" = cookie chết, PHẢI quét QR.
+    zalo.ghiTrangThai({
+        ok: false, loi: msg, canQuet: !/fetch failed|ETIMEDOUT|ECONNRESET|ENOTFOUND|EAI_AGAIN/i.test(msg),
+        matTu: cu.ok === false && cu.matTu ? cu.matTu : new Date().toISOString(),
+    });
+}
+
+let dangQuet = false;
+async function xemYeuCauQR() {
+    if (dangQuet || !zalo) return;
+    const yc = zalo.docJson(zalo.QR_REQUEST_FILE);
+    const tt = zalo.docJson(zalo.STATUS_FILE) || {};
+    if (!yc || !yc.at || (tt.qrXuLy && tt.qrXuLy >= yc.at)) return;
+    // Yêu cầu cũ quá 10' (bot tắt lúc bấm) thì bỏ — không làm mã cho người đã đi chỗ khác.
+    if (Date.now() - Date.parse(yc.at) > 10 * 60 * 1000) { zalo.ghiTrangThai({ qrXuLy: yc.at }); return; }
+    dangQuet = true;
+    zalo.ghiTrangThai({ qrXuLy: yc.at, qr: { buoc: "dang_tao", nguoi: yc.by || null } });
+    log(`Dashboard yêu cầu quét QR (${yc.by || "?"}) — đang làm mã.`);
+    try {
+        const a = await zalo.ghepQR({
+            soLan: 3,
+            bao: (k, d) => {
+                if (k === "qr") zalo.ghiTrangThai({ qr: { buoc: "cho_quet", lan: d.lan, soLan: d.soLan, hetHan: d.hetHan, nguoi: yc.by || null } });
+                else if (k === "quet") zalo.ghiTrangThai({ qr: { buoc: "da_quet", ten: d.ten } });
+                else if (k === "tuchoi") zalo.ghiTrangThai({ qr: { buoc: "tu_choi" } });
+            },
+        });
+        if (nghe) { try { nghe.stop(); } catch { /* bộ cũ */ } nghe = null; }
+        daVao(a);
+        log("Đăng nhập lại bằng QR từ dashboard — xong.");
+    } catch (e) {
+        log("Quét QR từ dashboard lỗi:", e.message);
+        zalo.ghiTrangThai({ qr: { buoc: "loi", loi: e.message } });
+    } finally { dangQuet = false; }
 }
 
 async function guiMot(text, nhom) {
@@ -511,6 +567,7 @@ function batDauNghe(a) {
             const doi = doiHoiPhuc;
             doiHoiPhuc = Math.min(doiHoiPhuc * 2, DOI_TOI_DA);
             log(`Bộ nhận lệnh bị đóng (mã ${code}${reason ? ", " + reason : ""}) — thường do mở Zalo Web/PC bằng nick phụ. Đăng nhập lại sau ${Math.round(doi / 60000)}'.`);
+            zalo.ghiTrangThai({ ok: false, canQuet: false, loi: `Zalo đóng kết nối (mã ${code}) — đang chờ đăng nhập lại`, matTu: new Date().toISOString() });
             setTimeout(() => { if (!api) ketNoi().catch((e) => log("Đăng nhập lại lỗi:", e.message)); }, doi);
         },
     });
@@ -576,7 +633,11 @@ async function ratMoc() {
 async function giuPhien() {
     if (!api) return;
     try { await api.keepAlive(); zalo.luuPhien(api); }
-    catch (e) { log("keepAlive lỗi — lần gửi tới sẽ đăng nhập lại:", e.message); api = null; }
+    catch (e) {
+        log("keepAlive lỗi — đăng nhập lại ngay:", e.message); api = null;
+        // Thử ngay chứ không đợi lần gửi tới: phiên chết thì dashboard phải biết sớm.
+        ketNoi().catch((e2) => log("Đăng nhập lại lỗi:", e2.message));
+    }
 }
 
 async function gioiThieuNeuMoi() {
@@ -615,6 +676,10 @@ async function chayDichVu() {
     dichVu = true;
     log(`Dashboard base: ${CFG.dashboardBaseUrl}${process.env.TALPHA_DASHBOARD_URL ? " (env TALPHA_DASHBOARD_URL)" : ""}`);
     zalo = require("./zalo");
+    // Dashboard bấm "Quét QR" lúc nào cũng nghe — kể cả khi đang kẹt ở vòng chờ đăng nhập dưới.
+    setInterval(() => { xemYeuCauQR().catch((e) => log("Yêu cầu QR lỗi:", e.message)); }, 5000);
+    setInterval(() => { try { zalo.ghiTrangThai({ nhip: new Date().toISOString() }); } catch { /* đĩa đầy thì thôi */ } }, 60_000);
+    zalo.ghiTrangThai({ nhip: new Date().toISOString(), batLuc: new Date().toISOString() });
     // Đăng nhập hỏng / chưa ghép: KHÔNG thoát — pm2 sẽ khởi động lại liên tục và che mất lỗi
     // thật. Đứng chờ, 10' thử lại một lần.
     for (;;) {
@@ -623,7 +688,11 @@ async function chayDichVu() {
         catch (e) { log("Đăng nhập Zalo lỗi:", e.message); }
         if (api && Object.keys(nhomNuoc).length) break;
         if (api) log("Chưa có nhóm nước nào — thêm nick phụ vào nhóm \"ADS + VẬN ĐƠN <nước>\" rồi đợi, hoặc chạy `node pair.js --tu-nhan`.");
-        await sleep(10 * 60 * 1000);
+        // Chờ 10' nhưng thoát sớm khi quét QR từ dashboard vừa đăng nhập được.
+        for (let i = 0; i < 60 && !(api && !dangQuet && Object.keys(nhomNuoc).length); i++) {
+            await sleep(10_000);
+            if (api && !Object.keys(nhomNuoc).length) break;
+        }
     }
     for (const m of CAC_NUOC) {
         const g = nhomNuoc[m];

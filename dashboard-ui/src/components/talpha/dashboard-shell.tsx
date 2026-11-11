@@ -10,6 +10,7 @@ import { ThemeToggle } from "@/components/ui/theme-toggle";
 import Link from "next/link";
 import { AccessProvider, type Me } from "./access-context";
 import NutCaiApp from "./cai-app";
+import ZaloBotBanner from "./zalo-bot-banner";
 
 import TALPHACeoOverviewTab from "./tabs/ceo-overview-tab";
 import TALPHAAdsCommandTab from "./tabs/ads-command-tab";
@@ -340,6 +341,7 @@ export default function TALPHADashboardShell() {
                 </header>
 
                 <div className="space-y-4 p-3 md:space-y-6 md:p-6">
+                    {me?.full && <ZaloBotBanner />}
                     {/* Hàng pill chọn tab con — chỉ hiện khi mục có nhiều hơn một tab.
                         Điện thoại: một hàng cuộn ngang, không gãy chữ "P&L theo SP" thành ba dòng. */}
                     {group.tabs.length > 1 && (

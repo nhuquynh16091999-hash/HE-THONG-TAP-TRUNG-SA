@@ -8,11 +8,17 @@
 //     quyền 600, gitignore, không in ra log, không chép đi đâu.
 const fs = require("fs");
 const path = require("path");
-const { Zalo, ThreadType } = require("zca-js");
+const { Zalo, ThreadType, LoginQRCallbackEventType: E } = require("zca-js");
 const { toZalo, chiaTin } = require("./zalo_text");
 
 const DIR = __dirname;
 const SESSION_FILE = path.join(DIR, ".zalo_session.json");
+const QR_FILE = path.join(DIR, "qr.png");
+// Trạng thái đăng nhập cho dashboard (12/11/2026): phiên chết 03/11 mà 9 ngày không ai biết, vì
+// bot mất đăng nhập thì chính nó không nhắn được vào Zalo. Dashboard đọc file này để hiện băng
+// đỏ cho giám đốc, và ghi QR_REQUEST_FILE khi giám đốc bấm "Quét QR" — bot tự làm mã ngay.
+const STATUS_FILE = path.join(DIR, "zalo_status.json");
+const QR_REQUEST_FILE = path.join(DIR, "zalo_qr_request.json");
 // MỖI NƯỚC MỘT NHÓM "ADS + VẬN ĐƠN <nước>" (Sỹ Anh chốt 08/10/2026) — tin ads của nước đó
 // và tin vận đơn của nước đó chung một nhóm. Nhóm cũ (BÁO CÁO ADS gộp các nước: zalo_group.json;
 // VẬN ĐƠN TW/SGP/UAE: zalo_group_vandon*.json) bỏ hẳn — bot không đọc các file đó nữa.
@@ -61,6 +67,54 @@ async function dangNhap() {
     const api = await taoZalo().login({ imei: s.imei, cookie: s.cookie, userAgent: s.userAgent, language: s.language || "vi" });
     luuPhien(api);
     return api;
+}
+
+/**
+ * Đăng nhập bằng QR (nick PHỤ quét). Mã ghi ra qr.png, hết hạn ~100 giây, tự làm mã mới tối đa
+ * `soLan` lần. Phiên ghi NGAY lúc Zalo trả (chưa đợi đăng nhập xong): bước sau hỏng vẫn khỏi quét lại.
+ * `bao(su_kien, du_lieu)` báo từng bước cho bên gọi (pair.js in ra; bot ghi zalo_status.json).
+ */
+async function ghepQR({ soLan = 5, bao = () => {} } = {}) {
+    let lan = 0, ten = "";
+    const api = await taoZalo().loginQR({ qrPath: QR_FILE }, async (ev) => {
+        switch (ev.type) {
+            case E.QRCodeGenerated:
+                lan++;
+                await ev.actions.saveToFile(QR_FILE);
+                bao("qr", { lan, soLan, hetHan: new Date(Date.now() + 100_000).toISOString() });
+                break;
+            case E.QRCodeExpired:
+                if (lan >= soLan) { bao("het", { lan }); ev.actions.abort(); }
+                else ev.actions.retry();
+                break;
+            case E.QRCodeScanned:
+                ten = ev.data.display_name || "";
+                bao("quet", { ten });
+                break;
+            case E.QRCodeDeclined:
+                bao("tuchoi", {});
+                ev.actions.abort();
+                break;
+            case E.GotLoginInfo:
+                ghiRieng(SESSION_FILE, { ...ev.data, language: "vi", name: ten, savedAt: new Date().toISOString() });
+                bao("luu", {});
+                break;
+        }
+    });
+    try { fs.unlinkSync(QR_FILE); } catch { /* không có thì thôi */ }
+    if (!api) throw new Error(lan >= soLan ? `QR hết hạn ${lan} lần, chưa ai quét` : "đăng nhập QR bị huỷ");
+    luuPhien(api, { name: ten });
+    return api;
+}
+
+/** Ghi trạng thái đăng nhập cho dashboard (gộp vào bản cũ, ghi qua file tạm). */
+function ghiTrangThai(them) {
+    const cu = docJson(STATUS_FILE) || {};
+    const moi = { ...cu, ...them, capNhat: new Date().toISOString() };
+    const tam = `${STATUS_FILE}.${process.pid}.tmp`;
+    fs.writeFileSync(tam, JSON.stringify(moi, null, 2) + "\n");
+    fs.renameSync(tam, STATUS_FILE);
+    return moi;
 }
 
 /** Nhóm "ADS + VẬN ĐƠN" của một nước. null = chưa chọn → bot không gửi gì cho nước đó. */
@@ -116,6 +170,6 @@ function batNghe(api, { onMessage, onClosed, log }) {
 }
 
 module.exports = {
-    SESSION_FILE, fileNhomNuoc, ThreadType,
-    taoZalo, ghiRieng, luuPhien, dangNhap, docNhomNuoc, ghiNhomNuoc, danhSachNhom, guiNhom, batNghe,
+    SESSION_FILE, QR_FILE, STATUS_FILE, QR_REQUEST_FILE, fileNhomNuoc, ThreadType,
+    taoZalo, ghiRieng, luuPhien, dangNhap, ghepQR, ghiTrangThai, docJson, docNhomNuoc, ghiNhomNuoc, danhSachNhom, guiNhom, batNghe,
 };

@@ -8,3 +8,7 @@ zalo_group_vandon*.json
 state.json
 qr.png
 groups.txt
+# Trạng thái đăng nhập cho dashboard + yêu cầu quét QR từ dashboard (12/11/2026).
+zalo_status.json
+zalo_status.json.*.tmp
+zalo_qr_request.json

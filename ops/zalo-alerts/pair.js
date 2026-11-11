@@ -15,12 +15,10 @@
 // Ghép lại khi bot đang chạy: xong thì `pm2 restart talpha-zalo-alerts` để bot nạp phiên mới.
 const fs = require("fs");
 const path = require("path");
-const { LoginQRCallbackEventType: E } = require("zca-js");
-const { SESSION_FILE, taoZalo, ghiRieng, luuPhien, dangNhap, danhSachNhom, ghiNhomNuoc } = require("./zalo");
+const { QR_FILE, dangNhap, ghepQR, danhSachNhom, ghiNhomNuoc } = require("./zalo");
 const { NUOC, chonNhomTheoTen } = require("./rules");
 const CFG = require("./config");
 
-const QR_FILE = path.join(__dirname, "qr.png");
 const GROUPS_FILE = path.join(__dirname, "groups.txt");
 const SO_LAN_QR = 5;
 const log = (...a) => console.log(new Date().toISOString(), ...a);
@@ -32,37 +30,17 @@ function argAfter(flag) {
     return v && !v.startsWith("--") ? v : "";
 }
 
-async function ghepQR() {
-    let lan = 0, ten = "";
-    const api = await taoZalo().loginQR({ qrPath: QR_FILE }, async (ev) => {
-        switch (ev.type) {
-            case E.QRCodeGenerated:
-                lan++;
-                await ev.actions.saveToFile(QR_FILE);
-                log(`QR_READY lần ${lan}/${SO_LAN_QR}: ${QR_FILE} — mở app Zalo của NICK PHỤ → quét mã (còn ~100 giây)`);
-                break;
-            case E.QRCodeExpired:
-                if (lan >= SO_LAN_QR) { log(`QR hết hạn ${lan} lần — dừng. Sẵn sàng quét thì chạy lại.`); ev.actions.abort(); }
-                else { log("QR hết hạn — làm mã mới"); ev.actions.retry(); }
-                break;
-            case E.QRCodeScanned:
-                ten = ev.data.display_name || "";
-                log(`ĐÃ QUÉT bởi "${ten}" — bấm XÁC NHẬN đăng nhập trên điện thoại`);
-                break;
-            case E.QRCodeDeclined:
-                log("Điện thoại đã TỪ CHỐI đăng nhập — dừng.");
-                ev.actions.abort();
-                break;
-            case E.GotLoginInfo:
-                // Ghi phiên NGAY lúc có, chưa đợi đăng nhập xong: bước sau hỏng thì vẫn không phải quét lại.
-                ghiRieng(SESSION_FILE, { ...ev.data, language: "vi", name: ten, savedAt: new Date().toISOString() });
-                log("Đã lưu phiên vào .zalo_session.json (quyền 600).");
-                break;
-        }
+async function ghepQRTay() {
+    return ghepQR({
+        soLan: SO_LAN_QR,
+        bao: (k, d) => {
+            if (k === "qr") log(`QR_READY lần ${d.lan}/${d.soLan}: ${QR_FILE} — mở app Zalo của NICK PHỤ → quét mã (còn ~100 giây)`);
+            else if (k === "het") log(`QR hết hạn ${d.lan} lần — dừng. Sẵn sàng quét thì chạy lại.`);
+            else if (k === "quet") log(`ĐÃ QUÉT bởi "${d.ten}" — bấm XÁC NHẬN đăng nhập trên điện thoại`);
+            else if (k === "tuchoi") log("Điện thoại đã TỪ CHỐI đăng nhập — dừng.");
+            else if (k === "luu") log("Đã lưu phiên vào .zalo_session.json (quyền 600).");
+        },
     });
-    luuPhien(api, { name: ten });
-    try { fs.unlinkSync(QR_FILE); } catch {}
-    return api;
 }
 
 async function inNhom(api) {
@@ -108,7 +86,7 @@ async function main() {
         await inNhom(await dangNhap());
         return;
     }
-    const api = await ghepQR();
+    const api = await ghepQRTay();
     log("GHÉP XONG.");
     await inNhom(api);
     log("Chọn nhóm từng nước: node pair.js --tu-nhan");
