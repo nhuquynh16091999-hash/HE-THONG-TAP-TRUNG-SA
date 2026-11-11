@@ -168,6 +168,20 @@ for _tbl,_col in (("fb_adset_data","adset_id"), ("fb_ads_data","ad_id")):
         if _nv and _nv not in UNASSIGN and r.ad_id: ad2nv[r.ad_id]=_nv
         if r.ad_id and is_test(r.campaign_name, _m): test_ads.add(r.ad_id)
         if r.ad_id: ad2camp[r.ad_id]=r.campaign_name
+# Đơn từ LANDING (Webcake — Việt Nam, 12/11/2026): POS không có page/ad_id, chỉ có UTM. Sỹ Anh chốt
+# "đơn Việt Nam gán theo tên camp": utm_campaign là TÊN camp ("VN/THÁI/…") hoặc ID camp; utm_content /
+# utm_term là ID quảng cáo / nhóm QC. ID camp tra qua fb_ads_data (TK token không thấy thì không ra tên
+# → vẫn "(không gán)", không đoán).
+cid2camp={}
+for r in bq.query(f"SELECT DISTINCT CAST(campaign_id AS STRING) cid, campaign_name FROM `{PROJECT}.{DS}.fb_ads_data` WHERE date BETWEEN DATE_SUB(DATE '{FROM}', INTERVAL 60 DAY) AND '{TO}' AND campaign_id IS NOT NULL").result():
+    if r.cid: cid2camp[r.cid]=r.campaign_name
+def camp_tu_utm(utm_camp, utm_content, utm_term):
+    c=(utm_camp or "").strip()
+    if "/" in c and campaign_market(c)[1]=="o_dau": return c
+    for x in (c, utm_content, utm_term):
+        x=(x or "").strip()
+        if x and (cid2camp.get(x) or ad2camp.get(x)): return cid2camp.get(x) or ad2camp.get(x)
+    return None
 purely_test_pages=test_pages-main_pages  # page CHỈ chạy camp test → đơn không ad_id trên page đó = test
 # ĐƠN HÀNG — MARKETER: ưu tiên TAG marketer trong POS (JSON $.name) (rule CEO, không đổi).
 # Đơn KHÔNG tag → chủ CAMPAIGN nối được theo nguồn đơn → chủ campaign của quảng cáo (ad_id).
@@ -178,6 +192,7 @@ EXT_PREFIX="~ngoai~"
 DON=list(bq.query(f"""SELECT CAST(id AS STRING) id, DATE(TIMESTAMP(inserted_at),'{POS_TZ}') d,
     JSON_EXTRACT_SCALAR(marketer,'$.name') nm, shop_label, page_id, {_cot('page_name')}, {_cot('seller_name')},
     CAST(ad_id AS STRING) ad_id, CAST(adset_id AS STRING) adset_id, status_name,
+    {_cot('p_utm_campaign')}, {_cot('p_utm_content')}, {_cot('p_utm_term')},
     IFNULL(cod,0) cod, IF(status_category='{GTC_CAT}', IFNULL(cod,0), 0) cod_gtc
   FROM `{PROJECT}.{DS}.sale_order`
   WHERE DATE(TIMESTAMP(inserted_at),'{POS_TZ}') BETWEEN '{FROM}' AND '{TO}' AND status_category NOT IN ('HUY','DON_THO')
@@ -193,6 +208,9 @@ for r in DON:
     mkt=SHOP2MKT.get((r.shop_label or "").upper())
     if not mkt: continue
     cqc=ad2camp.get(r.ad_id or "") or ad2camp.get(r.adset_id or "")
+    utm_camp=None
+    if not cqc:
+        cqc=utm_camp=camp_tu_utm(r.p_utm_campaign, r.p_utm_content, r.p_utm_term)
     # Đơn shop nước nào chỉ theo camp nước đó — cả khi nối theo page lẫn khi dự phòng theo quảng cáo.
     # 17/09/2026: đơn Đài #381 (0 TWD, không tag) mang quảng cáo + page của camp Singapore của Lộc →
     # Lộc ngày 15/09 ra 3 đơn, POS 2.
@@ -206,7 +224,9 @@ for r in DON:
     nv = norm_pos_nv(r.nm)
     if not nv:
         ex = norm_pos_external(r.nm)
-        nv = EXT_PREFIX + ex if ex else (nv_camp or (qc_cung_nuoc and (ad2nv.get(r.ad_id or "") or ad2nv.get(r.adset_id or ""))) or UNASSIGNED)
+        nv = EXT_PREFIX + ex if ex else (nv_camp or (qc_cung_nuoc and (ad2nv.get(r.ad_id or "") or ad2nv.get(r.adset_id or "")
+                                                                      or (utm_camp and parse_camp(utm_camp)[1]))) or UNASSIGNED)
+        if utm_camp and nv and not nv.startswith(EXT_PREFIX) and nv!=UNASSIGNED: DEM_KHOP["utm"]+=1
     prod = ten_tab_cua_don(r.page_name, POS_TEN) or CAMP_TAB.get(camp or cqc or "") or "(khác)"   # tab = page
     # Đã nghỉ → "(không gán)" (bucket_nv), kể cả khi tag POS ghi đúng tên họ.
     nv=bucket_nv(nv)
