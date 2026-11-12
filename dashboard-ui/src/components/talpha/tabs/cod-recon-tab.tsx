@@ -92,7 +92,15 @@ type TienVe = {
     con_lai_da_giao: UocTinh; con_lai_chua_giao: UocTinh;
     khong_tinh: { hoan: number; huy: number; tieu_huy: number; cod_twd: number };
     tien_hang: { loi: string | null; so_dot: number; doc_luc: string };
+    /** Tiền đang chờ bao lâu (13/11/2026). Máy chủ cũ chưa có thì không hiện. */
+    tuoi?: {
+        da_giao: { dung_nhip: NhomTuoi; qua_1_ky: NhomTuoi; qua_han: NhomTuoi; lau_nhat_ngay: number | null };
+        chua_giao: { duoi_15: NhomTuoi; tu_15_30: NhomTuoi; tren_30: NhomTuoi; lau_nhat_ngay: number | null };
+    };
+    /** COD các kỳ đã có sao kê đi đâu: phí NAZA, tiền hàng, về tay. Thiếu tỷ giá kỳ nào thì null. */
+    co_cau?: { cod_quy_vnd: number; phi_vnd: number; tien_hang_vnd: number; ty_le_ve_tay: number } | null;
 };
+type NhomTuoi = { so_don: number; cod_twd: number; vnd_uoc: number | null };
 type Period = {
     id: string; filename: string; period_date: string;
     ngay_sao_ke: string | null; luong: Luong | null;
@@ -196,6 +204,92 @@ const O_MAU = {
     xanhduong: "text-sky-700 dark:text-sky-300",
     do: "text-rose-600 dark:text-rose-400",
 } as const;
+/**
+ * Tiền đang chờ bao lâu (13/11/2026). Hai ô "Còn phải gửi" / "Chưa giao xong" chỉ nói BAO NHIÊU;
+ * thanh này nói BAO LÂU — tiền NAZA giữ quá 2 kỳ là phải đòi, đơn nằm đường quá 30 ngày gần như hoàn.
+ * Đơn đã giao chia theo kỳ sao kê (cùng thước đèn Sổ đơn hàng); chưa giao chia theo ngày từ lúc gửi.
+ */
+function TuoiTienCho({ t }: { t: NonNullable<TienVe["tuoi"]> }) {
+    const dg = t.da_giao, cg = t.chua_giao;
+    const tongDg = dg.dung_nhip.cod_twd + dg.qua_1_ky.cod_twd + dg.qua_han.cod_twd;
+    const tongCg = cg.duoi_15.cod_twd + cg.tu_15_30.cod_twd + cg.tren_30.cod_twd;
+    const Thanh = ({ ten, tong, lauNhat, khuc }: {
+        ten: string; tong: number; lauNhat: number | null;
+        khuc: { nhan: string; n: NhomTuoi; mau: string; chu: string }[];
+    }) => (
+        <div className="min-w-0 flex-1 space-y-1.5">
+            <div className="flex items-baseline gap-2 text-[12px]">
+                <b className="font-semibold text-foreground">{ten}</b>
+                {lauNhat != null && <span className="text-muted-foreground">· lâu nhất {lauNhat} ngày từ lúc gửi</span>}
+            </div>
+            <div className="flex h-2.5 w-full gap-0.5 overflow-hidden rounded-full bg-muted">
+                {tong > 0 && khuc.filter((k) => k.n.cod_twd > 0).map((k) => (
+                    <div key={k.nhan} className={k.mau} style={{ width: `${(k.n.cod_twd / tong) * 100}%` }}
+                        title={`${k.nhan}: ${k.n.so_don} đơn · ${TWD(k.n.cod_twd)}`} />
+                ))}
+            </div>
+            <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[11.5px] text-muted-foreground">
+                {khuc.map((k) => (
+                    <span key={k.nhan} className={k.n.so_don ? undefined : "opacity-50"}>
+                        <span className={cn("mr-1 inline-block h-2 w-2 rounded-full", k.mau)} />
+                        {k.nhan} <b className={cn("font-semibold tabular-nums", k.n.so_don ? k.chu : "")}>{k.n.so_don} đơn</b>
+                        {k.n.vnd_uoc != null && k.n.so_don > 0 && <span className="tabular-nums"> ≈{VND(k.n.vnd_uoc)}</span>}
+                    </span>
+                ))}
+            </div>
+        </div>
+    );
+    return (
+        <div className="flex flex-col gap-3 rounded-xl border border-border bg-card px-4 py-3 shadow-sm md:flex-row md:gap-6">
+            <Thanh ten="Tiền NAZA đang giữ chờ bao lâu" tong={tongDg} lauNhat={dg.lau_nhat_ngay} khuc={[
+                { nhan: "đúng nhịp", n: dg.dung_nhip, mau: "bg-emerald-500", chu: "text-emerald-700 dark:text-emerald-400" },
+                { nhan: "qua 1 kỳ", n: dg.qua_1_ky, mau: "bg-amber-400", chu: "text-amber-700 dark:text-amber-400" },
+                { nhan: "quá hạn ≥2 kỳ", n: dg.qua_han, mau: "bg-rose-500", chu: "text-rose-700 dark:text-rose-400" },
+            ]} />
+            <Thanh ten="Đơn chưa giao xong nằm đường bao lâu" tong={tongCg} lauNhat={cg.lau_nhat_ngay} khuc={[
+                { nhan: "≤14 ngày", n: cg.duoi_15, mau: "bg-sky-500", chu: "text-sky-700 dark:text-sky-400" },
+                { nhan: "15–30 ngày", n: cg.tu_15_30, mau: "bg-amber-400", chu: "text-amber-700 dark:text-amber-400" },
+                { nhan: ">30 ngày, dễ hoàn", n: cg.tren_30, mau: "bg-rose-500", chu: "text-rose-700 dark:text-rose-400" },
+            ]} />
+        </div>
+    );
+}
+
+/** COD các kỳ đã có sao kê đi đâu (13/11/2026): phí NAZA · tiền hàng NAZA trừ · về tay. */
+function CoCauCod({ c, daGui, soKy }: { c: NonNullable<TienVe["co_cau"]>; daGui: number; soKy: number }) {
+    // "Khác" = điều chỉnh kỳ trước, làm tròn, phần Sing gộp… — phần còn lại để ba khúc cộng đúng 100%.
+    const khac = c.cod_quy_vnd - c.phi_vnd - c.tien_hang_vnd - daGui;
+    const pct = (x: number) => `${((x / c.cod_quy_vnd) * 100).toFixed(1)}%`;
+    const khuc = [
+        { nhan: "về tay", so: daGui, mau: "bg-emerald-500" },
+        { nhan: "tiền hàng NAZA trừ", so: c.tien_hang_vnd, mau: "bg-orange-400" },
+        { nhan: "phí ship + thao tác", so: c.phi_vnd, mau: "bg-violet-400" },
+        ...(Math.abs(khac) >= 1 ? [{ nhan: khac > 0 ? "điều chỉnh / khác" : "điều chỉnh cộng thêm", so: khac, mau: "bg-slate-300 dark:bg-slate-600" }] : []),
+    ];
+    return (
+        <div className="space-y-1.5 rounded-xl border border-border bg-card px-4 py-3 shadow-sm">
+            <div className="flex flex-wrap items-baseline gap-x-2 text-[12px]">
+                <b className="font-semibold text-foreground">COD {soKy} kỳ đã sao kê đi đâu</b>
+                <span className="text-muted-foreground">· {VND(c.cod_quy_vnd)} quy đổi theo tỷ giá từng kỳ ·</span>
+                <span className="font-semibold text-emerald-700 dark:text-emerald-400">về tay {pct(daGui)}</span>
+            </div>
+            <div className="flex h-2.5 w-full gap-0.5 overflow-hidden rounded-full bg-muted">
+                {khuc.filter((k) => k.so > 0).map((k) => (
+                    <div key={k.nhan} className={k.mau} style={{ width: pct(k.so) }} title={`${k.nhan}: ${VND(k.so)}`} />
+                ))}
+            </div>
+            <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[11.5px] text-muted-foreground">
+                {khuc.map((k) => (
+                    <span key={k.nhan}>
+                        <span className={cn("mr-1 inline-block h-2 w-2 rounded-full", k.mau)} />
+                        {k.nhan} <b className="font-semibold tabular-nums text-foreground">{VND(Math.abs(k.so))}</b> ({pct(Math.abs(k.so))})
+                    </span>
+                ))}
+            </div>
+        </div>
+    );
+}
+
 function OSoTien({ mau, nhan, so, phu, uoc, className }: {
     mau: keyof typeof O_MAU; nhan: string; so: string; phu?: ReactNode; uoc?: boolean; className?: string;
 }) {
@@ -1006,7 +1100,20 @@ function CodDaiLoan({ dateRange, nutNuoc }: Props & { nutNuoc?: ReactNode }) {
     const period = periods.find((p) => p.id === pid) || periods[0];
     // Đòi NAZA tiền đơn quá hạn là việc THEO ĐƠN → khung "Đòi tiền NAZA" ở Sổ đơn hàng (07/10/2026,
     // tách mục Kế toán). Ở đây chỉ còn việc theo KỲ: soát sao kê, hỏi khoản lệch, nhập tiền về.
-    const viecKeToan = viec.filter((v) => v.id !== "doi-naza");
+    // 13/11/2026: vẫn đòi ở Sổ đơn hàng, nhưng màn này phải NÓI có đơn quá hạn — trước đó
+    // "Không có việc gì cần làm" trong khi NAZA đang giữ tiền đơn qua ≥2 kỳ.
+    const quaHan = pending.filter((x) => x.qua_han);
+    const viecKeToan: Viec[] = [
+        ...(quaHan.length ? [{
+            id: "qua-han-tom", muc: "gap" as const, tieu_de: "Đơn đã giao quá hạn, NAZA chưa trả",
+            so: quaHan.length, don_vi: "đơn",
+            chi_tiet: `${TWD(quaHan.reduce((a, x) => a + x.cod_twd, 0))} — đã qua từ 2 kỳ sao kê mà chưa thấy tiền`
+                + `${quaHan.some((x) => x.da_doi) ? ` (${quaHan.filter((x) => x.da_doi).length} đơn đã đòi)` : ""}.`
+                + " Đòi ở khung “Đòi tiền NAZA” của Sổ đơn hàng — có sẵn tin nhắn, tên khách, số điện thoại.",
+            done_key: "", nut: [], ghi_chu: "",
+        }] : []),
+        ...viec.filter((v) => v.id !== "doi-naza"),
+    ];
 
     /** Xuất đúng thứ cần gửi lại 3PL — bốn loại lệch trong một file. */
     const exportForPartner = () => {
@@ -1060,15 +1167,23 @@ function CodDaiLoan({ dateRange, nutNuoc }: Props & { nutNuoc?: ReactNode }) {
         </button>
     );
 
-    const oLech = (p: Period) => (
-        <span className={cn("font-semibold tabular-nums",
-            p.lech_bank_vnd == null ? "text-muted-foreground"
-                : p.trang_thai === "khop" ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400")}>
-            {p.lech_bank_vnd == null ? "·"
-                : Math.round(p.lech_bank_vnd) === 0 ? "0đ"
-                    : `${p.lech_bank_vnd > 0 ? "+" : "−"}${VND(Math.abs(p.lech_bank_vnd))}`}
-        </span>
-    );
+    // Lệch nhỏ trong ngưỡng: kỳ vẫn "khớp" — ghi số xám kèm "bỏ qua" để không đọc thành mâu
+    // thuẫn với ô "không kỳ nào lệch" (13/11/2026).
+    const oLech = (p: Period) => {
+        const l = p.lech_bank_vnd;
+        const nho = l != null && Math.round(l) !== 0 && p.trang_thai === "khop";
+        return (
+            <span className={cn("font-semibold tabular-nums",
+                l == null || nho ? "text-muted-foreground"
+                    : p.trang_thai === "khop" ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400")}
+                title={nho && tq ? `Lệch dưới ${VND(tq.bank_tolerance_vnd)} — làm tròn tỷ giá / phí chuyển, bỏ qua` : undefined}>
+                {l == null ? "·"
+                    : Math.round(l) === 0 ? "0đ"
+                        : `${l > 0 ? "+" : "−"}${VND(Math.abs(l))}`}
+                {nho && <span className="block text-[11px] font-normal">bỏ qua</span>}
+            </span>
+        );
+    };
     const napGon = cu ? null : nhanNapGon(nhapBangDon);
 
     return (
@@ -1095,7 +1210,11 @@ function CodDaiLoan({ dateRange, nutNuoc }: Props & { nutNuoc?: ReactNode }) {
             <ThanhDau
                 nutNuoc={nutNuoc}
                 nguon={<>
-                    {stms.length} bản sao kê{moiNhat ? ` · mới nhất “${shortFile(moiNhat.filename)}” (chốt đơn tới ${dmy(moiNhat.period_date)})` : ""}
+                    {stms.length} bản sao kê
+                    {/* Kỳ âm không có số phải trả → không vào ô "n kỳ sao kê" / "n kỳ khớp"; nói ra kẻo tưởng mất một kỳ. */}
+                    {(() => { const am = periods.filter((p) => p.settlement?.payable_vnd == null).length;
+                        return am ? ` (${am} kỳ không có tiền trả — âm/chuyển sang kỳ sau)` : ""; })()}
+                    {moiNhat ?` · mới nhất “${shortFile(moiNhat.filename)}” (chốt đơn tới ${dmy(moiNhat.period_date)})` : ""}
                     {napGon ? ` · ${napGon}` : ""}
                 </>}
                 phai={<>
@@ -1123,7 +1242,7 @@ function CodDaiLoan({ dateRange, nutNuoc }: Props & { nutNuoc?: ReactNode }) {
             <KhoiViec viec={viecKeToan} busy={busy} copied={copied} onChep={chep}
                 tinLech={period ? { vi: tinLech(period, "vi"), zh: tinLech(period, "zh") } : null}
                 onNhapBank={moNhapBank} onGhi={ghiViec}
-                rongChu="Mọi kỳ đã soát xong, tiền đã về khớp. Đơn quá hạn phải đòi xem ở Sổ đơn hàng." />
+                rongChu="Mọi kỳ đã soát xong, tiền đã về khớp, không đơn nào quá hạn." />
 
             {/* ═══ ② BẢNG CÁC KỲ — xương sống của tab ═══ */}
             {periods.length > 0 && (
@@ -1782,13 +1901,23 @@ function TomTatTien({ t, tq }: { t: TienVe; tq: TongQuan | null }) {
                     : tq.ky_cho_nhap > 0
                         ? <OSoTien mau="xanhduong" nhan="Chưa đối chiếu ngân hàng" so={VND(tq.tien_cho_nhap_vnd)}
                             phu={`${tq.ky_cho_nhap} kỳ chưa nhập tiền về`} />
-                        : <OSoTien mau="xanh" nhan="Đối chiếu ngân hàng" so={`${tq.ky_khop} kỳ khớp`} phu="không kỳ nào lệch" />)}
+                        : <OSoTien mau="xanh" nhan="Đối chiếu ngân hàng" so={`${tq.ky_khop} kỳ khớp`}
+                    phu={`không kỳ nào lệch quá ${VND(tq.bank_tolerance_vnd)}`} />)}
             </div>
-            {Math.abs(lechFile) >= 1 && (
-                <p className="text-[12.5px] font-semibold text-rose-600 dark:text-rose-400">
-                    Theo file tiền hàng, NAZA lẽ ra gửi {VND(t.phai_nhan_theo_file_vnd)} — {lechFile > 0 ? "trừ dư" : "trừ thiếu"} {VND(Math.abs(lechFile))}.
-                </p>
-            )}
+            {/* Lệch file tiền hàng: dưới ngưỡng ngân hàng là làm tròn → chữ xám; vượt ngưỡng mới đỏ.
+                lechFile > 0 = NAZA gửi ít hơn file (trừ dư tiền hàng); < 0 = gửi nhiều hơn (13/11/2026). */}
+            {Math.abs(lechFile) >= 1 && (() => {
+                const nho = tq != null && Math.abs(lechFile) < tq.bank_tolerance_vnd;
+                return (
+                    <p className={cn("text-[12.5px]", nho ? "text-muted-foreground" : "font-semibold text-rose-600 dark:text-rose-400")}>
+                        Theo file tiền hàng, NAZA lẽ ra gửi {VND(t.phai_nhan_theo_file_vnd)} —{" "}
+                        {lechFile > 0 ? `gửi thiếu ${VND(lechFile)} (trừ tiền hàng nhiều hơn file)` : `gửi dư ${VND(-lechFile)} (trừ tiền hàng ít hơn file)`}
+                        {nho ? " · dưới ngưỡng, do làm tròn, bỏ qua." : "."}
+                    </p>
+                );
+            })()}
+            {t.tuoi && <TuoiTienCho t={t.tuoi} />}
+            {t.co_cau && <CoCauCod c={t.co_cau} daGui={t.da_gui_ve_vnd} soKy={t.so_ky} />}
             {t.tien_hang.loi && <p className="text-[12.5px] font-semibold text-rose-600 dark:text-rose-400">{t.tien_hang.loi}</p>}
             <button onClick={() => setCachTinh(!cachTinh)} aria-expanded={cachTinh}
                 className="inline-flex items-center gap-1.5 text-[12px] font-medium text-muted-foreground hover:text-foreground">

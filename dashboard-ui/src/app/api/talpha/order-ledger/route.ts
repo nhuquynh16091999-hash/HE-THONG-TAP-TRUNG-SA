@@ -842,7 +842,60 @@ export async function GET(req: NextRequest) {
                 const hoan = chuaTra.filter((r) => r.status === "Returned");
                 const huy = chuaTra.filter((r) => r.status === "Cancelled");
                 const tieuHuy = chuaTra.filter((r) => r.status === "Destroyed");
+
+                // ── TIỀN ĐANG CHỜ BAO LÂU (13/11/2026) ──
+                // Không có ngày giao thật → đếm từ ngày gửi (ship_date, thiếu thì ngày lên đơn).
+                // Đơn đã giao chia theo số KỲ đã qua — cùng thước với đèn ở Sổ đơn hàng:
+                // 0 kỳ = đúng nhịp, 1 kỳ = theo dõi, ≥2 kỳ = quá hạn phải đòi.
+                // Đơn chưa giao chia theo NGÀY: nằm đường quá 30 ngày gần như chắc hoàn.
+                const asOfMs = Date.parse(asOf + "T23:59:59");
+                const ngayGui = (r: typeof rows[number]) => {
+                    const t = Date.parse(String(r.ship_date || r.order_date || "").slice(0, 10));
+                    return Number.isNaN(t) ? null : Math.max(0, Math.floor((asOfMs - t) / 86_400_000));
+                };
+                const nhom = (ds: typeof rows) => {
+                    const u = uocTinh(ds);
+                    return { so_don: u.so_don, cod_twd: u.cod_twd, vnd_uoc: u.vnd_uoc };
+                };
+                const daGiaoChuaTra = chuaTra.filter((r) => r.status === "Delivered");
+                const chuaGiaoXong = chuaTra.filter(
+                    (r) => r.status !== "Delivered" && !KHONG_BAO_GIO_TRA.has(r.status || ""));
+                const maxNgay = (ds: typeof rows) => ds.reduce<number | null>((m, r) => {
+                    const d = ngayGui(r); return d == null ? m : Math.max(m ?? 0, d);
+                }, null);
+                const tuoi = {
+                    da_giao: {
+                        dung_nhip: nhom(daGiaoChuaTra.filter((r) => r.ky_da_qua === 0)),
+                        qua_1_ky: nhom(daGiaoChuaTra.filter((r) => r.ky_da_qua === 1)),
+                        qua_han: nhom(daGiaoChuaTra.filter((r) => r.ky_da_qua >= 2)),
+                        lau_nhat_ngay: maxNgay(daGiaoChuaTra),
+                    },
+                    chua_giao: {
+                        duoi_15: nhom(chuaGiaoXong.filter((r) => (ngayGui(r) ?? 0) <= 14)),
+                        tu_15_30: nhom(chuaGiaoXong.filter((r) => { const d = ngayGui(r) ?? 0; return d > 14 && d <= 30; })),
+                        tren_30: nhom(chuaGiaoXong.filter((r) => (ngayGui(r) ?? 0) > 30)),
+                        lau_nhat_ngay: maxNgay(chuaGiaoXong),
+                    },
+                };
+
+                // ── TIỀN HÀNG ĐÃ TRỪ + COD VỀ TAY ĐƯỢC BAO NHIÊU ──
+                // COD quy VND theo tỷ giá CHÍNH kỳ đó (chưa trừ gì) — mẫu số của tỉ lệ thực nhận.
+                let codQuyVnd = 0, phiVnd = 0, tienHangDaTru = 0, kyTinh = 0;
+                for (const p of kyCoSo) {
+                    const l = p.luong;
+                    if (!l || l.cod_twd == null || l.ty_gia_twd_rmb == null || l.ty_gia_rmb_vnd == null) continue;
+                    kyTinh++;
+                    codQuyVnd += l.cod_twd * l.ty_gia_twd_rmb * l.ty_gia_rmb_vnd;
+                    phiVnd += (l.phi_thao_tac_rmb + l.phi_ship_rmb) * l.ty_gia_rmb_vnd;
+                    tienHangDaTru += l.tien_hang.trong_luong_vnd;
+                }
+                const coCau = kyTinh === kyCoSo.length && codQuyVnd > 0 ? {
+                    cod_quy_vnd: codQuyVnd, phi_vnd: phiVnd, tien_hang_vnd: tienHangDaTru,
+                    ty_le_ve_tay: daGuiVe / codQuyVnd,
+                } : null;
                 return {
+                    tuoi,
+                    co_cau: coCau,
                     da_gui_ve_vnd: daGuiVe,
                     phai_nhan_theo_file_vnd: phaiNhanTheoFile,
                     so_ky: kyCoSo.length,
