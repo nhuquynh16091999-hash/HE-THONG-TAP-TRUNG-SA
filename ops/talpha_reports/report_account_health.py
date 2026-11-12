@@ -57,7 +57,9 @@ SELECT 'ads' AS kind,
        COUNTIF(date >= DATE_SUB(CURRENT_DATE(), INTERVAL 1 DAY)) AS rows_recent,
        ROUND(SUM(spend)) AS metric
 FROM `{p}.{d}.fb_ads_data`
-GROUP BY 1
+-- GROUP BY 1, 2: ô 1 là hằng 'ads', gom theo ô 1 thôi thì account_id không nằm trong GROUP BY
+-- → BigQuery từ chối cả câu, bước này hỏng im lặng mọi vòng từ 9a6d558 (sửa 12/11/2026).
+GROUP BY 1, 2
 UNION ALL
 SELECT 'orders',
        shop_label,
