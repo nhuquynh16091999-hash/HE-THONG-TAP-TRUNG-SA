@@ -160,8 +160,7 @@ export default function TALPHACodReconTab(props: Props) {
             .then((d: { markets?: { code: string; display: string; status?: string }[] }) => {
                 const list = (d.markets || []).filter((m) => m.status !== "sap_chay").map((m) => ({ code: m.code, display: m.display }));
                 setDs(list);
-                setNuoc((n) => (/[#&]jt_token=/.test(window.location.hash) && list.some((m) => m.code === "VN") ? "VN"
-                    : list.length && !list.some((m) => m.code === n) ? list[0].code : n));
+                setNuoc((n) => (list.length && !list.some((m) => m.code === n) ? list[0].code : n));
             })
             .catch(() => setDs([]));   // không lấy được danh sách nước thì vẫn hiện màn Đài như cũ
     }, []);
@@ -2216,8 +2215,9 @@ function MucSoat({ nhom, ten, hoi, checks }: { nhom: "A" | "B"; ten: string; hoi
 /* ═══════════════════════════════════════════════════════════════════
    VIỆT NAM — J&T (13/11/2026)
 
-   Không có sao kê để tải: số kéo thẳng từ trang J&T VIP bằng token đăng nhập người dùng dán
-   (route /api/talpha/cod-recon/jt-vn, lib/talpha/jt-vn.ts). J&T chốt kỳ mỗi ngày và tự trừ
+   Không có sao kê để tải, cũng không có chỗ nhập token (Sỹ Anh bảo bỏ 13/11/2026): Claude đọc
+   số ở trang J&T VIP rồi nạp vào kho jt_vn (ops/jt_vn/), màn chỉ hiện (route
+   /api/talpha/cod-recon/jt-vn, lib/talpha/jt-vn.ts). J&T chốt kỳ mỗi ngày và tự trừ
    cước, nên màn chỉ cần trả lời: J&T đã chuyển bao nhiêu, còn giữ bao nhiêu, đơn nào lệch.
 
      Σ  tiền về         — đã chuyển · chờ trả / số dư · đang luân chuyển · đã giao chưa vào kỳ
@@ -2256,19 +2256,6 @@ type JtVnData = {
     loi: string | null;
 };
 
-/**
- * Dấu trang "Gửi token J&T": bấm trên trang khachhang.jtexpress.vn → mở dashboard ở
- * /talpha#jt_token=… (phần sau # không gửi lên máy chủ nào, không vào log) → màn Việt Nam tự lưu
- * rồi xoá khỏi địa chỉ. Trang J&T không gọi thẳng sang dashboard được (Chrome chặn), nên đi đường mở tab.
- */
-const bookmarkletJt = (origin: string) =>
-    "javascript:(()=>{const t=localStorage.YL_TOKEN;if(!t||location.host.indexOf('jtexpress')<0){alert('Mở trang khachhang.jtexpress.vn (đã đăng nhập) rồi bấm lại dấu trang này.');return}" +
-    `window.open('${origin}/talpha#jt_token='+encodeURIComponent(t),'_blank')})()`;
-const tokenTuHash = () => {
-    const m = window.location.hash.match(/[#&]jt_token=([^&]+)/);
-    return m ? decodeURIComponent(m[1]) : null;
-};
-
 const gioNgay = (s: string | null) => {
     if (!s) return "—";
     const d = new Date(s);
@@ -2286,124 +2273,35 @@ function CodVietNam({ nutNuoc }: { nutNuoc?: ReactNode }) {
     const [d, setD] = useState<JtVnData | null>(null);
     const [err, setErr] = useState("");
     const [loading, setLoading] = useState(true);
-    const [keo, setKeo] = useState(false);
-    const [moToken, setMoToken] = useState(false);
-    const [token, setToken] = useState("");
-    const [luu, setLuu] = useState(false);
-    const [tokErr, setTokErr] = useState("");
-    const [tokOk, setTokOk] = useState("");
     const [kyMo, setKyMo] = useState<string | null>(null);
-    const bmRef = useRef<HTMLAnchorElement>(null);
-    const api = "/api/talpha/cod-recon/jt-vn?market=VN";
 
-    const tai = useCallback(async (ep = false) => {
-        if (ep) setKeo(true); else setLoading(true);
-        setErr("");
+    const tai = useCallback(async () => {
+        setLoading(true); setErr("");
         try {
-            const r = await fetch(ep ? `${api}&keo=1` : api, { cache: "no-store" });
+            const r = await fetch("/api/talpha/cod-recon/jt-vn?market=VN", { cache: "no-store" });
             const j = await r.json();
             if (!r.ok) throw new Error(j.error || `HTTP ${r.status}`);
             setD(j);
         } catch (e) {
             setErr((e as Error).message);
         } finally {
-            setLoading(false); setKeo(false);
+            setLoading(false);
         }
     }, []);
-    // React chặn href "javascript:" — gắn tay sau khi dựng.
-    useEffect(() => { bmRef.current?.setAttribute("href", bookmarkletJt(window.location.origin)); });
-
-    const luuToken = useCallback(async (tk: string) => {
-        setLuu(true); setTokErr(""); setTokOk("");
-        try {
-            const r = await fetch(api, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ token: tk }) });
-            const j = await r.json();
-            if (!r.ok) throw new Error(j.error || `HTTP ${r.status}`);
-            setTokOk(`Đã lưu — kéo được ${j.so_ky} kỳ, ${j.dang_chay} đơn đang luân chuyển.${j.het_han ? ` Token dùng tới ${gioNgay(j.het_han)}.` : ""}`);
-            setToken(""); setMoToken(false);
-            await tai();
-        } catch (e) {
-            setTokErr((e as Error).message);
-        } finally {
-            setLuu(false);
-        }
-    }, [tai]);
-    // Mở từ dấu trang: lấy token ở #jt_token, xoá khỏi địa chỉ ngay rồi lưu; không thì tải bình thường.
-    useEffect(() => {
-        const tk = tokenTuHash();
-        if (!tk) { tai(); return; }
-        history.replaceState(null, "", window.location.pathname + window.location.search);
-        setLoading(false);
-        setD({ so: null, keo_luc: null, so_du_cap_nhat: null, tu_ngay: "", loi: null,
-            token: { co: false, het_han: null, con_han: false, luu_luc: null } });
-        luuToken(tk);
-    }, [tai, luuToken]);
-    const danTuBoNho = async () => {
-        try {
-            const t = (await navigator.clipboard.readText()).trim();
-            if (!t) { setTokErr("Bộ nhớ tạm đang trống — bấm dấu trang “Chép token J&T” trên trang J&T trước."); return; }
-            await luuToken(t);
-        } catch {
-            setTokErr("Trình duyệt không cho đọc bộ nhớ tạm — dán tay vào ô bên dưới rồi bấm Lưu.");
-            setMoToken(true);
-        }
-    };
+    useEffect(() => { tai(); }, [tai]);
 
     if (loading && !d) return <TabSkeleton />;
     if (err && !d) return <ErrorState message={err} onRetry={() => tai()} />;
     if (!d) return null;
 
-    const s = d.so, t = d.token;
-    const canToken = !t.co || !t.con_han;
-    const hopToken = (canToken || moToken) && (
-        <section className="rounded-xl border border-amber-300 bg-amber-50/70 p-4 text-[13px] leading-relaxed dark:border-amber-500/40 dark:bg-amber-500/[0.07]">
-            <div className="flex items-start gap-2">
-                <AlertTriangle className="mt-0.5 h-4 w-4 flex-none text-amber-600" />
-                <div className="min-w-0 flex-1 space-y-2">
-                    <p className="font-semibold text-foreground">
-                        {!t.co ? "Chưa có token J&T — dán một lần để dashboard tự kéo số đối soát."
-                            : !t.con_han ? `Token J&T đã hết hạn${t.het_han ? ` lúc ${gioNgay(t.het_han)}` : ""} — số dưới đây là lần kéo cuối.`
-                            : "Dán token mới"}
-                    </p>
-                    <ol className="list-decimal space-y-1 pl-5 text-muted-foreground">
-                        <li>Lần đầu: kéo nút này lên thanh dấu trang của Chrome →{" "}
-                            <a ref={bmRef} onClick={(e) => e.preventDefault()} draggable
-                                className="inline-flex cursor-grab items-center gap-1 rounded-md border border-orange-300 bg-card px-2 py-0.5 font-semibold text-orange-700 shadow-sm dark:text-orange-300">
-                                <Copy className="h-3.5 w-3.5" />Gửi token J&T
-                            </a></li>
-                        <li>Mở <a href="https://khachhang.jtexpress.vn/cashFlow" target="_blank" rel="noreferrer" className="font-medium text-sky-700 underline dark:text-sky-300">khachhang.jtexpress.vn</a> (đăng nhập nếu cần) rồi bấm dấu trang “Gửi token J&T” — dashboard tự mở và tự lưu.</li>
-                    </ol>
-                    <div className="flex flex-wrap items-center gap-2">
-                        {luu && <span className="text-[13px] font-medium text-orange-600">Đang kéo số J&T…</span>}
-                        <Nut onClick={danTuBoNho} busy={luu} busyText="Đang kéo J&T…">Dán từ bộ nhớ tạm</Nut>
-                        <input value={token} onChange={(e) => setToken(e.target.value)} placeholder="…hoặc dán tay token vào đây"
-                            className="h-8 min-w-0 flex-1 rounded-lg border border-border bg-card px-2.5 font-mono text-[12px] md:max-w-sm" />
-                        {token.trim() && <Nut onClick={() => luuToken(token)} busy={luu} busyText="Đang kéo J&T…">Lưu</Nut>}
-                    </div>
-                    {tokErr && <p className="font-medium text-rose-600 dark:text-rose-400">{tokErr}</p>}
-                    <p className="text-[12px] text-muted-foreground">Token chỉ để máy chủ đọc trang Dòng tiền của J&T, không hiện lại ở đâu. Mỗi lần đăng nhập J&T sống chưa tới một ngày.</p>
-                </div>
-            </div>
-        </section>
-    );
-
-    const nguon = (
-        <>J&T VIP · kéo lúc {gioNgay(d.keo_luc)}
-            {t.co && t.con_han && t.het_han && <> · token dùng tới {gioNgay(t.het_han)}</>}</>
-    );
-    const phai = (
-        <>
-            {t.co && t.con_han && <Nut onClick={() => tai(true)} busy={keo} busyText="Đang kéo…">Kéo lại</Nut>}
-            {!canToken && <Nut onClick={() => setMoToken(!moToken)}>Dán token mới</Nut>}
-        </>
-    );
-
+    const s = d.so;
     if (!s) {
         return (
             <div className="space-y-4">
                 <ThanhDau nutNuoc={nutNuoc} nguon="J&T VIP" />
-                {hopToken}
-                {d.loi && <p className="text-[13px] font-medium text-rose-600 dark:text-rose-400">{d.loi}</p>}
+                <p className="rounded-xl border border-border bg-card p-4 text-[13px] text-muted-foreground">
+                    Chưa có số đối soát J&T. Số do Claude đọc từ trang J&T VIP rồi nạp vào — nhắn Claude “cập nhật đối soát J&T”.
+                </p>
             </div>
         );
     }
@@ -2413,10 +2311,7 @@ function CodVietNam({ nutNuoc }: { nutNuoc?: ReactNode }) {
     const ky = s.ky.find((k) => k.ma === kyMo) || null;
     return (
         <div className="space-y-4">
-            <ThanhDau nutNuoc={nutNuoc} nguon={nguon} phai={phai} />
-            {tokOk && <p className="flex items-center gap-1.5 text-[13px] font-medium text-emerald-700 dark:text-emerald-400"><CheckCircle2 className="h-4 w-4" />{tokOk}</p>}
-            {hopToken}
-            {d.loi && !canToken && <p className="text-[13px] font-medium text-rose-600 dark:text-rose-400">{d.loi}</p>}
+            <ThanhDau nutNuoc={nutNuoc} nguon={<>J&T VIP · số đọc lúc {gioNgay(d.keo_luc)} · muốn số mới thì nhắn Claude “cập nhật đối soát J&T”</>} />
 
             {/* Σ tiền về */}
             <div className="grid grid-cols-2 gap-2.5 md:gap-3 xl:grid-cols-4">

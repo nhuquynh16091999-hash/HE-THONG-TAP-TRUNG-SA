@@ -332,21 +332,24 @@ có file mẫu.
 
 ---
 
-## Việt Nam — J&T VIP, kéo bằng token (13/11/2026)
+## Việt Nam — J&T VIP, Claude đọc rồi nạp (13/11/2026)
 
 Việt Nam không có sao kê để tải: J&T Express Việt Nam tự chốt kỳ mỗi ngày (~04h) trên trang
 khách hàng **khachhang.jtexpress.vn** (mã KH 238LC41894) và tự trừ cước vào COD. J&T VN không có
-cổng API công khai cho đối soát, nên dashboard gọi đúng API nội bộ mà trang J&T VIP gọi
-(`ylvipapi.jtexpress.vn/api/fcf/*`, header `authToken`) bằng token đăng nhập của người dùng.
+cổng API công khai cho đối soát; trang J&T VIP gọi API nội bộ `ylvipapi.jtexpress.vn/api/fcf/*`
+bằng token đăng nhập (JWT, sống chưa tới một ngày).
 
-* **Lấy token**: ở màn Tiền COD về → Việt Nam, kéo nút “Gửi token J&T” lên thanh dấu trang.
-  Mở khachhang.jtexpress.vn (đã đăng nhập) → bấm dấu trang → dashboard tự mở ở
-  `/talpha#jt_token=…`, tự lưu rồi xoá token khỏi địa chỉ (phần sau `#` không gửi lên máy chủ
-  nào). Trang J&T không gọi thẳng được sang dashboard (Chrome chặn), nên phải đi đường mở tab.
-  Dự phòng: dán tay vào ô ở màn.
-* **Token sống chưa tới một ngày** (JWT, hạn ở trường `exp`). Hết hạn thì màn báo vàng và vẫn hiện
-  lần kéo cuối. Token cất ở `data/jt_vn_token.json`, KHÔNG BAO GIỜ trả ra API; số kéo về cất ở
-  `data/jt_vn.json`.
+* **Màn hình KHÔNG có chỗ nhập token** (Sỹ Anh bảo bỏ 13/11/2026). Số do Claude nạp, khi Sỹ Anh
+  nhắn “cập nhật đối soát J&T”:
+  1. Mở khachhang.jtexpress.vn trong Chrome của Sỹ Anh (đã đăng nhập), chạy
+     `ops/jt_vn/xuat-tu-trang-jt.js` trong trang → tải về `~/Downloads/jt_vn_raw.json` (đã bỏ tên,
+     số điện thoại, địa chỉ người nhận; token không rời trang).
+  2. `node ops/jt_vn/nap.cjs ~/Downloads/jt_vn_raw.json <tạm>/jt_vn.json` (cần `npm test` đã dựng
+     `.test-build/jt-vn.js`).
+  3. `scp <tạm>/jt_vn.json root@139.180.131.21:/opt/talpha/data/jt_vn.json` — không cần restart.
+* Route vẫn nhận `POST {token}` (không có nút nào gọi): Sỹ Anh gửi token trong chat thì gọi nó
+  từ máy chủ bằng `x-talpha-token`; token còn hạn thì mở màn là tự kéo lại (cũ hơn 15 phút).
+  Token cất ở `data/jt_vn_token.json`, không bao giờ trả ra API.
 * **Công thức một kỳ**: tiền đối soát = COD ký nhận − phí (cước + thu hộ + hoàn) ± điều chỉnh;
   thực nhận = tiền đối soát + dư nợ kỳ trước. Thực nhận âm thì không trả, mang sang kỳ sau.
   **Tiền J&T đã chuyển về = Σ max(0, thực nhận) của các kỳ FINISH_PAY.**
@@ -355,7 +358,7 @@ cổng API công khai cho đối soát, nên dashboard gọi đúng API nội b�
   trong “đang luân chuyển”) · vận đơn J&T không ra đơn POS.
 * Code: `lib/talpha/jt-vn.ts` (phép thử `tests/jt-vn.test.cjs`), route
   `/api/talpha/cod-recon/jt-vn?market=VN`, mốc `cod_settlement.jt_vn.tu_ngay` ở talpha_rules.json.
-* Lần kéo đầu (13/11/2026): 8 kỳ 03→12/11, đã chuyển về 5.255.000đ, số dư âm 576.000đ, 71 đơn
+* Lần nạp đầu (13/11/2026): 8 kỳ 03→12/11, đã chuyển về 5.255.000đ, số dư âm 576.000đ, 71 đơn
   đang luân chuyển (7.334.000đ). **Cước J&T thật trung bình 16.000đ/đơn**, Lãi lỗ đang tính
   13.000đ (`shipping_fees.VN.delivery`). Đơn #45 (78.000đ) J&T chỉ trả 5.000đ.
 
