@@ -56,7 +56,7 @@
       "pos_money_divisor_confirmed": true,
       "product_code_in_name": false,
       "product_costs_vnd": {
-        "_note": "Giá vốn sản phẩm shop UAE, tính bằng ĐỒNG — Sỹ Anh gửi 25/09/2026. 'hang' = tiền hàng, 'hop' = hộp trang sức gửi kèm (15.000đ, chỉ món trang sức). Giá vốn một cái = hang + hop. Tra theo MÃ VẠCH POS ('barcode') trước, rồi mới theo tên (so chữ HOA): 07/10/2026 shop đổi tên cả ba món (cùng product_id, cùng mã vạch) — Oralhoe Dental 002 → 'Health Product - 01', Lucky Bracelet 003 → 'Jewelry - 01', Gold Bracelet 001 → 'Jewelry - 02' (đối chiếu 04/11/2026). CHƯA có giá: mã vạch 4-1 'Jewelry - 03', 5-1 'Jewelry - 04', 6-1 'Jewelry - 05', 7-1 'Jewelry - 06', 8-1 'Health Product - 02', 9-1 'Health Product - 03'.",
+        "_note": "Giá vốn sản phẩm shop UAE, tính bằng ĐỒNG — Sỹ Anh gửi 25/09/2026. 'hang' = tiền hàng, 'hop' = hộp trang sức gửi kèm (15.000đ, chỉ món trang sức). Giá vốn một cái = hang + hop. Tra theo MÃ VẠCH POS ('barcode') trước, rồi mới theo tên (so chữ HOA): 07/10/2026 shop đổi tên cả ba món (cùng product_id, cùng mã vạch) — Oralhoe Dental 002 → 'Health Product - 01', Lucky Bracelet 003 → 'Jewelry - 01', Gold Bracelet 001 → 'Jewelry - 02' (đối chiếu 04/11/2026). 13/11/2026 khai thêm 8 món (mã vạch 4-1 → 11-1) theo file báo giá UAE.",
         "ORALHOE DENTAL 002": {
           "hang": 21400,
           "barcode": "2-1"
@@ -70,6 +70,51 @@
           "hang": 36600,
           "hop": 15000,
           "barcode": "3-1"
+        },
+        "JEWELRY - 03": {
+          "hang": 25500,
+          "hop": 15000,
+          "barcode": "4-1",
+          "_ghi_chu": "Bộ trang sức 2. Giá từ file báo giá UAE (1D1MoXTeh2ZT2zDtYWuw-OZoA3b8VoLAaboTu5KufWaU, tab Báo giá). Nối mã POS ↔ tên hàng theo ngày lô về + giá bán, Sỹ Anh xác nhận 13/11/2026."
+        },
+        "JEWELRY - 04": {
+          "hang": 27500,
+          "hop": 15000,
+          "barcode": "5-1",
+          "_ghi_chu": "Bộ trang sức 3. Giá từ file báo giá UAE (1D1MoXTeh2ZT2zDtYWuw-OZoA3b8VoLAaboTu5KufWaU, tab Báo giá). Nối mã POS ↔ tên hàng theo ngày lô về + giá bán, Sỹ Anh xác nhận 13/11/2026."
+        },
+        "JEWELRY - 05": {
+          "hang": 39800,
+          "hop": 15000,
+          "barcode": "6-1",
+          "_ghi_chu": "Set trang sức (dây chuyền + hoa tai). Giá từ file báo giá UAE (1D1MoXTeh2ZT2zDtYWuw-OZoA3b8VoLAaboTu5KufWaU, tab Báo giá). Nối mã POS ↔ tên hàng theo ngày lô về + giá bán, Sỹ Anh xác nhận 13/11/2026."
+        },
+        "JEWELRY - 06": {
+          "hang": 15200,
+          "hop": 15000,
+          "barcode": "7-1",
+          "_ghi_chu": "Vòng cổ vàng. Giá từ file báo giá UAE (1D1MoXTeh2ZT2zDtYWuw-OZoA3b8VoLAaboTu5KufWaU, tab Báo giá). Nối mã POS ↔ tên hàng theo ngày lô về + giá bán, Sỹ Anh xác nhận 13/11/2026."
+        },
+        "JEWELRY - 07": {
+          "hang": 125500,
+          "hop": 15000,
+          "barcode": "11-1",
+          "_ghi_chu": "Set 4 món trang sức. Giá từ file báo giá UAE (1D1MoXTeh2ZT2zDtYWuw-OZoA3b8VoLAaboTu5KufWaU, tab Báo giá). Nối mã POS ↔ tên hàng theo ngày lô về + giá bán, Sỹ Anh xác nhận 13/11/2026."
+        },
+        "HEALTH PRODUCT - 02": {
+          "hang": 13800,
+          "barcode": "8-1",
+          "_ghi_chu": "Kem trị mụn. Giá từ file báo giá UAE (1D1MoXTeh2ZT2zDtYWuw-OZoA3b8VoLAaboTu5KufWaU, tab Báo giá). Nối mã POS ↔ tên hàng theo ngày lô về + giá bán, Sỹ Anh xác nhận 13/11/2026."
+        },
+        "HEALTH PRODUCT - 03": {
+          "hang": 23800,
+          "barcode": "9-1",
+          "_ghi_chu": "Kem dưỡng (dòng 23,8k). Giá từ file báo giá UAE (1D1MoXTeh2ZT2zDtYWuw-OZoA3b8VoLAaboTu5KufWaU, tab Báo giá). Nối mã POS ↔ tên hàng theo ngày lô về + giá bán, Sỹ Anh xác nhận 13/11/2026."
+        },
+        "HEALTH PRODUCT - 04": {
+          "hang": 48800,
+          "barcode": "10-1",
+          "_ghi_chu": "Trà (dòng 48,8k — mua 100). Giá từ file báo giá UAE (1D1MoXTeh2ZT2zDtYWuw-OZoA3b8VoLAaboTu5KufWaU, tab Báo giá). Nối mã POS ↔ tên hàng theo ngày lô về + giá bán, Sỹ Anh xác nhận 13/11/2026."
         }
       },
       "_product_code_note": "Shop UAE đánh số sản phẩm RIÊNG ('Oralhoe Dental 002', 'Gold Bracelet 001') — số cuối tên KHÔNG phải mã 3 số của bảng giá (002 là vòng phong thuỷ). Giá vốn đơn UAE chỉ tra qua product_name_aliases; tên chưa khai thì hiện ở khung 'Còn thiếu' của tab P&L, không lấy nhầm giá.",
