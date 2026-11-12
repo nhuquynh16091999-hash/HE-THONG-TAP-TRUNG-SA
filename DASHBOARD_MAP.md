@@ -345,7 +345,7 @@ config/                  talpha_rules.json — NGUỒN RULE DUY NHẤT
   projects/talpha.yaml     TKQC Meta + shop POS
 sync/                    engine sync POS + Meta → BigQuery (bản DUY NHẤT)
   core/                    pos_client · meta_client · bq_writer · business_rules
-ops/deploy/              5 script dựng và cập nhật máy chủ
+ops/deploy/              script dựng và cập nhật máy chủ
 ops/pm2/                 ecosystem.vps.config.js — file pm2 DUY NHẤT
 ops/talpha_reports/      đường ống báo cáo Google Sheets
 ops/zalo-alerts/         bot báo cáo ads vào nhóm Zalo

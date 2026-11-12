@@ -28,20 +28,3 @@ function buildClient(): BigQuery {
 }
 
 export const bigquery = buildClient();
-
-export const DATASET = process.env.DATASET || "TALPHA_Dataset";
-
-export async function runQuery(query: string, params?: any[]) {
-    try {
-        const options = {
-            query,
-            params,
-        };
-        const [rows] = await bigquery.query(options);
-        return rows;
-    } catch (error: any) {
-        console.error("BigQuery Error:", error?.message || error);
-        console.error("SQL (first 300 chars):", query.substring(0, 300));
-        throw new Error("Failed to execute query");
-    }
-}

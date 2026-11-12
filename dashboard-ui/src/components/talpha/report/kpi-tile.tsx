@@ -80,5 +80,3 @@ export function KpiRow({ children, className }: { children: ReactNode; className
         </div>
     );
 }
-
-export default KpiTile;

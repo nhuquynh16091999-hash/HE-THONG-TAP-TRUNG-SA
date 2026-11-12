@@ -275,19 +275,6 @@ export function isTestCampaign(cn?: string | null, mkt?: string | null): boolean
 export const POS_TIMEZONE = RULES.pos_timezone;
 export const PAGE_ID_RE = new RegExp(RULES.page_id_pattern);
 
-// ── Phí ship 3PL (tệ địa phương, key = shop_label) ──
-export const SHIPPING_FEES: Record<string, ShipFee> = Object.fromEntries(
-    Object.entries(RULES.shipping_fees || {}).filter(([k]) => !k.startsWith("_"))) as Record<string, ShipFee>;
-
-/** Phí ship ước tính (VND) từ số đơn GTC + doanh thu tệ địa phương. Thị trường chưa khai phí → 0. */
-export function shippingVnd(shopLabel: string, orders: number, revenueLocal: number): number {
-    const f = SHIPPING_FEES[(shopLabel || "").toUpperCase()];
-    if (!f || orders <= 0) return 0;
-    const local = orders * (f.packing + f.delivery + (f.cod_flat || 0)) + (revenueLocal || 0) * (f.cod_pct || 0);
-    const mkt = SHOP2MKT[(shopLabel || "").toUpperCase()];
-    return local * (EXCHANGE_RATES[mkt] || 0);
-}
-
 // ── Giá vốn theo SKU (E2) — VND/unit, key = product_catalog.sku ──
 // POS không trả giá vốn (last_imported_price/avg_price = 0 mọi item) → JSON là nguồn duy nhất.
 // Giá vốn khai bằng TỆ từ 08/09/2026 (hàng mua ở Trung Quốc, trả bằng tệ). VND = tệ × cost_rate_rmb_vnd.
@@ -308,7 +295,7 @@ export function costPriceVnd(sku?: string | null): number | null {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// GÁN MARKETER — RULE CEO 3 BẬC (≡ talpha_rules.py attribute_order)
+// GÁN MARKETER — RULE CEO 3 BẬC
 //   1. Tag marketer trong POS → 2. ad_id → chủ campaign → 3. "(không gán)"
 // ═══════════════════════════════════════════════════════════════════
 export const UNASSIGNED = "(không gán)";

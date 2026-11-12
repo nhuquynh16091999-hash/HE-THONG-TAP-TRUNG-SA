@@ -114,5 +114,3 @@ export function BarStrip({ items, onSelect, selectedIndex, legend, hint, classNa
         </div>
     );
 }
-
-export default BarStrip;

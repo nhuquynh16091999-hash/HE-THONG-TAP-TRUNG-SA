@@ -33,10 +33,11 @@ status GTC · pattern campaign test · phí 3PL · giá vốn SKU · ngưỡng R
 | Module | Ngôn ngữ | Ai dùng |
 |---|---|---|
 | `dashboard-ui/src/lib/talpha/rules.ts` | TS | route dashboard, `talpha/inventory.ts`, prompt CEO-ask |
-| `ops/talpha_reports/talpha_rules.py` | Python | `format_all.py`, `team_report.py` |
+| `ops/talpha_reports/talpha_rules.py` | Python | `format_all.py`, `report_account_health.py`, sync |
 
-Cả ba cùng expose `attribute_order`/`attributeOrder` (rule CEO ba bậc), `parse_campaign`,
-`build_adid_owner`, `shipping_vnd`. Đối chứng 03/08 trên data thật: Python ≡ TS ≡ JS.
+Rule CEO ba bậc (gán đơn về marketer) phía TS là `attributeOrder` + `buildAdidOwner`; phía
+Python `format_all.py` tự gán trong vòng ghi Sheet. Các hàm Python `attribute_order`,
+`parse_campaign`, `build_adid_owner`, `shipping_vnd` không còn nơi nào gọi nên đã gỡ 12/11/2026.
 
 Đường dẫn tới file cấu hình: phía TS hỏi `lib/talpha/config-path.ts`, đừng tự ghép
 `process.cwd()`. Bản sao `dashboard-ui/config/` đã xoá 11/09 — nó từng lệch thật

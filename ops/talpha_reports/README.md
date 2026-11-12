@@ -39,7 +39,6 @@ khác nhau cùng ghi một bộ bảng mỗi giờ, bản nào chạy sau thì �
 | `report_health.py` | Chống sync "chết câm" (từng kẹt số cũ cả tuần 22–29/06) |
 | `report_account_health.py` | Health theo TỪNG TKQC/shop — bắt lỗi âm thầm khi một mục rơi khỏi sync mà vòng vẫn rc=0 |
 | `check_meta_token.py` | Kiểm token Meta TRƯỚC khi tin vào Sheet. Exit 0 = mọi TKQC đọc được |
-| `team_report.py` | Báo cáo ADS gộp TEAM + từng marketer (chạy tay) |
 | `report_files.py` | **Bộ file của TỪNG THÁNG** (01/10/2026): khai tay `report_files/YYYY-MM.json`, không có thì quét thư mục "Tháng N" trên Drive. Tháng tính theo giờ VN |
 | `new_month_files.py` | Soát bộ file một tháng trên Drive (`python3 new_month_files.py 2026-10`) — đủ file chưa, file nào sai tên/.xlsx. CHỈ ĐỌC |
 | `tao_thang_moi.gs` | Apps Script chạy bằng tài khoản chủ thư mục: share thư mục gốc cho service account, chép khuôn tháng trước sang "Tháng N", tự chạy ngày 25 |

@@ -6,11 +6,8 @@ TALPHA BigQuery project (cty-507710) không bật billing nên DML
 
 Exports:
   load_truncate(client, project, dataset, table, rows, schema)
-  upsert_orders_atomic(client, project, dataset, orders, items, order_schema, item_schema)
-  get_last_sync_ts(client, project, dataset, table)
 """
-import io, json, uuid, logging
-from typing import Optional
+import io, json, logging
 
 log = logging.getLogger(__name__)
 
@@ -411,131 +408,6 @@ def append_and_rebuild_ads(
 
     log.info(f"  {table}: {len(rows)} dòng kéo về → bảng {n} dòng (dựng lại từ raw)")
     return n
-
-
-def get_last_sync_ts(
-    client,
-    project: str,
-    dataset: str,
-    table: str = "sale_order",
-) -> Optional[str]:
-    """Query BQ cho MAX(updated_at) — dùng làm điểm dừng khi fetch incremental.
-
-    Returns: ISO timestamp string, hoặc None nếu bảng rỗng/chưa tồn tại.
-    """
-    try:
-        q = f"SELECT MAX(updated_at) AS last_ts FROM `{project}.{dataset}.{table}`"
-        rows = list(client.query(q).result())
-        ts = rows[0].last_ts if rows else None
-        if ts:
-            log.info(f"  Last sync ts ({table}): {ts}")
-        else:
-            log.info(f"  {table}: no data — full fetch")
-        return ts
-    except Exception as e:
-        log.info(f"  Could not get last sync ts for {table} ({e}) — full fetch")
-        return None
-
-
-def upsert_orders_atomic(
-    client,
-    project: str,
-    dataset: str,
-    all_orders: list[dict],
-    all_items: list[dict],
-    order_schema,
-    item_schema,
-) -> None:
-    """Atomic upsert orders + items vào BigQuery.
-
-    Strategy: load → staging table → DELETE + INSERT trong 1 transaction.
-    Idempotent và self-deduping (ROW_NUMBER OVER PARTITION BY id).
-
-    Tại sao không dùng DELETE-then-APPEND:
-      - Non-atomic: nếu DELETE thành công nhưng APPEND lỗi → mất data
-      - Hai sync song song có thể APPEND cùng lúc → nhân đôi đơn hàng
-      - COD revenue phình ~2× nhưng order count đúng (COUNT DISTINCT) → bug ẩn
-    """
-    if not all_orders:
-        log.info("  No orders to upsert")
-        return
-
-    tag = uuid.uuid4().hex[:8]
-    stg_orders = f"{project}.{dataset}._stg_sale_order_{tag}"
-    stg_items = f"{project}.{dataset}._stg_order_items_{tag}"
-
-    order_cols = [f.name for f in order_schema]
-    item_cols = [f.name for f in item_schema]
-
-    order_keys = set(order_cols)
-    dedup_order_by = ", ".join(
-        f"`{c}` DESC"
-        for c in ("sync_time", "updated_at")
-        if c in order_keys
-    ) or "`id`"
-
-    try:
-        # 1. Load staging (isolated — no contention with target table)
-        _load_staging(client, stg_orders, all_orders, order_schema)
-        if all_items:
-            _load_staging(client, stg_items, all_items, item_schema)
-
-        # 2. Atomic DELETE + INSERT
-        order_set = ", ".join(f"`{c}`" for c in order_cols)
-        if all_items:
-            item_set = ", ".join(f"`{c}`" for c in item_cols)
-            items_sql = f"""
-  DELETE FROM `{project}.{dataset}.order_items`
-  WHERE order_id IN (SELECT id FROM `{stg_orders}`);
-  INSERT INTO `{project}.{dataset}.order_items` ({item_set})
-  SELECT {item_set} FROM `{stg_items}`;"""
-        else:
-            items_sql = f"""
-  DELETE FROM `{project}.{dataset}.order_items`
-  WHERE order_id IN (SELECT id FROM `{stg_orders}`);"""
-
-        script = f"""
-BEGIN TRANSACTION;
-  DELETE FROM `{project}.{dataset}.sale_order`
-  WHERE id IN (SELECT id FROM `{stg_orders}`);
-  INSERT INTO `{project}.{dataset}.sale_order` ({order_set})
-  SELECT {order_set} FROM (
-    SELECT * EXCEPT(_rn) FROM (
-      SELECT *, ROW_NUMBER() OVER (PARTITION BY id ORDER BY {dedup_order_by}) AS _rn
-      FROM `{stg_orders}`
-    ) WHERE _rn = 1
-  );{items_sql}
-COMMIT TRANSACTION;
-"""
-        client.query(script).result()
-        log.info(
-            f"  sale_order: {len(all_orders)} rows UPSERTED (atomic) · "
-            f"order_items: {len(all_items)} rows"
-        )
-    finally:
-        # 3. Drop staging (best-effort — uniquely named per run)
-        for stg in (stg_orders, stg_items):
-            try:
-                client.delete_table(stg, not_found_ok=True)
-            except Exception as e:
-                log.warning(f"  Could not drop staging {stg}: {e}")
-
-
-def _load_staging(client, staging_fqn: str, rows: list[dict], schema) -> int:
-    """Internal: load rows vào staging table (WRITE_TRUNCATE)."""
-    from google.cloud import bigquery as bq
-
-    ndjson = "\n".join(json.dumps(r, ensure_ascii=False) for r in rows)
-    client.load_table_from_file(
-        io.BytesIO(ndjson.encode("utf-8")),
-        staging_fqn,
-        job_config=bq.LoadJobConfig(
-            source_format=bq.SourceFormat.NEWLINE_DELIMITED_JSON,
-            write_disposition=bq.WriteDisposition.WRITE_TRUNCATE,
-            schema=schema,
-        ),
-    ).result()
-    return len(rows)
 
 
 def ensure_dataset(client, project: str, dataset: str, location: str = "US") -> None:

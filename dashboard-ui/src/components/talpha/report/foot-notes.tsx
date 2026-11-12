@@ -47,5 +47,3 @@ export function FootNotes({ warning, notes, sources, className }: Props) {
         </div>
     );
 }
-
-export default FootNotes;

@@ -125,11 +125,6 @@ class MetaAdsClient:
                 time.sleep(wait)
         raise MetaFetchError(_mask_secrets(f"Meta request thất bại sau {META_MAX_RETRIES} lần: {last_err}"))
 
-    def _get(self, path: str, params: dict) -> dict:
-        """Tương thích ngược — wrapper quanh _request."""
-        params = dict(params or {})
-        params["access_token"] = self.token
-        return self._request(f"{self.base}/{path}", params)
 
     def fetch_ads_insights(
         self,
@@ -175,62 +170,4 @@ class MetaAdsClient:
         log.info(f"  [{account_id}] Fetched {len(rows)} insight rows ({date_start} → {date_stop})")
         return rows
 
-    def fetch_all_accounts(
-        self,
-        date_start: str,
-        date_stop: str,
-        account_ids: Optional[list[dict]] = None,
-    ) -> list[dict]:
-        """Fetch insights từ tất cả tài khoản QC.
 
-        Args:
-            date_start, date_stop: YYYY-MM-DD
-            account_ids: list[{"id": "act_...", "name": "..."}], default = 8 TALPHA accounts
-
-        Returns: list rows đã gộp từ tất cả accounts.
-        """
-        accounts = account_ids or TALPHA_AD_ACCOUNTS
-        all_rows = []
-
-        for acc in accounts:
-            log.info(f"  Fetching: {acc['name']} ({acc['id']})")
-            rows = self.fetch_ads_insights(acc["id"], date_start, date_stop)
-            all_rows.extend(rows)
-            time.sleep(META_SLEEP_BETWEEN_REQUESTS)
-
-        log.info(f"  Total Meta rows: {len(all_rows)} from {len(accounts)} accounts")
-        return all_rows
-
-    def transform_to_bq_row(
-        self, row: dict, account_name: str = "", usd_to_vnd: float = 25700
-    ) -> dict:
-        """Transform 1 insight row → BQ format.
-
-        Note: spend từ Meta là USD → nhân usd_to_vnd để ra VND.
-        """
-        def get_action(actions: list, action_type: str) -> int:
-            for a in (actions or []):
-                if a.get("action_type") == action_type:
-                    return int(float(a.get("value", 0)))
-            return 0
-
-        actions = row.get("actions", [])
-        spend_usd = float(row.get("spend", 0) or 0)
-
-        return {
-            "date":             row.get("date_start", ""),
-            "account_id":       row.get("account_id", ""),
-            "account_name":     row.get("account_name", account_name),
-            "campaign_id":      row.get("campaign_id", ""),
-            "campaign_name":    row.get("campaign_name", ""),
-            "adset_id":         row.get("adset_id", ""),
-            "adset_name":       row.get("adset_name", ""),
-            "ad_id":            int(row.get("ad_id", 0) or 0),  # INT64 trong BQ
-            "ad_name":          row.get("ad_name", ""),
-            "spend":            round(spend_usd * usd_to_vnd, 0),  # Quy đổi → VND
-            "spend_usd":        spend_usd,
-            "impressions":      int(row.get("impressions", 0) or 0),
-            "clicks":           int(row.get("clicks", 0) or 0),
-            "messaging_conversations_started": get_action(actions, "onsite_conversion.messaging_conversation_started_7d"),
-            "purchases":        get_action(actions, "purchase"),
-        }

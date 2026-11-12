@@ -99,5 +99,3 @@ export function ResultCard({
         </section>
     );
 }
-
-export default ResultCard;

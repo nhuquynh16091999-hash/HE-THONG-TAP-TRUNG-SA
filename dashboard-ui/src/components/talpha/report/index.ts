@@ -2,7 +2,7 @@
  * Lớp trình bày dùng chung cho mọi tab TALPHA — port ngôn ngữ báo cáo của AUUS1.
  * Tab chỉ lo lấy số; cách bày số nằm hết ở đây để 5 tab không trôi mỗi nơi một kiểu.
  */
-export { ReportHero, default as ReportHeroDefault } from "./report-hero";
+export { ReportHero } from "./report-hero";
 export type { HeroProgress } from "./report-hero";
 
 export { KpiTile, KpiRow } from "./kpi-tile";

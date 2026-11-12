@@ -57,5 +57,3 @@ export function WaterfallList({ rows, className }: { rows: WaterfallRow[]; class
         </div>
     );
 }
-
-export default WaterfallList;

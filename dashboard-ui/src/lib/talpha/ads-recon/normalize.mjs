@@ -103,10 +103,6 @@ export function daysBetween(a, b) {
     return Math.round((Date.parse(b + "T00:00:00Z") - Date.parse(a + "T00:00:00Z")) / 86400000);
 }
 
-export function addDays(iso, n) {
-    return toISODate(new Date(Date.parse(iso + "T00:00:00Z") + n * 86400000));
-}
-
 /** Tuần ISO — dùng làm mã kỳ đối soát, ví dụ "2026-W37". */
 export function isoWeek(iso) {
     const d = new Date(Date.parse(iso + "T00:00:00Z"));

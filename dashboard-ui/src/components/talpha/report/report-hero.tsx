@@ -80,5 +80,3 @@ export function ReportHero({ emoji, title, subtitle, actions, progress, children
         </section>
     );
 }
-
-export default ReportHero;

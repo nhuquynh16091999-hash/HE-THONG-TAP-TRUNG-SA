@@ -36,8 +36,8 @@ FROM=_T.replace(day=1).isoformat(); TO=_T.isoformat()  # đầu tháng -> hôm n
 # ── RULE CHUNG: đọc từ talpha_rules.json qua loader (golden-test 29/07 = 100% khớp bản cũ).
 # Sửa rule (marketer/tỷ giá/thị trường/test) → sửa talpha_rules.json, KHÔNG sửa tại đây.
 from talpha_rules import (RATE, LOCALCUR, MONEY_DIV, ALLM, MARKETS, la_ma_nuoc, SHOP2MKT, GTC_CAT, POS_TZ,
-                          NUMID, norm_nv, norm_pos_nv, is_test, PRIMARY_MARKET,
-                          DISPLAY, EXTERNAL_DISPLAY, norm_pos_external, norm_nv_external,
+                          norm_nv, norm_pos_nv, is_test, PRIMARY_MARKET,
+                          DISPLAY, norm_pos_external, norm_nv_external,
                           UNASSIGN, bucket_nv, campaign_market,
                           camp_san_pham, tao_chi_muc_page, tim_camp_theo_page,
                           tao_ten_tab_page, ten_tab_cua_don, sql_la_don_trong, MESS_PANCAKE, nguoi_tinh_so)

@@ -69,10 +69,6 @@ STATUS_CATEGORY_MAP: dict[str, tuple[str, str]] = {
 
 # Statuses counted as "successfully delivered" (dùng để filter doanh thu)
 SUCCESS_STATUSES = frozenset(["GIAO_THANH_CONG"])
-SUCCESS_STATUS_NAMES = frozenset(["delivered", "received_money"])
-
-# Statuses excluded from order count (test / draft orders)
-EXCLUDE_STATUS_NAMES = frozenset(["waitting", "ordered", "canceled"])
 
 
 # ─── R1: Doanh thu ──────────────────────────────────────────────────────────
@@ -256,56 +252,7 @@ def get_market_timezone(shop_label: str) -> str:
 
 # ─── Status helpers ──────────────────────────────────────────────────────────
 
-def get_status_category(status_name: str) -> tuple[str, str]:
-    """Mapping Poscake status_name → (category, sub_category)."""
-    return STATUS_CATEGORY_MAP.get(status_name.lower(), ("UNKNOWN", "unknown"))
-
-
-def should_count_as_order(status_name: str) -> bool:
-    """Trả True nếu đơn được tính vào tổng đơn (không phải test/draft)."""
-    return status_name.lower() not in EXCLUDE_STATUS_NAMES
-
 
 # ─── SQL snippets (dùng trong query builder) ─────────────────────────────────
 
-def sql_revenue_vnd(cod_col: str = "cod", shop_label_col: str = "shop_label") -> str:
-    """SQL expression: tính doanh thu VND từ cod và shop_label.
 
-    CASE được SINH TỪ FX_RATES_TO_VND + POS_MONEY_DIVISOR — không gõ tay lại, để bảng
-    tỷ giá/số chia của Python và SQL không bao giờ lệch nhau nữa (trước đây thiếu TW
-    ⇒ đơn Đài ra 0 VND; rồi chia 100 cho Đài ⇒ tiền Đài tụt 100 lần, X13).
-    ELSE NULL (không phải 0): market chưa khai tỷ giá phải hiện ra là THIẾU,
-    chứ không được lẫn vào doanh thu như một số 0 hợp lệ.
-    """
-    whens = "\n".join(
-        f"        WHEN '{label}' THEN {rate:g}"
-        for label, rate in FX_RATES_TO_VND.items()
-        if label not in _NON_SHOP_FX_KEYS
-    )
-    # X13: số chia theo TỪNG shop — gõ thẳng /100 là làm tiền Đài tụt 100 lần.
-    divs = "\n".join(
-        f"        WHEN '{label}' THEN {div}"
-        for label, div in POS_MONEY_DIVISOR.items()
-    )
-    return f"""({cod_col} / CASE {shop_label_col}
-{divs}
-        ELSE {DEFAULT_MONEY_DIVISOR}
-    END) * CASE {shop_label_col}
-{whens}
-        ELSE NULL
-    END"""
-
-
-def sql_success_filter(status_category_col: str = "status_category", cod_col: str = "cod") -> str:
-    """SQL WHERE clause cho đơn giao thành công."""
-    return f"{status_category_col} = 'GIAO_THANH_CONG' AND {cod_col} > 0"
-
-
-def sql_marketer_name(marketer_col: str = "marketer") -> str:
-    """SQL expression: trích tên marketer từ JSON string."""
-    return f"JSON_EXTRACT_SCALAR({marketer_col}, '$.name')"
-
-
-def sql_ads_join_condition(ads_ad_id: str = "a.ad_id", order_ad_id: str = "o.ad_id") -> str:
-    """SQL JOIN condition: ads(INT64) ↔ orders(STRING)."""
-    return f"CAST({ads_ad_id} AS STRING) = {order_ad_id}"

@@ -14,14 +14,13 @@ Usage:
 
 Exit 0 = PASS, Exit 1 = FAIL (column không tồn tại), Exit 2 = WARNING
 """
-import os, re, sys, json
+import re, sys, json
 from pathlib import Path
 
 # ─── Config ──────────────────────────────────────────────────────────────────
 
 ROOT = Path(__file__).resolve().parent.parent
 API_DIR = ROOT / "dashboard-ui" / "src" / "app" / "api" / "talpha"
-SYNC_DIR = ROOT / "sync" / "core"
 SQL_DIR = ROOT / "sql" / "talpha" / "views"
 BQ_KEY = ROOT / "bigquery_key.json"
 

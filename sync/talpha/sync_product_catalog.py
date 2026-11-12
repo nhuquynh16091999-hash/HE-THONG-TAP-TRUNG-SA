@@ -12,7 +12,7 @@ Usage:
   python sync/talpha/sync_product_catalog.py            # full sync
   python sync/talpha/sync_product_catalog.py --dry-run  # chỉ fetch, không ghi BQ
 """
-import os, sys, json, time, tempfile, argparse
+import os, json, time, tempfile, argparse
 import requests
 from dotenv import load_dotenv
 from google.oauth2.service_account import Credentials

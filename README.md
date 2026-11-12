@@ -1,111 +1,139 @@
-# TALPHA — Hệ thống tập trung
+# TALPHA — Hệ thống vận hành ANTALO
 
-Dashboard vận hành cho đội Tiểu Alpha: bán trang sức và mỹ phẩm qua Facebook Ads
-+ chat-sale + COD tại **thị trường Đài Loan**.
-
-> Dự án độc lập, dựng lại 05/09/2026. Không liên quan tới repo cũ.
-
-Bản đồ nghiệp vụ đầy đủ: **[DASHBOARD_MAP.md](DASHBOARD_MAP.md)**.
+Dashboard cho đội ANTALO: bán hàng qua Facebook Ads → chat-sale → thu COD ở **5 nước**
+(Đài Loan, Singapore, UAE, Nhật Bản, Việt Nam). File này là **sơ đồ luồng một trang**
+(soát lại theo đúng code và máy chủ đang chạy, 12/11/2026). Chi tiết từng màn hình, từng
+con số: **[DASHBOARD_MAP.md](DASHBOARD_MAP.md)**. Luật cho người sửa code: `CLAUDE.md`.
 
 ---
 
-## Cơ cấu
+## 1. Năm thị trường
 
-| Vai trò | Số người | Thấy gì |
+| Nước | Tiền (tỷ giá) | Shop POS | Giao hàng | Người cầm | Team |
+|:--|:--|:--|:--|:--|:--|
+| Đài Loan | TWD (800đ) | Đài | NAZA供应链 + 17TRACK | Sỹ Anh | Đông Á |
+| Nhật Bản | JPY (160đ) | Nhật | NAZA + Japan Post (17TRACK) | Sỹ Anh | Đông Á |
+| Singapore | SGD (20.000đ) | Singapore | 3PL Sing (bảng đối tác) | Thái | Đông Nam Á |
+| UAE | AED (7.000đ) | UAE | D&T Fulfillment / WeShip | Lộc | Trung Đông |
+| Việt Nam | VND | "VIỆT NAM" (hạt giống) | J&T, đọc thẳng từ đơn POS | — | Việt Nam |
+
+Mọi con số này khai ở `config/talpha_rules.json` (`markets`, `access.teams`, `shipping_fees`).
+
+---
+
+## 2. Luồng của một đơn hàng
+
+```
+Facebook Ads ─► khách nhắn tin (Pancake / Botcake) ─► sale chốt đơn trên POS Poscake
+                                                            │
+                          ┌─────────────────────────────────┼──────────────────────────┐
+                          ▼                                 ▼                          ▼
+                 3PL nhận và giao hàng              theo dõi hành trình          POS đổi trạng thái
+              (NAZA · 3PL Sing · D&T · J&T)      (17TRACK · WeShip · POS J&T)     đã giao / hoàn
+                          │                                 │                          │
+                          ▼                                 ▼                          ▼
+               khách trả tiền cho shipper          tab Theo dõi vận đơn        sync mỗi giờ → BigQuery
+                          │                        + tin Zalo vận đơn                  │
+                          ▼                                                            ▼
+               3PL chuyển tiền theo kỳ ─► tab Tiền COD về ◄── khớp mã vận đơn ──► Sổ đơn hàng
+```
+
+---
+
+## 3. Ba đường số chảy vào dashboard
+
+| Đường | Từ đâu → tới đâu | Dùng cho |
 |:--|:--|:--|
-| Giám đốc | 1 | Toàn bộ số liệu, quản lý người dùng |
-| Marketer | 6 | Báo cáo, chi phí quảng cáo của mình |
-| Sale | 2 | Đơn hàng, đối soát COD |
+| **Chốt số** (mỗi giờ) | Meta API + POS + bảng đơn đối tác → BigQuery → Google Sheet "TỔNG TEAM" | Tổng quan, P&L, Marketer, Lãi lỗ, tin Zalo |
+| **Tức thời** | Meta API + POS gọi thẳng | Ads Command Center, Sản phẩm & Kho |
+| **File tải lên** | Sao kê 3PL, sao kê thẻ, chi phí vận hành nhập tay → `data/*.json` | Tiền COD về, Thanh toán quảng cáo, Lãi lỗ |
 
-Một thị trường: **Đài Loan** (TWD, tỷ giá 800đ, một shop POS, 10 TKQC Meta).
+Sheet "TỔNG TEAM" là **một nguồn chung** cho dashboard, file Sheet và bot Zalo, nên ba nơi
+luôn cùng số.
 
 ---
 
-## Chạy
+## 4. Việc nền trên máy chủ (`139.180.131.21`, thư mục `/opt/talpha`)
+
+| Khi nào | Việc | Chạy bằng |
+|:--|:--|:--|
+| Mỗi giờ, phút :00 | Kéo Meta + POS + bảng đối tác vào BigQuery | `talpha-sync.timer` → `sync/talpha/talpha_sync.py` |
+| Mỗi giờ, phút :20 | Ghi Google Sheet + soát TKQC/shop mất số (không ghi nếu sync hỏng) | `talpha-report.timer` → `daily_guarded.sh` → `sync_month.py`, `format_all.py`, `report_account_health.py` |
+| Mỗi giờ, phút :40 | Chụp tồn kho dự phòng | `talpha-snapshot.timer` → `snapshot_cron.sh` |
+| Mỗi ngày 05:10 (giờ VN) | Danh mục sản phẩm POS → BigQuery | `talpha-catalog.timer` → `sync_product_catalog.py` |
+| Mỗi ngày 06:00 và 21:30 (giờ VN) | Nạp bảng đơn đối tác vào sổ vận đơn | `talpha-tracking.timer` → `ops/deploy/tracking-import.sh` |
+| Luôn chạy | Dashboard (Next.js, cổng 3000, HTTPS qua nginx) | pm2 `talpha-dashboard` |
+| Luôn chạy | Bot Zalo: tin ads 08:30 · 13 · 18 · 22h, tin vận đơn 08:30 · 22h (giờ VN), mỗi nước một nhóm | pm2 `talpha-zalo-alerts` |
+
+Máy Mac chỉ là máy dev, không chạy việc nền nào.
+
+---
+
+## 5. Màn hình
+
+| Nhóm | Tab | Trả lời câu hỏi |
+|:--|:--|:--|
+| 📋 Báo cáo | Tổng quan · P&L · P&L theo SP | Bán được bao nhiêu, lãi gộp tạm tính |
+| 🧾 Đơn hàng | Sổ đơn hàng · Theo dõi vận đơn | Đơn nào đang ở đâu, kiện nào kẹt |
+| 💼 Kế toán | Lãi lỗ · Tiền COD về · Thanh toán quảng cáo | Lãi thật sau mọi khoản, tiền về đủ chưa |
+| 📦 Sản phẩm | Sản phẩm & Kho | Còn hàng gì |
+| 👤 Marketer | Marketing & Ads | Từng người chạy ra sao |
+| 🎯 Quảng cáo | Chi phí QC · Ads Command Center · Sức khoẻ QC | Đang tiêu bao nhiêu, camp nào cần tắt |
+| 👥 Khách hàng | Khách hàng · Market Intel | Khách mua lại, thị trường |
+
+Phân quyền theo team: mỗi người chỉ thấy nước của team mình; giám đốc thấy hết
+(`talpha_rules.json → access`, tài khoản ở `config/users.json` trên máy chủ).
+
+---
+
+## 6. Cấu trúc thư mục
+
+```
+config/talpha_rules.json   NGUỒN LUẬT DUY NHẤT: tỷ giá, phí 3PL, giá vốn, marketer, phân quyền
+config/projects/           tài khoản quảng cáo Meta + shop POS
+dashboard-ui/              Next.js 16 + React 19: toàn bộ giao diện và API
+  src/app/api/talpha/        25 nhóm route nghiệp vụ
+  src/lib/talpha/            logic thuần (đối soát, vận đơn, lãi lỗ, phân quyền), có test
+  src/components/talpha/     các tab
+sync/                      engine kéo số vào BigQuery (bản duy nhất)
+ops/talpha_reports/        đường ống ghi Google Sheet + soát sức khoẻ dữ liệu
+ops/zalo-alerts/           bot Zalo
+ops/deploy/                script dựng và cập nhật máy chủ
+ops/pm2/                   file pm2 duy nhất
+sql/talpha/views/          định nghĩa view BigQuery
+doi-soat-chi-phi-qc/       bản dòng lệnh của tab Thanh toán quảng cáo (dùng chung logic)
+tests/                     phép thử luật nghiệp vụ Python
+docs/                      công thức chỉ số, deploy, đối soát COD, quy ước tên camp
+data/                      số thật (sao kê, sổ vận đơn), NGOÀI git, chép lên máy chủ khi deploy
+```
+
+---
+
+## 7. Chạy, kiểm tra, deploy
 
 ```bash
-cd dashboard-ui
-npm install
-cp .env.example .env.local     # rồi điền khoá — xem bảng bên dưới
-npm run dev                    # http://localhost:3000
+cd dashboard-ui && npm run dev          # http://localhost:3000
+cd dashboard-ui && npm test             # logic đối soát, vận đơn, sổ đơn, lãi lỗ, phân quyền
+TALPHA_RULES="$PWD/config/talpha_rules.json" python3 -m pytest tests/
+cd ops/zalo-alerts && npm test          # bot Zalo
 ```
 
-Kiểm tra trước khi commit:
+Deploy từ máy Mac (máy chủ không tự `git pull` được):
 
 ```bash
-cd dashboard-ui && npm test    # logic đối soát COD, đối soát ads, sổ đơn, vận đơn
-python3 -m pytest tests/       # rule nghiệp vụ (tỷ giá, số chia, trạng thái đơn)
-```
-
-Deploy lên máy chủ — chạy **từ máy Mac**:
-
-```bash
-bash ops/deploy/from-mac.sh
-```
-
-### Khoá cần có
-
-| Khoá | Không có thì mất gì |
-|:--|:--|
-| `GCP_SA_KEY_JSON` (hoặc `bigquery_key.json` ở gốc repo) | 6 tab đọc BigQuery trống |
-| `TALPHA_META_ACCESS_TOKEN` | Chi phí quảng cáo, Ads Command Center |
-| `TALPHA_POSCAKE_TW_KEY` | Tab Sản phẩm & Kho |
-| `GEMINI_API_KEY` | Tính năng "CEO hỏi" (tuỳ chọn) |
-
----
-
-## Màn hình
-
-| Nhóm | Tab |
-|:--|:--|
-| 📋 Báo cáo | Tổng quan · P&L · P&L theo sản phẩm |
-| 🧾 Đơn hàng & Đối soát | Sổ đơn hàng · **Đối soát COD** · Theo dõi vận đơn |
-| 📦 Sản phẩm | Sản phẩm & Kho |
-| 👤 Marketer | Marketing & Ads |
-| 🎯 Quảng cáo | Chi phí quảng cáo · Ads Command Center · Sức khoẻ quảng cáo |
-| 💳 Đối soát chi phí QC | **Đối soát chi phí quảng cáo** |
-| 👥 Khách hàng | Khách hàng · Market Intel |
-
-**Đối soát COD** — tải file sao kê của 3PL (CSV/TSV; Excel thì xuất CSV trước), hệ
-thống khớp theo mã vận đơn với đơn đã giao và chia làm bốn nhóm: khớp · lệch tiền ·
-**chưa về tiền** (tiền còn treo ở 3PL) · thừa ở sao kê. Tên cột của 3PL khai ở
-`config/talpha_rules.json → cod_settlement.column_map`.
-
-**Đối soát chi phí quảng cáo** — tải bản kê chi phí TKQC và sao kê thẻ, hệ thống bắt
-trừ trùng, phí ẩn, hoá đơn Failed mà thẻ vẫn trừ, và TKQC ngoài danh sách. Không đụng
-BigQuery lẫn POS nên chạy được cả khi hai thứ kia chết.
-
----
-
-## Cấu trúc
-
-```
-dashboard-ui/        Next.js 16 + React 19 — toàn bộ giao diện và API
-  src/app/api/talpha/  route nghiệp vụ (orders · ad-spend · cod-recon · …)
-  src/lib/talpha/      rule gán người, logic đối soát, kho JSON có khoá file
-config/              talpha_rules.json — NGUỒN RULE DUY NHẤT
-sync/                engine sync POS + Meta → BigQuery (bản duy nhất)
-ops/deploy/          script dựng và cập nhật máy chủ
-ops/pm2/             ecosystem.vps.config.js — file pm2 duy nhất
-ops/talpha_reports/  đường ống báo cáo Google Sheets, chạy theo giờ
-sql/talpha/          định nghĩa view BigQuery
-docs/                TALPHA_METRIC_RULES.md là source of truth về chỉ số
+git push origin main
+KEY=~/.ssh/id_ed25519 GH_KEY=~/.ssh/id_ed25519 bash ops/deploy/from-mac.sh
+ssh root@139.180.131.21 'bash /opt/talpha/ops/talpha_reports/deploy_runtime.sh --yes'   # khi sửa ops/talpha_reports hoặc luật
 ```
 
 ---
 
-## Ba rule dễ tính sai nhất
+## 8. Ba luật dễ tính sai nhất
 
-1. **Doanh thu** = tổng `cod ÷ số chia của shop`, chỉ đơn `GIAO_THANH_CONG` và `cod > 0`.
-   Shop Đài lưu **nguyên TWD** nên số chia là **1**, không phải 100. Gõ `/100` là
-   tiền tụt đúng 100 lần.
-2. **Chi phí quảng cáo đã là VND** — không quy đổi thêm lần nào. Cột ngày là `date`,
-   không phải `date_start`.
-3. **Chẩn đoán số sai: không bao giờ so Sheet với BigQuery** — cùng nguồn nên cùng
-   sai. Đối chiếu thẳng Meta API cho chi phí và POS API cho đơn.
+1. **Số chia tiền POS khác nhau theo shop**: Đài lưu nguyên TWD (chia 1), Singapore và UAE
+   chia 100. Luôn dùng `posMoneyDivisor()`.
+2. **Chi phí quảng cáo đã là VND**, không quy đổi thêm lần nào.
+3. **Chẩn đoán số sai: không so Sheet với BigQuery** (cùng nguồn nên cùng sai). Đối chiếu
+   thẳng Meta API cho chi phí và POS cho đơn.
 
----
-
-## Còn nợ
-
-Xem mục 10 của [DASHBOARD_MAP.md](DASHBOARD_MAP.md), và `config/talpha_rules.json → _todo`.
+Việc còn nợ: mục 10 của [DASHBOARD_MAP.md](DASHBOARD_MAP.md) và `talpha_rules.json → _todo`.

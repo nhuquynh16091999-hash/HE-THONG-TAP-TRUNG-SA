@@ -11,7 +11,7 @@ Usage:
 """
 import time, json, logging, requests
 from typing import Optional
-from sync.core.business_rules import STATUS_CATEGORY_MAP, should_count_as_order
+from sync.core.business_rules import STATUS_CATEGORY_MAP
 
 log = logging.getLogger(__name__)
 

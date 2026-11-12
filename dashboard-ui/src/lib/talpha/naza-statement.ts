@@ -50,7 +50,6 @@ const ANCHORS = CFG.header_anchors || {};
 
 export const FEE_TABLE_DECLARED = FEES.declared === true;
 export const OP_FEE_PER_PARCEL = Number(FEES.op_fee_per_parcel ?? 0);
-export const PENDING_ALERT_DAYS = Number(CFG.pending_alert_days ?? 30);
 
 // ─────────────────────────────────────────────────────────────────────────
 // Chuẩn hoá

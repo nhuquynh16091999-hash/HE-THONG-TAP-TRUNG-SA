@@ -13,10 +13,8 @@
         "restart-local": "npm run build && pm2 restart talpha-dashboard --update-env"
     },
     "dependencies": {
-        "@anthropic-ai/sdk": "^0.55.1",
         "@google-cloud/bigquery": "^7.5.0",
         "@google/genai": "^1.52.0",
-        "@tanstack/react-table": "^8.21.3",
         "@types/js-yaml": "^4.0.9",
         "axios": "^1.13.5",
         "bcryptjs": "^3.0.3",
@@ -31,13 +29,10 @@
         "proper-lockfile": "^4.1.2",
         "react": "^19.0.0",
         "react-dom": "^19.0.0",
-        "react-markdown": "^10.1.0",
         "recharts": "^2.12.2",
         "tailwind-merge": "^2.2.1"
     },
     "devDependencies": {
-        "@eslint/eslintrc": "^3.3.7",
-        "@types/bcryptjs": "^2.4.6",
         "@types/node": "^20",
         "@types/react": "^19.2.14",
         "@types/react-dom": "^19.2.3",

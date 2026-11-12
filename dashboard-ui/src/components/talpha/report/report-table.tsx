@@ -112,5 +112,3 @@ export function ReportTable<T>({
         </section>
     );
 }
-
-export default ReportTable;

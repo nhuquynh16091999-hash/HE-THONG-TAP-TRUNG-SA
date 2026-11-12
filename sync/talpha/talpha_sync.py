@@ -27,9 +27,9 @@ load_dotenv(os.path.join(PROJECT_DIR, '.env'))
 from google.cloud import bigquery
 
 # ── sync/core imports ────────────────────────────────────────────
-from sync.core.business_rules import STATUS_CATEGORY_MAP, quy_doi_don_ngoai_te
+from sync.core.business_rules import quy_doi_don_ngoai_te
 from sync.core.bq_writer import (
-    load_truncate, load_append, ensure_dataset, get_last_sync_ts,
+    load_truncate, load_append, ensure_dataset,
     append_and_rebuild_orders, append_and_rebuild_ads,
 )
 from sync.core.pos_client import PoscakeClient, PosFetchError

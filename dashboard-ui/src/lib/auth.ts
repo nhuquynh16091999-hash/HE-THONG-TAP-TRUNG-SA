@@ -1,19 +1,6 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 
-// ─── Project route to project ID mapping ───
-export const ROUTE_TO_PROJECT: Record<string, string> = {
-    talpha: "TALPHA",
-};
-
-// ─── Check if user can access a project ───
-export function canAccessProject(
-    userProjects: string[],
-    projectId: string
-): boolean {
-    return userProjects.includes("*") || userProjects.includes(projectId);
-}
-
 // ─── NextAuth Config ───
 // NOTE: authorize() must NOT import Node.js modules (fs, path, etc.)
 // because this config is also used by the Edge Runtime middleware.
