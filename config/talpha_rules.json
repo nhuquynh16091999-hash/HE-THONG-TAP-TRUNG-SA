@@ -1856,6 +1856,16 @@
       "cost_price_rmb": 6.5,
       "_ghi_chu": "Dây two-tone, page Gintong Ganda Jewelry + Manila Luxe Jewelry (Đài). Giá 6,5 tệ / 1 sp — Sỹ Anh gửi trong chat 12/11/2026 (bảng báo giá chưa có dòng SET 27)."
     },
+    "094": {
+      "name": "094 - SET 28",
+      "cost_price_rmb": 5,
+      "_ghi_chu": "Giá 5 tệ / 1 sp — lấy từ file tiền hàng Đài (tab PHÍ MUA HÀNG COD ĐÀI, dòng 375, mua 29/10/2026). Sỹ Anh duyệt khai 13/11/2026."
+    },
+    "088": {
+      "name": "088 - THUOC LA",
+      "cost_price_rmb": 5,
+      "_ghi_chu": "Giá 5 tệ / 1 sp — lấy từ file tiền hàng Đài (tab PHÍ MUA HÀNG COD ĐÀI, dòng 351, mua 23/10/2026). Sỹ Anh duyệt khai 13/11/2026."
+    },
     "_note_ten": "Giá lấy từ bảng 'Giá tới Taiwan' của Sỹ Anh (10/09/2026). Bảng đó không có cột tên sản phẩm, chỉ có nhãn kiểu '053 - SET10', nên tên tiếng Anh cũ được giữ lại để màn hình còn đọc được; nhãn gốc trong bảng lưu ở _nhan_bang_gia. Tên là tên, giá là giá — KHÔNG lấy giá cũ của hệ thống GCC."
   },
   "product_name_aliases": {
