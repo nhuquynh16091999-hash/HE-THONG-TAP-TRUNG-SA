@@ -188,6 +188,44 @@ export function ghepDotVaoKy(
 }
 
 // ─────────────────────────────────────────────────────────────────────────
+// Soát ngày đợt gõ nhầm
+// ─────────────────────────────────────────────────────────────────────────
+// Đợt thanh toán đi mỗi tuần một lần, từ trên xuống dưới trong file. 13/11/2026 ô
+// dòng 370 ghi "THANH TOÁN NGÀY 30/11" thay vì 30/10: kỳ sao kê 30/10 không ghép
+// được đợt nào, và cuối tháng 11 đợt 5.721.300đ này sẽ bị ghép nhầm vào một kỳ
+// khác. Đợt nào ngày đi NGƯỢC thứ tự với đợt kề nó, hoặc nằm quá xa trong tương
+// lai, thì gắn cờ và KHÔNG đem ghép vào kỳ nào — không đoán ngày đúng thay người.
+export type DotNghiNgo = { dot: DotTienHang; ly_do: string };
+
+const dm = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}`;
+
+export function soatNgayDot(
+    dot: DotTienHang[], homNay = new Date().toISOString().slice(0, 10), tuongLaiNgay = 7,
+): DotNghiNgo[] {
+    const tran = new Date(Date.parse(homNay) + tuongLaiNgay * 86_400_000).toISOString().slice(0, 10);
+    const ly = new Map<number, string>();
+    // Hai đợt liền nhau đi ngược thứ tự: chỉ MỘT trong hai gõ nhầm. Đợt nhầm là đợt
+    // xa đợt mốc hơn (mốc = đợt ngay trước cặp; cặp ở đầu file thì lấy đợt ngay sau).
+    // 23/10 · 30/11 · 06/11 → mốc 23/10: 30/11 cách 38 ngày, 06/11 cách 14 → nhầm 30/11.
+    for (let i = 0; i + 1 < dot.length; i++) {
+        const a = dot[i], b = dot[i + 1];
+        if (a.ngay <= b.ngay) continue;
+        const moc = dot[i - 1] ?? dot[i + 2];
+        const sai = !moc ? i : ngayCach(a.ngay, moc.ngay) >= ngayCach(b.ngay, moc.ngay) ? i : i + 1;
+        const truoc = dot[sai - 1], sau = dot[sai + 1];
+        ly.set(sai, `nằm giữa đợt ${truoc ? dm(truoc.ngay) : "—"} và ${sau ? dm(sau.ngay) : "—"} ` +
+            "nhưng ngày đi ngược thứ tự — có thể gõ nhầm tháng");
+    }
+    dot.forEach((x, i) => {
+        if (!ly.has(i) && x.ngay > tran) ly.set(i, `ở tương lai (hôm nay ${dm(homNay)}) — có thể gõ nhầm ngày`);
+    });
+    return [...ly.keys()].sort((a, b) => a - b).map((i) => ({
+        dot: dot[i],
+        ly_do: `Đợt dòng ${dot[i].dong} ghi ngày ${dm(dot[i].ngay)} (${String(dot[i].tong_vnd).replace(/\B(?=(\d{3})+(?!\d))/g, ".")}đ) ${ly.get(i)}.`,
+    }));
+}
+
+// ─────────────────────────────────────────────────────────────────────────
 // Đọc Google Sheet — có bộ nhớ đệm, KHÔNG BAO GIỜ ném lỗi ra ngoài
 // ─────────────────────────────────────────────────────────────────────────
 // Màn đối soát không được sập vì file tiền hàng tạm không mở được. Lỗi thì trả
@@ -195,19 +233,22 @@ export function ghepDotVaoKy(
 const DEM_MS = 5 * 60_000;
 let dem: { luc: number; ket: KetQuaTienHang } | null = null;
 
-export type KetQuaTienHang = { dot: DotTienHang[]; loi: string | null; doc_luc: string };
+/** `dot` đã BỎ các đợt nghi gõ nhầm ngày — chúng nằm ở `nghi_ngo`, không ghép vào kỳ nào. */
+export type KetQuaTienHang = { dot: DotTienHang[]; nghi_ngo: DotNghiNgo[]; loi: string | null; doc_luc: string };
 
 export async function docTienHang(): Promise<KetQuaTienHang> {
     if (dem && Date.now() - dem.luc < DEM_MS) return dem.ket;
     const luc = new Date().toISOString();
     let ket: KetQuaTienHang;
     if (!CFG.sheet_id) {
-        ket = { dot: [], loi: "Chưa khai file tiền hàng ở config/talpha_rules.json → cod_settlement.purchase_sheet.", doc_luc: luc };
+        ket = { dot: [], nghi_ngo: [], loi: "Chưa khai file tiền hàng ở config/talpha_rules.json → cod_settlement.purchase_sheet.", doc_luc: luc };
     } else {
         try {
             const r = await fetchSheetCsv(CFG.sheet_id, CFG.sheet_gid || "0");
             const grid = csvToGrid(r.csv);
-            const dot = docDotTienHang(grid);
+            const tatCa = docDotTienHang(grid);
+            const nghiNgo = soatNgayDot(tatCa);
+            const dot = tatCa.filter((x) => !nghiNgo.some((n) => n.dot === x));
             // Cả file chỉ còn ô lỗi công thức (#REF!, #N/A…) thì nói thẳng ra. 14/09/2026 bản
             // sao dùng IMPORTRANGE theo TÊN tab, tab gốc đổi tên là cả file thành một ô #REF!
             // — câu "không thấy đợt nào" khi đó chỉ khiến người ta đi soát nhầm chỗ.
@@ -215,13 +256,14 @@ export async function docTienHang(): Promise<KetQuaTienHang> {
             const loiCongThuc = o.length > 0 && o.every((c) => /^#(REF!|N\/A|ERROR!|VALUE!|NAME\?)$/i.test(c));
             ket = {
                 dot,
+                nghi_ngo: nghiNgo,
                 loi: dot.length ? null
                     : loiCongThuc ? `File tiền hàng đang ra lỗi công thức ${o[0]} — thường là IMPORTRANGE trỏ tới tab đã đổi tên. Sửa công thức, hoặc khai thẳng file gốc vào cod_settlement.purchase_sheet.`
                         : "Đọc được file tiền hàng nhưng không thấy đợt thanh toán nào.",
                 doc_luc: luc,
             };
         } catch (e) {
-            ket = { dot: [], loi: `Không đọc được file tiền hàng: ${(e as Error).message}`, doc_luc: luc };
+            ket = { dot: [], nghi_ngo: [], loi: `Không đọc được file tiền hàng: ${(e as Error).message}`, doc_luc: luc };
         }
     }
     dem = { luc: Date.now(), ket };

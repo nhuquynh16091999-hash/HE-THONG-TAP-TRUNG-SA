@@ -99,4 +99,24 @@ t("ô trong ngoặc kép có xuống dòng không làm vỡ dòng", () => {
     assert.strictEqual(g[0][1], "THANH TOÁN NGÀY 11/09\nTỔNG : 8.406.891 VND");
 });
 
+console.log("── Soát ngày đợt gõ nhầm ──");
+const D = (ngay, dong) => ({ ngay, dong, tong_vnd: 1000000 });
+t("đợt 30/11 kẹp giữa 23/10 và 06/11 (lỗi thật 13/11/2026) bị gắn cờ, đợt 06/11 KHÔNG bị kéo theo", () => {
+    const n = P.soatNgayDot([D("2026-10-16", 336), D("2026-10-23", 346), D("2026-11-30", 370), D("2026-11-06", 389)], "2026-11-13");
+    assert.deepStrictEqual(n.map((x) => x.dot.dong), [370]);
+    assert.ok(/30\/11\/2026/.test(n[0].ly_do) && /23\/10/.test(n[0].ly_do) && /06\/11/.test(n[0].ly_do));
+});
+t("gõ lùi tháng (30/09 thay vì 30/10) ở giữa cũng bắt đúng đợt đó", () => {
+    const n = P.soatNgayDot([D("2026-10-16", 1), D("2026-10-23", 2), D("2026-09-30", 3), D("2026-11-06", 4)], "2026-11-13");
+    assert.deepStrictEqual(n.map((x) => x.dot.dong), [3]);
+});
+t("đợt cuối nhảy ra tương lai xa thì gắn cờ; đợt tuần tới thì không", () => {
+    const n = P.soatNgayDot([D("2026-11-06", 1), D("2026-12-13", 2)], "2026-11-13");
+    assert.deepStrictEqual(n.map((x) => x.dot.dong), [2]);
+    assert.strictEqual(P.soatNgayDot([D("2026-11-06", 1), D("2026-11-13", 2)], "2026-11-13").length, 0);
+});
+t("file đúng thứ tự (5 đợt mẫu) không gắn cờ đợt nào", () => {
+    assert.strictEqual(P.soatNgayDot(DOT, "2026-11-13").length, 0);
+});
+
 console.log(`\n${pass} phép thử — tất cả đạt.`);

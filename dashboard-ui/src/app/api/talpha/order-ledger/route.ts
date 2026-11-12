@@ -411,7 +411,8 @@ export async function GET(req: NextRequest) {
                 else if (tienHang.loi && !f) { ok = false; chi = tienHang.loi; }
                 else if (!f) {
                     ok = false;
-                    chi = `File tiền hàng không có đợt thanh toán nào trong 4 ngày quanh ngày sao kê ${dmyIso(moiNhat.ngay_sao_ke)}.`;
+                    chi = `File tiền hàng không có đợt thanh toán nào trong 4 ngày quanh ngày sao kê ${dmyIso(moiNhat.ngay_sao_ke)}.`
+                    if (tienHang.nghi_ngo.length) chi += " Có đợt nghi gõ nhầm ngày trong file — xem mục “Ngày đợt trong file tiền hàng”.";
                 } else if (th.cach_tra === "naza_tru") {
                     const lech = th.lech_naza_vnd ?? 0;
                     ok = Math.abs(lech) < 1;
@@ -433,6 +434,19 @@ export async function GET(req: NextRequest) {
                         "file tiền hàng Đài không có khoản này nên không đem so.";
                 }
                 checks.push({ nhom: "B", ten: "Tiền hàng khớp file tiền hàng", ok, chi_tiet: chi });
+            }
+            // Ngày đợt gõ nhầm trong file tiền hàng (13/11/2026: "30/11" thay vì 30/10 làm kỳ
+            // 30/10 mất đợt). Đợt nghi ngờ đã bị bỏ khỏi phép ghép — nói ra để người sửa file.
+            if (!tienHang.loi || tienHang.nghi_ngo.length) {
+                const nn = tienHang.nghi_ngo;
+                checks.push({
+                    nhom: "B", ten: "Ngày đợt trong file tiền hàng",
+                    ok: nn.length === 0,
+                    chi_tiet: nn.length === 0
+                        ? `${tienHang.dot.length} đợt, ngày đi đúng thứ tự.`
+                        : nn.map((x) => x.ly_do).join(" · ") +
+                          " Đợt này tạm KHÔNG ghép vào kỳ sao kê nào — sửa ngày trong Sheet, 5 phút sau dashboard tự đọc lại.",
+                });
             }
             // Kỳ NAZA gộp Singapore vào sao kê Đài — tin để biết, không phải lỗi (dấu "i").
             const sgMoi = stMoi?.naza?.sg_gop;
@@ -847,7 +861,7 @@ export async function GET(req: NextRequest) {
                         hoan: hoan.length, huy: huy.length, tieu_huy: tieuHuy.length,
                         cod_twd: [...hoan, ...huy, ...tieuHuy].reduce((a, r) => a + r.cod_twd, 0),
                     },
-                    tien_hang: { loi: tienHang.loi, so_dot: tienHang.dot.length, doc_luc: tienHang.doc_luc },
+                    tien_hang: { loi: tienHang.loi, so_dot: tienHang.dot.length, doc_luc: tienHang.doc_luc, nghi_ngo: tienHang.nghi_ngo.map((x) => x.ly_do) },
                 };
             })(),
             // Con số mở đầu màn hình: bao nhiêu tiền đã đi qua chuyển khoản mà
