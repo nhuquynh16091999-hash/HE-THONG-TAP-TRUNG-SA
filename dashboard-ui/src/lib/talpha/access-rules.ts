@@ -181,6 +181,8 @@ export const API_RULES: Record<string, ApiRule> = {
     "/api/talpha/order-ledger/market": { tabs: ["order-ledger"], market: "param" },
     "/api/talpha/cod-recon": { tabs: ["cod-recon"], market: "TW" },
     "/api/talpha/cod-recon/market": { tabs: ["cod-recon"], market: "param" },
+    // Việt Nam (13/11/2026): kỳ đối soát J&T VIP kéo bằng token người dùng dán — route chỉ nhận market=VN.
+    "/api/talpha/cod-recon/jt-vn": { tabs: ["cod-recon"], market: "param" },
     "/api/talpha/cod-actions": { tabs: ["order-ledger", "cod-recon"], market: "TW" },
     "/api/talpha/tracking": { tabs: ["tracking"], market: "tracking" },
     "/api/talpha/tracking/import": { tabs: ["tracking"], market: "TW" },

@@ -669,6 +669,11 @@
     "_todo_other_markets": "Đài Loan (TW), Singapore (SG), UAE (AE), Nhật Bản (JP), Việt Nam (VN) đã khai."
   },
   "cod_settlement": {
+    "jt_vn": {
+      "tu_ngay": "2026-10-15",
+      "keo_lai_phut": 15,
+      "_note": "Đối soát COD Việt Nam (13/11/2026): kéo các kỳ đối soát của J&T VIP (mã KH 238LC41894) tạo từ tu_ngay tới hôm nay, bằng token đăng nhập người dùng dán vào dashboard (lib/talpha/jt-vn.ts). Kỳ J&T sớm nhất thấy được là 03/11/2026. Mở màn hình thì kéo lại nếu lần trước cũ hơn keo_lai_phut phút."
+    },
     "_note": "Công thức quyết toán của NAZA, đã kiểm đúng trên cả 7 kỳ (lệch 0).",
     "formula": [
       "TWD_ròng = tổng COD thu − hoàn tiền khiếu nại",

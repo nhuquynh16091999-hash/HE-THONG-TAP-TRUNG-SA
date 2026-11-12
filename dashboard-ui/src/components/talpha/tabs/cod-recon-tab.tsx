@@ -152,7 +152,8 @@ export default function TALPHACodReconTab(props: Props) {
             .then((d: { markets?: { code: string; display: string; status?: string }[] }) => {
                 const list = (d.markets || []).filter((m) => m.status !== "sap_chay").map((m) => ({ code: m.code, display: m.display }));
                 setDs(list);
-                setNuoc((n) => (list.length && !list.some((m) => m.code === n) ? list[0].code : n));
+                setNuoc((n) => (/[#&]jt_token=/.test(window.location.hash) && list.some((m) => m.code === "VN") ? "VN"
+                    : list.length && !list.some((m) => m.code === n) ? list[0].code : n));
             })
             .catch(() => setDs([]));   // không lấy được danh sách nước thì vẫn hiện màn Đài như cũ
     }, []);
@@ -171,6 +172,8 @@ export default function TALPHACodReconTab(props: Props) {
     ) : null;
     return nuoc === "TW"
         ? <CodDaiLoan {...props} nutNuoc={nutNuoc} />
+        : nuoc === "VN"
+        ? <CodVietNam key={nuoc} nutNuoc={nutNuoc} />
         : <CodNuocKhac key={nuoc} code={nuoc} nutNuoc={nutNuoc} dateRange={props.dateRange} />;
 }
 
@@ -2077,6 +2080,363 @@ function MucSoat({ nhom, ten, hoi, checks }: { nhom: "A" | "B"; ten: string; hoi
                     </li>
                 ))}
             </ul>
+        </div>
+    );
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   VIỆT NAM — J&T (13/11/2026)
+
+   Không có sao kê để tải: số kéo thẳng từ trang J&T VIP bằng token đăng nhập người dùng dán
+   (route /api/talpha/cod-recon/jt-vn, lib/talpha/jt-vn.ts). J&T chốt kỳ mỗi ngày và tự trừ
+   cước, nên màn chỉ cần trả lời: J&T đã chuyển bao nhiêu, còn giữ bao nhiêu, đơn nào lệch.
+
+     Σ  tiền về         — đã chuyển · chờ trả / số dư · đang luân chuyển · đã giao chưa vào kỳ
+     ①  các kỳ J&T      — bấm một kỳ để xem từng vận đơn
+     ②  đối chiếu POS   — lệch COD · đã giao mà chưa vào kỳ · vận đơn không có trên POS
+     ③  đang luân chuyển (gập)
+   ═══════════════════════════════════════════════════════════════════ */
+
+type JtDonKyUI = {
+    van_don: string; ma_kh: string; order_id: string | null; gui_luc: string | null; ky_nhan_luc: string | null;
+    cod: number; cuoc: number; phi_cod: number; phi_hoan: number; phi_giao_1_phan: number; dieu_chinh: number; rong: number; tinh: string;
+};
+type JtKyUI = {
+    ma: string; tao_luc: string; tra_luc: string | null; da_tra: boolean; ngay: string; den: string; so_don: number | null;
+    cod: number; phi: number; dieu_chinh: number; du_no_truoc: number; doi_soat: number; thuc_nhan: number;
+    don: JtDonKyUI[] | null;
+};
+type JtVnData = {
+    so: null | {
+        tong: {
+            da_ve: number; so_ky_da_tra: number; so_lan_chuyen: number; lan_tra_cuoi: string | null; cho_tra: number; so_ky_cho_tra: number;
+            so_du: number | null; dang_chay: { so_don: number; cod: number; cuoc: number };
+            cod_da_doi_soat: number; phi_da_tru: number; don_da_doi_soat: number; cuoc_tb: number | null; don_co_cuoc: number;
+        };
+        ky: JtKyUI[];
+        dang_chay: { van_don: string; order_id: string | null; trang_thai: string; cod: number; cuoc: number; giao_luc: string | null }[];
+        doi_chieu: {
+            da_giao_chua_doi_soat: { order_id: string; tracking: string; order_date: string | null; trang_thai: string; cod: number; khach: string }[];
+            lech_cod: { order_id: string; van_don: string; ky: string; cod_pos: number; cod_jt: number; khach: string }[];
+            khong_co_tren_pos: { van_don: string; ma_kh: string; ky: string; cod: number }[];
+            so_don_pos: number;
+        };
+    };
+    keo_luc: string | null; so_du_cap_nhat: string | null; tu_ngay: string;
+    token: { co: boolean; het_han: string | null; con_han: boolean; luu_luc: string | null };
+    loi: string | null;
+};
+
+/**
+ * Dấu trang "Gửi token J&T": bấm trên trang khachhang.jtexpress.vn → mở dashboard ở
+ * /talpha#jt_token=… (phần sau # không gửi lên máy chủ nào, không vào log) → màn Việt Nam tự lưu
+ * rồi xoá khỏi địa chỉ. Trang J&T không gọi thẳng sang dashboard được (Chrome chặn), nên đi đường mở tab.
+ */
+const bookmarkletJt = (origin: string) =>
+    "javascript:(()=>{const t=localStorage.YL_TOKEN;if(!t||location.host.indexOf('jtexpress')<0){alert('Mở trang khachhang.jtexpress.vn (đã đăng nhập) rồi bấm lại dấu trang này.');return}" +
+    `window.open('${origin}/talpha#jt_token='+encodeURIComponent(t),'_blank')})()`;
+const tokenTuHash = () => {
+    const m = window.location.hash.match(/[#&]jt_token=([^&]+)/);
+    return m ? decodeURIComponent(m[1]) : null;
+};
+
+const gioNgay = (s: string | null) => {
+    if (!s) return "—";
+    const d = new Date(s);
+    return Number.isFinite(d.getTime()) ? format(d, "HH:mm dd/MM") : s;
+};
+/** "2026-11-12 15:37:47" (giờ VN của J&T) → "15:37 12/11". */
+const gioJt = (s: string | null) => (s ? `${s.slice(11, 16)} ${s.slice(8, 10)}/${s.slice(5, 7)}` : "—");
+const tienAm = (n: number) => (n < 0 ? `âm ${VND(-n)}` : VND(n));
+/** "12/11/2026" hoặc kỳ gộp "06–08/11/2026". */
+const khoangKy = (k: { ngay: string; den: string }) => (k.ngay === k.den || !k.den ? dmy(k.ngay)
+    : `${k.ngay.slice(8, 10)}–${dmy(k.den)}`);
+const maKyNgan = (ma: string) => ma.replace(/^[A-Z0-9]+-/, "");
+
+function CodVietNam({ nutNuoc }: { nutNuoc?: ReactNode }) {
+    const [d, setD] = useState<JtVnData | null>(null);
+    const [err, setErr] = useState("");
+    const [loading, setLoading] = useState(true);
+    const [keo, setKeo] = useState(false);
+    const [moToken, setMoToken] = useState(false);
+    const [token, setToken] = useState("");
+    const [luu, setLuu] = useState(false);
+    const [tokErr, setTokErr] = useState("");
+    const [tokOk, setTokOk] = useState("");
+    const [kyMo, setKyMo] = useState<string | null>(null);
+    const bmRef = useRef<HTMLAnchorElement>(null);
+    const api = "/api/talpha/cod-recon/jt-vn?market=VN";
+
+    const tai = useCallback(async (ep = false) => {
+        if (ep) setKeo(true); else setLoading(true);
+        setErr("");
+        try {
+            const r = await fetch(ep ? `${api}&keo=1` : api, { cache: "no-store" });
+            const j = await r.json();
+            if (!r.ok) throw new Error(j.error || `HTTP ${r.status}`);
+            setD(j);
+        } catch (e) {
+            setErr((e as Error).message);
+        } finally {
+            setLoading(false); setKeo(false);
+        }
+    }, []);
+    // React chặn href "javascript:" — gắn tay sau khi dựng.
+    useEffect(() => { bmRef.current?.setAttribute("href", bookmarkletJt(window.location.origin)); });
+
+    const luuToken = useCallback(async (tk: string) => {
+        setLuu(true); setTokErr(""); setTokOk("");
+        try {
+            const r = await fetch(api, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ token: tk }) });
+            const j = await r.json();
+            if (!r.ok) throw new Error(j.error || `HTTP ${r.status}`);
+            setTokOk(`Đã lưu — kéo được ${j.so_ky} kỳ, ${j.dang_chay} đơn đang luân chuyển.${j.het_han ? ` Token dùng tới ${gioNgay(j.het_han)}.` : ""}`);
+            setToken(""); setMoToken(false);
+            await tai();
+        } catch (e) {
+            setTokErr((e as Error).message);
+        } finally {
+            setLuu(false);
+        }
+    }, [tai]);
+    // Mở từ dấu trang: lấy token ở #jt_token, xoá khỏi địa chỉ ngay rồi lưu; không thì tải bình thường.
+    useEffect(() => {
+        const tk = tokenTuHash();
+        if (!tk) { tai(); return; }
+        history.replaceState(null, "", window.location.pathname + window.location.search);
+        setLoading(false);
+        setD({ so: null, keo_luc: null, so_du_cap_nhat: null, tu_ngay: "", loi: null,
+            token: { co: false, het_han: null, con_han: false, luu_luc: null } });
+        luuToken(tk);
+    }, [tai, luuToken]);
+    const danTuBoNho = async () => {
+        try {
+            const t = (await navigator.clipboard.readText()).trim();
+            if (!t) { setTokErr("Bộ nhớ tạm đang trống — bấm dấu trang “Chép token J&T” trên trang J&T trước."); return; }
+            await luuToken(t);
+        } catch {
+            setTokErr("Trình duyệt không cho đọc bộ nhớ tạm — dán tay vào ô bên dưới rồi bấm Lưu.");
+            setMoToken(true);
+        }
+    };
+
+    if (loading && !d) return <TabSkeleton />;
+    if (err && !d) return <ErrorState message={err} onRetry={() => tai()} />;
+    if (!d) return null;
+
+    const s = d.so, t = d.token;
+    const canToken = !t.co || !t.con_han;
+    const hopToken = (canToken || moToken) && (
+        <section className="rounded-xl border border-amber-300 bg-amber-50/70 p-4 text-[13px] leading-relaxed dark:border-amber-500/40 dark:bg-amber-500/[0.07]">
+            <div className="flex items-start gap-2">
+                <AlertTriangle className="mt-0.5 h-4 w-4 flex-none text-amber-600" />
+                <div className="min-w-0 flex-1 space-y-2">
+                    <p className="font-semibold text-foreground">
+                        {!t.co ? "Chưa có token J&T — dán một lần để dashboard tự kéo số đối soát."
+                            : !t.con_han ? `Token J&T đã hết hạn${t.het_han ? ` lúc ${gioNgay(t.het_han)}` : ""} — số dưới đây là lần kéo cuối.`
+                            : "Dán token mới"}
+                    </p>
+                    <ol className="list-decimal space-y-1 pl-5 text-muted-foreground">
+                        <li>Lần đầu: kéo nút này lên thanh dấu trang của Chrome →{" "}
+                            <a ref={bmRef} onClick={(e) => e.preventDefault()} draggable
+                                className="inline-flex cursor-grab items-center gap-1 rounded-md border border-orange-300 bg-card px-2 py-0.5 font-semibold text-orange-700 shadow-sm dark:text-orange-300">
+                                <Copy className="h-3.5 w-3.5" />Gửi token J&T
+                            </a></li>
+                        <li>Mở <a href="https://khachhang.jtexpress.vn/cashFlow" target="_blank" rel="noreferrer" className="font-medium text-sky-700 underline dark:text-sky-300">khachhang.jtexpress.vn</a> (đăng nhập nếu cần) rồi bấm dấu trang “Gửi token J&T” — dashboard tự mở và tự lưu.</li>
+                    </ol>
+                    <div className="flex flex-wrap items-center gap-2">
+                        {luu && <span className="text-[13px] font-medium text-orange-600">Đang kéo số J&T…</span>}
+                        <Nut onClick={danTuBoNho} busy={luu} busyText="Đang kéo J&T…">Dán từ bộ nhớ tạm</Nut>
+                        <input value={token} onChange={(e) => setToken(e.target.value)} placeholder="…hoặc dán tay token vào đây"
+                            className="h-8 min-w-0 flex-1 rounded-lg border border-border bg-card px-2.5 font-mono text-[12px] md:max-w-sm" />
+                        {token.trim() && <Nut onClick={() => luuToken(token)} busy={luu} busyText="Đang kéo J&T…">Lưu</Nut>}
+                    </div>
+                    {tokErr && <p className="font-medium text-rose-600 dark:text-rose-400">{tokErr}</p>}
+                    <p className="text-[12px] text-muted-foreground">Token chỉ để máy chủ đọc trang Dòng tiền của J&T, không hiện lại ở đâu. Mỗi lần đăng nhập J&T sống chưa tới một ngày.</p>
+                </div>
+            </div>
+        </section>
+    );
+
+    const nguon = (
+        <>J&T VIP · kéo lúc {gioNgay(d.keo_luc)}
+            {t.co && t.con_han && t.het_han && <> · token dùng tới {gioNgay(t.het_han)}</>}</>
+    );
+    const phai = (
+        <>
+            {t.co && t.con_han && <Nut onClick={() => tai(true)} busy={keo} busyText="Đang kéo…">Kéo lại</Nut>}
+            {!canToken && <Nut onClick={() => setMoToken(!moToken)}>Dán token mới</Nut>}
+        </>
+    );
+
+    if (!s) {
+        return (
+            <div className="space-y-4">
+                <ThanhDau nutNuoc={nutNuoc} nguon="J&T VIP" />
+                {hopToken}
+                {d.loi && <p className="text-[13px] font-medium text-rose-600 dark:text-rose-400">{d.loi}</p>}
+            </div>
+        );
+    }
+
+    const tg = s.tong, dc = s.doi_chieu;
+    const chuaVao = dc.da_giao_chua_doi_soat;
+    const ky = s.ky.find((k) => k.ma === kyMo) || null;
+    return (
+        <div className="space-y-4">
+            <ThanhDau nutNuoc={nutNuoc} nguon={nguon} phai={phai} />
+            {tokOk && <p className="flex items-center gap-1.5 text-[13px] font-medium text-emerald-700 dark:text-emerald-400"><CheckCircle2 className="h-4 w-4" />{tokOk}</p>}
+            {hopToken}
+            {d.loi && !canToken && <p className="text-[13px] font-medium text-rose-600 dark:text-rose-400">{d.loi}</p>}
+
+            {/* Σ tiền về */}
+            <div className="grid grid-cols-2 gap-2.5 md:gap-3 xl:grid-cols-4">
+                <OSoTien mau="xanh" nhan="J&T đã chuyển về" so={VND(tg.da_ve)}
+                    phu={`${tg.so_lan_chuyen} lần chuyển tiền${tg.lan_tra_cuoi ? ` · lần cuối ${gioJt(tg.lan_tra_cuoi)}` : ""}`} />
+                {tg.so_du != null && tg.so_du < 0
+                    ? <OSoTien mau="do" nhan="Số dư tài khoản J&T" so={tienAm(tg.so_du)}
+                        phu={`mình đang nợ cước — trừ vào COD kỳ sau${d.so_du_cap_nhat ? ` · ${gioJt(d.so_du_cap_nhat)}` : ""}`} />
+                    : <OSoTien mau="vang" nhan="Chờ J&T trả" so={VND(tg.cho_tra)}
+                        phu={`${tg.so_ky_cho_tra} kỳ chưa trả${tg.so_du != null ? ` · số dư ${tienAm(tg.so_du)}` : ""}`} />}
+                <OSoTien mau="cam" nhan="Đang luân chuyển" so={VND(tg.dang_chay.cod)}
+                    phu={`${formatNumber(tg.dang_chay.so_don)} đơn chưa ký nhận · cước ${VND(tg.dang_chay.cuoc)}`} />
+                <OSoTien mau={chuaVao.length ? "do" : "xanhduong"} nhan="Đã giao, chưa vào kỳ nào"
+                    so={chuaVao.length ? VND(chuaVao.reduce((a, x) => a + x.cod, 0)) : "0đ"}
+                    phu={chuaVao.length ? `${chuaVao.length} đơn POS báo đã giao — xem khối ②` : "mọi đơn đã giao đều đã vào kỳ"} />
+            </div>
+            <p className="text-[12px] leading-relaxed text-muted-foreground">
+                Từ {dmy(d.tu_ngay)}: J&T đã đối soát {formatNumber(tg.don_da_doi_soat)} vận đơn — COD {VND(tg.cod_da_doi_soat)}, đã trừ phí {VND(tg.phi_da_tru)}.
+                {tg.cuoc_tb != null && <> Cước thật trung bình <b className="text-foreground">{VND(tg.cuoc_tb)}/đơn</b> ({tg.don_co_cuoc} đơn) — Lãi lỗ đang tính 13.000đ/đơn.</>}
+            </p>
+
+            {/* ① các kỳ */}
+            <Khoi so="1" ten="Các kỳ đối soát J&T" phamVi="all" dem={`${s.ky.length} kỳ`}
+                phu="J&T chốt kỳ mỗi ngày (~04h). Thực nhận = tiền đối soát + dư nợ kỳ trước; kỳ âm không trả, mang sang kỳ sau. Bấm một kỳ để xem từng vận đơn.">
+                <div className="overflow-x-auto">
+                    <table className="w-full min-w-[760px] text-[13px]">
+                        <thead className="bg-muted/40 text-[11.5px] uppercase tracking-wide text-muted-foreground">
+                            <tr>
+                                <th className="px-3 py-2 text-left">Kỳ</th><th className="px-3 py-2 text-right">Đơn</th>
+                                <th className="px-3 py-2 text-right">COD</th><th className="px-3 py-2 text-right">Phí</th>
+                                <th className="px-3 py-2 text-right">Dư nợ trước</th><th className="px-3 py-2 text-right">Thực nhận</th>
+                                <th className="px-3 py-2 text-left">Tình trạng</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {s.ky.map((k) => (
+                                <tr key={k.ma} onClick={() => setKyMo(kyMo === k.ma ? null : k.ma)}
+                                    className={cn("cursor-pointer border-t border-border/60 hover:bg-muted/30", kyMo === k.ma && "bg-orange-50/60 dark:bg-orange-500/[0.06]")}>
+                                    <td className="px-3 py-2"><div className="font-semibold">{khoangKy(k)}</div><div className="text-[11px] text-muted-foreground">{maKyNgan(k.ma)}</div></td>
+                                    <td className="px-3 py-2 text-right tabular-nums">{k.so_don ?? "—"}</td>
+                                    <td className="px-3 py-2 text-right tabular-nums">{VND(k.cod)}</td>
+                                    <td className="px-3 py-2 text-right tabular-nums text-rose-600 dark:text-rose-400">−{VND(k.phi)}</td>
+                                    <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">{k.du_no_truoc ? tienAm(k.du_no_truoc) : "—"}</td>
+                                    <td className={cn("px-3 py-2 text-right font-bold tabular-nums", k.thuc_nhan < 0 ? "text-rose-600 dark:text-rose-400" : "text-emerald-700 dark:text-emerald-400")}>{tienAm(k.thuc_nhan)}</td>
+                                    <td className="px-3 py-2">
+                                        {k.da_tra
+                                            ? <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[11.5px] font-medium text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300">
+                                                {k.thuc_nhan > 0 ? `Đã trả ${gioJt(k.tra_luc)}` : "Âm — sang kỳ sau"}</span>
+                                            : <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[11.5px] font-medium text-amber-700 dark:bg-amber-500/10 dark:text-amber-300">Chờ thanh toán</span>}
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+                {ky && (
+                    <div className="border-t border-border bg-muted/20 p-3 md:p-4">
+                        <div className="mb-2 text-[13px] font-semibold">Kỳ {khoangKy(ky)} · {ky.so_don ?? 0} vận đơn · tiền đối soát {tienAm(ky.doi_soat)}{ky.dieu_chinh ? ` · điều chỉnh ${tienAm(ky.dieu_chinh)}` : ""}</div>
+                        {!ky.don ? <p className="text-[13px] text-muted-foreground">Chưa kéo được chi tiết kỳ này.</p> : (
+                            <div className="overflow-x-auto">
+                                <table className="w-full min-w-[680px] text-[12.5px]">
+                                    <thead className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                                        <tr>
+                                            <th className="px-2 py-1.5 text-left">Vận đơn</th><th className="px-2 py-1.5 text-left">Đơn POS</th>
+                                            <th className="px-2 py-1.5 text-left">Ký nhận</th><th className="px-2 py-1.5 text-right">COD</th>
+                                            <th className="px-2 py-1.5 text-right">Cước</th><th className="px-2 py-1.5 text-right">Phí hoàn / khác</th>
+                                            <th className="px-2 py-1.5 text-right">Ròng</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {ky.don.map((x) => (
+                                            <tr key={x.van_don} className="border-t border-border/50">
+                                                <td className="px-2 py-1.5 font-mono">{x.van_don}</td>
+                                                <td className="px-2 py-1.5">{x.order_id ? `#${x.order_id}` : x.ma_kh || "—"}<div className="text-[11px] text-muted-foreground">{x.tinh}</div></td>
+                                                <td className="px-2 py-1.5">{x.ky_nhan_luc ? gioJt(x.ky_nhan_luc) : <span className="text-muted-foreground">chưa ký</span>}</td>
+                                                <td className="px-2 py-1.5 text-right tabular-nums">{x.cod ? VND(x.cod) : "—"}</td>
+                                                <td className="px-2 py-1.5 text-right tabular-nums">{x.cuoc ? `−${VND(x.cuoc)}` : "—"}</td>
+                                                <td className="px-2 py-1.5 text-right tabular-nums">{x.phi_hoan + x.phi_cod + x.phi_giao_1_phan ? `−${VND(x.phi_hoan + x.phi_cod + x.phi_giao_1_phan)}` : "—"}</td>
+                                                <td className={cn("px-2 py-1.5 text-right font-semibold tabular-nums", x.rong < 0 && "text-rose-600 dark:text-rose-400")}>{tienAm(x.rong)}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
+                    </div>
+                )}
+            </Khoi>
+
+            {/* ② đối chiếu POS */}
+            <Khoi so="2" ten="Đối chiếu với đơn POS" phamVi="all"
+                dem={dc.lech_cod.length + chuaVao.length + dc.khong_co_tren_pos.length ? `${dc.lech_cod.length + chuaVao.length + dc.khong_co_tren_pos.length} việc` : undefined}
+                phu={`Nối theo mã đơn KH của J&T (= mã đơn POS) và mã vận đơn · ${formatNumber(dc.so_don_pos)} đơn POS Việt Nam.`}>
+                <div className="space-y-4 p-3.5 text-[13px] md:p-5">
+                    {!dc.lech_cod.length && !chuaVao.length && !dc.khong_co_tren_pos.length && (
+                        <p className="flex items-center gap-1.5 font-medium text-emerald-700 dark:text-emerald-400"><CheckCircle2 className="h-4 w-4" />Khớp hết: COD J&T trả đúng số trên đơn, đơn đã giao nào cũng đã vào kỳ.</p>
+                    )}
+                    {dc.lech_cod.length > 0 && (
+                        <div>
+                            <div className="mb-1 font-semibold text-rose-600 dark:text-rose-400">J&T trả COD khác đơn POS ({dc.lech_cod.length})</div>
+                            <ul className="space-y-0.5">{dc.lech_cod.map((x) => (
+                                <li key={x.van_don} className="tabular-nums">#{x.order_id} · {x.van_don} · {x.khach} — đơn {VND(x.cod_pos)}, J&T trả {VND(x.cod_jt)} <span className="text-muted-foreground">(kỳ {maKyNgan(x.ky)})</span></li>
+                            ))}</ul>
+                        </div>
+                    )}
+                    {chuaVao.length > 0 && (
+                        <div>
+                            <div className="mb-1 font-semibold text-rose-600 dark:text-rose-400">POS báo đã giao nhưng chưa vào kỳ J&T nào ({chuaVao.length})</div>
+                            <p className="mb-1 text-[12px] text-muted-foreground">Mới ký nhận hôm nay thì sáng mai J&T mới chốt kỳ — quá 2 ngày vẫn chưa thấy thì hỏi J&T.</p>
+                            <ul className="space-y-0.5">{chuaVao.map((x) => (
+                                <li key={x.order_id} className="tabular-nums">#{x.order_id} · {x.tracking || "chưa có mã"} · {x.khach} · {VND(x.cod)} <span className="text-muted-foreground">({x.trang_thai}{x.order_date ? `, đơn ${dmy(x.order_date)}` : ""})</span></li>
+                            ))}</ul>
+                        </div>
+                    )}
+                    {dc.khong_co_tren_pos.length > 0 && (
+                        <div>
+                            <div className="mb-1 font-semibold text-amber-600 dark:text-amber-400">Vận đơn J&T không ra đơn POS ({dc.khong_co_tren_pos.length})</div>
+                            <p className="mb-1 text-[12px] text-muted-foreground">Thường là đơn tạo trước mốc tính đơn Việt Nam, hoặc đơn tạo tay trên J&T.</p>
+                            <ul className="space-y-0.5">{dc.khong_co_tren_pos.map((x) => (
+                                <li key={x.van_don} className="tabular-nums">{x.van_don} · {x.ma_kh || "không mã đơn"} · {VND(x.cod)} <span className="text-muted-foreground">(kỳ {maKyNgan(x.ky)})</span></li>
+                            ))}</ul>
+                        </div>
+                    )}
+                </div>
+            </Khoi>
+
+            {/* ③ đang luân chuyển */}
+            <Khoi so="3" ten="Đơn đang luân chuyển" phamVi="all" dem={`${s.dang_chay.length} đơn`} gap={{ mo: false }}
+                phu="Đơn J&T đã nhận nhưng chưa ký nhận / chưa chốt — tiền COD chưa về kỳ nào.">
+                <div className="overflow-x-auto">
+                    <table className="w-full min-w-[560px] text-[12.5px]">
+                        <thead className="bg-muted/40 text-[11px] uppercase tracking-wide text-muted-foreground">
+                            <tr><th className="px-3 py-2 text-left">Vận đơn</th><th className="px-3 py-2 text-left">Đơn POS</th>
+                                <th className="px-3 py-2 text-left">Trạng thái J&T</th><th className="px-3 py-2 text-right">COD</th>
+                                <th className="px-3 py-2 text-right">Cước</th><th className="px-3 py-2 text-left">Phát lúc</th></tr>
+                        </thead>
+                        <tbody>{s.dang_chay.map((x) => (
+                            <tr key={x.van_don} className="border-t border-border/50">
+                                <td className="px-3 py-1.5 font-mono">{x.van_don}</td>
+                                <td className="px-3 py-1.5">{x.order_id ? `#${x.order_id}` : "—"}</td>
+                                <td className="px-3 py-1.5">{x.trang_thai}</td>
+                                <td className="px-3 py-1.5 text-right tabular-nums">{VND(x.cod)}</td>
+                                <td className="px-3 py-1.5 text-right tabular-nums">{VND(x.cuoc)}</td>
+                                <td className="px-3 py-1.5">{gioJt(x.giao_luc)}</td>
+                            </tr>
+                        ))}</tbody>
+                    </table>
+                </div>
+            </Khoi>
         </div>
     );
 }

@@ -166,6 +166,11 @@ export default function TALPHADashboardShell() {
                 // Mở trang ở tab ĐẦU TIÊN người này thấy — sale không có tab Tổng quan.
                 const dau = nhomDuocXem(d)[0];
                 if (dau && !d.tabs.includes("overview")) { setActiveGroup(dau.id); setActiveTab(dau.tabs[0].id); }
+                // Dấu trang "Chép token J&T" (13/11/2026) mở /talpha#jt_token=… → vào thẳng Tiền COD về,
+                // màn Việt Nam tự lưu token rồi xoá khỏi địa chỉ.
+                if (/[#&]jt_token=/.test(window.location.hash) && d.tabs.includes("cod-recon")) {
+                    setActiveGroup("ke-toan"); setActiveTab("cod-recon");
+                }
             })
             .catch(e => { if (!dung) setMeLoi(String(e?.message || e)); });
         return () => { dung = true; };
