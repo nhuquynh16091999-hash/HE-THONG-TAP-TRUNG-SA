@@ -359,8 +359,8 @@ bằng token đăng nhập (JWT, sống chưa tới một ngày).
 * Code: `lib/talpha/jt-vn.ts` (phép thử `tests/jt-vn.test.cjs`), route
   `/api/talpha/cod-recon/jt-vn?market=VN`, mốc `cod_settlement.jt_vn.tu_ngay` ở talpha_rules.json.
 * Lần nạp đầu (13/11/2026): 8 kỳ 03→12/11, đã chuyển về 5.255.000đ, số dư âm 576.000đ, 71 đơn
-  đang luân chuyển (7.334.000đ). **Cước J&T thật trung bình 16.000đ/đơn**, Lãi lỗ đang tính
-  13.000đ (`shipping_fees.VN.delivery`). Đơn #45 (78.000đ) J&T chỉ trả 5.000đ.
+  đang luân chuyển (7.334.000đ). **Cước J&T thật 16.000đ/đơn** — Lãi lỗ đổi từ 13.000đ sang
+  16.000đ cùng ngày (`shipping_fees.VN.delivery`). Đơn #45 (78.000đ) J&T chỉ trả 5.000đ.
 
 ## Tiền về — đã gửi bao nhiêu, còn phải gửi bao nhiêu
 

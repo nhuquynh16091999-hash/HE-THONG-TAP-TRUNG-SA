@@ -336,7 +336,7 @@ async function kienVn(from: string, to: string, asOf: string): Promise<NguonNuoc
     ]);
     const gv = new Map(chiPhi.don.map((d) => [d.key.replace(/^VN-/, ""), d]));
     const r = rate("VN") || 1;
-    // Phí J&T cố định một đơn (shipping_fees.VN, Sỹ Anh chốt 13.000đ 12/11/2026) — giao hay hoàn đều mất.
+    // Phí J&T cố định một đơn (shipping_fees.VN, Sỹ Anh chốt 16.000đ 13/11/2026 theo cước thật J&T) — giao hay hoàn đều mất.
     const fVn = FEES.VN || {};
     const phiVn = typeof fVn.packing === "number" ? (fVn.packing + (fVn.delivery || 0) + (fVn.cod_flat || 0)) * r : null;
     const kien: Kien[] = (rows as any[]).map((x) => {

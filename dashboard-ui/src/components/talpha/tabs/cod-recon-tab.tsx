@@ -2330,7 +2330,7 @@ function CodVietNam({ nutNuoc }: { nutNuoc?: ReactNode }) {
             </div>
             <p className="text-[12px] leading-relaxed text-muted-foreground">
                 Từ {dmy(d.tu_ngay)}: J&T đã đối soát {formatNumber(tg.don_da_doi_soat)} vận đơn — COD {VND(tg.cod_da_doi_soat)}, đã trừ phí {VND(tg.phi_da_tru)}.
-                {tg.cuoc_tb != null && <> Cước thật trung bình <b className="text-foreground">{VND(tg.cuoc_tb)}/đơn</b> ({tg.don_co_cuoc} đơn) — Lãi lỗ đang tính 13.000đ/đơn.</>}
+                {tg.cuoc_tb != null && <> Cước thật trung bình <b className="text-foreground">{VND(tg.cuoc_tb)}/đơn</b> ({tg.don_co_cuoc} đơn).</>}
             </p>
 
             {/* ① các kỳ */}

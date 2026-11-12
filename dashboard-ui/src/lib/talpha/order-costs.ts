@@ -24,7 +24,7 @@
 //   • Nhật (JP, 13/10/2026): bảng giá NAZA shipping_fees.JP (lib/talpha/phi-ship-nhat.ts) — cước
 //     theo bậc 0,5 kg (cân lấy từ kiện NAZA Đài như Singapore) + thu hộ theo bậc tiền COD (yên).
 //   • Việt Nam (VN, 12/11/2026): phí J&T cố định một đơn (shipping_fees.VN: packing + delivery),
-//     giá vốn cố định một đơn (markets.Vietnam.cogs_per_order_vnd) — Sỹ Anh chốt 1.000đ + 13.000đ.
+//     giá vốn cố định một đơn (markets.Vietnam.cogs_per_order_vnd) — Sỹ Anh chốt 1.000đ + 16.000đ (13/11/2026).
 //   • Nước khác: không đoán — null để giao diện ghi "thiếu".
 // ═══════════════════════════════════════════════════════════════════
 import { bigquery } from "@/lib/bigquery";
