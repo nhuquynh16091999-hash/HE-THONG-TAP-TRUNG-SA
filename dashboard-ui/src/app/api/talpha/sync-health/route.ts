@@ -1,10 +1,15 @@
 import { NextResponse } from "next/server";
 import { bigquery } from "@/lib/bigquery";
+import { RULES, SHOP2MKT, campaignMarket } from "@/lib/talpha/rules";
+import { timShopDung } from "@/lib/talpha/shop-dung";
 
 export const dynamic = "force-dynamic";
 
 const BQ_PROJECT = process.env.NEXT_PUBLIC_BQ_PROJECT || "cty-507710";
 const BQ_DATASET = process.env.DATASET || "TALPHA_Dataset";
+// Ngưỡng cảnh báo hệ thống — config/talpha_rules.json → thresholds (12/11/2026).
+const NGUONG = (RULES as unknown as { thresholds?: Record<string, unknown> }).thresholds || {};
+const soNguong = (k: string, macDinh: number) => (Number(NGUONG[k]) > 0 ? Number(NGUONG[k]) : macDinh);
 
 // B5 — trạng thái theo TỪNG TKQC/shop của vòng chạy mới nhất. Bảng do
 // ops/talpha_reports/report_account_health.py ghi. Chỉ trả về mục CÓ VẤN ĐỀ
@@ -21,8 +26,13 @@ async function accountHealth() {
         });
         if (!rows?.length) return null;
         const bad = rows.filter((r: any) => r.status === "empty" || r.status === "drop");
+        const runTs = rows[0].run_ts?.value || rows[0].run_ts;
+        const tuoi = Math.round((Date.now() - Date.parse(String(runTs))) / 60000);
         return {
-            run_ts: rows[0].run_ts?.value || rows[0].run_ts,
+            run_ts: runTs,
+            // Tuổi lượt soát gần nhất. Bộ soát hỏng thì bảng đứng ở lượt cuối và route cứ trả
+            // "0 mục lỗi" mãi — 30/09→12/11/2026 hỏng 6 tuần không ai biết. Bot kêu khi quá ngưỡng.
+            age_minutes: Number.isFinite(tuoi) ? tuoi : null,
             checked: rows.length,
             failing: bad.map((r: any) => ({
                 kind: r.kind,
@@ -61,6 +71,39 @@ async function bangSapHetHan(ngay = 5) {
     return out;
 }
 
+// Shop đứng im: ads của nước còn tiêu mà shop POS nước đó không có đơn mới nhiều ngày — xem
+// lib/talpha/shop-dung.ts. Hỏng thì trả [] (cảnh báo phụ, không được làm hỏng route gốc).
+async function shopDung() {
+    const ngay = soNguong("shop_dung_ngay", 3);
+    try {
+        const [[don], [ads]] = await Promise.all([
+            bigquery.query({ query: `
+                SELECT shop_label, MAX(SUBSTR(inserted_at, 1, 10)) AS ngay_cuoi
+                FROM \`${BQ_PROJECT}.${BQ_DATASET}.sale_order\` GROUP BY 1` }),
+            bigquery.query({ query: `
+                SELECT campaign_name, SUM(spend) AS spend
+                FROM \`${BQ_PROJECT}.${BQ_DATASET}.fb_ads_data\`
+                WHERE date >= DATE_SUB(CURRENT_DATE("Asia/Ho_Chi_Minh"), INTERVAL ${ngay} DAY)
+                  AND date < CURRENT_DATE("Asia/Ho_Chi_Minh")
+                GROUP BY 1` }),
+        ]);
+        const MKT2SHOP = Object.fromEntries(Object.entries(SHOP2MKT).map(([shop, mkt]) => [mkt, shop]));
+        const adsTheoShop: Record<string, number> = {};
+        for (const r of ads as any[]) {
+            const shop = MKT2SHOP[campaignMarket(r.campaign_name).market || ""];
+            if (shop) adsTheoShop[shop] = (adsTheoShop[shop] || 0) + Number(r.spend || 0);
+        }
+        const donCuoi = Object.fromEntries((don as any[]).map((r) => [r.shop_label, r.ngay_cuoi]));
+        const shops = Object.values(RULES.markets)
+            .filter((v: any) => v && typeof v === "object" && v.shop_label && v.status === "dang_ban")
+            .map((v: any) => String(v.shop_label));
+        const homNay = new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Ho_Chi_Minh" });
+        return timShopDung(shops, donCuoi, adsTheoShop, homNay, { ngay, adsMin: soNguong("shop_dung_ads_min_vnd", 500000) });
+    } catch {
+        return [];
+    }
+}
+
 // Tên TKQC / shop đọc lỗi trong vòng chạy — daily_guarded.sh đặt đầu `detail` theo nhãn
 // "TKQC_LOI=a; b || SHOP_LOI=… || MAT_QUYEN=… || TKQC_BO_QUA=…". Không có nhãn = vòng đó
 // không mục nào lỗi. bo_qua (28/10/2026): TK đọc lỗi mà vẫn còn TK khác đọc được — sync bỏ qua,
@@ -78,7 +121,7 @@ function docLoiFetch(detail: unknown) {
 // để cảnh báo khi sync FAIL hoặc IM LẶNG quá lâu (chống sự cố "chết câm" 22-29/6).
 export async function GET() {
     try {
-        const [accounts, bang_sap_het_han] = await Promise.all([accountHealth(), bangSapHetHan()]);
+        const [accounts, bang_sap_het_han, shop_dung] = await Promise.all([accountHealth(), bangSapHetHan(), shopDung()]);
         const [rows] = await bigquery.query({
             query: `
                 SELECT ts, host, ok, sync_rc, format_rc, detail,
@@ -112,6 +155,8 @@ export async function GET() {
             accounts: accountsOut,
             fetch_errors,
             bang_sap_het_han,
+            shop_dung,
+            soat_cham_phut: soNguong("soat_cham_phut", 180),
             last_run_ts: last.ts?.value || last.ts,
             age_minutes: Number(last.age_min),
             last_ok_age_minutes: lastOk ? Number(lastOk.age_min) : null,

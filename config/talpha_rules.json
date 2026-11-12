@@ -1387,6 +1387,10 @@
     "days_active_mature": 14,
     "days_active_dog": 5,
     "cogs_coverage_min_trust": 0.8,
+    "shop_dung_ngay": 3,
+    "shop_dung_ads_min_vnd": 500000,
+    "soat_cham_phut": 180,
+    "_note_canh_bao_he_thong": "12/11/2026 — shop_dung_*: ads của nước tiêu từ shop_dung_ads_min_vnd trong shop_dung_ngay ngày trọn gần nhất mà shop POS nước đó không có đơn mới ngần ấy ngày → bot Zalo kêu (nước nghỉ ads thì không kêu). soat_cham_phut: bộ soát từng TKQC/shop (report_account_health) không ghi lượt mới quá ngần ấy phút trong khi sync vẫn chạy → bot kêu (30/09→12/11 nó hỏng 6 tuần không ai biết).",
     "_note_cogs": "cogs_coverage_min_trust: dưới mức này thì lãi gộp/net_profit KHÔNG đáng tin (giá vốn mới khai một phần) — view lớp 1 gắn cờ net_profit_reliable=FALSE thay vì im lặng."
   },
   "pos_timezone": "Asia/Ho_Chi_Minh",

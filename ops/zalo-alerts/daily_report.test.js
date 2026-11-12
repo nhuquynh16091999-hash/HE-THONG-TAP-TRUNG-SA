@@ -1,7 +1,7 @@
 // node daily_report.test.js   (không gọi mạng, không cần cài zca-js)
 // Số liệu dưới đây là số DỰNG cho test, không phải số thật của ngày nào.
 const assert = require("assert");
-const { buildMarketerReports, buildTinDinhChinh, dongLech } = require("./daily_report");
+const { buildMarketerReports, buildTinDinhChinh, dongLech, ghiChuSoat } = require("./daily_report");
 const { buildAdsAlert, buildAdsStatus } = require("./ads_alerts");
 const { tenNganCamp, chuCamp, THU_TU, DISPLAY } = require("./rules");
 const { toZalo, chiaTin } = require("./zalo_text");
@@ -473,6 +473,22 @@ function fakeFetch({ sheet = SHEET, camps = CAMPS, realtimeStatus = 200, sheetSt
         const dot = { ...yen, wasteful: [{ campaign: "TW/LOC/PHI/072 - DENTAL/Trang/8-9", spend: 350000 }] };
         assert.ok(tron(buildAdsStatus(dot, cfg)).includes("350.000đ · 0 tin nhắn · Lộc"));
         assert.ok(tron(buildAdsStatus(dot, cfg)).includes("350.000đ"), "hỏi lần hai vẫn báo — không dùng state");
+    });
+
+    await t("cảnh báo hệ thống: bộ soát đứng, mục tụt dòng, shop đứng im — đúng nhóm nước", async () => {
+        const st = { okAge: 10, limit: 120, soat: { tuoi: 400, limit: 180, loi: [
+            { kind: "orders", name: "SG", status: "empty", rows: 0, prev_rows: 190 },
+            { kind: "ads", name: "ANTALO 4", status: "drop", rows: 6, prev_rows: 248 }] },
+            shopDung: [{ shop: "TW", ngay_cuoi: "2026-11-09", so_ngay: 3, ads_vnd: 900000 }] };
+        const tw = ghiChuSoat(st, "TW"), sg = ghiChuSoat(st, "SG");
+        assert.ok(tw.includes("Bộ soát từng TKQC/shop không chạy 6 giờ"), tw);
+        assert.ok(tw.includes("TKQC ANTALO 4 (tụt 248 → 6 dòng)") && !tw.includes("shop SG"), tw);
+        assert.ok(tw.includes("Shop POS TW: 3 ngày không có đơn mới (đơn cuối 09/11)") && tw.includes("900.000đ"), tw);
+        assert.ok(sg.includes("shop SG (mất sạch)") && !sg.includes("Shop POS"), sg);
+        // sync đứng thì "SỐ CHƯA ĐỦ" đã nói — không kêu bộ soát; mọi thứ ổn thì không thêm dòng
+        assert.ok(!ghiChuSoat({ ...st, okAge: 500 }, "JP").includes("Bộ soát"));
+        assert.strictEqual(ghiChuSoat({ okAge: 10, limit: 120, soat: { tuoi: 20, limit: 180, loi: [] }, shopDung: [] }, "TW"), "");
+        assert.strictEqual(ghiChuSoat(null, "TW"), "");
     });
 
     console.log(`daily_report.test.js: ${ok}/${ok} PASS`);

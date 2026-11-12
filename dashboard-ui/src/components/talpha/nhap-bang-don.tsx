@@ -21,6 +21,8 @@ export type NhapBangDon = {
 };
 
 const GIO = 3_600_000;
+/** Tuổi của lần nạp, tính bằng giờ — gom một chỗ để component không gọi đồng hồ ngay trong lúc vẽ. */
+const tuoiGio = (luc: string) => (Date.now() - Date.parse(luc)) / GIO;
 
 function gioVN(iso: string) {
     const d = new Date(iso);
@@ -38,14 +40,14 @@ function tuoiChu(gio: number) {
 /** Bảng đã cũ (chưa nạp lần nào, hoặc quá `gioCanhBao` giờ) — lúc đó PHẢI hiện khung đỏ to. */
 export function bangDaCu(n?: NhapBangDon | null, gioCanhBao = 24): boolean {
     if (!n) return false;
-    return !n.luc || (Date.now() - Date.parse(n.luc)) / GIO > gioCanhBao;
+    return !n.luc || tuoiGio(n.luc) > gioCanhBao;
 }
 
 /** Một dòng gọn cho thanh công cụ Sổ đơn khi bảng còn mới (07/10/2026): "Bảng đối tác nạp 06:00
  *  ngày 07/10 (2 giờ trước) · 778 đơn". */
 export function nhanNapGon(n?: NhapBangDon | null): string | null {
     if (!n?.luc) return null;
-    const gio = (Date.now() - Date.parse(n.luc)) / GIO;
+    const gio = tuoiGio(n.luc);
     return `Bảng đối tác nạp ${gioVN(n.luc)} (${tuoiChu(gio)})`
         + (typeof n.so_don === "number" && n.so_don > 0 ? ` · ${n.so_don.toLocaleString("vi-VN")} đơn` : "");
 }
@@ -53,7 +55,7 @@ export function nhanNapGon(n?: NhapBangDon | null): string | null {
 /** `anMaTrung`: không nhắc mã vận đơn trùng ở đây — Sổ đơn đã có khung "việc cần sửa" nói rồi. */
 export default function ThanhNhapBangDon({ n, gioCanhBao = 24, anMaTrung }: { n?: NhapBangDon | null; gioCanhBao?: number; anMaTrung?: boolean }) {
     if (!n) return null;
-    const gio = n.luc ? (Date.now() - Date.parse(n.luc)) / GIO : Infinity;
+    const gio = n.luc ? tuoiGio(n.luc) : Infinity;
     const cu = !n.luc || gio > gioCanhBao;
 
     return (

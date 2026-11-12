@@ -166,6 +166,21 @@ else
 fi
 "${SSH[@]}" "ls -l $APP_DIR/data/*.json 2>/dev/null | awk '{printf \"   %-28s %s byte\\n\", \$9, \$5}'"
 
+# Dọn bản lưu cũ trên máy Mac: mỗi lượt deploy hạ về một thư mục data-backup-<giờ> (và một
+# …-users), không ai xoá nên 12/11/2026 đã dồn 308 MB. Giữ GIU_BAN_LUU bản mới nhất mỗi loại.
+# Tên thư mục là ngày giờ nên xếp theo tên = xếp theo thời gian. Chỉ đụng đúng mẫu tên này.
+GIU_BAN_LUU="${GIU_BAN_LUU:-10}"
+don_ban_luu() {   # $1 = "" (kho dữ liệu) hoặc "-users"
+    local ds=() d
+    while IFS= read -r d; do ds+=("$d"); done < <(
+        find "$REPO_ROOT" -maxdepth 1 -type d -name "data-backup-????????-??????$1" | sort)
+    local thua=$(( ${#ds[@]} - GIU_BAN_LUU ))
+    [ "$thua" -gt 0 ] || return 0
+    for d in "${ds[@]:0:$thua}"; do rm -rf -- "$d"; done
+    echo "   dọn $thua bản lưu cũ (data-backup-*$1), giữ $GIU_BAN_LUU bản mới nhất"
+}
+don_ban_luu ""; don_ban_luu "-users"
+
 # ─────────────────────────────────────────────────────────────────────────
 say "5/5 · Kiểm tra"
 "${SSH[@]}" 'pm2 list --no-color | tail -n +3'

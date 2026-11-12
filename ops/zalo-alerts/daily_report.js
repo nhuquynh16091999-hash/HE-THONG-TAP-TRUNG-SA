@@ -137,6 +137,34 @@ function ghiChuHanBang(stale) {
     return `⚠️ ${I(`BigQuery sắp tự xoá: ${ten}. Sync tự gia hạn không chạy được — cần mở log talpha-sync xem lỗi.`)}`;
 }
 
+// Ba cảnh báo HỆ THỐNG (12/11/2026) — in trong tin của nhóm nước `ma` (TW, SG…):
+//   1. Bộ soát từng TKQC/shop không chạy: 30/09→12/11/2026 nó hỏng 6 tuần, route cứ trả "0 mục lỗi".
+//      Chỉ kêu khi sync VẪN chạy — sync đứng thì dòng "SỐ CHƯA ĐỦ" đã nói rồi.
+//   2. Mục mất sạch dòng / tụt dòng (bộ soát bắt được nhưng trước giờ không ai đọc): shop thì chỉ
+//      báo vào nhóm nước của shop đó, TKQC thì báo mọi nhóm.
+//   3. Shop đứng im: ads nước đó còn tiêu mà shop POS không có đơn mới nhiều ngày.
+function ghiChuSoat(stale, ma) {
+    if (!stale) return "";
+    const dong = [];
+    const s = stale.soat;
+    const syncChay = stale.okAge != null && !(stale.okAge > stale.limit);
+    if (s && s.tuoi != null && s.tuoi > s.limit && syncChay) {
+        dong.push(`⚠️ ${I(`Bộ soát từng TKQC/shop không chạy ${Math.floor(s.tuoi / 60)} giờ — TKQC hay shop rơi khỏi sync lúc này sẽ không ai báo. Cần mở log talpha-report.`)}`);
+    }
+    const loi = ((s && s.loi) || []).filter((x) => x.kind !== "orders" || !ma || String(x.name).toUpperCase() === ma);
+    if (loi.length) {
+        const ten = loi.slice(0, 5).map((x) => `${x.kind === "orders" ? "shop" : "TKQC"} ${x.name} (${x.status === "empty" ? "mất sạch" : `tụt ${x.prev_rows} → ${x.rows} dòng`})`).join(", ")
+            + (loi.length > 5 ? ` và ${loi.length - 5} mục khác` : "");
+        dong.push(`⚠️ ${I(`Sync thiếu dữ liệu: ${ten}. Số trong tin có thể thiếu phần của mục này.`)}`);
+    }
+    const sd = (stale.shopDung || []).find((x) => ma && String(x.shop).toUpperCase() === ma);
+    if (sd) {
+        const lau = sd.so_ngay == null ? "chưa có đơn nào" : `${sd.so_ngay} ngày không có đơn mới (đơn cuối ${ddmm(sd.ngay_cuoi)})`;
+        dong.push(`⚠️ ${I(`Shop POS ${ma}: ${lau} trong khi ads vẫn tiêu ${fmt(sd.ads_vnd)}đ. Kiểm tra khoá API shop / mã shop — hoặc thật sự không ra đơn.`)}`);
+    }
+    return dong.join("\n");
+}
+
 // Sheet tạo sẵn dòng cho MỌI ngày trong tháng, nên vòng ghi chưa chạy được lần nào từ 00:00
 // thì dòng hôm nay toàn số 0. In "Ads 0đ · 0 đơn" là nói sai: 30/09/2026 tin 13:00 in đúng như
 // vậy trong khi Meta đã tiêu 1,3tr. Chỉ kết luận "chưa có số" khi BIẾT vòng ghi OK gần nhất
@@ -538,6 +566,8 @@ function buildTinNuoc({ n, dateStr, so, rows, truoc, camps, cfg, canhBaoCamp, op
     if (bq) dong.push(bq, "");
     const hb = ghiChuHanBang(opts.stale);
     if (hb) dong.push(hb, "");
+    const gs = ghiChuSoat(opts.stale, n.ma);
+    if (gs) dong.push(gs, "");
     dong.push(B(opts.tieuDe || `📊 ADS ${n.flag} ${n.ten.toUpperCase()} · ${opts.label || ddmm(dateStr)}`));
     if (opts.nguon) dong.push(I(opts.nguon));
     dong.push("");
@@ -708,5 +738,5 @@ function buildTinDinhChinh({ tin, soCu, soMoi, label, luc, intraday }) {
 module.exports = {
     buildMarketerReports, buildTeamReport, buildTinGop, buildTinAds, recommend,
     buildTinDinhChinh, dongLech, soDauBai,
-    buildBaoCaoNuoc, buildCanhBaoNuoc,
+    buildBaoCaoNuoc, buildCanhBaoNuoc, ghiChuSoat,
 };

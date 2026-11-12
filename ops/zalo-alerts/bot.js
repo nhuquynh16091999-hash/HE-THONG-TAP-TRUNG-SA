@@ -112,8 +112,14 @@ async function fetchStale() {
         if (!Number.isFinite(okAge)) return null;
         // loi = tên TKQC/shop đọc lỗi trong vòng sync gần nhất → tin "SỐ CHƯA ĐỦ" nói đích danh.
         // hanBang = bảng/view BigQuery còn dưới 5 ngày là sandbox tự xoá (sync tự gia hạn đã hỏng).
+        // soat = bộ soát từng TKQC/shop: tuổi lượt gần nhất + mục mất sạch / tụt dòng. shopDung = nước
+        // ads còn tiêu mà shop POS không có đơn mới nhiều ngày (12/11/2026).
+        const acc = j.accounts || null;
         return { okAge, limit: Number(DR.staleWarnMinutes || 120), lastOkTs: Date.now() - okAge * 60000, loi: j.fetch_errors || null,
-            hanBang: j.bang_sap_het_han || null };
+            hanBang: j.bang_sap_het_han || null,
+            soat: { tuoi: acc && acc.age_minutes != null ? Number(acc.age_minutes) : null, limit: Number(j.soat_cham_phut || 180),
+                loi: ((acc && acc.failing) || []).filter((x) => x.status === "empty" || x.status === "drop") },
+            shopDung: j.shop_dung || [] };
     } catch (e) { log("Đọc tuổi sync lỗi:", e.message); return null; }
 }
 
