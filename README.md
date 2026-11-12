@@ -137,3 +137,10 @@ ssh root@139.180.131.21 'bash /opt/talpha/ops/talpha_reports/deploy_runtime.sh -
    thẳng Meta API cho chi phí và POS cho đơn.
 
 Việc còn nợ: mục 10 của [DASHBOARD_MAP.md](DASHBOARD_MAP.md) và `talpha_rules.json → _todo`.
+
+## Canh máy chủ từ máy Mac
+
+Bot Zalo nằm cùng máy chủ nên máy chủ đứng là không ai được báo. Máy Mac gọi trang đăng nhập 5 phút một lần (launchd `vn.antalo.canh-may-chu`); hỏng 2 lượt liền thì bật hộp thoại + thông báo, lên lại thì báo lần nữa. Mac tắt / ngủ thì không canh.
+
+- Cài: `bash ops/mac-watch/cai.sh` · Gỡ: `bash ops/mac-watch/cai.sh --go`
+- Nhật ký: `~/.talpha-watch/canh.log`
