@@ -855,7 +855,7 @@ export async function GET(req: NextRequest) {
                 };
                 const nhom = (ds: typeof rows) => {
                     const u = uocTinh(ds);
-                    return { so_don: u.so_don, cod_twd: u.cod_twd, vnd_uoc: u.vnd_uoc };
+                    return { so_don: u.so_don, cod: u.cod_twd, vnd_uoc: u.vnd_uoc };
                 };
                 const daGiaoChuaTra = chuaTra.filter((r) => r.status === "Delivered");
                 const chuaGiaoXong = chuaTra.filter(
@@ -891,7 +891,7 @@ export async function GET(req: NextRequest) {
                 }
                 const coCau = kyTinh === kyCoSo.length && codQuyVnd > 0 ? {
                     cod_quy_vnd: codQuyVnd, phi_vnd: phiVnd, tien_hang_vnd: tienHangDaTru,
-                    ty_le_ve_tay: daGuiVe / codQuyVnd,
+                    ve_tay_vnd: daGuiVe, ty_le_ve_tay: daGuiVe / codQuyVnd,
                 } : null;
                 return {
                     tuoi,

@@ -188,6 +188,13 @@ export type Viec = {
      *  12 đơn phí sai, không phải bấm 12 lần). */
     done_keys?: string[];
 };
+export type NhomTuoi = { so_don: number; cod: number; vnd_uoc: number | null };
+export type TuoiTienCho = {
+    /** theo "ky" = số kỳ sao kê đã qua; "ngay" = chưa có kỳ nào (UAE WeShip) → ≤14 / 15–30 / >30 ngày. */
+    da_giao: { theo?: "ky" | "ngay"; dung_nhip: NhomTuoi; qua_1_ky: NhomTuoi; qua_han: NhomTuoi; lau_nhat_ngay: number | null };
+    chua_giao: { duoi_15: NhomTuoi; tu_15_30: NhomTuoi; tren_30: NhomTuoi; lau_nhat_ngay: number | null };
+};
+export type CoCauCod = { so_ky: number; cod_quy_vnd: number; phi_vnd: number; tien_hang_vnd: number; ve_tay_vnd: number; ty_le_ve_tay: number };
 export type UocTinh = { so_don: number; cod_local: number; don_chua_tru_phi: number; phi_uoc_rmb: number; vnd_uoc: number | null };
 export type SoNuoc = {
     ky: KyXem[];
@@ -200,6 +207,10 @@ export type SoNuoc = {
         /** "naza" = đi đúng luồng NAZA kỳ gần nhất; "ty_gia_khai" = tiền COD × markets.*.rate_vnd. */
         cach_uoc: "naza" | "ty_gia_khai";
         con_lai_da_giao: UocTinh; con_lai_chua_giao: UocTinh;
+        /** Tiền đang chờ bao lâu — cùng dạng màn Đài (13/11/2026). */
+        tuoi: TuoiTienCho;
+        /** COD các kỳ NAZA đi đâu; có kỳ không đọc được luồng (WeShip, mẫu bảng) thì null. */
+        co_cau: CoCauCod | null;
     };
     tong_quan: { ky_cho_nhap: number; tien_cho_nhap_vnd: number; ky_lech: number; tien_lech_vnd: number; ky_khop: number; bank_tolerance_vnd: number };
     fx: { best_vnd_per_twd: number | null; best_period: string | null; total_thiet_vnd: number; rows: FxRow[] };
@@ -276,6 +287,58 @@ export function soCodNuoc(o: {
     };
     const conLai = k.don.filter((d) => !d.da_tra);
 
+    // ── Tiền chờ bao lâu (13/11/2026) — cùng thước màn Đài ──
+    // Đơn nước ngoài không có ngày gửi riêng → đếm từ ngày lên đơn. Đơn đã giao chia theo số kỳ
+    // sao kê chốt SAU ngày lên đơn (≥2 kỳ = quá hạn); đơn chưa giao chia theo ngày.
+    const asOfMs = Date.parse(o.asOf + "T23:59:59");
+    const ngayKy = ky.map((x) => x.ngay).filter((d): d is string => !!d);
+    const ngayDon = (d: DonCod) => {
+        const t = Date.parse(String(d.order_date || "").slice(0, 10));
+        return Number.isNaN(t) ? null : Math.max(0, Math.floor((asOfMs - t) / 86_400_000));
+    };
+    const kyQua = (d: DonCod) => d.order_date ? ngayKy.filter((n) => n > String(d.order_date).slice(0, 10)).length : 0;
+    const nhomT = (ds: DonCod[]): NhomTuoi => { const u = uoc(ds); return { so_don: u.so_don, cod: u.cod_local, vnd_uoc: u.vnd_uoc }; };
+    const lauNhat = (ds: DonCod[]) => ds.reduce<number | null>((m, d) => { const n = ngayDon(d); return n == null ? m : Math.max(m ?? 0, n); }, null);
+    const dgCho = conLai.filter((d) => d.nhom === "da_giao");
+    const cgCho = conLai.filter((d) => d.nhom === "chua_giao");
+    // Chưa có kỳ sao kê nào thì không đếm kỳ được → đếm ngày; khi đó không báo "quá hạn" ở Việc hôm nay.
+    const theoKy = ngayKy.length > 0;
+    const bac = (d: DonCod) => theoKy ? Math.min(2, kyQua(d)) : (n => n <= 14 ? 0 : n <= 30 ? 1 : 2)(ngayDon(d) ?? 0);
+    const quaHan = theoKy ? dgCho.filter((d) => kyQua(d) >= 2) : [];
+    const tuoi: TuoiTienCho = {
+        da_giao: {
+            theo: theoKy ? "ky" : "ngay",
+            dung_nhip: nhomT(dgCho.filter((d) => bac(d) === 0)),
+            qua_1_ky: nhomT(dgCho.filter((d) => bac(d) === 1)),
+            qua_han: nhomT(dgCho.filter((d) => bac(d) === 2)),
+            lau_nhat_ngay: lauNhat(dgCho),
+        },
+        chua_giao: {
+            duoi_15: nhomT(cgCho.filter((d) => (ngayDon(d) ?? 0) <= 14)),
+            tu_15_30: nhomT(cgCho.filter((d) => { const n = ngayDon(d) ?? 0; return n > 14 && n <= 30; })),
+            tren_30: nhomT(cgCho.filter((d) => (ngayDon(d) ?? 0) > 30)),
+            lau_nhat_ngay: lauNhat(cgCho),
+        },
+    };
+
+    // ── COD các kỳ đi đâu: phí (tệ → đ) · tiền hàng · về tay = cộng phải nhận (kể cả kỳ âm) ──
+    // Chỉ cộng kỳ có đơn VÀ đọc được đủ luồng (mẫu sao kê cũ 05/10 Sing không có sheet TỔNG → bỏ,
+    // nói rõ số kỳ đã cộng). Kỳ âm không đơn (chỉ phí/tiền hàng, có khi đã trừ ở Đài) không cộng.
+    const kyCoDong = ky.filter((x) => x.so_dong > 0 &&
+        x.luong?.rmb != null && x.luong.ty_gia_vnd != null && x.luong.phai_nhan_vnd != null);
+    let co_cau: CoCauCod | null = null;
+    if (kyCoDong.length) {
+        let cod = 0, phi = 0, hang = 0, ve = 0;
+        for (const x of kyCoDong) {
+            const l = x.luong!;
+            cod += l.rmb! * l.ty_gia_vnd!;
+            phi += l.tru_rmb.reduce((t, d) => t + d.so, 0) * l.ty_gia_vnd!;
+            hang += l.tru_vnd.filter((d) => d.loai !== "ky_truoc").reduce((t, d) => t + d.so, 0);
+            ve += l.phai_nhan_vnd!;
+        }
+        if (cod > 0) co_cau = { so_ky: kyCoDong.length, cod_quy_vnd: Math.round(cod), phi_vnd: Math.round(phi), tien_hang_vnd: Math.round(hang), ve_tay_vnd: Math.round(ve), ty_le_ve_tay: ve / cod };
+    }
+
     // ── Tổng quan ngân hàng ──────────────────────────────────────────
     const choNhap = ky.filter((x) => x.trang_thai === "cho_nhap");
     const lechBank = ky.filter((x) => x.trang_thai === "lech");
@@ -290,6 +353,16 @@ export function soCodNuoc(o: {
 
     // ── ① việc hôm nay ───────────────────────────────────────────────
     const viec: Viec[] = [];
+    // Đơn đã giao qua ≥2 kỳ sao kê mà chưa thấy tiền — như màn Đài (13/11/2026). Tự hết khi tiền về.
+    if (quaHan.length) {
+        viec.push({
+            id: "qua-han", muc: "gap", tieu_de: "Đơn đã giao quá hạn, chưa được trả", so: quaHan.length, don_vi: "đơn",
+            chi_tiet: `${tien(tron(quaHan.reduce((t, d) => t + (Number(d.cod_local) || 0), 0)))} — đã qua từ 2 kỳ sao kê mà chưa thấy tiền. `
+                + quaHan.slice(0, 3).map((d) => d.order_id).join(" · ") + (quaHan.length > 3 ? " …" : "")
+                + " — danh sách đủ ở khối “Đơn đã giao — chưa thấy tiền trên sao kê” bên dưới.",
+            done_key: "", nut: [], ghi_chu: "",
+        });
+    }
     const lech = ky.flatMap((x) => x.lech_tien).filter((l) => !doneOf(doneKey("lech", l.tracking || l.order_no)));
     if (lech.length) {
         viec.push({
@@ -469,6 +542,7 @@ export function soCodNuoc(o: {
             cach_uoc: coLuongNaza ? "naza" : "ty_gia_khai",
             con_lai_da_giao: uoc(conLai.filter((d) => d.nhom === "da_giao")),
             con_lai_chua_giao: uoc(conLai.filter((d) => d.nhom === "chua_giao")),
+            tuoi, co_cau,
         },
         tong_quan, fx,
     };

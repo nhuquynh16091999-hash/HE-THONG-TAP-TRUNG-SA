@@ -93,14 +93,17 @@ type TienVe = {
     khong_tinh: { hoan: number; huy: number; tieu_huy: number; cod_twd: number };
     tien_hang: { loi: string | null; so_dot: number; doc_luc: string };
     /** Tiền đang chờ bao lâu (13/11/2026). Máy chủ cũ chưa có thì không hiện. */
-    tuoi?: {
-        da_giao: { dung_nhip: NhomTuoi; qua_1_ky: NhomTuoi; qua_han: NhomTuoi; lau_nhat_ngay: number | null };
-        chua_giao: { duoi_15: NhomTuoi; tu_15_30: NhomTuoi; tren_30: NhomTuoi; lau_nhat_ngay: number | null };
-    };
+    tuoi?: TuoiTien;
     /** COD các kỳ đã có sao kê đi đâu: phí NAZA, tiền hàng, về tay. Thiếu tỷ giá kỳ nào thì null. */
-    co_cau?: { cod_quy_vnd: number; phi_vnd: number; tien_hang_vnd: number; ty_le_ve_tay: number } | null;
+    co_cau?: CoCau | null;
 };
-type NhomTuoi = { so_don: number; cod_twd: number; vnd_uoc: number | null };
+/** Dùng chung Đài + nước khác (lib/talpha/cod-so-nuoc.ts TuoiTienCho / CoCauCod). `cod` theo tiền nước đó. */
+type NhomTuoi = { so_don: number; cod: number; vnd_uoc: number | null };
+type TuoiTien = {
+    da_giao: { theo?: "ky" | "ngay"; dung_nhip: NhomTuoi; qua_1_ky: NhomTuoi; qua_han: NhomTuoi; lau_nhat_ngay: number | null };
+    chua_giao: { duoi_15: NhomTuoi; tu_15_30: NhomTuoi; tren_30: NhomTuoi; lau_nhat_ngay: number | null };
+};
+type CoCau = { so_ky?: number; cod_quy_vnd: number; phi_vnd: number; tien_hang_vnd: number; ve_tay_vnd: number; ty_le_ve_tay: number };
 type Period = {
     id: string; filename: string; period_date: string;
     ngay_sao_ke: string | null; luong: Luong | null;
@@ -208,10 +211,10 @@ const O_MAU = {
  * thanh này nói BAO LÂU — tiền NAZA giữ quá 2 kỳ là phải đòi, đơn nằm đường quá 30 ngày gần như hoàn.
  * Đơn đã giao chia theo kỳ sao kê (cùng thước đèn Sổ đơn hàng); chưa giao chia theo ngày từ lúc gửi.
  */
-function TuoiTienCho({ t }: { t: NonNullable<TienVe["tuoi"]> }) {
+function TuoiTienCho({ t, tien = TWD, ben = "NAZA", moc = "gửi" }: { t: TuoiTien; tien?: (n: number) => string; ben?: string; moc?: string }) {
     const dg = t.da_giao, cg = t.chua_giao;
-    const tongDg = dg.dung_nhip.cod_twd + dg.qua_1_ky.cod_twd + dg.qua_han.cod_twd;
-    const tongCg = cg.duoi_15.cod_twd + cg.tu_15_30.cod_twd + cg.tren_30.cod_twd;
+    const tongDg = dg.dung_nhip.cod + dg.qua_1_ky.cod + dg.qua_han.cod;
+    const tongCg = cg.duoi_15.cod + cg.tu_15_30.cod + cg.tren_30.cod;
     const Thanh = ({ ten, tong, lauNhat, khuc }: {
         ten: string; tong: number; lauNhat: number | null;
         khuc: { nhan: string; n: NhomTuoi; mau: string; chu: string }[];
@@ -219,12 +222,12 @@ function TuoiTienCho({ t }: { t: NonNullable<TienVe["tuoi"]> }) {
         <div className="min-w-0 flex-1 space-y-1.5">
             <div className="flex items-baseline gap-2 text-[12px]">
                 <b className="font-semibold text-foreground">{ten}</b>
-                {lauNhat != null && <span className="text-muted-foreground">· lâu nhất {lauNhat} ngày từ lúc gửi</span>}
+                {lauNhat != null && <span className="text-muted-foreground">· lâu nhất {lauNhat} ngày từ lúc {moc}</span>}
             </div>
             <div className="flex h-2.5 w-full gap-0.5 overflow-hidden rounded-full bg-muted">
-                {tong > 0 && khuc.filter((k) => k.n.cod_twd > 0).map((k) => (
-                    <div key={k.nhan} className={k.mau} style={{ width: `${(k.n.cod_twd / tong) * 100}%` }}
-                        title={`${k.nhan}: ${k.n.so_don} đơn · ${TWD(k.n.cod_twd)}`} />
+                {tong > 0 && khuc.filter((k) => k.n.cod > 0).map((k) => (
+                    <div key={k.nhan} className={k.mau} style={{ width: `${(k.n.cod / tong) * 100}%` }}
+                        title={`${k.nhan}: ${k.n.so_don} đơn · ${tien(k.n.cod)}`} />
                 ))}
             </div>
             <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[11.5px] text-muted-foreground">
@@ -240,10 +243,10 @@ function TuoiTienCho({ t }: { t: NonNullable<TienVe["tuoi"]> }) {
     );
     return (
         <div className="flex flex-col gap-3 rounded-xl border border-border bg-card px-4 py-3 shadow-sm md:flex-row md:gap-6">
-            <Thanh ten="Tiền NAZA đang giữ chờ bao lâu" tong={tongDg} lauNhat={dg.lau_nhat_ngay} khuc={[
-                { nhan: "đúng nhịp", n: dg.dung_nhip, mau: "bg-emerald-500", chu: "text-emerald-700 dark:text-emerald-400" },
-                { nhan: "qua 1 kỳ", n: dg.qua_1_ky, mau: "bg-amber-400", chu: "text-amber-700 dark:text-amber-400" },
-                { nhan: "quá hạn ≥2 kỳ", n: dg.qua_han, mau: "bg-rose-500", chu: "text-rose-700 dark:text-rose-400" },
+            <Thanh ten={`Tiền ${ben} đang giữ chờ bao lâu`} tong={tongDg} lauNhat={dg.lau_nhat_ngay} khuc={[
+                { nhan: dg.theo === "ngay" ? "≤14 ngày" : "đúng nhịp", n: dg.dung_nhip, mau: "bg-emerald-500", chu: "text-emerald-700 dark:text-emerald-400" },
+                { nhan: dg.theo === "ngay" ? "15–30 ngày" : "qua 1 kỳ", n: dg.qua_1_ky, mau: "bg-amber-400", chu: "text-amber-700 dark:text-amber-400" },
+                { nhan: dg.theo === "ngay" ? ">30 ngày" : "quá hạn ≥2 kỳ", n: dg.qua_han, mau: "bg-rose-500", chu: "text-rose-700 dark:text-rose-400" },
             ]} />
             <Thanh ten="Đơn chưa giao xong nằm đường bao lâu" tong={tongCg} lauNhat={cg.lau_nhat_ngay} khuc={[
                 { nhan: "≤14 ngày", n: cg.duoi_15, mau: "bg-sky-500", chu: "text-sky-700 dark:text-sky-400" },
@@ -255,15 +258,16 @@ function TuoiTienCho({ t }: { t: NonNullable<TienVe["tuoi"]> }) {
 }
 
 /** COD các kỳ đã có sao kê đi đâu (13/11/2026): phí NAZA · tiền hàng NAZA trừ · về tay. */
-function CoCauCod({ c, daGui, soKy }: { c: NonNullable<TienVe["co_cau"]>; daGui: number; soKy: number }) {
+function CoCauCod({ c, soKy, ben = "NAZA" }: { c: CoCau; soKy: number; ben?: string }) {
+    const daGui = c.ve_tay_vnd;
     // "Khác" = điều chỉnh kỳ trước, làm tròn, phần Sing gộp… — phần còn lại để ba khúc cộng đúng 100%.
     const khac = c.cod_quy_vnd - c.phi_vnd - c.tien_hang_vnd - daGui;
     const pct = (x: number) => `${((x / c.cod_quy_vnd) * 100).toFixed(1)}%`;
     const khuc = [
         { nhan: "về tay", so: daGui, mau: "bg-emerald-500" },
-        { nhan: "tiền hàng NAZA trừ", so: c.tien_hang_vnd, mau: "bg-orange-400" },
-        { nhan: "phí ship + thao tác", so: c.phi_vnd, mau: "bg-violet-400" },
-        ...(Math.abs(khac) >= 1 ? [{ nhan: khac > 0 ? "điều chỉnh / khác" : "điều chỉnh cộng thêm", so: khac, mau: "bg-slate-300 dark:bg-slate-600" }] : []),
+        { nhan: `tiền hàng ${ben} trừ`, so: c.tien_hang_vnd, mau: "bg-orange-400" },
+        { nhan: "phí giao hàng (ship, thao tác, thu hộ)", so: c.phi_vnd, mau: "bg-violet-400" },
+        ...(Math.abs(khac) >= Math.max(1000, c.cod_quy_vnd * 0.001) ? [{ nhan: khac > 0 ? "điều chỉnh / khác" : "điều chỉnh cộng thêm", so: khac, mau: "bg-slate-300 dark:bg-slate-600" }] : []),
     ];
     return (
         <div className="space-y-1.5 rounded-xl border border-border bg-card px-4 py-3 shadow-sm">
@@ -339,6 +343,7 @@ type SoN = {
         ty_gia: { rmb: number | null; vnd: number | null; thu_ho_pct: number | null; ngay: string | null };
         cach_uoc: "naza" | "ty_gia_khai";
         con_lai_da_giao: UocN; con_lai_chua_giao: UocN;
+        tuoi?: TuoiTien; co_cau?: CoCau | null;
     };
     tong_quan: TongQuan;
     fx: Fx;
@@ -555,15 +560,22 @@ function CodNuocKhac({ code, nutNuoc, dateRange }: { code: string; nutNuoc?: Rea
             </button>
         );
 
-    const oLech = (k: KyN) => (
-        <span className={cn("font-semibold tabular-nums",
-            k.lech_bank_vnd == null ? "text-muted-foreground"
-                : k.trang_thai === "khop" ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400")}>
-            {k.lech_bank_vnd == null ? "·"
-                : Math.round(k.lech_bank_vnd) === 0 ? "0đ"
-                    : `${k.lech_bank_vnd > 0 ? "+" : "−"}${VND(Math.abs(k.lech_bank_vnd))}`}
-        </span>
-    );
+    // Lệch nhỏ trong ngưỡng: kỳ vẫn khớp → số xám + "bỏ qua", như màn Đài (13/11/2026).
+    const oLech = (k: KyN) => {
+        const l = k.lech_bank_vnd;
+        const nho = l != null && Math.round(l) !== 0 && k.trang_thai === "khop";
+        return (
+            <span className={cn("font-semibold tabular-nums",
+                l == null || nho ? "text-muted-foreground"
+                    : k.trang_thai === "khop" ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400")}
+                title={nho ? `Lệch dưới ${VND(so.tong_quan.bank_tolerance_vnd)} — làm tròn tỷ giá / phí chuyển, bỏ qua` : undefined}>
+                {l == null ? "·"
+                    : Math.round(l) === 0 ? "0đ"
+                        : `${l > 0 ? "+" : "−"}${VND(Math.abs(l))}`}
+                {nho && <span className="block text-[11px] font-normal">bỏ qua</span>}
+            </span>
+        );
+    };
     const oTienHang = (k: KyN) => k.tien_hang_vnd ? (
         <>
             <div className="font-semibold tabular-nums text-orange-600 dark:text-orange-400">{VND(k.tien_hang_vnd)}</div>
@@ -920,8 +932,10 @@ function TomTatTienNuoc({ so, t, m, tien, ben }: {
                     : tq.ky_cho_nhap > 0
                         ? <OSoTien mau="xanhduong" nhan="Chưa đối chiếu ngân hàng" so={VND(tq.tien_cho_nhap_vnd)} phu={`${tq.ky_cho_nhap} kỳ chưa nhập tiền về`} />
                         : <OSoTien mau="xanh" nhan="Đối chiếu ngân hàng" so={tq.ky_khop ? `${tq.ky_khop} kỳ khớp` : "—"}
-                            phu={tq.ky_khop ? "không kỳ nào lệch" : "chưa có kỳ nào có tiền về"} />}
+                            phu={tq.ky_khop ? `không kỳ nào lệch quá ${VND(tq.bank_tolerance_vnd)}` : "chưa có kỳ nào có tiền về"} />}
             </div>
+            {tv.tuoi && <TuoiTienCho t={tv.tuoi} tien={tien} moc="lên đơn" ben={ben === "NAZA" ? "NAZA" : "bên giao hàng"} />}
+            {tv.co_cau && <CoCauCod c={tv.co_cau} soKy={tv.co_cau.so_ky ?? tv.so_ky} ben={ben === "NAZA" ? "NAZA" : "bên giao hàng"} />}
             <button onClick={() => setCachTinh(!cachTinh)} aria-expanded={cachTinh}
                 className="inline-flex items-center gap-1.5 text-[12px] font-medium text-muted-foreground hover:text-foreground">
                 <Info className="h-3.5 w-3.5" />Cách tính các số này
@@ -1916,7 +1930,7 @@ function TomTatTien({ t, tq }: { t: TienVe; tq: TongQuan | null }) {
                 );
             })()}
             {t.tuoi && <TuoiTienCho t={t.tuoi} />}
-            {t.co_cau && <CoCauCod c={t.co_cau} daGui={t.da_gui_ve_vnd} soKy={t.so_ky} />}
+            {t.co_cau && <CoCauCod c={{ ...t.co_cau, ve_tay_vnd: t.co_cau.ve_tay_vnd ?? t.da_gui_ve_vnd }} soKy={t.so_ky} />}
             {t.tien_hang.loi && <p className="text-[12.5px] font-semibold text-rose-600 dark:text-rose-400">{t.tien_hang.loi}</p>}
             <button onClick={() => setCachTinh(!cachTinh)} aria-expanded={cachTinh}
                 className="inline-flex items-center gap-1.5 text-[12px] font-medium text-muted-foreground hover:text-foreground">

@@ -280,16 +280,25 @@ t("bảng các kỳ: 05/10 chờ nhập tiền về; 24/09 âm, đã trừ vào 
     assert.strictEqual(x.ky[1].tru_vao_dai, "2026-09-24");
     assert.strictEqual(x.tong_quan.ky_cho_nhap, 1);
 });
-t("việc hôm nay: nhập tiền về kỳ 05/10 + hỏi phí 12 đơn kỳ 24/09 thu cao hơn bảng", () => {
+t("việc hôm nay: nhập tiền về kỳ 05/10 + hỏi phí 12 đơn kỳ 24/09 thu cao hơn bảng + đơn quá hạn", () => {
     const x = so();
-    assert.deepStrictEqual(x.viec.map((v) => v.id).sort(), ["bank", "phi-sai"]);
+    assert.deepStrictEqual(x.viec.map((v) => v.id).sort(), ["bank", "phi-sai", "qua-han"]);
     assert.strictEqual(x.viec.find((v) => v.id === "phi-sai").so, 12);
 });
 t("nhập tiền về khớp trong 50.000đ → kỳ xong; đã hỏi phí → hết việc", () => {
     const x = so({ bank: { [ky05.filename.toLowerCase()]: { thuc_nhan_vnd: 5448000, ngay_ve: "2026-10-07", luc: "" } },
         done: { "phi:JTG0": { viec: "da_hoi", ngay: "2026-10-08", lan: 1 } } });
     assert.strictEqual(x.ky[0].trang_thai, "khop");
-    assert.deepStrictEqual(x.viec.map((v) => v.id), ["phi-sai"], "đã hỏi đơn đầu nhưng còn 11 đơn khác");
+    assert.deepStrictEqual(x.viec.map((v) => v.id).filter((id) => id !== "qua-han"), ["phi-sai"], "đã hỏi đơn đầu nhưng còn 11 đơn khác");
+});
+t("tiền chờ bao lâu (13/11/2026): đơn đã giao chưa trả chia theo số kỳ chốt sau ngày lên đơn", () => {
+    const x = so();
+    const dg = x.tien_ve.tuoi.da_giao;
+    // Mọi đơn chưa trả đều rơi vào đúng một nhóm, cộng lại bằng ô "Còn phải gửi · đơn đã giao".
+    assert.strictEqual(dg.dung_nhip.so_don + dg.qua_1_ky.so_don + dg.qua_han.so_don, x.tien_ve.con_lai_da_giao.so_don);
+    const qh = x.viec.find((v) => v.id === "qua-han");
+    assert.strictEqual(qh.so, dg.qua_han.so_don);
+    assert.deepStrictEqual(qh.nut, []);
 });
 t("việc nhóm mang đủ khoá — một lần bấm ghi cả 12 đơn phí sai", () => {
     const v = so().viec.find((x) => x.id === "phi-sai");
