@@ -21,6 +21,7 @@ import TALPHAProductPnLTab from "./tabs/product-pnl-tab";
 import TALPHACustomerTab from "./tabs/customer-tab";
 import TALPHAMarketIntelTab from "./tabs/market-intel-tab";
 import TALPHATepKhachTab from "./tabs/tep-khach-tab";
+import TALPHASoiDoiThuTab from "./tabs/soi-doi-thu-tab";
 import TALPHAAdHealthTab from "./tabs/ad-health-tab";
 import TALPHAAdSpendTab from "./tabs/ad-spend-tab";
 import TALPHACodReconTab from "./tabs/cod-recon-tab";
@@ -106,6 +107,9 @@ const NAV_GROUPS: NavGroup[] = [
             // Tệp khách (14/11/2026): số THAM CHIẾU về người Việt / Phi / Indo ở từng nước —
             // thống kê nhà nước + quy mô đối tượng Facebook, lưu ở config/tep_khach.json.
             { id: "tep-khach", label: "Tệp khách" },
+            // Soi đối thủ (15/11/2026): kết quả soi nhóm bán khác — kho POS, kênh TikTok, Ad Library —
+            // kèm thư viện sản phẩm có ảnh + link spy, lưu ở config/soi_doi_thu.json.
+            { id: "soi-doi-thu", label: "Soi đối thủ" },
         ],
     },
 ];
@@ -113,9 +117,9 @@ const NAV_GROUPS: NavGroup[] = [
 /**
  * Tab không theo bộ chọn ngày — hiện bộ chọn chỉ gây hiểu nhầm là lọc được: Ads Command Center
  * và Sức khoẻ quảng cáo đọc cửa sổ thời gian cố định trong view, Thanh toán quảng cáo lấy kỳ từ
- * file sao kê, Tệp khách là số tham chiếu theo từng bản đo.
+ * file sao kê, Tệp khách và Soi đối thủ là số tham chiếu theo từng bản đo / bản soi.
  */
-const IGNORES_DATE_RANGE = new Set(["ads-command", "ad-health", "ads-recon", "tep-khach"]);
+const IGNORES_DATE_RANGE = new Set(["ads-command", "ad-health", "ads-recon", "tep-khach", "soi-doi-thu"]);
 
 /**
  * Tab báo cáo số — không tính ngày trước mốc gốc `report_start_date` (talpha_rules.json,
@@ -400,6 +404,7 @@ export default function TALPHADashboardShell() {
                     {duocXem("customers") && <TALPHACustomerTab dateRange={dateRange} projectId="TALPHA" />}
                     {duocXem("market-intel") && <TALPHAMarketIntelTab dateRange={dateRange} projectId="TALPHA" />}
                     {duocXem("tep-khach") && <TALPHATepKhachTab />}
+                    {duocXem("soi-doi-thu") && <TALPHASoiDoiThuTab />}
                     </>}
                 </div>
             </main>

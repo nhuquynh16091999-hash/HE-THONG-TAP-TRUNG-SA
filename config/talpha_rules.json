@@ -357,12 +357,12 @@
       "leader": {
         "label": "Leader thị trường",
         "desc": "Mọi số của team mình: báo cáo, P&L, đơn, vận đơn, kế toán (lãi lỗ, tiền COD về), quảng cáo, kho, khách",
-        "tabs": ["overview", "pnl", "product-pnl", "order-ledger", "lai-lo", "cod-recon", "tracking", "products", "marketing", "ad-spend", "ads-command", "ad-health", "customers", "market-intel", "tep-khach"]
+        "tabs": ["overview", "pnl", "product-pnl", "order-ledger", "lai-lo", "cod-recon", "tracking", "products", "marketing", "ad-spend", "ads-command", "ad-health", "customers", "market-intel", "tep-khach", "soi-doi-thu"]
       },
       "marketer": {
         "label": "Marketer",
         "desc": "Quảng cáo của team mình",
-        "tabs": ["lai-lo", "marketing", "ad-spend", "ads-command", "ad-health", "products", "tep-khach"]
+        "tabs": ["lai-lo", "marketing", "ad-spend", "ads-command", "ad-health", "products", "tep-khach", "soi-doi-thu"]
       },
       "sale": {
         "label": "Sale · vận đơn",

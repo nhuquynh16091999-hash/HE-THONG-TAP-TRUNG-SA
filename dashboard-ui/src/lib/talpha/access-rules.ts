@@ -17,7 +17,7 @@ export const ALL_TABS = [
     "products", "marketing",
     "ad-spend", "ads-command", "ad-health",
     "ads-recon",
-    "customers", "market-intel", "tep-khach",
+    "customers", "market-intel", "tep-khach", "soi-doi-thu",
 ] as const;
 
 /**
@@ -175,6 +175,8 @@ export const API_RULES: Record<string, ApiRule> = {
     "/api/talpha/marketer-perf": { tabs: ["marketing"] },
     // Số tham chiếu tệp khách (config/tep_khach.json) — route tự cắt thị trường theo team.
     "/api/talpha/tep-khach": { tabs: ["tep-khach"] },
+    // Kết quả soi nhóm bán khác (config/soi_doi_thu.json) — route tự cắt bản soi theo thị trường của team.
+    "/api/talpha/soi-doi-thu": { tabs: ["soi-doi-thu"] },
     "/api/query": { tabs: ["marketing", "ad-health", "customers", "market-intel"] },
 
     // Sổ đơn / Tiền COD về / vận đơn — mỗi lượt gọi là MỘT nước. cod-actions mở cho Sổ đơn

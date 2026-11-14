@@ -178,7 +178,7 @@ máy chủ, và **dừng lại báo lỗi** nếu chép trượt.
 
 ---
 
-## 4. Màn hình — 7 nhóm, 16 tab
+## 4. Màn hình — 7 nhóm, 17 tab
 
 Vào `/` → `proxy.ts` kiểm đăng nhập → `/talpha` → `components/talpha/dashboard-shell.tsx` (menu
 chỉ hiện tab tài khoản được xem — `/api/talpha/me`).
@@ -200,6 +200,7 @@ chỉ hiện tab tài khoản được xem — `/api/talpha/me`).
 | | Sức khoẻ quảng cáo | `tabs/ad-health-tab.tsx` | `/api/query` |
 | 👥 Khách hàng | Khách hàng · Market Intel | `tabs/customer-tab.tsx` · `market-intel-tab.tsx` | `/api/query` |
 | | Tệp khách (14/11/2026) | `tabs/tep-khach-tab.tsx` | `/api/talpha/tep-khach` (đọc `config/tep_khach.json` — số tham chiếu, không phải số bán hàng) |
+| | Soi đối thủ (15/11/2026) | `tabs/soi-doi-thu-tab.tsx` | `/api/talpha/soi-doi-thu` (đọc `config/soi_doi_thu.json` + ảnh `public/soi-doi-thu/` — kết quả soi nhóm bán khác) |
 
 Ngoài shell còn `/login` và `/admin` (người dùng + TKQC).
 
@@ -213,9 +214,9 @@ luật riêng (doanh thu chỉ đơn đã giao, tên marketer là tên tài kho�
 lệch Sheet cả trăm triệu. Muốn đổi cách tính thì sửa `format_all.py` — Sheet, bot Zalo và
 tab đổi theo cùng lúc.
 
-Bốn tab **bỏ qua bộ chọn ngày** (`IGNORES_DATE_RANGE`): Ads Command Center và Sức khoẻ
+Năm tab **bỏ qua bộ chọn ngày** (`IGNORES_DATE_RANGE`): Ads Command Center và Sức khoẻ
 quảng cáo có cửa sổ thời gian cố định trong view; Thanh toán quảng cáo lấy kỳ từ chính
-file sao kê; Tệp khách là số tham chiếu theo từng bản đo.
+file sao kê; Tệp khách và Soi đối thủ là số tham chiếu theo từng bản đo / bản soi.
 
 **Tệp khách (Sỹ Anh yêu cầu lưu 14/11/2026)** — nghiên cứu thị trường để tham chiếu khi chọn
 tệp chạy quảng cáo: người Việt / Phi / Indo ở Đài Loan, Nhật Bản, Singapore. Mỗi tệp có số
@@ -227,6 +228,19 @@ mảng `snapshots`, không sửa bản cũ** (tab có ô chọn bản đo khi c�
 mã nước của dashboard (TW · JP · SG), khoá tệp là VN · PH · ID. Hàm thuần + kiểu ở
 `lib/talpha/tep-khach.ts` (test `tests/tep-khach.test.cjs` soát cả khuôn file). Leader và
 marketer thấy tab, route cắt thị trường theo team như mọi route gộp nhiều nước.
+
+**Soi đối thủ (Sỹ Anh yêu cầu 15/11/2026)** — kết quả soi nhóm bán khác để chọn hàng và học cách chạy
+quảng cáo. Bản đầu: **Team 5 KIOT Taiwan** (soi 12/11/2026) — kho Pancake POS của nhóm đó (shop
+1021976535, chỉ thấy tồn kho, không thấy đơn và giá), 24 kênh TikTok bán các sản phẩm top, Meta Ad
+Library Đài Loan. Tab có: đọc nhanh, tổng quan kho, top xuất 7 ngày, tín hiệu (đặt thêm hàng, đang
+test, hoàn cao, ôm tồn), **thư viện 35 sản phẩm có ảnh + link spy** (kênh TikTok, video top, tìm
+TikTok, Ad Library), công thức quảng cáo, Facebook, kế hoạch áp dụng. Số ở `config/soi_doi_thu.json`:
+**mỗi lần soi thêm một bản vào ĐẦU mảng `snapshots`, không sửa bản cũ**; mỗi bản gắn một thị trường
+(`thi_truong`, mã nước dashboard) để route cắt theo team. Ảnh ở `dashboard-ui/public/soi-doi-thu/<nguồn>/`
+(ảnh tĩnh, không qua đăng nhập — chỉ để ảnh quảng cáo công khai). Hàm thuần + kiểu ở
+`lib/talpha/soi-doi-thu.ts` (test `tests/soi-doi-thu.test.cjs` soát khuôn file và ảnh có thật).
+Lịch tự soi lại hằng tuần chạy trên máy Mac của Sỹ Anh (Claude, thứ Năm 9:00), báo cáo tuần lưu ở
+`~/Desktop/AI Phân tích Ads SP/KIOT TAIWAN/theo-doi/` — chưa tự đẩy vào file này.
 
 **Mục Kế toán (Sỹ Anh chốt 07/10/2026, thêm Lãi lỗ 04/11/2026)** = Lãi lỗ + Tiền COD về (tên cũ "Đối soát COD") + Thanh toán
 quảng cáo (tên cũ "Đối soát chi phí QC"). Hai màn cùng trả lời *tiền thật có khớp không*, cùng
@@ -288,6 +302,7 @@ Meta theo nước ở tên campaign); bảng gộp mọi nước (`vw_attributio
 | `lai-lo` | Lãi lỗ đủ mọi khoản theo nước (`lib/talpha/lai-lo.ts` hàm thuần + test, nạp kiện ở `lai-lo-nguon.ts`). Doanh số + ads đọc TỔNG TEAM qua `lib/talpha/sheet-tong-team.ts` (chung với `sheet-report`); kiện Đài qua `lib/talpha/so-don-dai.ts` (chung với `order-ledger`). Route tự cắt nước theo team; chi phí chung chia theo doanh số MỌI nước | Tab Lãi lỗ |
 | `lai-lo/van-hanh` | POST thêm/sửa · DELETE xoá một khoản chi phí vận hành — chỉ người xem hết (giám đốc) | Tab Lãi lỗ |
 | `tep-khach` | Số tham chiếu tệp khách (người Việt / Phi / Indo theo thị trường) từ `config/tep_khach.json`; cắt thị trường theo team, `seen_all` báo người xem có thấy đủ nước không | Tab Tệp khách |
+| `soi-doi-thu` | Kết quả soi nhóm bán khác từ `config/soi_doi_thu.json`; chỉ trả bản soi của thị trường người xem được phép | Tab Soi đối thủ |
 | `product-pnl` | P&L từng sản phẩm: doanh số chia theo số lượng, ads theo mã SP trong tên campaign | Tab P&L theo SP |
 
 Hạ tầng: `auth/[...nextauth]`, `auth/validate`, `users`, `ad-accounts`.
