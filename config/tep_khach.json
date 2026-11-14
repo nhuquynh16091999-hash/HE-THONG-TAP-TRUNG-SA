@@ -1,0 +1,1054 @@
+{
+  "_note": "SỐ THAM CHIẾU về TỆP KHÁCH (người Việt / Phi / Indo) ở từng thị trường — nghiên cứu thị trường, KHÔNG phải số bán hàng của công ty. Tab Khách hàng → Tệp khách đọc file này qua /api/talpha/tep-khach (lib/talpha/tep-khach.ts). Mỗi lần đo lại thì THÊM một bản vào ĐẦU mảng `snapshots` (mới nhất đứng đầu), KHÔNG sửa bản cũ — để so được theo thời gian. Khoá thị trường là mã nước của dashboard (TW · JP · SG); khoá tệp là VN · PH · ID. Mọi khoảng [thấp, cao] là số tài khoản Facebook.",
+  "nhom": {
+    "VN": {
+      "ten": "Việt",
+      "day_du": "Người Việt",
+      "hanh_vi_meta": "Đã sống tại Việt Nam (trước đây là Ngoại kiều - Việt Nam)",
+      "fb_toan_cau": [
+        5625003,
+        6615004
+      ]
+    },
+    "PH": {
+      "ten": "Phi",
+      "day_du": "Người Phi",
+      "hanh_vi_meta": "Đã sống tại Philippines (Trước đây là Ngoại kiều - Philippines)",
+      "fb_toan_cau": [
+        11836743,
+        13920010
+      ]
+    },
+    "ID": {
+      "ten": "Indo",
+      "day_du": "Người Indo",
+      "hanh_vi_meta": "Đã sống tại Indonesia (trước đây là Ngoại kiều - Indonesia)",
+      "fb_toan_cau": [
+        6649978,
+        7820375
+      ]
+    }
+  },
+  "snapshots": [
+    {
+      "ngay_do": "2026-11-14",
+      "nguoi_do": "Claude (phiên AI Phân tích Ads SP)",
+      "cach_do": "Số Facebook: ô 'Quy mô đối tượng ước tính' khi tạo đối tượng đã lưu trong Ads Manager, tuổi 18–65+, vị trí = cả nước, hành vi 'Đã sống tại …' (Ngoại kiều). Là khoảng [thấp, cao] số TÀI KHOẢN, gồm cả người vừa ghé nước đó gần đây. Số chính thức: thống kê nhà nước (Đài, Nhật) hoặc ước tính đại sứ quán (Singapore).",
+      "bao_cao": "https://claude.ai/artifact/PtNQhLuiD3iFqC9F2CQPXP",
+      "tom_tat": [
+        "Chín tệp cộng lại khoảng 3,1–3,7 triệu tài khoản Facebook: Nhật 1,43–1,68 triệu, Đài 1,19–1,40 triệu, Sing 0,50–0,59 triệu.",
+        "Tệp lớn nhất là người Việt ở Nhật (693.750 người cư trú; Facebook 717–844 nghìn). Nhỏ nhất là người Việt ở Sing.",
+        "Tăng nhanh nhất: người Indo ở Nhật (+15,6% trong 6 tháng đầu 2026, gấp 3,1 lần cuối 2022) và người Phi ở Đài (+12,5% một năm).",
+        "Tệp nhiều nữ nhất: Phi ở Sing 71%, Indo ở Sing 68%, Indo ở Đài 67%. Tệp nhiều nam nhất: Indo ở Nhật 68% nam, Việt ở Nhật 56% nam.",
+        "Tệp Phi ở Nhật (465–547 nghìn) gần gấp đôi tệp Phi ở Đài (243–286 nghìn) và lớn tuổi hơn hẳn: 38% từ 45 tuổi."
+      ],
+      "thi_truong": {
+        "TW": {
+          "ten": "Đài Loan",
+          "fb_ca_nuoc": [
+            20000000,
+            23500000
+          ],
+          "nguon_chinh_thuc": "Bộ Lao động Đài Loan, cuối 9/2026 (theo thành phố: cuối 2025)",
+          "tep": {
+            "VN": {
+              "fb": [
+                551700,
+                649100
+              ],
+              "nam": [
+                279300,
+                328600
+              ],
+              "nu": [
+                254900,
+                299900
+              ],
+              "tuoi": {
+                "18-24": [
+                  100900,
+                  118700
+                ],
+                "25-34": [
+                  198300,
+                  233300
+                ],
+                "35-44": [
+                  153000,
+                  180000
+                ],
+                "45+": [
+                  87400,
+                  102900
+                ]
+              },
+              "chinh_thuc": 483622,
+              "chinh_thuc_loai": "thong_ke",
+              "chinh_thuc_ghi_chu": "302.690 lao động + 127.958 cô dâu + 52.974 du học sinh",
+              "diem_chinh": [
+                "92% lao động có giấy phép làm nhà máy; công nhân 68% là nam",
+                "Thêm 128 nghìn cô dâu và 53 nghìn du học sinh",
+                "17,4% lao động Việt đang mất liên lạc với chủ (54.814 người)",
+                "Đông nhất: Đào Viên 41,6k, Đài Trung 38,3k, Tân Bắc 35,0k, Chương Hóa 24,8k"
+              ]
+            },
+            "PH": {
+              "fb": [
+                243400,
+                286300
+              ],
+              "nam": [
+                103800,
+                122200
+              ],
+              "nu": [
+                138100,
+                162500
+              ],
+              "tuoi": {
+                "18-24": [
+                  13500,
+                  15800
+                ],
+                "25-34": [
+                  125500,
+                  147600
+                ],
+                "35-44": [
+                  73200,
+                  86200
+                ],
+                "45+": [
+                  33600,
+                  39500
+                ]
+              },
+              "chinh_thuc": 194284,
+              "chinh_thuc_loai": "thong_ke",
+              "chinh_thuc_ghi_chu": "194.284 lao động (9/2026), chưa gồm cô dâu và du học sinh",
+              "diem_chinh": [
+                "89% làm nhà máy, 11% chăm sóc; 55% nữ",
+                "Tăng 12,5% trong một năm, nhanh nhất ở Đài",
+                "Rất ít bỏ trốn (1,3%)",
+                "Đông nhất: Đào Viên 40,0k, Tân Trúc 32,0k, Cao Hùng 20,8k, Đài Trung 18,7k"
+              ]
+            },
+            "ID": {
+              "fb": [
+                395900,
+                465800
+              ],
+              "nam": [
+                130700,
+                153700
+              ],
+              "nu": [
+                262300,
+                308600
+              ],
+              "tuoi": {
+                "18-24": [
+                  40600,
+                  47800
+                ],
+                "25-34": [
+                  179300,
+                  211000
+                ],
+                "35-44": [
+                  112400,
+                  132200
+                ],
+                "45+": [
+                  62900,
+                  74000
+                ]
+              },
+              "chinh_thuc": 365343,
+              "chinh_thuc_loai": "thong_ke",
+              "chinh_thuc_ghi_chu": "346.603 lao động + khoảng 19 nghìn du học sinh",
+              "diem_chinh": [
+                "63% làm chăm sóc tại nhà chủ hoặc viện dưỡng lão; 66% nữ",
+                "37% còn lại làm nhà máy, xây dựng, thuyền viên (7.237 người đi biển)",
+                "Tăng 9,3% trong một năm",
+                "Rải khắp đảo: Tân Bắc 41,6k, Đài Trung 36,4k, Đào Viên 34,0k, Đài Bắc 30,6k"
+              ]
+            }
+          },
+          "xu_huong": {
+            "tieu_de": "Lao động có giấy phép",
+            "moc": [
+              "Cuối 2015",
+              "Cuối 2016",
+              "Cuối 2017",
+              "Cuối 2018",
+              "Cuối 2019",
+              "Cuối 2020",
+              "Cuối 2021",
+              "Cuối 2022",
+              "Cuối 2023",
+              "Cuối 2024",
+              "Cuối 2025",
+              "9/2026"
+            ],
+            "VN": [
+              143009,
+              155859,
+              180463,
+              196755,
+              201019,
+              204981,
+              193891,
+              206843,
+              208132,
+              224542,
+              233313,
+              244822
+            ],
+            "PH": [
+              119143,
+              132023,
+              145072,
+              150459,
+              154194,
+              147455,
+              138592,
+              151455,
+              145957,
+              157027,
+              170252,
+              190798
+            ],
+            "ID": [
+              208641,
+              216348,
+              229475,
+              239522,
+              249099,
+              234517,
+              210112,
+              222729,
+              244142,
+              272304,
+              293586,
+              314751
+            ]
+          },
+          "bang": [
+            {
+              "tieu_de": "Loại việc (9/2026)",
+              "nguon": "Bộ Lao động Đài Loan, bảng 12-5",
+              "ty_le_theo_tong": true,
+              "dong": [
+                {
+                  "ten": "Nhà máy, xây dựng, nông – ngư nghiệp",
+                  "VN": 225802,
+                  "PH": 169651,
+                  "ID": 115946
+                },
+                {
+                  "ten": "Chăm sóc tại nhà",
+                  "VN": 9185,
+                  "PH": 18562,
+                  "ID": 187479
+                },
+                {
+                  "ten": "Chăm sóc tại viện dưỡng lão",
+                  "VN": 9485,
+                  "PH": 1427,
+                  "ID": 5732
+                },
+                {
+                  "ten": "Giúp việc nhà và khác",
+                  "VN": 350,
+                  "PH": 1158,
+                  "ID": 5594
+                },
+                {
+                  "ten": "Giấy phép hết hiệu lực",
+                  "VN": 57868,
+                  "PH": 3486,
+                  "ID": 31852
+                },
+                {
+                  "ten": "Tổng",
+                  "VN": 302690,
+                  "PH": 194284,
+                  "ID": 346603,
+                  "tong": true
+                }
+              ]
+            },
+            {
+              "tieu_de": "Nam / nữ và mất liên lạc (9/2026)",
+              "nguon": "Bộ Lao động Đài Loan, bảng 12-6, 12-7",
+              "ty_le_theo_tong": false,
+              "dong": [
+                {
+                  "ten": "Nam (giấy phép còn hiệu lực)",
+                  "VN": 166419,
+                  "PH": 85443,
+                  "ID": 106276
+                },
+                {
+                  "ten": "Nữ (giấy phép còn hiệu lực)",
+                  "VN": 78403,
+                  "PH": 105355,
+                  "ID": 208475
+                },
+                {
+                  "ten": "Lao động mất liên lạc với chủ",
+                  "VN": 54814,
+                  "PH": 2598,
+                  "ID": 29587
+                }
+              ]
+            },
+            {
+              "tieu_de": "Theo thành phố / huyện (cuối 2025, lao động có giấy phép)",
+              "nguon": "Niên giám Bộ Lao động Đài Loan 2025, bảng 13-6",
+              "ty_le_theo_tong": false,
+              "dong": [
+                {
+                  "ten": "Đào Viên (Taoyuan)",
+                  "VN": 41644,
+                  "PH": 39995,
+                  "ID": 34037
+                },
+                {
+                  "ten": "Đài Trung (Taichung)",
+                  "VN": 38306,
+                  "PH": 18699,
+                  "ID": 36356
+                },
+                {
+                  "ten": "Tân Bắc (New Taipei)",
+                  "VN": 34961,
+                  "PH": 11231,
+                  "ID": 41601
+                },
+                {
+                  "ten": "Cao Hùng (Kaohsiung)",
+                  "VN": 20934,
+                  "PH": 20770,
+                  "ID": 29190
+                },
+                {
+                  "ten": "Đài Nam (Tainan)",
+                  "VN": 21114,
+                  "PH": 15091,
+                  "ID": 21389
+                },
+                {
+                  "ten": "Chương Hóa (Changhua)",
+                  "VN": 24809,
+                  "PH": 6206,
+                  "ID": 22909
+                },
+                {
+                  "ten": "Tân Trúc (Hsinchu, huyện + TP)",
+                  "VN": 9595,
+                  "PH": 32034,
+                  "ID": 12574
+                },
+                {
+                  "ten": "Đài Bắc (Taipei)",
+                  "VN": 3533,
+                  "PH": 4802,
+                  "ID": 30609
+                },
+                {
+                  "ten": "Vân Lâm (Yunlin)",
+                  "VN": 10149,
+                  "PH": 2198,
+                  "ID": 10589
+                },
+                {
+                  "ten": "Miêu Lật (Miaoli)",
+                  "VN": 5877,
+                  "PH": 8972,
+                  "ID": 8147
+                },
+                {
+                  "ten": "Bình Đông (Pingtung)",
+                  "VN": 5827,
+                  "PH": 1890,
+                  "ID": 9625
+                },
+                {
+                  "ten": "Nam Đầu (Nantou)",
+                  "VN": 4424,
+                  "PH": 2049,
+                  "ID": 6246
+                },
+                {
+                  "ten": "Gia Nghĩa (huyện + TP)",
+                  "VN": 5254,
+                  "PH": 2145,
+                  "ID": 10705
+                },
+                {
+                  "ten": "Nghi Lan (Yilan)",
+                  "VN": 3965,
+                  "PH": 1817,
+                  "ID": 7204
+                },
+                {
+                  "ten": "Cơ Long (Keelung)",
+                  "VN": 1062,
+                  "PH": 710,
+                  "ID": 3539
+                },
+                {
+                  "ten": "Hoa Liên (Hualien)",
+                  "VN": 957,
+                  "PH": 1195,
+                  "ID": 3356
+                },
+                {
+                  "ten": "Đài Đông (Taitung)",
+                  "VN": 619,
+                  "PH": 238,
+                  "ID": 2000
+                },
+                {
+                  "ten": "Bành Hồ, Kim Môn, Liên Giang",
+                  "VN": 283,
+                  "PH": 210,
+                  "ID": 3510
+                },
+                {
+                  "ten": "Cả Đài Loan",
+                  "VN": 233313,
+                  "PH": 170252,
+                  "ID": 293586,
+                  "tong": true
+                }
+              ]
+            }
+          ],
+          "ghi_chu": [
+            "Cô dâu Việt: 127.958 người (7/2026), nhóm hôn phối nước ngoài lớn thứ hai sau Trung Quốc.",
+            "Du học sinh: Việt 52.974 (2025, tăng hơn 13 nghìn so với 2024); Indo khoảng 19 nghìn.",
+            "Tăng so với cùng kỳ năm trước (lao động có giấy phép): Phi +12,5%, Indo +9,3%, Việt +3,3%.",
+            "Thu nhập: lương tối thiểu 2026 là NT$29.500/tháng, dự kiến NT$30.900 từ 2027. Người chăm sóc tại nhà không thuộc lương tối thiểu chung và được trả thấp hơn (chưa tra được mức mới nhất).",
+            "74% lao động Phi nằm ở Đào Viên, Tân Trúc, Cao Hùng, Đài Trung, Đài Nam."
+          ]
+        },
+        "JP": {
+          "ten": "Nhật Bản",
+          "fb_ca_nuoc": [
+            66300000,
+            78000000
+          ],
+          "nguon_chinh_thuc": "Cục Quản lý Xuất nhập cảnh Nhật, cuối 6/2026",
+          "tep": {
+            "VN": {
+              "fb": [
+                717300,
+                843900
+              ],
+              "nam": [
+                396400,
+                466300
+              ],
+              "nu": [
+                310600,
+                365400
+              ],
+              "tuoi": {
+                "18-24": [
+                  176200,
+                  207300
+                ],
+                "25-34": [
+                  378000,
+                  444700
+                ],
+                "35-44": [
+                  116400,
+                  136900
+                ],
+                "45+": [
+                  48900,
+                  57500
+                ]
+              },
+              "chinh_thuc": 693750,
+              "chinh_thuc_loai": "thong_ke",
+              "chinh_thuc_ghi_chu": "693.750 người cư trú (6/2026)",
+              "diem_chinh": [
+                "Thực tập sinh 25%, kỹ năng đặc định 26%, kỹ sư 18%, gia đình đi kèm 12%",
+                "Tăng chậm lại: +1,9% trong 6 tháng",
+                "77% dưới 35 tuổi",
+                "Đông nhất: Osaka 73,1k, Aichi 72,9k, Tokyo 58,8k, Saitama 54,7k"
+              ]
+            },
+            "PH": {
+              "fb": [
+                464900,
+                546900
+              ],
+              "nam": [
+                192200,
+                226100
+              ],
+              "nu": [
+                264500,
+                311200
+              ],
+              "tuoi": {
+                "18-24": [
+                  37400,
+                  44000
+                ],
+                "25-34": [
+                  142600,
+                  167700
+                ],
+                "35-44": [
+                  105500,
+                  124100
+                ],
+                "45+": [
+                  177600,
+                  208900
+                ]
+              },
+              "chinh_thuc": 362761,
+              "chinh_thuc_loai": "thong_ke",
+              "chinh_thuc_ghi_chu": "362.761 người cư trú (6/2026)",
+              "diem_chinh": [
+                "65% là dân định cư: vĩnh trú 40%, định trú 18%, vợ/chồng người Nhật 7%",
+                "Thực tập sinh 12%, kỹ năng đặc định 11%",
+                "38% từ 45 tuổi",
+                "Đông nhất: Aichi 49,3k, Tokyo 38,6k, Kanagawa 28,7k, Saitama 26,3k"
+              ]
+            },
+            "ID": {
+              "fb": [
+                243000,
+                285900
+              ],
+              "nam": [
+                165700,
+                194900
+              ],
+              "nu": [
+                78200,
+                92000
+              ],
+              "tuoi": {
+                "18-24": [
+                  77900,
+                  91700
+                ],
+                "25-34": [
+                  122000,
+                  143500
+                ],
+                "35-44": [
+                  23300,
+                  27500
+                ],
+                "45+": [
+                  24500,
+                  28800
+                ]
+              },
+              "chinh_thuc": 307456,
+              "chinh_thuc_loai": "thong_ke",
+              "chinh_thuc_ghi_chu": "307.456 người cư trú (6/2026)",
+              "diem_chinh": [
+                "81% là lao động trẻ: thực tập sinh 45%, kỹ năng đặc định 35%",
+                "Tăng 15,6% trong 6 tháng; cuối 2022 mới có 98.865 người",
+                "Facebook đếm thấp hơn số thật: nhiều người mới sang",
+                "Rải đều cả nước: Aichi 23,8k, Tokyo 18,3k, Osaka 17,9k, Hokkaido 16,0k"
+              ]
+            }
+          },
+          "xu_huong": {
+            "tieu_de": "Người cư trú",
+            "moc": [
+              "Cuối 2012",
+              "Cuối 2014",
+              "Cuối 2016",
+              "Cuối 2018",
+              "Cuối 2020",
+              "Cuối 2022",
+              "Cuối 2023",
+              "Cuối 2024",
+              "Cuối 2025",
+              "6/2026"
+            ],
+            "VN": [
+              52367,
+              99865,
+              199990,
+              330835,
+              448053,
+              489312,
+              565026,
+              634361,
+              681100,
+              693750
+            ],
+            "PH": [
+              202985,
+              217585,
+              243662,
+              271289,
+              279660,
+              298740,
+              322046,
+              341518,
+              356579,
+              362761
+            ],
+            "ID": [
+              25532,
+              30210,
+              42850,
+              56346,
+              66832,
+              98865,
+              149101,
+              199824,
+              266069,
+              307456
+            ]
+          },
+          "bang": [
+            {
+              "tieu_de": "Loại visa (6/2026)",
+              "nguon": "Cục Quản lý Xuất nhập cảnh Nhật, bảng 2",
+              "ty_le_theo_tong": true,
+              "dong": [
+                {
+                  "ten": "Thực tập sinh kỹ năng",
+                  "VN": 176865,
+                  "PH": 43781,
+                  "ID": 139846
+                },
+                {
+                  "ten": "Kỹ năng đặc định",
+                  "VN": 176915,
+                  "PH": 38630,
+                  "ID": 108367
+                },
+                {
+                  "ten": "Kỹ sư / nhân văn / nghiệp vụ quốc tế",
+                  "VN": 126159,
+                  "PH": 12009,
+                  "ID": 11819
+                },
+                {
+                  "ten": "Gia đình đi kèm",
+                  "VN": 82565,
+                  "PH": 6935,
+                  "ID": 8044
+                },
+                {
+                  "ten": "Du học",
+                  "VN": 43735,
+                  "PH": 2409,
+                  "ID": 7701
+                },
+                {
+                  "ten": "Vĩnh trú",
+                  "VN": 35270,
+                  "PH": 144933,
+                  "ID": 8596
+                },
+                {
+                  "ten": "Định trú",
+                  "VN": 7963,
+                  "PH": 63877,
+                  "ID": 3016
+                },
+                {
+                  "ten": "Vợ/chồng người Nhật",
+                  "VN": 7641,
+                  "PH": 25838,
+                  "ID": 2882
+                },
+                {
+                  "ten": "Hoạt động đặc định",
+                  "VN": 18199,
+                  "PH": 5660,
+                  "ID": 11555
+                },
+                {
+                  "ten": "Khác",
+                  "VN": 18438,
+                  "PH": 18689,
+                  "ID": 5630
+                },
+                {
+                  "ten": "Tổng",
+                  "VN": 693750,
+                  "PH": 362761,
+                  "ID": 307456,
+                  "tong": true
+                }
+              ]
+            },
+            {
+              "tieu_de": "Theo tỉnh (6/2026)",
+              "nguon": "Cục Quản lý Xuất nhập cảnh Nhật, bảng 5",
+              "ty_le_theo_tong": false,
+              "dong": [
+                {
+                  "ten": "Aichi",
+                  "VN": 72875,
+                  "PH": 49334,
+                  "ID": 23833
+                },
+                {
+                  "ten": "Tokyo",
+                  "VN": 58809,
+                  "PH": 38589,
+                  "ID": 18316
+                },
+                {
+                  "ten": "Osaka",
+                  "VN": 73072,
+                  "PH": 13660,
+                  "ID": 17854
+                },
+                {
+                  "ten": "Saitama",
+                  "VN": 54712,
+                  "PH": 26341,
+                  "ID": 16644
+                },
+                {
+                  "ten": "Kanagawa",
+                  "VN": 45970,
+                  "PH": 28694,
+                  "ID": 16710
+                },
+                {
+                  "ten": "Chiba",
+                  "VN": 43184,
+                  "PH": 24796,
+                  "ID": 16568
+                },
+                {
+                  "ten": "Hyogo",
+                  "VN": 35484,
+                  "PH": 7429,
+                  "ID": 8968
+                },
+                {
+                  "ten": "Shizuoka",
+                  "VN": 21879,
+                  "PH": 21659,
+                  "ID": 10607
+                },
+                {
+                  "ten": "Ibaraki",
+                  "VN": 21652,
+                  "PH": 12207,
+                  "ID": 14613
+                },
+                {
+                  "ten": "Fukuoka",
+                  "VN": 23643,
+                  "PH": 7828,
+                  "ID": 11135
+                },
+                {
+                  "ten": "Gifu",
+                  "VN": 16285,
+                  "PH": 17052,
+                  "ID": 6954
+                },
+                {
+                  "ten": "Hokkaido",
+                  "VN": 13815,
+                  "PH": 4390,
+                  "ID": 15992
+                },
+                {
+                  "ten": "Gunma",
+                  "VN": 17011,
+                  "PH": 9879,
+                  "ID": 9370
+                },
+                {
+                  "ten": "Hiroshima",
+                  "VN": 16093,
+                  "PH": 11532,
+                  "ID": 8852
+                },
+                {
+                  "ten": "Mie",
+                  "VN": 16155,
+                  "PH": 9190,
+                  "ID": 6394
+                },
+                {
+                  "ten": "Cả nước Nhật",
+                  "VN": 693750,
+                  "PH": 362761,
+                  "ID": 307456,
+                  "tong": true
+                }
+              ]
+            }
+          ],
+          "ghi_chu": [
+            "6 tháng đầu 2026: Indo +41.387 người, Việt +12.650, Phi +6.182.",
+            "Việt và Indo là lao động trẻ có hợp đồng: thực tập sinh cộng kỹ năng đặc định chiếm 51% người Việt và 81% người Indo.",
+            "Phi là dân định cư: 65% có visa vĩnh trú, định trú hoặc là vợ/chồng người Nhật.",
+            "Thu nhập bình quân tháng (khảo sát lương 2025 của Bộ Lao động Nhật): thực tập sinh ¥190.300, kỹ năng đặc định ¥221.400."
+          ]
+        },
+        "SG": {
+          "ten": "Singapore",
+          "fb_ca_nuoc": [
+            5900000,
+            6900000
+          ],
+          "nguon_chinh_thuc": "Không có số chính thức theo quốc tịch; cột chính thức là ước tính của đại sứ quán",
+          "tep": {
+            "VN": {
+              "fb": [
+                61200,
+                72000
+              ],
+              "nam": [
+                29300,
+                34400
+              ],
+              "nu": [
+                31400,
+                36900
+              ],
+              "tuoi": {
+                "18-24": [
+                  5200,
+                  6100
+                ],
+                "25-34": [
+                  18800,
+                  22100
+                ],
+                "35-44": [
+                  18600,
+                  21900
+                ],
+                "45+": [
+                  18700,
+                  22000
+                ]
+              },
+              "chinh_thuc": 25000,
+              "chinh_thuc_loai": "uoc_tinh",
+              "chinh_thuc_ghi_chu": "Đại sứ quán Việt Nam (2025): hơn 25.000 người",
+              "diem_chinh": [
+                "Cộng đồng nhỏ: sinh viên, chuyên gia, cô dâu",
+                "Facebook cao gấp 2,7 lần ước tính, có lẫn khách du lịch",
+                "Tuổi trải đều từ 25 trở lên"
+              ]
+            },
+            "PH": {
+              "fb": [
+                225800,
+                265700
+              ],
+              "nam": [
+                64400,
+                75800
+              ],
+              "nu": [
+                160400,
+                188700
+              ],
+              "tuoi": {
+                "18-24": [
+                  7000,
+                  8300
+                ],
+                "25-34": [
+                  48000,
+                  56400
+                ],
+                "35-44": [
+                  84000,
+                  98800
+                ],
+                "45+": [
+                  86200,
+                  101400
+                ]
+              },
+              "chinh_thuc": 215000,
+              "chinh_thuc_loai": "uoc_tinh",
+              "chinh_thuc_ghi_chu": "Các bài dẫn nguồn Đại sứ quán Philippines: 200–215 nghìn",
+              "diem_chinh": [
+                "Hơn 60% làm việc chuyên môn theo lời đại sứ; còn lại nhiều người giúp việc",
+                "71% nữ, tệp nhiều nữ nhất trong 9 tệp",
+                "76% từ 35 tuổi"
+              ]
+            },
+            "ID": {
+              "fb": [
+                215200,
+                253200
+              ],
+              "nam": [
+                68900,
+                81100
+              ],
+              "nu": [
+                145100,
+                170700
+              ],
+              "tuoi": {
+                "18-24": [
+                  7800,
+                  9200
+                ],
+                "25-34": [
+                  62100,
+                  73000
+                ],
+                "35-44": [
+                  66700,
+                  78400
+                ],
+                "45+": [
+                  77800,
+                  91500
+                ]
+              },
+              "chinh_thuc": 216000,
+              "chinh_thuc_loai": "uoc_tinh",
+              "chinh_thuc_ghi_chu": "Đại sứ quán Indonesia (2017): 216.000, chưa có số mới",
+              "diem_chinh": [
+                "Phần lớn là giúp việc gia đình",
+                "68% nữ, 67% từ 35 tuổi",
+                "Có lẫn người Indo vừa ghé Sing"
+              ]
+            }
+          },
+          "bang": [],
+          "ghi_chu": [
+            "Bộ Nhân lực Singapore không công bố lao động theo quốc tịch.",
+            "Cả nước có 301.600 người giúp việc gia đình nước ngoài (12/2024), phần lớn là người Indo, Phi và Myanmar.",
+            "Đại sứ Philippines (10/2026): hơn 60% lao động Phi ở Sing làm việc chuyên môn (y tế, khách sạn, IT, kỹ sư).",
+            "Thu nhập: S Pass tối thiểu S$3.300/tháng (lên S$3.600 từ 2027). Chưa tra được lương giúp việc từ nguồn tin cậy."
+          ]
+        }
+      },
+      "nhan_dinh": {
+        "ghi_chu": "Nhận định của Claude từ các số ở trên, xếp cho hàng trang sức và sức khỏe. Chưa có giá quảng cáo hay tỷ lệ chốt đơn của từng tệp để kiểm chứng.",
+        "thu_tu": [
+          {
+            "tep": "Phi ở Nhật",
+            "ly_do": "Tệp Phi lớn nhất trong ba thị trường. 58% nữ, 61% từ 35 tuổi, 65% có visa định cư nên địa chỉ nhận hàng ổn định. Cần kiểm tra trước: phí giao hàng và cách thu hộ COD ở Nhật."
+          },
+          {
+            "tep": "Phi ở Đài",
+            "ly_do": "Đang chạy sẵn. Tăng 12,5% một năm, 81% ở tuổi 25–44. 74% lao động Phi nằm ở 5 vùng nên có thể khoanh vùng thay vì chạy cả đảo."
+          },
+          {
+            "tep": "Indo ở Đài",
+            "ly_do": "Tệp nữ lớn nhất Đài Loan (262–309 nghìn nữ). 63% làm chăm sóc tại nhà chủ, thu nhập thấp hơn công nhân và ít ngày nghỉ. Nên thử hàng giá thấp, nội dung tiếng Indonesia."
+          },
+          {
+            "tep": "Việt ở Nhật và Việt ở Đài",
+            "ly_do": "Hai tệp lớn nhất, lợi thế viết bằng tiếng mẹ đẻ. Việt ở Nhật trẻ (77% dưới 35) và nghiêng nam; Việt ở Đài cân bằng nam nữ nhờ nhóm cô dâu. Chưa đo mức cạnh tranh."
+          },
+          {
+            "tep": "Phi và Indo ở Sing",
+            "ly_do": "Mỗi tệp 215–266 nghìn, khoảng 70% nữ, phần lớn từ 35 tuổi. Thị trường gọn trong một thành phố."
+          },
+          {
+            "tep": "Indo ở Nhật",
+            "ly_do": "Tăng nhanh nhất nhưng 68% nam và 81% dưới 35 tuổi. Không hợp trang sức nữ; để dành cho sản phẩm nam."
+          },
+          {
+            "tep": "Việt ở Sing",
+            "ly_do": "Nhỏ nhất, chưa đáng mở riêng."
+          }
+        ]
+      },
+      "gioi_han": [
+        "Số Facebook là số tài khoản, là một khoảng ước tính và Meta thay đổi theo thời gian.",
+        "Vị trí mặc định của Meta gồm cả người vừa ở nước đó gần đây, nên có lẫn khách du lịch. Ảnh hưởng rõ nhất ở Singapore.",
+        "Tỷ lệ nam nữ và độ tuổi tính từ điểm giữa của các khoảng; cộng các nhóm tuổi có thể lệch vài phần trăm so với tổng.",
+        "Chưa có số cô dâu Phi và Indo ở Đài.",
+        "Chưa đo: giá quảng cáo, mức cạnh tranh, tệp theo ngôn ngữ và tệp trên TikTok."
+      ],
+      "nguon": [
+        {
+          "ten": "Bộ Lao động Đài Loan – lao động theo quốc tịch (bảng 12-3)",
+          "url": "https://statdb.mol.gov.tw/html/mon/c12030.pdf"
+        },
+        {
+          "ten": "Bộ Lao động Đài Loan – theo loại việc (bảng 12-5)",
+          "url": "https://statdb.mol.gov.tw/html/mon/c12050.pdf"
+        },
+        {
+          "ten": "Bộ Lao động Đài Loan – theo giới tính (bảng 12-6)",
+          "url": "https://statdb.mol.gov.tw/html/mon/212060.pdf"
+        },
+        {
+          "ten": "Bộ Lao động Đài Loan – mất liên lạc (bảng 12-7)",
+          "url": "https://statdb.mol.gov.tw/html/mon/c12070.pdf"
+        },
+        {
+          "ten": "Bộ Lao động Đài Loan – theo thành phố (niên giám 2025, bảng 13-6)",
+          "url": "https://statdb.mol.gov.tw/html/year/year14/313060.pdf"
+        },
+        {
+          "ten": "Cục Quản lý Xuất nhập cảnh Nhật – người nước ngoài cư trú cuối 6/2026",
+          "url": "https://www.moj.go.jp/isa/publications/press/13_00070.html"
+        },
+        {
+          "ten": "Cô dâu Việt ở Đài (Global Views, dẫn số Sở Di dân)",
+          "url": "https://city.gvm.com.tw/article/132924"
+        },
+        {
+          "ten": "Du học sinh Việt ở Đài (Focus Taiwan)",
+          "url": "https://focustaiwan.tw/culture/202608020011"
+        },
+        {
+          "ten": "Du học sinh Indo ở Đài (Taipei Times)",
+          "url": "https://www.taipeitimes.com/News/taiwan/archives/2026/07/12/2003860624"
+        },
+        {
+          "ten": "Người Việt ở Singapore hơn 25.000 (Việt Nam News)",
+          "url": "https://vietnamnews.vn/politics-laws/1693718/party-general-secretary-meets-with-vietnamese-embassy-staff-community-in-singapore.html"
+        },
+        {
+          "ten": "Người Phi ở Singapore, tỷ lệ chuyên môn (Tribune)",
+          "url": "https://tribune.net.ph/2026/10/07/over-60-of-filipinos-in-singapore-are-professionals-envoy-says"
+        },
+        {
+          "ten": "Người Indo ở Singapore 216.000, 2017 (Antara)",
+          "url": "https://megapolitan.antaranews.com/berita/32313/wni-yang-tinggal-di-singapura-mencapai-216000-orang"
+        },
+        {
+          "ten": "Lao động nước ngoài ở Singapore (DollarsAndSense)",
+          "url": "https://dollarsandsense.sg/business/at-a-glance-understanding-singapores-foreign-workforce-number/"
+        },
+        {
+          "ten": "Lương tối thiểu Đài Loan 2026",
+          "url": "https://www.humanresourcesonline.net/taiwan-to-raise-monthly-minimum-wage-to-nt-29-500-from-1-january-2026"
+        },
+        {
+          "ten": "Khảo sát lương Nhật 2025 (Bộ Lao động Nhật)",
+          "url": "https://www.mhlw.go.jp/toukei/itiran/roudou/chingin/kouzou/z2025/dl/09.pdf"
+        },
+        {
+          "ten": "S Pass Singapore",
+          "url": "https://www.thestar.com.my/aseanplus/aseanplus-news/2026/02/12/singapore039s-budget-2026-government-to-raise-ep-s-pass-qualifying-salaries-from-2027"
+        }
+      ]
+    }
+  ]
+}

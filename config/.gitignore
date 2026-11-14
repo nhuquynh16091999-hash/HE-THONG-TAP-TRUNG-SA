@@ -6,3 +6,7 @@
 
 # Rule nghiệp vụ (KHÔNG phải secret) — nguồn sự thật P1
 !talpha_rules.json
+
+# Số tham chiếu tệp khách — nghiên cứu thị trường công khai (thống kê nhà nước + quy mô đối
+# tượng Facebook), KHÔNG phải secret. Tab Khách hàng → Tệp khách đọc file này.
+!tep_khach.json

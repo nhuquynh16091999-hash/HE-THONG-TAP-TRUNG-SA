@@ -178,7 +178,7 @@ máy chủ, và **dừng lại báo lỗi** nếu chép trượt.
 
 ---
 
-## 4. Màn hình — 7 nhóm, 13 tab
+## 4. Màn hình — 7 nhóm, 16 tab
 
 Vào `/` → `proxy.ts` kiểm đăng nhập → `/talpha` → `components/talpha/dashboard-shell.tsx` (menu
 chỉ hiện tab tài khoản được xem — `/api/talpha/me`).
@@ -199,6 +199,7 @@ chỉ hiện tab tài khoản được xem — `/api/talpha/me`).
 | | Ads Command Center | `app/talpha/ads-command-center/page.tsx` | `/api/talpha/realtime` |
 | | Sức khoẻ quảng cáo | `tabs/ad-health-tab.tsx` | `/api/query` |
 | 👥 Khách hàng | Khách hàng · Market Intel | `tabs/customer-tab.tsx` · `market-intel-tab.tsx` | `/api/query` |
+| | Tệp khách (14/11/2026) | `tabs/tep-khach-tab.tsx` | `/api/talpha/tep-khach` (đọc `config/tep_khach.json` — số tham chiếu, không phải số bán hàng) |
 
 Ngoài shell còn `/login` và `/admin` (người dùng + TKQC).
 
@@ -212,9 +213,20 @@ luật riêng (doanh thu chỉ đơn đã giao, tên marketer là tên tài kho�
 lệch Sheet cả trăm triệu. Muốn đổi cách tính thì sửa `format_all.py` — Sheet, bot Zalo và
 tab đổi theo cùng lúc.
 
-Ba tab **bỏ qua bộ chọn ngày** (`IGNORES_DATE_RANGE`): Ads Command Center và Sức khoẻ
+Bốn tab **bỏ qua bộ chọn ngày** (`IGNORES_DATE_RANGE`): Ads Command Center và Sức khoẻ
 quảng cáo có cửa sổ thời gian cố định trong view; Thanh toán quảng cáo lấy kỳ từ chính
-file sao kê.
+file sao kê; Tệp khách là số tham chiếu theo từng bản đo.
+
+**Tệp khách (Sỹ Anh yêu cầu lưu 14/11/2026)** — nghiên cứu thị trường để tham chiếu khi chọn
+tệp chạy quảng cáo: người Việt / Phi / Indo ở Đài Loan, Nhật Bản, Singapore. Mỗi tệp có số
+người theo thống kê nhà nước (Bộ Lao động Đài Loan, Cục Xuất nhập cảnh Nhật; Singapore chỉ có
+ước tính đại sứ quán) và quy mô đối tượng Facebook đo trong Ads Manager (khoảng thấp–cao, tách
+nam nữ, 4 nhóm tuổi), kèm bảng theo thành phố / tỉnh / loại visa, xu hướng nhiều năm, nhận định
+thứ tự ưu tiên và nguồn. Số nằm ở `config/tep_khach.json`: **mỗi lần đo lại thêm một bản vào ĐẦU
+mảng `snapshots`, không sửa bản cũ** (tab có ô chọn bản đo khi có từ hai bản). Khoá thị trường là
+mã nước của dashboard (TW · JP · SG), khoá tệp là VN · PH · ID. Hàm thuần + kiểu ở
+`lib/talpha/tep-khach.ts` (test `tests/tep-khach.test.cjs` soát cả khuôn file). Leader và
+marketer thấy tab, route cắt thị trường theo team như mọi route gộp nhiều nước.
 
 **Mục Kế toán (Sỹ Anh chốt 07/10/2026, thêm Lãi lỗ 04/11/2026)** = Lãi lỗ + Tiền COD về (tên cũ "Đối soát COD") + Thanh toán
 quảng cáo (tên cũ "Đối soát chi phí QC"). Hai màn cùng trả lời *tiền thật có khớp không*, cùng
@@ -275,6 +287,7 @@ Meta theo nước ở tên campaign); bảng gộp mọi nước (`vw_attributio
 | `pnl-costs` | Giá vốn + phí ship ước tính của đơn đã chốt, theo ngày và nước; liệt kê mã chưa có giá | Tab P&L · Tổng quan |
 | `lai-lo` | Lãi lỗ đủ mọi khoản theo nước (`lib/talpha/lai-lo.ts` hàm thuần + test, nạp kiện ở `lai-lo-nguon.ts`). Doanh số + ads đọc TỔNG TEAM qua `lib/talpha/sheet-tong-team.ts` (chung với `sheet-report`); kiện Đài qua `lib/talpha/so-don-dai.ts` (chung với `order-ledger`). Route tự cắt nước theo team; chi phí chung chia theo doanh số MỌI nước | Tab Lãi lỗ |
 | `lai-lo/van-hanh` | POST thêm/sửa · DELETE xoá một khoản chi phí vận hành — chỉ người xem hết (giám đốc) | Tab Lãi lỗ |
+| `tep-khach` | Số tham chiếu tệp khách (người Việt / Phi / Indo theo thị trường) từ `config/tep_khach.json`; cắt thị trường theo team, `seen_all` báo người xem có thấy đủ nước không | Tab Tệp khách |
 | `product-pnl` | P&L từng sản phẩm: doanh số chia theo số lượng, ads theo mã SP trong tên campaign | Tab P&L theo SP |
 
 Hạ tầng: `auth/[...nextauth]`, `auth/validate`, `users`, `ad-accounts`.

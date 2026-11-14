@@ -20,6 +20,7 @@ import TALPHAPnLTab from "./tabs/pnl-tab";
 import TALPHAProductPnLTab from "./tabs/product-pnl-tab";
 import TALPHACustomerTab from "./tabs/customer-tab";
 import TALPHAMarketIntelTab from "./tabs/market-intel-tab";
+import TALPHATepKhachTab from "./tabs/tep-khach-tab";
 import TALPHAAdHealthTab from "./tabs/ad-health-tab";
 import TALPHAAdSpendTab from "./tabs/ad-spend-tab";
 import TALPHACodReconTab from "./tabs/cod-recon-tab";
@@ -102,12 +103,19 @@ const NAV_GROUPS: NavGroup[] = [
         tabs: [
             { id: "customers", label: "Khách hàng" },
             { id: "market-intel", label: "Market Intel" },
+            // Tệp khách (14/11/2026): số THAM CHIẾU về người Việt / Phi / Indo ở từng nước —
+            // thống kê nhà nước + quy mô đối tượng Facebook, lưu ở config/tep_khach.json.
+            { id: "tep-khach", label: "Tệp khách" },
         ],
     },
 ];
 
-/** Hai tab này đọc cửa sổ thời gian cố định trong view — hiện bộ chọn ngày chỉ gây hiểu nhầm là lọc được. */
-const IGNORES_DATE_RANGE = new Set(["ads-command", "ad-health", "ads-recon"]);
+/**
+ * Tab không theo bộ chọn ngày — hiện bộ chọn chỉ gây hiểu nhầm là lọc được: Ads Command Center
+ * và Sức khoẻ quảng cáo đọc cửa sổ thời gian cố định trong view, Thanh toán quảng cáo lấy kỳ từ
+ * file sao kê, Tệp khách là số tham chiếu theo từng bản đo.
+ */
+const IGNORES_DATE_RANGE = new Set(["ads-command", "ad-health", "ads-recon", "tep-khach"]);
 
 /**
  * Tab báo cáo số — không tính ngày trước mốc gốc `report_start_date` (talpha_rules.json,
@@ -391,6 +399,7 @@ export default function TALPHADashboardShell() {
                     {duocXem("ads-recon") && <TALPHAAdsReconTab />}
                     {duocXem("customers") && <TALPHACustomerTab dateRange={dateRange} projectId="TALPHA" />}
                     {duocXem("market-intel") && <TALPHAMarketIntelTab dateRange={dateRange} projectId="TALPHA" />}
+                    {duocXem("tep-khach") && <TALPHATepKhachTab />}
                     </>}
                 </div>
             </main>
